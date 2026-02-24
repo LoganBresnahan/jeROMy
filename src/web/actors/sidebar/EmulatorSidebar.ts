@@ -295,7 +295,7 @@ export class EmulatorSidebar {
       if (!w) return;
       const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;');
       w.document.write(
-        `<html><head><title>jeROMiah Logs</title><style>` +
+        `<html><head><title>jeROMy Logs</title><style>` +
         `body { background: #111; color: #ccc; font-family: monospace; font-size: 13px; ` +
         `padding: 16px; white-space: pre-wrap; word-break: break-all; }` +
         `</style></head><body>${escaped}</body></html>`

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The bridge connects Mesen2 (NES emulator on Windows) to the jeROMiah TypeScript server (in WSL2) over a TCP socket. The Lua script inside Mesen2 acts as a client, connecting to the TypeScript TCP server.
+The bridge connects Mesen2 (NES emulator on Windows) to the jeROMy TypeScript server (in WSL2) over a TCP socket. The Lua script inside Mesen2 acts as a client, connecting to the TypeScript TCP server.
 
 ```
 Browser ←—WS—→ HTTP Server (WSL2, :3000) ←—TCP—→ Lua Client (Windows, Mesen2)

@@ -1,5 +1,5 @@
 /**
- * jeROMiah — Server
+ * jeROMy — Server
  *
  * Starts an HTTP server that serves the web UI, plus a WebSocket server
  * that handles both direct emulator commands and AI agent chat.
@@ -23,6 +23,19 @@ import { WebSocketServer, WebSocket } from "ws";
 import { MesenAdapter } from "./bridge/mesen/index.js";
 import { Agent, AnthropicProvider } from "./agent/index.js";
 import { Disassembler } from "./agent/disassembler.js";
+import {
+  JeromyDatabase,
+  EventStore,
+  SessionManager,
+  SnapshotManager,
+} from "./db/index.js";
+import type {
+  NewEvent,
+  UserInstructionData,
+  AssistantResponseData,
+  ToolCallData,
+  ToolResultData,
+} from "./db/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const HTTP_PORT = 3000;
@@ -41,6 +54,14 @@ const provider = new AnthropicProvider({
   log: (text) => broadcastLog(text),
 });
 let agent: Agent; // initialized in start()
+
+// -- Database (event-sourced session store) ---------------------------------
+
+let db: JeromyDatabase;
+let eventStore: EventStore;
+let sessionManager: SessionManager;
+let snapshotManager: SnapshotManager;
+let activeSessionId: string | null = null;
 
 // -- HTTP Server -----------------------------------------------------------
 
@@ -139,8 +160,30 @@ wss.on("connection", (ws: WebSocket) => {
         ws.send(JSON.stringify({ action: "agent_error", message: "No message provided" }));
         return;
       }
+
+      // Auto-create session if none active
+      if (!activeSessionId) {
+        const session = sessionManager.createSession("New Session");
+        activeSessionId = session.id;
+        broadcastLog(`[DB] Auto-created session ${session.id}`);
+      }
+
       const hasImages = msg.images && msg.images.length > 0;
       broadcastLog(`[Agent] User: ${msg.message.slice(0, 80)}${msg.message.length > 80 ? "..." : ""}${hasImages ? ` (+${msg.images!.length} image${msg.images!.length > 1 ? "s" : ""})` : ""}`);
+
+      // Record user instruction event
+      eventStore.append(activeSessionId, {
+        type: "user_instruction",
+        data: {
+          message: msg.message,
+          has_images: hasImages ?? false,
+          images: hasImages ? msg.images : undefined,
+        },
+        asset_type: null,
+      } as NewEvent<"user_instruction">);
+
+      // Track tool calls for recording tool_use_id
+      let lastToolUseId: string | undefined;
 
       try {
         const runOptions = hasImages ? { images: msg.images } : undefined;
@@ -152,17 +195,63 @@ wss.on("connection", (ws: WebSocket) => {
               ws.send(JSON.stringify({ action: "agent_text", text: event.text }));
               break;
             case "tool_call":
-              // Detailed logging handled by agent.ts via log callback
+              // Record tool_call event (tool_use_id comes from the agent internals;
+              // we use the tool name + timestamp as a surrogate since the agent
+              // doesn't expose tool_use_id in AgentEvent)
+              lastToolUseId = `tu_${Date.now()}_${event.name}`;
+              eventStore.append(activeSessionId!, {
+                type: "tool_call",
+                data: {
+                  tool_use_id: lastToolUseId,
+                  name: event.name,
+                  input: event.input,
+                },
+                asset_type: null,
+              } as NewEvent<"tool_call">);
               ws.send(JSON.stringify({ action: "agent_tool_call", name: event.name, input: event.input }));
               break;
             case "tool_result":
-              // Detailed logging handled by agent.ts via log callback
+              eventStore.append(activeSessionId!, {
+                type: "tool_result",
+                data: {
+                  tool_use_id: lastToolUseId ?? "unknown",
+                  name: event.name,
+                  result: event.result,
+                  is_error: event.is_error,
+                },
+                asset_type: null,
+              } as NewEvent<"tool_result">);
+
+              // Extract domain events from tool results
+              extractDomainEvents(activeSessionId!, event.name, event.result);
+
               ws.send(JSON.stringify({ action: "agent_tool_result", name: event.name, result: event.result, is_error: event.is_error }));
               break;
             case "screenshot":
+              // Record screenshot as blob
+              eventStore.append(
+                activeSessionId!,
+                {
+                  type: "screenshot_captured",
+                  data: { context: "tool_result" },
+                  asset_type: null,
+                } as NewEvent<"screenshot_captured">,
+                Buffer.from(event.png_base64, "base64")
+              );
               ws.send(JSON.stringify({ action: "agent_screenshot", png_base64: event.png_base64 }));
               break;
             case "done":
+              // Record assistant response with full content blocks
+              eventStore.append(activeSessionId!, {
+                type: "assistant_response",
+                data: {
+                  text: event.text,
+                  content_blocks: agent.getHistory().at(-1)?.content ?? [],
+                  usage: event.usage,
+                },
+                asset_type: null,
+              } as NewEvent<"assistant_response">);
+              sessionManager.touch(activeSessionId!);
               ws.send(JSON.stringify({ action: "agent_done", text: event.text, usage: event.usage }));
               break;
             case "error":
@@ -186,8 +275,134 @@ wss.on("connection", (ws: WebSocket) => {
 
     if (msg.action === "chat_reset") {
       agent.resetHistory();
-      broadcastLog("[Agent] History cleared");
+      // Create a new session (old one is preserved in DB)
+      const session = sessionManager.createSession("New Session");
+      activeSessionId = session.id;
+      broadcastLog("[Agent] History cleared, new session created");
       ws.send(JSON.stringify({ action: "chat_reset", result: "ok" }));
+      return;
+    }
+
+    // -- Session Management --------------------------------------------------
+
+    if (msg.action === "session_create") {
+      const name = (msg.params?.name as string) ?? "New Session";
+      const metadata = msg.params?.metadata as Record<string, unknown> | undefined;
+      const session = sessionManager.createSession(name, metadata);
+      activeSessionId = session.id;
+      agent.resetHistory();
+      broadcastLog(`[DB] Created session "${session.name}" (${session.id})`);
+      ws.send(JSON.stringify({ action: "session_create", result: session }));
+      return;
+    }
+
+    if (msg.action === "session_list") {
+      const sessions = sessionManager.listSessions();
+      ws.send(JSON.stringify({ action: "session_list", result: { sessions, active_session_id: activeSessionId } }));
+      return;
+    }
+
+    if (msg.action === "session_switch") {
+      const id = msg.params?.id as string;
+      if (!id) {
+        ws.send(JSON.stringify({ action: "session_switch", error: "Missing session id" }));
+        return;
+      }
+      const session = sessionManager.getSession(id);
+      if (!session) {
+        ws.send(JSON.stringify({ action: "session_switch", error: "Session not found" }));
+        return;
+      }
+      // Rebuild agent history from DB events
+      const history = sessionManager.rebuildHistory(id);
+      agent.setHistory(history);
+      activeSessionId = id;
+      const turns = buildRichTurns(id);
+      const eventCount = eventStore.getEventCount(id);
+      broadcastLog(`[DB] Switched to session "${session.name}" (${id}, ${history.length} messages)`);
+      ws.send(JSON.stringify({ action: "session_switch", result: { session, message_count: history.length, event_count: eventCount, turns } }));
+      return;
+    }
+
+    if (msg.action === "session_fork") {
+      const parentId = msg.params?.parent_id as string ?? activeSessionId;
+      const forkSeq = msg.params?.fork_seq as number;
+      const name = msg.params?.name as string ?? "Fork";
+      if (!parentId) {
+        ws.send(JSON.stringify({ action: "session_fork", error: "No active session to fork" }));
+        return;
+      }
+      if (forkSeq == null) {
+        ws.send(JSON.stringify({ action: "session_fork", error: "Missing fork_seq" }));
+        return;
+      }
+      try {
+        const child = sessionManager.forkSession(parentId, forkSeq, name);
+        // Switch to the forked session
+        const history = sessionManager.rebuildHistory(child.id);
+        agent.setHistory(history);
+        activeSessionId = child.id;
+        broadcastLog(`[DB] Forked session at seq ${forkSeq} → "${child.name}" (${child.id})`);
+        ws.send(JSON.stringify({ action: "session_fork", result: child }));
+      } catch (err: any) {
+        ws.send(JSON.stringify({ action: "session_fork", error: err.message }));
+      }
+      return;
+    }
+
+    if (msg.action === "session_delete") {
+      const id = msg.params?.id as string;
+      if (!id) {
+        ws.send(JSON.stringify({ action: "session_delete", error: "Missing session id" }));
+        return;
+      }
+      const wasActive = activeSessionId === id;
+      sessionManager.deleteSession(id);
+      if (wasActive) {
+        activeSessionId = null;
+        agent.resetHistory();
+      }
+      broadcastLog(`[DB] Deleted session ${id}`);
+      ws.send(JSON.stringify({ action: "session_delete", result: { ok: true, was_active: wasActive } }));
+      return;
+    }
+
+    if (msg.action === "session_history") {
+      const id = msg.params?.id as string ?? activeSessionId;
+      if (!id) {
+        ws.send(JSON.stringify({ action: "session_history", error: "No session specified" }));
+        return;
+      }
+      const afterSeq = msg.params?.after_seq as number | undefined;
+      const limit = msg.params?.limit as number | undefined;
+      const events = eventStore.getSessionEvents(id, afterSeq, limit);
+      ws.send(JSON.stringify({ action: "session_history", result: { session_id: id, events } }));
+      return;
+    }
+
+    // -- Snapshot Management -------------------------------------------------
+
+    if (msg.action === "snapshot_create") {
+      const sessionId = msg.params?.session_id as string ?? activeSessionId;
+      const summary = msg.params?.summary as string ?? "Checkpoint";
+      if (!sessionId) {
+        ws.send(JSON.stringify({ action: "snapshot_create", error: "No session specified" }));
+        return;
+      }
+      const snapshot = snapshotManager.createSnapshot(sessionId, summary, msg.params?.metadata as any);
+      broadcastLog(`[DB] Snapshot created at seq ${snapshot.seq}`);
+      ws.send(JSON.stringify({ action: "snapshot_create", result: snapshot }));
+      return;
+    }
+
+    if (msg.action === "snapshot_list") {
+      const sessionId = msg.params?.session_id as string ?? activeSessionId;
+      if (!sessionId) {
+        ws.send(JSON.stringify({ action: "snapshot_list", error: "No session specified" }));
+        return;
+      }
+      const snapshots = snapshotManager.getSnapshots(sessionId);
+      ws.send(JSON.stringify({ action: "snapshot_list", result: snapshots }));
       return;
     }
 
@@ -278,29 +493,178 @@ wss.on("connection", (ws: WebSocket) => {
 
 // -- Start -----------------------------------------------------------------
 
-async function start() {
-  // 1. Try to load the Capstone disassembler (optional)
-  const disassembler = await Disassembler.init();
-  if (disassembler) {
-    console.log("[jeROMiah] Capstone disassembler loaded");
+// -- Rich History Turns (for UI session switching) --------------------------
+
+interface RichTurn {
+  role: "user" | "assistant";
+  text: string;
+  hasImages?: boolean;
+  tools?: Array<{
+    name: string;
+    detail: string;
+    result: string;
+    isError: boolean;
+  }>;
+  usage?: { input_tokens: number; output_tokens: number };
+}
+
+/**
+ * Build structured turn data from session events for the UI to render.
+ * Groups raw events into user/assistant turns with tool calls and results.
+ */
+function buildRichTurns(sessionId: string): RichTurn[] {
+  const events = eventStore.getSessionEvents(sessionId);
+  const turns: RichTurn[] = [];
+  let currentAssistant: RichTurn | null = null;
+  const toolMap = new Map<string, NonNullable<RichTurn["tools"]>[0]>();
+
+  for (const event of events) {
+    switch (event.type) {
+      case "user_instruction": {
+        if (currentAssistant) {
+          turns.push(currentAssistant);
+          currentAssistant = null;
+        }
+        const data = event.data as UserInstructionData;
+        turns.push({ role: "user", text: data.message, hasImages: data.has_images });
+        toolMap.clear();
+        break;
+      }
+      case "tool_call": {
+        if (!currentAssistant) {
+          currentAssistant = { role: "assistant", text: "", tools: [] };
+        }
+        if (!currentAssistant.tools) currentAssistant.tools = [];
+        const data = event.data as ToolCallData;
+        const detail = Object.entries(data.input)
+          .slice(0, 3)
+          .map(([k, v]) => {
+            const val =
+              typeof v === "string"
+                ? v.length > 40
+                  ? v.substring(0, 40) + "..."
+                  : v
+                : JSON.stringify(v);
+            return `${k}: ${val}`;
+          })
+          .join(", ");
+        const toolEntry = { name: data.name, detail, result: "", isError: false };
+        currentAssistant.tools.push(toolEntry);
+        toolMap.set(data.tool_use_id, toolEntry);
+        break;
+      }
+      case "tool_result": {
+        const data = event.data as ToolResultData;
+        const tool = toolMap.get(data.tool_use_id);
+        if (tool) {
+          tool.result = data.result;
+          tool.isError = data.is_error;
+        }
+        break;
+      }
+      case "assistant_response": {
+        if (!currentAssistant) {
+          currentAssistant = { role: "assistant", text: "" };
+        }
+        const data = event.data as AssistantResponseData;
+        currentAssistant.text = data.text;
+        currentAssistant.usage = data.usage;
+        turns.push(currentAssistant);
+        currentAssistant = null;
+        toolMap.clear();
+        break;
+      }
+    }
   }
 
-  // 2. Create the agent with all dependencies
+  // Push any dangling assistant turn (e.g. agent errored before assistant_response)
+  if (currentAssistant) {
+    turns.push(currentAssistant);
+  }
+
+  return turns;
+}
+
+/**
+ * Extract domain-specific events from tool results and record them in the DB.
+ * For example, a write_palette tool result means a palette_edit event.
+ */
+function extractDomainEvents(sessionId: string, toolName: string, resultJson: string): void {
+  try {
+    const result = JSON.parse(resultJson);
+    if (toolName === "write_palette" && result.palette_id != null) {
+      eventStore.append(sessionId, {
+        type: "palette_edit",
+        data: {
+          palette_id: result.palette_id,
+          color_index: result.color_index,
+          old_color: result.old_color,
+          new_color: result.new_color,
+        },
+        asset_type: "palette",
+      } as NewEvent<"palette_edit">);
+    }
+    if (toolName === "read_memory" && result.address != null) {
+      eventStore.append(sessionId, {
+        type: "memory_read",
+        data: {
+          address: result.address,
+          length: result.bytes?.length ?? 0,
+          mem_type: result.mem_type ?? "cpu",
+          bytes: result.bytes ?? [],
+        },
+        asset_type: null,
+      } as NewEvent<"memory_read">);
+    }
+  } catch {
+    // Non-JSON result or missing fields — skip domain event extraction
+  }
+}
+
+async function start() {
+  // 1. Initialize the database (required — fails fast if it can't init)
+  db = new JeromyDatabase({ path: "./data/jeromy.db" });
+  eventStore = new EventStore(db.db);
+  sessionManager = new SessionManager(db.db, eventStore);
+  snapshotManager = new SnapshotManager(db.db, eventStore);
+  console.log("[jeROMy] Database initialized");
+
+  // Resume most recently updated session if one exists
+  const lastSession = sessionManager.getMostRecentSession();
+  if (lastSession) {
+    activeSessionId = lastSession.id;
+    console.log(`[jeROMy] Resumed session "${lastSession.name}" (${lastSession.id})`);
+  }
+
+  // 2. Try to load the Capstone disassembler (optional)
+  const disassembler = await Disassembler.init();
+  if (disassembler) {
+    console.log("[jeROMy] Capstone disassembler loaded");
+  }
+
+  // 3. Create the agent with all dependencies
   agent = new Agent(provider, mesen, {
     log: (text) => broadcastLog(text),
   }, disassembler);
 
-  // 3. Start the bridge TCP server (Lua will connect to this)
+  // If resuming a session, rebuild agent history from DB
+  if (activeSessionId) {
+    const history = sessionManager.rebuildHistory(activeSessionId);
+    agent.setHistory(history);
+    console.log(`[jeROMy] Rebuilt ${history.length} messages from session`);
+  }
+
+  // 4. Start the bridge TCP server (Lua will connect to this)
   await mesen.listen();
 
-  // 4. Start the HTTP + WebSocket server for the browser
+  // 5. Start the HTTP + WebSocket server for the browser
   httpServer.listen(HTTP_PORT, "0.0.0.0", () => {
-    console.log(`[jeROMiah] Web UI at http://localhost:${HTTP_PORT}`);
-    console.log("[jeROMiah] Waiting for Mesen2 to connect (load bridge.lua)...");
+    console.log(`[jeROMy] Web UI at http://localhost:${HTTP_PORT}`);
+    console.log("[jeROMy] Waiting for Mesen2 to connect (load bridge.lua)...");
   });
 }
 
 start().catch((err) => {
-  console.error("[jeROMiah] Failed to start:", err);
+  console.error("[jeROMy] Failed to start:", err);
   process.exit(1);
 });

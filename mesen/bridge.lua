@@ -1,4 +1,4 @@
--- jeROMiah Bridge Script for Mesen2
+-- jeROMy Bridge Script for Mesen2
 -- Turns the emulator into a controllable tool server via TCP.
 -- Load this in Mesen2: Tools → Script Window → Open
 --
@@ -290,7 +290,7 @@ do
     resolved[#resolved + 1] = k .. "=" .. (v ~= nil and tostring(v) or "NIL")
   end
   table.sort(resolved)
-  emu.log("[jeROMiah] Resolved memTypes: " .. table.concat(resolved, ", "))
+  emu.log("[jeROMy] Resolved memTypes: " .. table.concat(resolved, ", "))
 end
 
 ---------------------------------------------------------------------------
@@ -576,7 +576,7 @@ end
 
 -- save_state / load_state: Quick navigation
 -- Mesen2 API varies by build: discover the right function names at startup.
-local save_fn = emu.saveSavestateAsync or emu.saveSavestate or emu.saveState or nil
+local save_fn = emu.saveSavestateAsync or emu.saveSavestate or emu.createSavestate or emu.saveState or nil
 local load_fn = emu.loadSavestateAsync or emu.loadSavestate or emu.loadState or nil
 
 function handlers.save_state(params)
@@ -681,8 +681,8 @@ local function try_connect()
     tcp:settimeout(0)  -- switch to non-blocking for normal operation
     conn = tcp
     recv_buffer = ""
-    emu.log("[jeROMiah] Connected to bridge server at " .. BRIDGE_HOST .. ":" .. PORT)
-    emu.displayMessage("jeROMiah", "Connected to bridge")
+    emu.log("[jeROMy] Connected to bridge server at " .. BRIDGE_HOST .. ":" .. PORT)
+    emu.displayMessage("jeROMy", "Connected to bridge")
     return true
   else
     tcp:close()
@@ -702,12 +702,12 @@ local function handle_message(msg)
 
   local ok, request = pcall(json.decode, msg)
   if not ok then
-    emu.log("[jeROMiah] JSON parse error: " .. tostring(request))
+    emu.log("[jeROMy] JSON parse error: " .. tostring(request))
     return json.encode({ id = "error", error = "invalid JSON: " .. tostring(request) })
   end
 
   if type(request) ~= "table" then
-    emu.log("[jeROMiah] Decoded value is not a table: " .. type(request) .. " raw=" .. msg:sub(1, 80))
+    emu.log("[jeROMy] Decoded value is not a table: " .. type(request) .. " raw=" .. msg:sub(1, 80))
     return json.encode({ id = "error", error = "expected JSON object, got " .. type(request) })
   end
 
@@ -717,7 +717,7 @@ local function handle_message(msg)
 
   local handler = handlers[method]
   if not handler then
-    emu.log("[jeROMiah] Unknown method: " .. tostring(method))
+    emu.log("[jeROMy] Unknown method: " .. tostring(method))
     return json.encode({ id = id, error = "unknown method: " .. tostring(method) })
   end
 
@@ -729,7 +729,7 @@ local function handle_message(msg)
       param_summary = param_summary .. k .. "=" .. tostring(v)
       if #param_summary > 80 then param_summary = param_summary:sub(1, 80) .. "..."; break end
     end
-    emu.log("[jeROMiah] → " .. method .. "(" .. param_summary .. ")")
+    emu.log("[jeROMy] → " .. method .. "(" .. param_summary .. ")")
   end
 
   local t0 = os.clock()
@@ -738,11 +738,11 @@ local function handle_message(msg)
 
   if success then
     if method ~= "screenshot" and method ~= "ping" then
-      emu.log("[jeROMiah] ← " .. method .. " ok (" .. string.format("%.3f", elapsed) .. "s)")
+      emu.log("[jeROMy] ← " .. method .. " ok (" .. string.format("%.3f", elapsed) .. "s)")
     end
     return json.encode({ id = id, result = result })
   else
-    emu.log("[jeROMiah] ← " .. method .. " FAILED (" .. string.format("%.3f", elapsed) .. "s): " .. tostring(result))
+    emu.log("[jeROMy] ← " .. method .. " FAILED (" .. string.format("%.3f", elapsed) .. "s): " .. tostring(result))
     return json.encode({ id = id, error = tostring(result) })
   end
 end
@@ -770,17 +770,17 @@ local function poll_connection()
       -- Wrap in pcall so one bad message doesn't kill the connection
       local ok, response = pcall(handle_message, msg)
       if not ok then
-        emu.log("[jeROMiah] handle_message crashed: " .. tostring(response))
+        emu.log("[jeROMy] handle_message crashed: " .. tostring(response))
         response = json.encode({ id = "error", error = "internal error: " .. tostring(response) })
       end
 
       local send_ok, send_err = conn:send(response .. "\n")
       if not send_ok then
-        emu.log("[jeROMiah] Send error: " .. tostring(send_err))
+        emu.log("[jeROMy] Send error: " .. tostring(send_err))
         conn:close()
         conn = nil
         recv_buffer = ""
-        emu.displayMessage("jeROMiah", "Disconnected from bridge")
+        emu.displayMessage("jeROMy", "Disconnected from bridge")
         return
       end
     end
@@ -788,8 +788,8 @@ local function poll_connection()
 
   -- Check for disconnect
   if err == "closed" then
-    emu.log("[jeROMiah] Disconnected from bridge server")
-    emu.displayMessage("jeROMiah", "Disconnected from bridge")
+    emu.log("[jeROMy] Disconnected from bridge server")
+    emu.displayMessage("jeROMy", "Disconnected from bridge")
     conn:close()
     conn = nil
     recv_buffer = ""
@@ -808,23 +808,24 @@ do
     mt_names[#mt_names + 1] = k .. "=" .. tostring(v)
   end
   table.sort(mt_names)
-  emu.log("[jeROMiah] emu.memType entries: " .. table.concat(mt_names, ", "))
+  emu.log("[jeROMy] emu.memType entries: " .. table.concat(mt_names, ", "))
 
   -- Check save state API availability
   local save_fns = {}
   if emu.saveSavestateAsync then save_fns[#save_fns + 1] = "saveSavestateAsync" end
   if emu.saveSavestate then save_fns[#save_fns + 1] = "saveSavestate" end
+  if emu.createSavestate then save_fns[#save_fns + 1] = "createSavestate" end
   if emu.loadSavestateAsync then save_fns[#save_fns + 1] = "loadSavestateAsync" end
   if emu.loadSavestate then save_fns[#save_fns + 1] = "loadSavestate" end
-  emu.log("[jeROMiah] Save state functions: " .. (#save_fns > 0 and table.concat(save_fns, ", ") or "NONE"))
+  emu.log("[jeROMy] Save state functions: " .. (#save_fns > 0 and table.concat(save_fns, ", ") or "NONE"))
 
   -- Report which palette access method we're using
   if MT.palette then
-    emu.log("[jeROMiah] Palette access: direct (MT.palette=" .. tostring(MT.palette) .. ")")
+    emu.log("[jeROMy] Palette access: direct (MT.palette=" .. tostring(MT.palette) .. ")")
   elseif MT.ppuDebug then
-    emu.log("[jeROMiah] Palette access: ppuDebug fallback at $3F00+ (MT.ppuDebug=" .. tostring(MT.ppuDebug) .. ")")
+    emu.log("[jeROMy] Palette access: ppuDebug fallback at $3F00+ (MT.ppuDebug=" .. tostring(MT.ppuDebug) .. ")")
   else
-    emu.log("[jeROMiah] Palette access: NONE — palette reads/writes will fail!")
+    emu.log("[jeROMy] Palette access: NONE — palette reads/writes will fail!")
   end
 
   -- Enumerate all emu functions so we can discover the actual API surface
@@ -833,13 +834,13 @@ do
     if type(v) == "function" then emu_fns[#emu_fns + 1] = k end
   end
   table.sort(emu_fns)
-  emu.log("[jeROMiah] emu functions (" .. #emu_fns .. "): " .. table.concat(emu_fns, ", "))
+  emu.log("[jeROMy] emu functions (" .. #emu_fns .. "): " .. table.concat(emu_fns, ", "))
 end
 
-emu.log("[jeROMiah] Connecting to bridge server at " .. BRIDGE_HOST .. ":" .. PORT .. "...")
+emu.log("[jeROMy] Connecting to bridge server at " .. BRIDGE_HOST .. ":" .. PORT .. "...")
 if not try_connect() then
-  emu.log("[jeROMiah] Bridge server not available yet — will retry each frame callback")
-  emu.displayMessage("jeROMiah", "Waiting for bridge server...")
+  emu.log("[jeROMy] Bridge server not available yet — will retry each frame callback")
+  emu.displayMessage("jeROMy", "Waiting for bridge server...")
   reconnect_countdown = RECONNECT_INTERVAL
 end
 
@@ -865,6 +866,6 @@ end, emu.eventType.endFrame)
 
 -- Cleanup on script end
 emu.addEventCallback(function()
-  emu.log("[jeROMiah] Script ending, closing connection")
+  emu.log("[jeROMy] Script ending, closing connection")
   if conn then conn:close() end
 end, emu.eventType.scriptEnded)

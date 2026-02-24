@@ -1,6 +1,6 @@
 # Testing Guide
 
-jeROMiah uses [Vitest](https://vitest.dev/) for all tests. The test suite has **726 tests across 36 files** covering the agent, bridge, state management, and utility layers.
+jeROMy uses [Vitest](https://vitest.dev/) for all tests. The test suite has **726 tests across 36 files** covering the agent, bridge, state management, and utility layers.
 
 ## Running Tests
 

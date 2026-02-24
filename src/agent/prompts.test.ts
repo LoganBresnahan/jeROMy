@@ -5,7 +5,7 @@ describe("buildSystemPrompt", () => {
   it("returns a non-empty base prompt with no context", () => {
     const prompt = buildSystemPrompt();
     expect(prompt.length).toBeGreaterThan(100);
-    expect(prompt).toContain("jeROMiah");
+    expect(prompt).toContain("jeROMy");
     expect(prompt).toContain("NES");
     expect(prompt).toContain("palette");
   });

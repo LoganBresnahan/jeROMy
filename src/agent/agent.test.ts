@@ -356,4 +356,55 @@ describe("Agent", () => {
     expect(lastMessages.length).toBe(1);
     expect(lastMessages[0].content).toBe("Message 2");
   });
+
+  it("setHistory replaces conversation history", async () => {
+    let lastMessages: LLMMessage[] = [];
+    const provider: LLMProvider = {
+      async chat() { throw new Error("not used"); },
+      async *stream(messages: LLMMessage[], _options: LLMChatOptions) {
+        lastMessages = messages;
+        yield { type: "text_delta" as const, text: "ok" };
+        yield {
+          type: "message_done" as const,
+          response: {
+            content: [{ type: "text" as const, text: "ok" }],
+            stop_reason: "end_turn" as const,
+            usage: { input_tokens: 10, output_tokens: 5 },
+          },
+        };
+      },
+    };
+
+    const agent = new Agent(provider, mockAdapter() as any, { log: () => {} });
+
+    // Set history to a pre-existing conversation
+    agent.setHistory([
+      { role: "user", content: "Previous message" },
+      { role: "assistant", content: [{ type: "text", text: "Previous response" }] },
+    ]);
+
+    await collectEvents(agent, "New message");
+
+    // History should contain the pre-set messages + new user + assistant response
+    // (lastMessages is a reference to the same array, so includes post-run pushes)
+    expect(lastMessages.length).toBe(4);
+    expect(lastMessages[0].content).toBe("Previous message");
+    expect(lastMessages[2].content).toBe("New message");
+  });
+
+  it("getHistory returns a copy of conversation history", async () => {
+    const agent = new Agent(textProvider("hi"), mockAdapter() as any, { log: () => {} });
+
+    await collectEvents(agent, "Hello");
+    const history = agent.getHistory();
+
+    // Should have user message + assistant response
+    expect(history.length).toBe(2);
+    expect(history[0].role).toBe("user");
+    expect(history[1].role).toBe("assistant");
+
+    // Should be a copy, not the same reference
+    history.push({ role: "user", content: "extra" });
+    expect(agent.getHistory().length).toBe(2);
+  });
 });

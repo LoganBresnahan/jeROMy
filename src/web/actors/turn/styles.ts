@@ -3,7 +3,7 @@
  *
  * All styles for the different container types within a turn.
  * Each container type has its own shadow root with these styles adopted.
- * Adapted from Moby's MessageTurnActor styles for the jeROMiah ROM hacking agent.
+ * Adapted from Moby's MessageTurnActor styles for the jeROMy ROM hacking agent.
  *
  * Container Types:
  * - .text-container: Text message segments

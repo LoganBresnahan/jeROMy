@@ -1,6 +1,6 @@
-# jeROMiah — Architecture Overview
+# jeROMy — Architecture Overview
 
-**jeROMiah** is an AI-powered ROM hacking agent that connects to a debugging emulator (Mesen2), understands retro game internals, and executes ROM modifications from natural language instructions.
+**jeROMy** is an AI-powered ROM hacking agent that connects to a debugging emulator (Mesen2), understands retro game internals, and executes ROM modifications from natural language instructions.
 
 ---
 
@@ -74,7 +74,7 @@
 
 ## Platform Abstraction
 
-jeROMiah is designed to be **platform-agnostic from day one**. While the initial implementation targets NES via Mesen2, the architecture separates three distinct layers:
+jeROMy is designed to be **platform-agnostic from day one**. While the initial implementation targets NES via Mesen2, the architecture separates three distinct layers:
 
 ### Layer 1: Emulator Abstraction
 
@@ -184,7 +184,7 @@ The agent combines multiple analysis approaches for maximum effectiveness:
 
 ##### Autonomous Discovery Loop
 
-The core innovation of jeROMiah. When no ROM mapping exists for a game:
+The core innovation of jeROMy. When no ROM mapping exists for a game:
 
 ```
 LLM hypothesizes → edits memory → screenshots before/after

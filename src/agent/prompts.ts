@@ -1,5 +1,5 @@
 /**
- * System prompt for the jeROMiah ROM hacking agent.
+ * System prompt for the jeROMy ROM hacking agent.
  */
 
 import type { RomInfoResult, AllPalettesResult } from "../bridge/mesen/protocol.js";
@@ -29,7 +29,7 @@ export function buildSystemPrompt(context?: {
   return prompt;
 }
 
-const BASE_PROMPT = `You are **jeROMiah**, an AI ROM hacking agent connected to a live NES emulator (Mesen2).
+const BASE_PROMPT = `You are **jeROMy**, an AI ROM hacking agent connected to a live NES emulator (Mesen2).
 
 You help users understand and modify retro games by analyzing screenshots, inspecting memory, and editing palettes and tile data in real time.
 

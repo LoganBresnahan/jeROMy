@@ -1,7 +1,7 @@
 /**
  * GatewayActor
  *
- * Connects to the jeROMiah WebSocket server and routes messages between
+ * Connects to the jeROMy WebSocket server and routes messages between
  * the browser UI and the backend agent/emulator.
  *
  * Key responsibilities:
@@ -28,7 +28,25 @@ import { VirtualListActor } from '../virtual-list/VirtualListActor.js';
 import { hasIncompleteFence } from '../../utils/codeBlocks.js';
 import { uniqueId } from '../../utils/uniqueId.js';
 import type { EmulatorSidebar } from '../sidebar/EmulatorSidebar.js';
+import type { SessionPanel } from '../sidebar/SessionPanel.js';
 import type { ActorConfig } from '../../state/types.js';
+
+// ============================================
+// Rich Turn (returned by server for history load)
+// ============================================
+
+interface RichTurn {
+  role: 'user' | 'assistant';
+  text: string;
+  hasImages?: boolean;
+  tools?: Array<{
+    name: string;
+    detail: string;
+    result: string;
+    isError: boolean;
+  }>;
+  usage?: { input_tokens: number; output_tokens: number };
+}
 
 // ============================================
 // Configuration
@@ -57,6 +75,7 @@ interface WsMessage {
 export class GatewayActor extends EventStateActor {
   private virtualList: VirtualListActor;
   private sidebar: EmulatorSidebar;
+  private sessionPanel: SessionPanel | null = null;
 
   // ============================================
   // WebSocket State
@@ -92,6 +111,9 @@ export class GatewayActor extends EventStateActor {
 
   /** Turn counter for generating unique turn IDs */
   private _turnCounter = 0;
+
+  /** Whether the initial session history has been loaded after connect */
+  private _initialLoadDone = false;
 
   // ============================================
   // Constructor
@@ -148,7 +170,9 @@ export class GatewayActor extends EventStateActor {
 
     this.ws.onopen = () => {
       this._setConnected(true);
-      this.sidebar.log('Connected to jeROMiah server', 'success');
+      this._initialLoadDone = false;
+      this.sidebar.log('Connected to jeROMy server', 'success');
+      this.requestSessionList();
     };
 
     this.ws.onclose = () => {
@@ -228,12 +252,13 @@ export class GatewayActor extends EventStateActor {
     this._endCurrentTurn();
   }
 
-  /** Reset the conversation history. */
+  /** Reset the conversation history and start a new session. */
   resetChat(): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ action: 'chat_reset' }));
     }
     this._endCurrentTurn();
+    this._turnCounter = 0;
     this.virtualList.clear();
     this.sidebar.log('Chat history cleared', 'info');
   }
@@ -259,8 +284,84 @@ export class GatewayActor extends EventStateActor {
       return;
     }
 
-    // Chat reset acknowledgment
-    if (action === 'chat_reset') return;
+    // Chat reset acknowledgment — refresh session list since server created a new session
+    if (action === 'chat_reset') {
+      this.requestSessionList();
+      return;
+    }
+
+    // Session responses
+    if (action === 'session_list') {
+      const result = msg.result as { sessions: any[]; active_session_id: string | null };
+      this.sessionPanel?.renderSessions(result.sessions, result.active_session_id);
+
+      // On initial connect, load the active session's history into the chat
+      if (!this._initialLoadDone && result.active_session_id) {
+        this._initialLoadDone = true;
+        this.switchToSession(result.active_session_id);
+      }
+      return;
+    }
+
+    if (action === 'session_switch') {
+      if (msg.error) {
+        this.sidebar.log(`Session switch failed: ${msg.error}`, 'error');
+        return;
+      }
+      const result = msg.result as { session: any; turns: RichTurn[]; event_count: number };
+      this._loadHistory(result.turns ?? []);
+      this.requestSessionList();
+      this.sidebar.log(`Switched to "${result.session.name}"`, 'success');
+      return;
+    }
+
+    if (action === 'session_create') {
+      if (msg.error) {
+        this.sidebar.log(`Session create failed: ${msg.error}`, 'error');
+        return;
+      }
+      // Clear chat for the new empty session
+      this.virtualList.clear();
+      this._endCurrentTurn();
+      this._turnCounter = 0;
+      this.requestSessionList();
+      this.sidebar.log(`Created session "${(msg.result as any).name}"`, 'success');
+      return;
+    }
+
+    if (action === 'session_fork') {
+      if (msg.error) {
+        this.sidebar.log(`Fork failed: ${msg.error}`, 'error');
+        return;
+      }
+      // Fork at latest seq — chat stays the same, just update session list
+      this.requestSessionList();
+      this.sidebar.log(`Forked → "${(msg.result as any).name}"`, 'success');
+      return;
+    }
+
+    if (action === 'session_delete') {
+      if (msg.error) {
+        this.sidebar.log(`Delete failed: ${msg.error}`, 'error');
+        return;
+      }
+      const result = msg.result as { ok: boolean; was_active: boolean };
+      if (result.was_active) {
+        this.virtualList.clear();
+        this._endCurrentTurn();
+        this._turnCounter = 0;
+      }
+      this.requestSessionList();
+      this.sidebar.log('Session deleted', 'info');
+      return;
+    }
+
+    if (action === 'snapshot_create' || action === 'snapshot_list' ||
+        action === 'session_history') {
+      // These are data responses — log to sidebar for now
+      this.sidebar.log(`[${action}] ${JSON.stringify(msg.result).slice(0, 200)}`, 'info');
+      return;
+    }
 
     // Error responses
     if (msg.error) {
@@ -514,6 +615,9 @@ export class GatewayActor extends EventStateActor {
     }
 
     this._endCurrentTurn();
+
+    // Refresh session list (event count changed)
+    this.requestSessionList();
   }
 
   /**
@@ -583,6 +687,96 @@ export class GatewayActor extends EventStateActor {
     if (this._isStreaming !== streaming) {
       this._isStreaming = streaming;
       this.publish({ 'gateway.streaming': streaming });
+    }
+  }
+
+  // ============================================
+  // Session Management
+  // ============================================
+
+  /** Wire up the session panel for rendering session list updates. */
+  setSessionPanel(panel: SessionPanel): void {
+    this.sessionPanel = panel;
+  }
+
+  /** Request the session list from the server. */
+  requestSessionList(): void {
+    this.send('session_list');
+  }
+
+  /** Create a new session and switch to it. */
+  createSession(name: string): void {
+    this.send('session_create', { name });
+  }
+
+  /** Switch to a different session (loads history into the chat). */
+  switchToSession(id: string): void {
+    this.send('session_switch', { id });
+  }
+
+  /** Fork the current session and switch to the fork. */
+  forkCurrentSession(name: string, forkSeq: number): void {
+    this.send('session_fork', { fork_seq: forkSeq, name });
+  }
+
+  /** Delete a session. */
+  deleteSession(id: string): void {
+    this.send('session_delete', { id });
+  }
+
+  // ============================================
+  // History Loading (session switch)
+  // ============================================
+
+  /**
+   * Load rich turns into the virtual list (used after session switch).
+   * Clears the existing chat and rebuilds all turns from the server-provided data.
+   */
+  private _loadHistory(turns: RichTurn[]): void {
+    this.virtualList.clear();
+    this._endCurrentTurn();
+    this._turnCounter = 0;
+
+    for (const turn of turns) {
+      this._turnCounter++;
+      const turnId = `${turn.role}-${this._turnCounter}-${uniqueId()}`;
+
+      this.virtualList.addTurn(turnId, turn.role);
+
+      if (turn.role === 'user') {
+        const text = turn.hasImages ? `${turn.text}\n[attached screenshot]` : turn.text;
+        this.virtualList.addTextSegment(turnId, text);
+      } else {
+        // Assistant turn: tools → tool results → text → usage
+        if (turn.tools && turn.tools.length > 0) {
+          this.virtualList.startToolBatch(
+            turnId,
+            turn.tools.map((t) => ({ name: t.name, detail: t.detail }))
+          );
+          turn.tools.forEach((t, i) => {
+            this.virtualList.updateToolInCurrentBatch(
+              turnId,
+              i,
+              t.isError ? 'error' : 'done'
+            );
+          });
+          this.virtualList.completeCurrentToolBatch(turnId);
+
+          for (const tool of turn.tools) {
+            if (tool.result) {
+              this.virtualList.addToolResult(turnId, tool.name, tool.result, tool.isError);
+            }
+          }
+        }
+
+        if (turn.text) {
+          this.virtualList.addTextSegment(turnId, turn.text);
+        }
+
+        if (turn.usage) {
+          this.virtualList.addUsageStats(turnId, turn.usage.input_tokens, turn.usage.output_tokens);
+        }
+      }
     }
   }
 

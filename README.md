@@ -1,8 +1,8 @@
-# jeROMiah
+# jeROMy
 
 AI-powered ROM hacking agent for retro game modding via natural language.
 
-jeROMiah connects to a live NES emulator (Mesen2), lets an AI agent analyze the game via screenshots and memory inspection, and execute modifications — palette swaps, memory edits, and more — from natural language instructions in a chat interface.
+jeROMy connects to a live NES emulator (Mesen2), lets an AI agent analyze the game via screenshots and memory inspection, and execute modifications — palette swaps, memory edits, and more — from natural language instructions in a chat interface.
 
 ## Architecture
 
@@ -76,10 +76,10 @@ npm run dev
 You should see:
 
 ```
-[jeROMiah] Capstone disassembler loaded     (if WASM was built)
+[jeROMy] Capstone disassembler loaded     (if WASM was built)
 [Bridge] TCP server listening on 0.0.0.0:9001
-[jeROMiah] Web UI at http://localhost:3000
-[jeROMiah] Waiting for Mesen2 to connect (load bridge.lua)...
+[jeROMy] Web UI at http://localhost:3000
+[jeROMy] Waiting for Mesen2 to connect (load bridge.lua)...
 ```
 
 ### 5. Connect Mesen2
@@ -114,7 +114,7 @@ npm run test:watch   # Watch mode
 ## Project Structure
 
 ```
-jeROMiah/
+jeROMy/
 ├── mesen/
 │   └── bridge.lua                 # Lua client for Mesen2
 ├── capstone/

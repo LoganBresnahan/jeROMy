@@ -12,7 +12,7 @@
  * - Error messages
  * - Usage stats
  *
- * Simplified from Moby's MessageTurnActor for the jeROMiah ROM hacking agent.
+ * Simplified from Moby's MessageTurnActor for the jeROMy ROM hacking agent.
  * Drops thinking, shell, pending files, command approval, and drawing.
  *
  * Design Goals:
@@ -85,7 +85,7 @@ export class TurnActor extends InterleavedShadowActor {
   private _toolCounter = 0;
 
   // ============================================
-  // jeROMiah-Specific Content State
+  // jeROMy-Specific Content State
   // ============================================
 
   private _toolResultCounter = 0;
@@ -104,7 +104,7 @@ export class TurnActor extends InterleavedShadowActor {
   // Header State
   // ============================================
 
-  /** Whether the role header ("jeROMiah" / "You") has been rendered */
+  /** Whether the role header ("jeROMy" / "You") has been rendered */
   private _headerRendered = false;
 
   // ============================================
@@ -158,7 +158,7 @@ export class TurnActor extends InterleavedShadowActor {
     this._currentToolBatchId = null;
     this._toolCounter = 0;
 
-    // Reset jeROMiah-specific counters
+    // Reset jeROMy-specific counters
     this._toolResultCounter = 0;
     this._screenshotCounter = 0;
     this._errorCounter = 0;
@@ -227,7 +227,7 @@ export class TurnActor extends InterleavedShadowActor {
   // ============================================
 
   /**
-   * Ensure the role header divider ("You" / "jeROMiah") is rendered.
+   * Ensure the role header divider ("You" / "jeROMy") is rendered.
    * Called before tool/screenshot containers so the header always appears first.
    * If a text segment is created first, it renders the header itself.
    * Idempotent: checks _headerRendered.
@@ -235,7 +235,7 @@ export class TurnActor extends InterleavedShadowActor {
   private ensureRoleHeader(): void {
     if (this._headerRendered) return;
 
-    const roleLabel = this._role === 'user' ? 'YOU' : 'jeROMiah';
+    const roleLabel = this._role === 'user' ? 'YOU' : 'jeROMy';
 
     const container = this.createContainer('header', {
       hostClasses: ['header-container', this._role === 'user' ? 'user' : 'assistant'],
@@ -598,7 +598,7 @@ export class TurnActor extends InterleavedShadowActor {
   }
 
   // ============================================
-  // jeROMiah-Specific Content Methods
+  // jeROMy-Specific Content Methods
   // ============================================
 
   /**

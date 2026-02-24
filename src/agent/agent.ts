@@ -94,6 +94,16 @@ export class Agent {
     this.history = [];
   }
 
+  /** Replace conversation history (used by session manager to restore state). */
+  setHistory(messages: LLMMessage[]): void {
+    this.history = messages;
+  }
+
+  /** Get a copy of the current conversation history. */
+  getHistory(): LLMMessage[] {
+    return [...this.history];
+  }
+
   /**
    * Run a user instruction through the tool loop.
    * Yields AgentEvents as the agent streams text, calls tools, etc.

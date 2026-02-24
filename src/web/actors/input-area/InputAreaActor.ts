@@ -91,7 +91,7 @@ export class InputAreaActor extends ShadowActor {
           <textarea
             class="chat-textarea"
             id="chatTextarea"
-            placeholder="Ask jeROMiah to analyze or modify the game..."
+            placeholder="Ask jeROMy to analyze or modify the game..."
             rows="1"
           ></textarea>
           <button class="btn btn-send" id="sendBtn">Send</button>
@@ -219,7 +219,7 @@ export class InputAreaActor extends ShadowActor {
     // Could dim the input when disconnected, but for now just log state
     if (this._textarea) {
       this._textarea.placeholder = this._isConnected
-        ? 'Ask jeROMiah to analyze or modify the game...'
+        ? 'Ask jeROMy to analyze or modify the game...'
         : 'Connecting to server...';
     }
   }

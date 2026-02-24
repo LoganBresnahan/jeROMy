@@ -4,8 +4,8 @@
  * The VirtualListActor manages a pool of TurnActor instances,
  * rendering only visible turns and recycling actors as the user scrolls.
  *
- * Simplified from Moby's VirtualListActor types for the jeROMiah ROM hacking agent.
- * Content types are tailored to jeROMiah's needs: text, tools, tool results,
+ * Simplified from Moby's VirtualListActor types for the jeROMy ROM hacking agent.
+ * Content types are tailored to jeROMy's needs: text, tools, tool results,
  * screenshots, errors, and usage stats.
  */
 

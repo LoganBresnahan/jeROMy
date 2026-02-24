@@ -571,7 +571,7 @@ export class VirtualListActor extends EventStateActor {
   }
 
   // ============================================
-  // jeROMiah-specific Content Delegation
+  // jeROMy-specific Content Delegation
   // ============================================
 
   /**

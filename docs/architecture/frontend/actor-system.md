@@ -218,7 +218,7 @@ manager.publishDirect('my.key', value, 'my-source-id');
 
 ---
 
-## Actors in jeROMiah
+## Actors in jeROMy
 
 | Actor | Element | Publications | Subscriptions |
 |-------|---------|-------------|---------------|

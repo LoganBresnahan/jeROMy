@@ -1,5 +1,5 @@
 /**
- * jeROMiah — Chat Entry Point
+ * jeROMy — Chat Entry Point
  *
  * Bootstraps the actor system, connects the WebSocket, and wires up all
  * rendering actors for the chat panel and emulator sidebar.
@@ -11,6 +11,7 @@ import { GatewayActor } from './actors/gateway/GatewayActor.js';
 import { InputAreaActor } from './actors/input-area/InputAreaActor.js';
 import { ScrollActor } from './actors/scroll/ScrollActor.js';
 import { EmulatorSidebar } from './actors/sidebar/EmulatorSidebar.js';
+import { SessionPanel } from './actors/sidebar/SessionPanel.js';
 
 // -- Bootstrap ----------------------------------------------------------------
 
@@ -20,6 +21,11 @@ const manager = new EventStateManager();
 
 const sidebarEl = document.querySelector<HTMLElement>('.sidebar')!;
 const sidebar = new EmulatorSidebar(sidebarEl);
+
+// -- Session Panel (vanilla JS, sidebar) --------------------------------------
+
+const sessionsPanelEl = document.querySelector<HTMLElement>('#sessionsPanel')!;
+const sessionPanel = new SessionPanel(sessionsPanelEl);
 
 // -- Virtual List (chat turns) ------------------------------------------------
 
@@ -42,6 +48,10 @@ const gateway = new GatewayActor({
 
 // Wire sidebar → gateway
 sidebar.setGateway(gateway);
+
+// Wire session panel ↔ gateway
+sessionPanel.setGateway(gateway);
+gateway.setSessionPanel(sessionPanel);
 
 // -- Input Area (chat input + attachment preview) -----------------------------
 
@@ -78,6 +88,6 @@ gatewayEl.addEventListener('state-changed', (e: Event) => {
 
 gateway.connect(`ws://${location.host}`);
 
-console.log('[jeROMiah] Actor system initialized', {
+console.log('[jeROMy] Actor system initialized', {
   actorCount: manager.getActorCount(),
 });

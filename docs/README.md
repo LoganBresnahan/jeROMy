@@ -1,4 +1,4 @@
-# jeROMiah Documentation
+# jeROMy Documentation
 
 ## Architecture
 
