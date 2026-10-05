@@ -112,6 +112,13 @@ describe("executeTool", () => {
     }
   });
 
+  it("screenshot while paused throws instead of returning an empty image", async () => {
+    const adapter = mockAdapter({
+      screenshot: vi.fn().mockResolvedValue({ png_base64: "", paused: true }),
+    });
+    await expect(executeTool("screenshot", {}, adapter)).rejects.toThrow(/paused.*resume_emulator/);
+  });
+
   it("get_tile_at_pixel passes params and returns text", async () => {
     const adapter = mockAdapter();
     const result = await executeTool("get_tile_at_pixel", { x: 128, y: 120 }, adapter);

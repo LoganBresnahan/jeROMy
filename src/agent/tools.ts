@@ -660,7 +660,15 @@ export async function executeTool(
   switch (name) {
     case "screenshot": {
       const result = await adapter.screenshot();
-      // Return image block so the LLM can see it via vision
+      // Mesen returns an empty PNG while paused; an empty image block is a
+      // provider 400 that kills the whole turn, so fail inside the tool.
+      if (!result.png_base64) {
+        throw new Error(
+          result.paused
+            ? "Screenshot unavailable: the emulator is paused and Mesen produces no frame while paused. Call resume_emulator (or step_frame to advance one frame) and take the screenshot again."
+            : "Screenshot unavailable: the emulator returned no image data.",
+        );
+      }
       return {
         type: "mixed",
         content: [
