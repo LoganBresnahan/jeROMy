@@ -95,6 +95,18 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
 
 ## Next
 
+- **12. Click correctness** (ADR-0010), first after item 8: `get_pixel_color`
+  from `emu.getPixel` mapped to a master-palette index; `get_tile_at_pixel`
+  using the scroll in effect at the clicked scanline via a one-frame write
+  callback on $2000/$2005/$2006; the bridge's first two-phase request
+  (`pending` then answer on a later frame), documented in `docs/bridge.md`
+  and reused by `trace_writes` in item 10. Until it lands, the picker's
+  context line says the tile readout assumes no mid-frame scroll change.
+- **13. Prompt hygiene from the model's slips**: a NES master-palette hue
+  table in the prompt section (the model twice named a hue from an index
+  from memory, once wrongly), and guidance to write hex as `0x29` or inside
+  code spans, because `$`-prefixed hex collided with Markdown emphasis in
+  one answer. Small, do alongside item 12.
 - **10. Persistent edits** (ADR-0009), in the order the procedure needs:
   (a) `search_memory` + `trace_writes` (Lua memory callbacks,
   `convertAddress`), useful on their own; (b) `hacks/sha1-<sha1>/` with
@@ -118,7 +130,12 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
   that every tool it names exists. Write them from real SMB sessions, not
   from memory. Standing rule: a procedure is written up the session it is
   figured out. Drafted so far: `skills/palette-swap/SKILL.md` (from the
-  2026-10-05 edit checks; not yet registered with dsh).
+  2026-10-05 edit checks) and `skills/identify-click/SKILL.md` (from
+  Logan's click session the same night; waits on item 12 for its
+  pixel-color step). Not yet registered with dsh. Every skill states the
+  confidence rule for `record_mapping`: 1 only for something seen on
+  screen; the click session marked two entries confirmed and both were, but
+  it is the place over-confidence will show first.
 
 - **Sprite & animation editing** (old Phase 5): OAM inspection/editing,
   multi-tile sprite composition, animation frame identification,
