@@ -8,19 +8,22 @@ checklist item, an ADR, or a carry-in pinned to the work that will hit it.
 Newest first within each section. Delete an entry when it is fixed. The
 commit is the record; a file of ticked boxes stops being read.
 
-## Tests
-
-- **`npx tsc --noEmit` fails with 9 errors, all in `src/db/`** (`eventStore.ts`,
-  `sessionManager.ts`, `snapshotManager.ts`): the row interfaces passed to
-  `stmt.get<T>()` / `stmt.all<T>()` lack the index signature that
-  `@signalapp/sqlcipher`'s `Record<string, SqliteValue>` constraint now
-  requires. Tests pass because vitest does not typecheck. Not fixed on
-  purpose: `src/db` is deleted at roadmap item 8 (ADR-0003). If it must
-  compile before then, the fix is `interface EventRow extends Record<string, unknown>`
-  or a cast at the nine call sites. Found 2026-10-05. (A stale compiled test under `dist/` failed `npm test` on 2026-10-05; fixed the same day by `vitest.config.ts` scoping the suite to `src/**`. Delete `dist/` if the stale file bothers you; it is gitignored.)
-
 ## Bridge
 
+- **The Lua client sometimes never notices that a headless dsh run ended.**
+  Reproduced twice on 2026-10-05 (trio runs 220244 and 221242): after the
+  `read` run's last call the Lua log shows no `Disconnected` line at all,
+  the next dsh listened for 50 s with no client, and only a Mesen restart
+  brought it back. So `receive` on the dead socket kept returning
+  `timeout` (the peer's close never surfaced on the Windows side), not a
+  script crash. Fixes shipped the same night: a `{"heartbeat":true}` line
+  every ~2 s from Lua, which fails on a dead socket and triggers a
+  reconnect (`docs/bridge.md`), a file log readable from WSL
+  (`scripts/lua-log.sh`), `pcall` guards on the frame callbacks, and
+  `trio.sh` failing a check on tool errors and retrying once after
+  `mesen-up.sh --restart`. The next full trio passed with no retry. Delete
+  this entry after a week of trio runs with no `bridge never connected`
+  line; if one appears, `scripts/lua-log.sh` now has the evidence.
 - **`get_tile_at_pixel` resolves the wrong tile on split-scroll frames.**
   The Lua handler reads `ppu.xScroll`/`ppu.yScroll` from `emu.getState()`
   at request time. SMB zeroes the scroll in NMI for the fixed status bar and
@@ -45,6 +48,17 @@ commit is the record; a file of ticked boxes stops being read.
   instead of an empty image. Carry-in for roadmap item 3: the Mesen service
   should resume (or step one frame) on connect, or the launcher should.
   Found 2026-10-05.
+- **A palette override is not visible in a screenshot taken after
+  `pause_emulator` + `step_frame`; it shows after `resume_emulator`.** The
+  2026-10-05 edit check (session `eaf1faaa`, again in `trio-20261004-221850`)
+  had `write_palette` land (`get_palette` read it back) but the paused,
+  stepped capture still showed the old color, and the agent burned 26
+  steps reconciling that. Likely the override is applied in `endFrame`
+  after the frame rendered and the stepped frame is captured before the
+  next render, or `takeScreenshot` while paused returns the previous
+  frame. Verify with `scripts/bridge-call.mjs` (write_palette, pause,
+  step_frame ×2, screenshot) and fix in the Lua step path or document the
+  two-step rule in the `palette-swap` skill. Found 2026-10-05.
 - **`clear_palette_overrides` stops re-applying the override but does not
   restore the original color**; `get_palette` still reads the overridden
   value until the game rewrites that palette entry. Either the tool restores

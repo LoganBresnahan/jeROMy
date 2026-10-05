@@ -3,11 +3,16 @@
 # mesen/bridge.lua in one shot. Mesen's SingleInstance preference hands the
 # arguments to the running instance, so this is safe to call repeatedly.
 #
-# Usage: scripts/mesen-up.sh [rom-path-on-windows]
+# Usage: scripts/mesen-up.sh [--restart] [rom-path-on-windows]
+#        --restart kills a running Mesen first. The single-instance handoff
+#        swaps the ROM but keeps the already-running bridge.lua (verified
+#        2026-10-05 via get_lua_logs), so a changed script needs this.
 # Env:   MESEN_EXE   Windows path to Mesen.exe (default C:\Mesen.exe)
 #        JEROMY_ROM  Windows path to the ROM (default: Super Mario Bros. (World))
 set -euo pipefail
 
+RESTART=0
+if [ "${1:-}" = "--restart" ]; then RESTART=1; shift; fi
 MESEN_EXE="${MESEN_EXE:-C:\\Mesen.exe}"
 ROM="${1:-${JEROMY_ROM:-C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes}}"
 DISTRO="${WSL_DISTRO_NAME:-Ubuntu}"
@@ -22,6 +27,11 @@ MESEN_WSL="$(wslpath -u "$MESEN_EXE")"
 echo "[mesen-up] exe  $MESEN_EXE"
 echo "[mesen-up] rom  $ROM"
 echo "[mesen-up] lua  $LUA"
+if [ $RESTART -eq 1 ]; then
+  echo "[mesen-up] restarting Mesen so the current bridge.lua loads"
+  /mnt/c/Windows/System32/taskkill.exe /IM Mesen.exe /F >/dev/null 2>&1 || true
+  sleep 3
+fi
 # Detach: Mesen is a GUI process; don't tie it to this shell.
 nohup "$MESEN_WSL" "$ROM" "$LUA" >/dev/null 2>&1 &
 disown

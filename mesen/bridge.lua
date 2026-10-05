@@ -244,8 +244,25 @@ local log_overflow = 0  -- count of dropped entries
 local LOG_MAX = 200  -- keep last N entries
 local _emu_log = emu.log  -- save original
 
+-- Mirror the log to a file WSL can read (/mnt/c/.../Mesen2/LuaScriptData/...),
+-- because the script window is the only other place a Lua error shows up.
+local log_file = nil
+local log_file_path = nil
+do
+  local ok, folder = pcall(function() return emu.getScriptDataFolder() end)
+  if ok and type(folder) == "string" and #folder > 0 then
+    log_file_path = folder .. "\\jeromy-bridge.log"
+    local f = io.open(log_file_path, "a")
+    if f then log_file = f end
+  end
+end
+
 local function buffered_log(msg)
   _emu_log(msg)  -- still write to Mesen2's script log
+  if log_file then
+    log_file:write(os.date("%Y-%m-%d %H:%M:%S "), tostring(msg), "\n")
+    log_file:flush()
+  end
   log_buffer[#log_buffer + 1] = { ts = os.time(), msg = msg }
   -- Trim oldest if over limit
   if #log_buffer > LOG_MAX then
@@ -254,6 +271,17 @@ local function buffered_log(msg)
   end
 end
 emu.log = buffered_log
+emu.log("[jeROMy] script start; log file: " .. tostring(log_file_path or "(none: getScriptDataFolder unavailable)"))
+
+-- A Lua error inside a callback stops the whole script in Mesen, which from
+-- WSL looks like a client that never reconnects (docs/issues.md 2026-10-05).
+-- Log it and keep the callback registered.
+local function guarded(name, fn)
+  return function()
+    local ok, err = pcall(fn)
+    if not ok then emu.log("[jeROMy] " .. name .. " callback error: " .. tostring(err)) end
+  end
+end
 
 ---------------------------------------------------------------------------
 -- memType Resolver
@@ -957,6 +985,31 @@ end
 -- Main: Connect to bridge server and register frame callback
 ---------------------------------------------------------------------------
 local RECONNECT_INTERVAL = 120  -- frames between reconnect attempts (~2s at 60fps)
+-- A peer that exits without the FIN reaching us (seen 2026-10-05 when a
+-- headless dsh run ended: no "Disconnected" ever logged, the client sat on a
+-- dead socket while the next server listened) is only detected by sending.
+-- The TypeScript side ignores heartbeat lines; the second send after a RST
+-- fails and triggers a reconnect within ~4 s.
+local HEARTBEAT_INTERVAL = 120  -- frames (~2s)
+local heartbeat_countdown = HEARTBEAT_INTERVAL
+
+local function drop_connection(reason)
+  emu.log("[jeROMy] " .. reason .. "; reconnecting")
+  emu.displayMessage("jeROMy", "Disconnected from bridge")
+  if conn then conn:close() end
+  conn = nil
+  recv_buffer = ""
+  reconnect_countdown = 0
+  heartbeat_countdown = HEARTBEAT_INTERVAL
+end
+
+local function send_heartbeat()
+  heartbeat_countdown = heartbeat_countdown - 1
+  if heartbeat_countdown > 0 then return end
+  heartbeat_countdown = HEARTBEAT_INTERVAL
+  local ok, err = conn:send('{"heartbeat":true}\n')
+  if not ok then drop_connection("Heartbeat send failed: " .. tostring(err)) end
+end
 
 -- Dump available emu.memType entries and key emu functions for debugging
 do
@@ -1001,7 +1054,7 @@ if not try_connect() then
   reconnect_countdown = RECONNECT_INTERVAL
 end
 
-emu.addEventCallback(function()
+local function on_end_frame()
   -- External resume detection: if is_paused is true but step_active is
   -- false, the game is running freely — someone resumed via Mesen's UI.
   --
@@ -1037,8 +1090,10 @@ emu.addEventCallback(function()
     end
   else
     poll_connection()
+    if conn then send_heartbeat() end
   end
-end, emu.eventType.endFrame)
+end
+emu.addEventCallback(guarded("endFrame", on_end_frame), emu.eventType.endFrame)
 
 -- On pause (codeBreak): blocking-receive TCP polling.
 --
@@ -1052,7 +1107,7 @@ end, emu.eventType.endFrame)
 -- the flags set by handlers. If step/resume is requested, we handle
 -- it and return. If nothing arrives after 3 rounds, we try a best-
 -- effort keep-alive (emu.step 1 instruction) and return.
-emu.addEventCallback(function()
+local function on_code_break()
   if not conn then return end
 
   -- Clear step_active from previous turn
@@ -1102,7 +1157,8 @@ emu.addEventCallback(function()
   conn:settimeout(0)
   step_active = true
   emu.step(1, emu.stepType.step)
-end, emu.eventType.codeBreak)
+end
+emu.addEventCallback(guarded("codeBreak", on_code_break), emu.eventType.codeBreak)
 
 -- Cleanup on script end
 emu.addEventCallback(function()

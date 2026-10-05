@@ -26,15 +26,19 @@ one thing to fix.
 2. **Mesen.** `scripts/mesen-up.sh [rom]`: launches `C:\Mesen.exe` with the
    ROM and `\\wsl.localhost\...\mesen\bridge.lua` as positional arguments.
    Mesen's SingleInstance preference hands them to a running instance, so
-   this is also how to switch ROMs.
+   this is also how to switch ROMs. The handoff does **not** reload a
+   running `bridge.lua` (verified 2026-10-05 via `get_lua_logs`): after any
+   Lua change run `scripts/mesen-up.sh --restart`, which kills Mesen and
+   relaunches it with both arguments. `scripts/lua-log.sh` shows the Lua
+   side's own log afterwards.
 3. **Bridge.** Poll `http://127.0.0.1:9002/status` until `connected:true`
    (the Lua side retries every ~2 s). The Mesen service resumes a paused
    emulator on connect and loads the ROM's mapping by SHA1.
 
 ## When it fails
 
-- **"port 9001 is owned by pid N, not our dsh"**: a leftover
-  `scripts/dev-deepseek.sh` or headless run. Kill that pid, rerun.
+- **"port 9001 is owned by pid N, not our dsh"**: a leftover headless run
+  (`trio.sh` interrupted). Kill that pid, rerun.
 - **"bridge not connected"**: the script is not running in Mesen. In Mesen:
   Tools → Script Window → it should show `bridge.lua` running; if the window
   is empty, Open the path printed by mesen-up and Run. Settings needed once

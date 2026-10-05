@@ -170,7 +170,10 @@ export class MesenConnection {
       if (line.length === 0) continue;
 
       try {
-        const resp: BridgeResponse = JSON.parse(line);
+        const resp: BridgeResponse & { heartbeat?: boolean } = JSON.parse(line);
+        // Liveness probe from the Lua client (it detects a dead peer only by
+        // sending; see mesen/bridge.lua). Not a response: nothing to match.
+        if (resp.heartbeat) continue;
         const pending = this.pending.get(resp.id);
         if (pending) {
           pending.resolve(resp);

@@ -107,6 +107,24 @@ describe("MesenConnection", () => {
       expect(r1.n).not.toBe(r2.n);
     });
 
+    it("ignores heartbeat lines from the Lua client and still matches the response", async () => {
+      // bridge.lua sends {"heartbeat":true} every ~2 s to detect a dead peer
+      // (2026-10-05: a headless run's exit left the client on a dead socket).
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      tcpClient.on("data", (data) => {
+        const req = JSON.parse(data.toString().trim());
+        tcpClient.write('{"heartbeat":true}\n');
+        tcpClient.write(JSON.stringify({ id: req.id, result: { ok: 1 } }) + "\n");
+      });
+      tcpClient.write('{"heartbeat":true}\n');
+      await new Promise((r) => setTimeout(r, 20));
+
+      const result = await server.request<{ ok: number }>("ping");
+      expect(result.ok).toBe(1);
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
     it("rejects all pending requests on disconnect", async () => {
       const promise = server.request("test");
       tcpClient.destroy();
