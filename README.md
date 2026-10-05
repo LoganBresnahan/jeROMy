@@ -88,10 +88,10 @@ Rules for working in the repo are in [CLAUDE.md](CLAUDE.md).
 Screenshot and pixel/tile lookup (`screenshot`, `get_tile_at_pixel`,
 `read_tile`, `read_nametable`), palettes (`get_palette`, `get_all_palettes`,
 `write_palette` with per-frame override, `clear_palette_overrides`), memory
-(`read_memory`, `write_memory`, `search_memory` planned), CPU and ROM info,
-save/load state, emulator control (`pause_emulator`, `resume_emulator`,
-`step_frame`, `get_emulator_status`), `disassemble` (Capstone WASM), and the
-mapping tools (`record_mapping`, `promote_mappings`). RAM edits are the
+(`read_memory`, `write_memory`, `search_memory`), `get_pixel_color`, CPU and
+ROM info, save/load state, emulator control (`pause_emulator`,
+`resume_emulator`, `step_frame`, `reset_emulator`), `disassemble` (Capstone
+WASM), and the mapping tools (`record_mapping`, `promote_mappings`). RAM edits are the
 default; CHR/PRG ROM is never written silently.
 
 ## Development

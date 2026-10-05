@@ -28,6 +28,9 @@ import type {
   PixelColorResult,
   WaitFramesResult,
   ScrollCaptureResult,
+  ConvertAddressResult,
+  SearchMemoryResult,
+  ResetEmulatorResult,
 } from "./protocol.js";
 
 export class MesenAdapter {
@@ -78,6 +81,27 @@ export class MesenAdapter {
    */
   async captureScrollWrites(frames: number = 1): Promise<ScrollCaptureResult> {
     return this.conn.request<ScrollCaptureResult>("capture_scroll_writes", { frames }, { timeoutMs: Math.ceil((frames + 2) / 60) * 1000 + 5000 });
+  }
+
+  /** Find a byte pattern (-1 = wildcard) in a memory type; bounded on the Lua side (ADR-0009). */
+  async searchMemory(pattern: number[], memType: MemoryType = "prgRom", opts: { start?: number; length?: number; maxResults?: number } = {}): Promise<SearchMemoryResult> {
+    return this.conn.request<SearchMemoryResult>("search_memory", {
+      pattern,
+      mem_type: memType,
+      ...(opts.start !== undefined ? { start: opts.start } : {}),
+      ...(opts.length !== undefined ? { length: opts.length } : {}),
+      ...(opts.maxResults !== undefined ? { max_results: opts.maxResults } : {}),
+    });
+  }
+
+  /** Soft-reset the console; clears palette overrides first (ADR-0009). */
+  async resetEmulator(): Promise<ResetEmulatorResult> {
+    return this.conn.request<ResetEmulatorResult>("reset_emulator");
+  }
+
+  /** Resolve a CPU (default) or PPU address to its ROM/RAM origin through the mapper (ADR-0009). */
+  async convertAddress(address: number, memType: MemoryType = "cpu"): Promise<ConvertAddressResult> {
+    return this.conn.request<ConvertAddressResult>("convert_address", { address, mem_type: memType });
   }
 
   /** Rendered color at a screen pixel; ground truth for what the user sees (ADR-0010). */

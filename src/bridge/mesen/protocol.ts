@@ -142,6 +142,35 @@ export interface ScrollCaptureResult {
   writes: ScrollWrite[];
 }
 
+/** Answer to search_memory (ADR-0009). */
+export interface SearchMemoryResult {
+  mem_type: string;
+  memory_size: number;
+  start: number;
+  searched: number;
+  offsets: number[];
+  truncated: boolean;
+  pattern_length: number;
+}
+
+/** Answer to reset_emulator (ADR-0009). */
+export interface ResetEmulatorResult {
+  reset: boolean;
+  cleared_palette_overrides: number;
+}
+
+/** Answer to convert_address: where a CPU/PPU address lives through the mapper (ADR-0009). */
+export interface ConvertAddressResult {
+  input: number;
+  input_mem_type: string;
+  /** Offset within the resolved memory, e.g. the PRG ROM byte offset (no iNES header). */
+  address?: number;
+  /** Resolved memory type name when it is one the bridge knows (prgRom, chrRom, workRam, palette, ...). */
+  mem_type?: string;
+  mem_type_id?: number;
+  raw: unknown;
+}
+
 /** Answer to wait_frames, the trivial two-phase request (ADR-0010). */
 export interface WaitFramesResult {
   requested: number;

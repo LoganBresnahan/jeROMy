@@ -52,7 +52,49 @@ to `docs/issues.md`, roadmap ticked, commit, push.
 - Anything that would need Logan's judgment on product scope: write it as a
   question at the top of this file and move to the next item.
 
-## Morning report
+## Morning report (running log; the last entry is the state when you read this)
 
-Appended here when the run ends: items shipped with commit SHAs, items parked
-and why, balance spent, sessions worth replaying, open questions.
+**As of 23:10 (local), balance $8.94 of $9.00.** All pushed to `origin/main`.
+
+Shipped, one commit each unless noted:
+
+- `1e7ecc2` ADR-0011 session replay (`scripts/dsh-log.mjs`, `/replay`),
+  session-log upload off, overnight plan, `budget.sh`.
+- `dea7cb2` item 8: v0.1 stack deleted; README is an install guide.
+- `53622df` bridge liveness: heartbeat, Lua file log (`scripts/lua-log.sh`),
+  `trio.sh` fails on tool errors and retries after `mesen-up.sh --restart`,
+  `scripts/bridge-call.mjs` (call a Lua handler with no dsh, no model).
+- `bb72de6` item 13: 64 hue names in the prompt, hex rule; verified by
+  asking the model to restate.
+- `21bacc7`, `c48346f`, `7a1ebcc` item 12 / ADR-0010 in four phases:
+  `get_pixel_color`; two-phase bridge requests + reconnect while paused;
+  scroll capture + scanline reconstruction (SMB fixtures); precise
+  `get_tile_at_pixel` shared with the picker; `trio.sh click`.
+- `4616330` items 9 and 11: skills registered through `ctx.skills`
+  (dsh's `skill` tool loads them); `jeromy` agent preset, default, with
+  the read-only sandbox as the fresh-session default.
+
+Findings worth your eye (`scripts/dsh-log.mjs show <id>`):
+
+- The Lua client sometimes never saw a headless run end (sat on a dead
+  socket); heartbeat fixed it. Evidence in `docs/issues.md`.
+- Mesen's single-instance handoff does not reload a running `bridge.lua`;
+  every Lua change needs `scripts/mesen-up.sh --restart`.
+- Mesen invokes write hooks *before* the write and exposes the loopy
+  registers in `getState`, which is what made the scroll reconstruction
+  testable against the emulator's own numbers.
+- The "palette override invisible after step" report from the edit check
+  did not reproduce through the bridge (visible after one `step_frame`);
+  entry dropped.
+
+Human checks for you:
+
+1. Open the dsh web UI, start a session: the preset should be **jeROMy**
+   and the permission preset **read-only**. Click a pixel in the sidebar
+   view; the context line now ends with the rendered color and the scroll
+   source.
+2. Type `/identify-click` or ask "what did I click" and watch it use
+   `get_pixel_color`.
+
+Open questions: none blocking. Next in the queue: ADR-0009 (plan running
+as of 23:10), then item 7 (bundle).

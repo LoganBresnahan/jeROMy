@@ -24,17 +24,6 @@ commit is the record; a file of ticked boxes stops being read.
   `mesen-up.sh --restart`. The next full trio passed with no retry. Delete
   this entry after a week of trio runs with no `bridge never connected`
   line; if one appears, `scripts/lua-log.sh` now has the evidence.
-- **A palette override is not visible in a screenshot taken after
-  `pause_emulator` + `step_frame`; it shows after `resume_emulator`.** The
-  2026-10-05 edit check (session `eaf1faaa`, again in `trio-20261004-221850`)
-  had `write_palette` land (`get_palette` read it back) but the paused,
-  stepped capture still showed the old color, and the agent burned 26
-  steps reconciling that. Likely the override is applied in `endFrame`
-  after the frame rendered and the stepped frame is captured before the
-  next render, or `takeScreenshot` while paused returns the previous
-  frame. Verify with `scripts/bridge-call.mjs` (write_palette, pause,
-  step_frame ×2, screenshot) and fix in the Lua step path or document the
-  two-step rule in the `palette-swap` skill. Found 2026-10-05.
 - **`clear_palette_overrides` stops re-applying the override but does not
   restore the original color**; `get_palette` still reads the overridden
   value until the game rewrites that palette entry. Either the tool restores

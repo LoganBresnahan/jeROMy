@@ -49,6 +49,27 @@ describe("MesenAdapter", () => {
     expect(result.waited).toBe(120);
   });
 
+  it("searchMemory sends the pattern, memory type and bounds (ADR-0009)", async () => {
+    mockRequest.mockResolvedValue({ offsets: [0x0cb4], truncated: false });
+    const result = await adapter.searchMemory([0x22, 0x29, 0x1a, 0x0f], "prgRom", { maxResults: 8 });
+    expect(mockRequest).toHaveBeenCalledWith("search_memory", { pattern: [0x22, 0x29, 0x1a, 0x0f], mem_type: "prgRom", max_results: 8 });
+    expect(result.offsets).toEqual([0x0cb4]);
+  });
+
+  it("resetEmulator sends reset_emulator (ADR-0009)", async () => {
+    mockRequest.mockResolvedValue({ reset: true, cleared_palette_overrides: 0 });
+    await adapter.resetEmulator();
+    expect(mockRequest).toHaveBeenCalledWith("reset_emulator");
+  });
+
+  it("convertAddress sends convert_address with the memory type (ADR-0009)", async () => {
+    // $8000 on SMB resolves to PRG ROM offset 0 (checked live 2026-10-05).
+    mockRequest.mockResolvedValue({ input: 0x8000, input_mem_type: "cpu", address: 0, mem_type: "prgRom", mem_type_id: 45, raw: {} });
+    const result = await adapter.convertAddress(0x8000);
+    expect(mockRequest).toHaveBeenCalledWith("convert_address", { address: 0x8000, mem_type: "cpu" });
+    expect(result).toMatchObject({ address: 0, mem_type: "prgRom" });
+  });
+
   it("captureScrollWrites sends capture_scroll_writes with a timeout for the wait (ADR-0010)", async () => {
     mockRequest.mockResolvedValue({ frames: 1, writes: [] });
     const result = await adapter.captureScrollWrites(1);

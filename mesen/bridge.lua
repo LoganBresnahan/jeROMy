@@ -362,6 +362,82 @@ function handlers.screenshot(params)
 end
 
 -- get_tile_at_pixel: Given screen coordinates, return tile and palette info
+-- search_memory: find a byte pattern (nil/-1 = wildcard) in a memory type
+-- (ADR-0009). Bounded: at most `length` bytes from `start` (default the whole
+-- memory, capped at 64 KiB per call: Mesen's watchdog counts Lua VM time and
+-- a 512 KiB mapper ROM is one emu.read per byte; the TypeScript side chains
+-- calls), at most `max_results` hits.
+function handlers.search_memory(params)
+  local pattern = params.pattern
+  if type(pattern) ~= "table" or #pattern == 0 then error("pattern must be a non-empty array of bytes (-1 or null = wildcard)") end
+  local mem_type = params.mem_type or "prgRom"
+  local mt = MT[mem_type]
+  if not mt then error("unknown mem_type: " .. tostring(mem_type)) end
+  local size = emu.getMemorySize(mt)
+  local start = params.start or 0
+  local max_len = 64 * 1024
+  local length = math.min(params.length or (size - start), size - start, max_len)
+  local max_results = params.max_results or 64
+  local offsets = {}
+  local n = #pattern
+  local first = pattern[1]
+  local last_start = start + length - n
+  local i = start
+  local truncated = false
+  while i <= last_start do
+    local b = emu.read(i, mt)
+    if first == -1 or first == nil or b == first then
+      local match = true
+      for k = 2, n do
+        local p = pattern[k]
+        if p ~= -1 and p ~= nil and emu.read(i + k - 1, mt) ~= p then match = false; break end
+      end
+      if match then
+        offsets[#offsets + 1] = i
+        if #offsets >= max_results then truncated = (i < last_start); break end
+      end
+    end
+    i = i + 1
+  end
+  return { mem_type = mem_type, memory_size = size, start = start, searched = length, offsets = offsets, truncated = truncated, pattern_length = n }
+end
+
+-- reset_emulator: soft reset (ADR-0009: proving a ROM edit survived).
+-- Clears palette overrides first so a frozen color is not mistaken for a
+-- persistent one; the pause flag is left alone (a reset while paused stays
+-- paused in Mesen).
+function handlers.reset_emulator(params)
+  local cleared = 0
+  for _ in pairs(palette_overrides) do cleared = cleared + 1 end
+  palette_overrides = {}
+  emu.reset()
+  return { reset = true, cleared_palette_overrides = cleared }
+end
+
+-- convert_address: CPU (or other) address → its ROM/RAM origin through the
+-- mapper (ADR-0009). Returns Mesen's raw answer plus the memType name.
+function handlers.convert_address(params)
+  local addr = params.address
+  if not addr then error("address is required") end
+  local mem_type = params.mem_type or "cpu"
+  local mt = MT[mem_type]
+  if not mt then error("unknown mem_type: " .. tostring(mem_type)) end
+  local ok, res = pcall(emu.convertAddress, addr, mt)
+  if not ok then
+    ok, res = pcall(emu.convertAddress, addr)
+  end
+  if not ok then error("convertAddress failed: " .. tostring(res)) end
+  local out = { input = addr, input_mem_type = mem_type, raw = res }
+  if type(res) == "table" then
+    out.address = res.address
+    for name, id in pairs(MT) do
+      if id == res.memType then out.mem_type = name end
+    end
+    out.mem_type_id = res.memType
+  end
+  return out
+end
+
 -- wait_frames: the smallest two-phase request (ADR-0010). Parks for N frames
 -- and answers with how many actually elapsed; exists so the pending path can
 -- be exercised without the scroll capture.

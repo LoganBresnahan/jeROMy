@@ -5,6 +5,7 @@
 
 import type { ToolSpec, ContentBlock, StoredImage } from "./types.js";
 import type { MesenAdapter } from "../bridge/mesen/index.js";
+import type { MemoryType, SearchMemoryResult } from "../bridge/mesen/protocol.js";
 import type { Disassembler, Arch } from "./disassembler.js";
 import type { GameMapping } from "../mappings/types.js";
 import { NES_MASTER_PALETTE_RGB, nearestNesColor, nesColorName } from "./nes-palette.js";
@@ -35,6 +36,29 @@ export const agentTools: ToolSpec[] = [
       },
       required: ["x", "y"],
     },
+  },
+  {
+    name: "search_memory",
+    description:
+      "Find a byte pattern in a memory type and return the offsets. Give bytes as an array (use -1 for a wildcard) or as a hex string like \"22 29 1A 0F\" / \"22 ?? 1A 0F\". Default region is PRG ROM (offsets are ROM offsets without the 16-byte iNES header). Use it to find where the game keeps the bytes you saw in RAM or palette memory, which is where a persistent edit belongs.",
+    input_schema: {
+      type: "object",
+      properties: {
+        pattern: { type: "array", items: { type: "number" }, description: "Bytes 0-255; -1 matches anything" },
+        hex: { type: "string", description: "Alternative to pattern: space-separated hex bytes, ?? for a wildcard" },
+        mem_type: { type: "string", description: "prgRom (default), chrRom, workRam, cpuDebug, ppuDebug, palette, ..." },
+        start: { type: "number", description: "Offset to start from (default 0)" },
+        length: { type: "number", description: "Bytes to scan (default: to the end, max 512 KiB per call)" },
+        max_results: { type: "number", description: "Cap on offsets returned (default 64)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "reset_emulator",
+    description:
+      "Soft-reset the console (like the RESET button). Palette overrides are cleared first. A ROM edit that is still visible after a reset is persistent in the emulator's copy of the ROM; a RAM or palette edit is gone. Use it to prove an edit survived before exporting it.",
+    input_schema: { type: "object", properties: {}, required: [] },
   },
   {
     name: "get_pixel_color",
@@ -663,6 +687,35 @@ function quantizeToNesPalette(
  * Execute a tool call and return the result.
  * Screenshot results include the image as a content block so the LLM can see it.
  */
+/** Lua scans at most 64 KiB per request (watchdog); chunks overlap by the pattern length so no hit straddling a boundary is lost. */
+const SEARCH_CHUNK = 64 * 1024;
+
+export async function searchMemoryAll(
+  adapter: MesenAdapter,
+  pattern: number[],
+  memType: MemoryType,
+  opts: { start?: number; length?: number; maxResults?: number },
+): Promise<SearchMemoryResult> {
+  const maxResults = opts.maxResults ?? 64;
+  const start = opts.start ?? 0;
+  const first = await adapter.searchMemory(pattern, memType, { start, length: Math.min(opts.length ?? SEARCH_CHUNK, SEARCH_CHUNK), maxResults });
+  const end = Math.min(first.memory_size, opts.length !== undefined ? start + opts.length : first.memory_size);
+  const offsets = [...first.offsets];
+  let searched = first.searched;
+  let truncated = first.truncated;
+  let next = start + first.searched - (pattern.length - 1);
+  while (!truncated && offsets.length < maxResults && next + pattern.length <= end) {
+    const length = Math.min(SEARCH_CHUNK, end - next);
+    const part = await adapter.searchMemory(pattern, memType, { start: next, length, maxResults: maxResults - offsets.length });
+    for (const o of part.offsets) if (!offsets.includes(o)) offsets.push(o);
+    searched += Math.max(0, part.searched - (pattern.length - 1));
+    truncated = part.truncated;
+    if (part.searched <= pattern.length - 1) break;
+    next += part.searched - (pattern.length - 1);
+  }
+  return { ...first, start, searched, offsets, truncated: truncated || offsets.length >= maxResults && next + pattern.length <= end };
+}
+
 export async function executeTool(
   name: string,
   input: Record<string, unknown>,
@@ -700,6 +753,32 @@ export async function executeTool(
         precise: input.precise === undefined ? true : Boolean(input.precise),
       });
       return { type: "text", text: JSON.stringify(result) };
+    }
+
+    case "search_memory": {
+      let pattern = input.pattern as number[] | undefined;
+      if (!pattern && typeof input.hex === "string") {
+        pattern = input.hex.trim().split(/[\s,]+/).filter(Boolean).map((tok) => {
+          if (/^\?\?$|^\*$|^xx$/i.test(tok)) return -1;
+          const v = parseInt(tok.replace(/^(0x|\$)/i, ""), 16);
+          if (Number.isNaN(v) || v < 0 || v > 255) throw new Error(`search_memory: bad hex byte "${tok}"`);
+          return v;
+        });
+      }
+      if (!pattern || pattern.length === 0) return { type: "text", text: "Error: give pattern (array of bytes, -1 = wildcard) or hex (\"22 29 1A 0F\")" };
+      if (pattern.every((b) => b === -1)) return { type: "text", text: "Error: pattern is all wildcards" };
+      const result = await searchMemoryAll(adapter, pattern, (input.mem_type as any) ?? "prgRom", {
+        start: input.start as number | undefined,
+        length: input.length as number | undefined,
+        maxResults: input.max_results as number | undefined,
+      });
+      const hexOffsets = result.offsets.map((o) => `0x${o.toString(16).toUpperCase()}`);
+      return { type: "text", text: JSON.stringify({ ...result, offsets_hex: hexOffsets }) };
+    }
+
+    case "reset_emulator": {
+      const result = await adapter.resetEmulator();
+      return { type: "text", text: JSON.stringify({ ...result, note: "Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain." }) };
     }
 
     case "get_pixel_color": {

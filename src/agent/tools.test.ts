@@ -7,6 +7,8 @@ describe("agentTools", () => {
     expect(names).toContain("screenshot");
     expect(names).toContain("get_tile_at_pixel");
     expect(names).toContain("get_pixel_color");
+    expect(names).toContain("search_memory");
+    expect(names).toContain("reset_emulator");
     expect(names).toContain("get_palette");
     expect(names).toContain("write_palette");
     expect(names).toContain("get_all_palettes");
@@ -69,6 +71,8 @@ describe("executeTool", () => {
       captureScrollWrites: vi.fn().mockResolvedValue({ frames: 1, stepped_frames: 0, start_frame: 0, end_frame: 1, other_register_writes: 0, final: { t: 0, v: 0, x: 0, w: false, scanline: 240, cycle: 0 }, writes: [{ frame: 0, scanline: 241, cycle: 10, reg: 5, value: 0, t: 0, v: 0, x: 0, w: false }, { frame: 0, scanline: 241, cycle: 20, reg: 5, value: 0, t: 0, v: 0, x: 0, w: true }] }),
       // (136,216,0) is SMB's pipe green as Mesen renders $29, sampled by the agent on 2026-10-05.
       getPixelColor: vi.fn().mockResolvedValue({ x: 176, y: 182, argb: 0xff88d800, r: 136, g: 216, b: 0 }),
+      searchMemory: vi.fn().mockResolvedValue({ mem_type: "prgRom", memory_size: 32768, start: 0, searched: 32768, offsets: [0x0cb4], truncated: false, pattern_length: 4 }),
+      resetEmulator: vi.fn().mockResolvedValue({ reset: true, cleared_palette_overrides: 1 }),
       getPalette: vi.fn().mockResolvedValue({ palette_id: 0, colors: [0, 1, 2, 3] }),
       writePalette: vi.fn().mockResolvedValue({ old_color: 0, new_color: 0x27 }),
       getAllPalettes: vi.fn().mockResolvedValue({ palettes: [] }),
@@ -122,6 +126,43 @@ describe("executeTool", () => {
       screenshot: vi.fn().mockResolvedValue({ png_base64: "", paused: true }),
     });
     await expect(executeTool("screenshot", {}, adapter)).rejects.toThrow(/paused.*resume_emulator/);
+  });
+
+  it("search_memory accepts a hex string with wildcards and reports hex offsets (ADR-0009)", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool("search_memory", { hex: "22 ?? 1A $0F" }, adapter);
+    expect(adapter.searchMemory).toHaveBeenCalledWith([0x22, -1, 0x1a, 0x0f], "prgRom", { start: 0, length: 65536, maxResults: 64 });
+    expect(JSON.parse((result as { text: string }).text).offsets_hex).toEqual(["0xCB4"]);
+  });
+
+  it("search_memory chains 64 KiB chunks with pattern overlap across a large memory (ADR-0009)", async () => {
+    // 256 KiB PRG with one hit straddling the first chunk boundary at 0xFFFE.
+    const adapter = mockAdapter({
+      searchMemory: vi.fn().mockImplementation(async (pattern: number[], _mt: string, o: { start: number; length: number }) => {
+        const hits = [0xfffe, 0x20000].filter((h) => h >= o.start && h + pattern.length <= o.start + o.length);
+        return { mem_type: "prgRom", memory_size: 262144, start: o.start, searched: o.length, offsets: hits, truncated: false, pattern_length: pattern.length };
+      }),
+    });
+    const result = await executeTool("search_memory", { pattern: [1, 2, 3, 4] }, adapter);
+    const parsed = JSON.parse((result as { text: string }).text);
+    expect(parsed.offsets).toEqual([0xfffe, 0x20000]);
+    expect(adapter.searchMemory).toHaveBeenCalledTimes(5); // 65536 + 3 × 65533 + a 12-byte tail
+    expect(adapter.searchMemory.mock.calls[1][2].start).toBe(65536 - 3);
+    expect(parsed.searched).toBe(262144);
+  });
+
+  it("search_memory rejects an empty or all-wildcard pattern without calling the bridge", async () => {
+    const adapter = mockAdapter();
+    expect((await executeTool("search_memory", {}, adapter) as { text: string }).text).toMatch(/^Error/);
+    expect((await executeTool("search_memory", { pattern: [-1, -1] }, adapter) as { text: string }).text).toMatch(/all wildcards/);
+    expect(adapter.searchMemory).not.toHaveBeenCalled();
+  });
+
+  it("reset_emulator calls the adapter and says what survives (ADR-0009)", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool("reset_emulator", {}, adapter);
+    expect(adapter.resetEmulator).toHaveBeenCalled();
+    expect((result as { text: string }).text).toContain("ROM edits");
   });
 
   it("get_pixel_color maps the rendered RGB to the nearest NES index and hue name (ADR-0010)", async () => {

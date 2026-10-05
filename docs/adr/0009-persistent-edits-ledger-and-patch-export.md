@@ -1,6 +1,6 @@
 # ADR-0009: Persistent edits: find the ROM origin, keep a ledger, export a patch
 
-**Status:** Proposed (build after roadmap items 6 and 8)
+**Status:** Accepted (2026-10-05, for the overnight run Logan authorized; items 6 and 8 shipped first as planned)
 **Date:** 2026-10-05
 
 ## Context
