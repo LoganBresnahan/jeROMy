@@ -1,6 +1,6 @@
 # ADR-0008: Ship curated ROM-hacking skills with the plugin, one per procedure
 
-**Status:** Proposed (scheduled after roadmap items 7 and 8)
+**Status:** Accepted (2026-10-05: Logan agreed the same day; registration through `ctx.skills` shipped that night as roadmap item 9)
 **Date:** 2026-10-05
 
 ## Context

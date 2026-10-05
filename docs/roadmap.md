@@ -133,28 +133,25 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
   dump-and-diff), `export_rom`, `undo_edit`, `reset_emulator`; (d) mapping
   schema v2 with `rom_origins`; (e) the `persist-edit` skill from the first
   real SMB recolor that survives a reset, with its `trio.sh` check.
-- **11. A `jeromy` agent preset** for the web app: dsh's web bundle
-  disables the base coding tools and lets each agent preset mount its own,
-  so "remove the coding toolbelt" (ADR-0001) is a preset, not a patch row.
-  Decided 2026-10-05 (Logan): keep a read-only shell and `read_image`, drop
-  write, edit and the fs tools. Logan's click session showed Bash +
-  `read_image` doing useful work (cropping and annotating screenshots,
-  sampling pixel colors). Ships with the bundle (item 7).
-- **9. Curated ROM-hacking skills** (ADR-0008): a `skills/` directory in
-  the plugin, registered through `ctx.skills`, one procedure per skill,
-  model- and user-invocable. First set: `rom-orient`, `palette-swap`,
-  `tile-redraw`, `sprite-swap`, `find-variable`, `layout-edit`,
-  `promote-and-share`; each with a `trio.sh` check and a shipshape grep
-  that every tool it names exists. Write them from real SMB sessions, not
-  from memory. Standing rule: a procedure is written up the session it is
-  figured out. Drafted so far: `skills/palette-swap/SKILL.md` (from the
-  2026-10-05 edit checks) and `skills/identify-click/SKILL.md` (from
-  Logan's click session the same night; waits on item 12 for its
-  pixel-color step). Not yet registered with dsh. Every skill states the
-  confidence rule for `record_mapping`: 1 only for something seen on
-  screen; the click session marked two entries confirmed and both were, but
-  it is the place over-confidence will show first.
-
+- [x] **11. A `jeromy` agent preset.** Done 2026-10-05 per Logan's call
+  (read-only shell + `read_image`, no write/edit): the dev patch inserts
+  `preset-jeromy` (persona, time context, bash without background jobs,
+  tool-fs, skill-filesystem + the `skill` tool, ask-user, present,
+  compaction) and makes it the registry default; `tool-fs` has no per-tool
+  switch, so fresh sessions start in the `read-only` sandbox preset instead
+  (writes blocked, person can raise it in the UI). Composed config checked;
+  a web session on the preset is the morning's human check. Ships in the
+  bundle at item 7.
+- [x] **9. Curated ROM-hacking skills** (ADR-0008). Done 2026-10-05 for
+  the mechanism and the first two: `skills/<name>/SKILL.md` parsed by
+  `src/agent/skills.ts` and registered through `ctx.skills` as bundled,
+  model- and user-invocable; dsh's `skill` tool lists and loads them
+  (session `f64a1632`). Unit test pins frontmatter parsing and tool↔skill
+  parity (every backticked tool a skill names exists). Drafted so far:
+  `identify-click`, `palette-swap`. Still to write from real sessions, per
+  the standing rule: `rom-orient`, `tile-redraw`, `sprite-swap`,
+  `find-variable`, `layout-edit`, `promote-and-share`, `persist-edit`
+  (ADR-0009), each with a `trio.sh` check.
 - **Sprite & animation editing** (old Phase 5): OAM inspection/editing,
   multi-tile sprite composition, animation frame identification,
   `extract_sprite` from reference images, `find_unused_tiles`.

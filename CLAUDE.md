@@ -19,9 +19,10 @@ session in the sidebar. The v0.1 server, web UI, SQLCipher store and
 Anthropic provider were deleted at roadmap item 8 (2026-10-05); dsh's
 session log is the record (`/replay`). Items 12 (click correctness,
 ADR-0010: two-phase bridge requests, scroll capture, scanline-accurate
-`get_tile_at_pixel`) and 13 (prompt hygiene) shipped the same night. Open:
-item 7 (bundle + install from a clean machine), 9 (skills registration), 11
-(preset), 10 (persistent edits, ADR-0009). Build order: `docs/roadmap.md`;
+`get_tile_at_pixel`), 13 (prompt hygiene), 9 (skills registered through
+`ctx.skills`) and 11 (`jeromy` agent preset, read-only sandbox default)
+shipped the same night. Open: item 7 (bundle + install from a clean
+machine) and 10 (persistent edits, ADR-0009). Build order: `docs/roadmap.md`;
 tonight's plan: `docs/plans/overnight-2026-10-05.md`.
 
 ## Stack

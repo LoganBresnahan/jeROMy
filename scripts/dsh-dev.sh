@@ -36,6 +36,7 @@ cat > "$PATCH" <<YAML
   config:
     enabled: false
 # A ROM-hacking model should not be offered the coding-agent toolbelt (ADR-0001).
+# Host rows (what headless runs see):
 - id: tool-bash
   disabled: true
 - id: tool-pwsh
@@ -44,6 +45,75 @@ cat > "$PATCH" <<YAML
   disabled: true
 - id: tool-fs-search
   disabled: true
+# Web app: tools are per agent preset, so the toolbelt is a preset (roadmap
+# item 11, Logan 2026-10-05: keep a read-only shell and read_image, drop
+# write/edit/fs search, subagents, workflows, plan mode, web). The jeROMy
+# tools themselves are host rows from the plugin above and reach every preset.
+- id: agent-preset-registry
+  config:
+    default: jeromy
+# "Read-only shell": tool-fs has no per-tool switch, so the sandbox carries
+# the rule. Fresh sessions start read-only; the person can still pick
+# workspace-write or danger-full-access in the UI (config is replaced
+# wholesale, so the preset table is restated).
+- id: permission
+  config:
+    defaultPreset: read-only
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+- insert:
+    - id: preset-jeromy
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: jeromy
+        order: 0
+        name: jeROMy
+        description: ROM hacking against the live emulator; shell for pixel math only
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: >-
+                You are jeROMy on the {{model}} model. Work through the emulator tools; the shell is for image and pixel arithmetic, never for editing files.
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            config:
+              enableRunInBackground: false
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: present
+            name: '@deepseek-ai/dsh-tool-present'
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+              toolResultPruner: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: command-compact
+                name: '@deepseek-ai/dsh-command-compact'
+              - id: tool-result-pruner
+                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+                config:
+                  thresholdChars: 8192
 YAML
 "$REPO/scripts/link-dsh.sh" >/dev/null
 echo "[dsh-dev] profile jeromy · patch $PATCH · http://127.0.0.1:$PORT"

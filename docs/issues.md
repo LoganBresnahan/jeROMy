@@ -56,16 +56,6 @@ commit is the record; a file of ticked boxes stops being read.
   If a `dsh-dev.sh` web session shows it, the workspace picker chose a repo
   with an `AGENTS.md`/`CLAUDE.md`.
 
-- **In the web app the agent still has Bash, read_image and the fs tools**
-  despite the dev patch disabling `tool-bash`/`tool-fs`: dsh's web bundle
-  already disables those base rows and each agent preset mounts its own
-  tool rows inside its realm, so only headless runs honored our disables.
-  Not simply a bug to fix: in the 2026-10-05 click session the agent used
-  Bash (Python) to crop and annotate the screenshot and sample the exact
-  pixel color, which is how it caught the tile-readout error above.
-  Decision for roadmap item 11: a `jeromy` preset that keeps a read-only
-  shell and `read_image` and drops write/edit, versus no shell at all.
-  Found 2026-10-05.
 - **Unpromoted discoveries die with the process.** `record_mapping` results
   live in memory on the Mesen service until `promote_mappings` writes them.
   A crash or restart between the two loses them; dsh's session log still

@@ -26,3 +26,4 @@ link dsh-attachment       packages/attachment/attachment
 link dsh-system-prompt    packages/core/system-prompt
 link dsh-llm              packages/llm/llm
 link dsh-agent            packages/core/agent
+link dsh-skill            packages/skill/skill

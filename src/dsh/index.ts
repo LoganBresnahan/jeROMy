@@ -15,7 +15,9 @@ import type {} from "@deepseek-ai/dsh-tools";
 import type {} from "@deepseek-ai/dsh-attachment";
 import type {} from "@deepseek-ai/dsh-system-prompt";
 import type {} from "@deepseek-ai/dsh-agent";
+import type {} from "@deepseek-ai/dsh-skill";
 import { Disassembler } from "../agent/disassembler.js";
+import { loadSkillFiles } from "../agent/skills.js";
 import { MesenService } from "./mesen-service.js";
 import { makeCoreTools } from "./tools/core-tools.js";
 import { makePromoteMappingsTool } from "./tools/promote-mappings.js";
@@ -42,6 +44,7 @@ export interface Config {
 }
 
 const REPO_MAPPINGS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "mappings");
+const REPO_SKILLS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "skills");
 
 export const Config: Schema<Config> = Schema.object({
   port: Schema.number().default(9001).description("TCP port mesen/bridge.lua connects to"),
@@ -114,5 +117,27 @@ export function apply(ctx: Context, config: Config): void {
     });
 
     scope.logger.info(`jeromy: ${tools.length + 1} tools, prompt section and emulator view registered`);
+  });
+
+  // Curated ROM-hacking skills (ADR-0008): embedded registrations in the host
+  // layer, so every agent preset's `skill` tool and the user's skill commands
+  // see them. Separate inject: a profile without the skill registry still
+  // gets the tools above.
+  ctx.inject(["skills"], (scope) => {
+    const files = loadSkillFiles(REPO_SKILLS_DIR);
+    for (const skill of files) {
+      scope.effect(() => scope.skills.register({
+        name: skill.name,
+        description: skill.description,
+        ...(skill.whenToUse ? { whenToUse: skill.whenToUse } : {}),
+        content: skill.content,
+        path: skill.path,
+        source: "bundled",
+        resourceBase: { kind: "directory", path: dirname(skill.path) },
+        invocation: { modelInvocable: skill.modelInvocable, userInvocable: skill.userInvocable },
+        ...(skill.metadata ? { metadata: skill.metadata } : {}),
+      }));
+    }
+    scope.logger.info(`jeromy: ${files.length} skills registered (${files.map((f) => f.name).join(", ")})`);
   });
 }
