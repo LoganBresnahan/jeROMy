@@ -11,7 +11,9 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 DSH_SRC="$(cd "${DSH_SRC:-$REPO/../deepseek-harness}" && pwd)"
 PATCH="$REPO/.dsh-dev/cordis.yml"
 OUT="$REPO/.chat-out/trio-$(date +%Y%m%d-%H%M%S)"
-mkdir -p "$OUT"
+WORK="${XDG_CACHE_HOME:-$HOME/.cache}/jeromy/headless-cwd"   # outside the repo: dsh walks up from cwd for AGENTS.md/CLAUDE.md
+mkdir -p "$OUT" "$WORK"
+TSX_ESM="$(cd "$DSH_SRC" && node -p "require.resolve('tsx/esm')")"   # `--import tsx/esm` resolves from cwd, which has no node_modules
 [ -f "$PATCH" ] || { echo "[trio] no $PATCH; run scripts/up.sh once" >&2; exit 1; }
 
 declare -A TASK=(
@@ -60,9 +62,17 @@ for name in "${CHECKS[@]}"; do
   task="${TASK[$name]:-}"; [ -n "$task" ] || { echo "[trio] unknown check: $name" >&2; FAIL=1; continue; }
   wait_port_free || { FAIL=1; break; }
   echo "=== $name"
-  ( cd "$DSH_SRC" && timeout 420 pnpm dsh --profile headless --patch "$PATCH" --json "$task" ) > "$OUT/$name.jsonl" 2> "$OUT/$name.err"
+  # Run from a neutral directory outside any repo: dsh injects the nearest
+  # AGENTS.md/CLAUDE.md above cwd into the agent as `agent-instructions`, and
+  # neither the harness's nor jeROMy's rulebook is for the ROM-hacking agent
+  # (ADR-0011, found 2026-10-05).
+  # TSX_TSCONFIG_PATH: outside the checkout tsx would not see its tsconfig `paths`
+  # and would load stale built packages instead of workspace sources.
+  ( cd "$WORK" && TSX_TSCONFIG_PATH="$DSH_SRC/tsconfig.json" timeout 420 node --import "$TSX_ESM" "$DSH_SRC/apps/cli/src/bin.ts" --profile headless --patch "$PATCH" --json "$task" ) > "$OUT/$name.jsonl" 2> "$OUT/$name.err"
   code=$?
+  sid="$(grep -o '"sessionId":"session-[0-9a-f-]*"' "$OUT/$name.jsonl" | head -1 | cut -d'"' -f4)"
   echo "exit $code · $(summarize "$OUT/$name.jsonl")"
+  [ -n "$sid" ] && echo "  replay: scripts/dsh-log.mjs show ${sid#session-} --images $OUT/$name-img"
   [ $code -eq 0 ] || { FAIL=1; echo "  stderr: $(grep -v '^\$ node' "$OUT/$name.err" | tail -3 | tr '\n' ' ')"; }
 done
 

@@ -30,6 +30,11 @@ cat > "$PATCH" <<YAML
 # Emulator view page lives in the right-sidebar browser (ADR-0004); off by default in web profiles.
 - id: ui-sidebar-browser
   disabled: false
+# Do not upload the session log (prompt, tool results, clicks) to DeepSeek's API
+# with each request; dsh's shipped profiles default this on (ADR-0011).
+- id: session-log-deepseek
+  config:
+    enabled: false
 # A ROM-hacking model should not be offered the coding-agent toolbelt (ADR-0001).
 - id: tool-bash
   disabled: true

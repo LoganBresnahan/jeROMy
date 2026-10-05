@@ -102,6 +102,11 @@ the sidebar) and 7 (bundle + install from a clean machine) are open. Plan:
   `scripts/trio.sh` (look, read, edit headless through dsh) plus the human
   pixel-picker check in the sidebar. A green `/shipshape` does not
   discharge it.
+- `/replay` — read what the DeepSeek agent did in a dsh session
+  (reasoning, tool calls, results, screenshots, cost) from dsh's own log
+  via `scripts/dsh-log.mjs` (ADR-0011). Run after every trio, web session
+  or loop iteration; judge the tool trace and the images, not the final
+  text.
 - `adr-plan` workflow (`.claude/workflows/adr-plan.js`) — decompose an
   accepted ADR into an effort-ranked, dependency-ordered build checklist
   before implementing it. Output goes to `docs/plans/adr-NNNN-<topic>-build-plan.md`.
@@ -136,6 +141,13 @@ the sidebar) and 7 (bundle + install from a clean machine) are open. Plan:
   (live screenshot, pixel picker, pause/step/resume). A click injects a
   `[emulator view] The user clicked pixel ...` line into the live agent.
   `curl http://127.0.0.1:9002/status` checks it headlessly.
+- `scripts/dsh-log.mjs list | show <id|latest> | tail latest --follow |
+  stats <id> | events <id> --type T` — read dsh's persisted session logs
+  (`~/.dsh/sessions/*/session-*/session.v4.jsonl.zstd`; images under
+  `~/.dsh/attachments/v1/objects/`). `<id>` is any unique prefix. See `/replay`.
+- `scripts/budget.sh [floor]` — DeepSeek balance in USD; non-zero exit
+  below the floor or when the account is unavailable. Check between items
+  in an unattended run (`docs/plans/overnight-2026-10-05.md`).
 - Headless turn through dsh (the scripted check):
   `cd /home/oof/deepseek-harness && pnpm dsh --profile headless --patch /home/oof/jeROMy/.dsh-dev/cordis.yml --json "<task>"`.
   Only one dsh process can own port 9001 at a time; stop the web one first.

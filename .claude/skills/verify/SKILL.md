@@ -34,11 +34,13 @@ scripts/trio.sh        # look, read, edit — headless through dsh, streams save
 ```
 
 `trio.sh` stops the web dsh for its duration (one process owns the bridge
-port) and restarts it. Read each check's `final` text and the saved JSON
-stream; for `look` and `edit`, also open the attachment PNGs dsh saved
-(under `~/.dsh/attachments/`) rather than trusting the description. For the
+port) and restarts it. It prints a `replay:` line per check; run it
+(`scripts/dsh-log.mjs show <id> --images DIR`, see `/replay`) and read the
+tool trace and reasoning, not just the `final` text. For `look` and
+`edit`, Read the copied PNGs rather than trusting the description. For the
 human half, open the right-sidebar Browser at `http://127.0.0.1:9002/`,
-click a tile, and ask the agent about "the pixel I clicked".
+click a tile, and ask the agent about "the pixel I clicked"; then
+`/replay` that web session too (`scripts/dsh-log.mjs list` shows it by cwd).
 
 ## The standing trio, plus what the change touched
 

@@ -11,7 +11,8 @@ PORT="${DSH_PORT:-3080}"
 LOG="$REPO/.dsh-dev/dsh.log"
 mkdir -p "$REPO/.dsh-dev"
 
-owner_of() { ss -ltnp 2>/dev/null | grep -E ":$1 " | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2; }
+# `|| true`: under `set -e -o pipefail` an empty grep (port free) would otherwise end the script silently.
+owner_of() { ss -ltnp 2>/dev/null | grep -E ":$1 " | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2 || true; }
 is_ours() { [ -n "${1:-}" ] && tr '\0' ' ' < "/proc/$1/cmdline" 2>/dev/null | grep -q -- "--profile jeromy"; }
 
 if [ "${1:-}" = "--down" ]; then

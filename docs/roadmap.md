@@ -84,7 +84,9 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
 - [ ] **7. Bundle + profile.** `cordis.patch.yml` that inserts the jeROMy
       plugins and removes the coding-agent tools; setup settings card that
       shows the Lua script path for Mesen. `dsh plugin --profile jeromy add`
-      works from a clean machine. ADR-0001.
+      works from a clean machine. ADR-0001. Carry-in: the bundle patch
+      disables the session-log upload (`session-log-deepseek`
+      `enabled: false`) as the dev patch does (ADR-0011, Logan 2026-10-05).
 - [ ] **8. Delete the old stack.** Remove `src/web`, `src/db`, `src/server`,
       `src/index.ts`, `src/agent/agent.ts`, `src/agent/providers`. Rewrite
       README as an install guide. Update `docs/README.md` and the
@@ -92,6 +94,14 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       Carry-in: deleting `src/db` also clears the 9 `tsc` errors in
       `docs/issues.md`; after this item the ship bar's typecheck has no
       allowed residual, so remove that clause from `/shipshape`.
+- [x] **14. Session replay.** Done 2026-10-05 (ADR-0011). `scripts/dsh-log.mjs`
+      reads dsh's persisted session log (reasoning, tool calls, results,
+      images, usage; `list`/`show`/`tail --follow`/`stats`/`events`), with
+      tests; `/replay` says how to judge a session and when an autonomous
+      loop stops. `trio.sh` prints a replay line per check and now runs
+      from `~/.cache/jeromy/headless-cwd` so no repo's `AGENTS.md` or
+      `CLAUDE.md` is injected into the agent. Out of order on purpose: it
+      is the instrument for evaluating everything after it.
 
 ## Next
 
@@ -118,10 +128,10 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
 - **11. A `jeromy` agent preset** for the web app: dsh's web bundle
   disables the base coding tools and lets each agent preset mount its own,
   so "remove the coding toolbelt" (ADR-0001) is a preset, not a patch row.
-  Decision pending (see issues.md): Logan's click session showed Bash +
+  Decided 2026-10-05 (Logan): keep a read-only shell and `read_image`, drop
+  write, edit and the fs tools. Logan's click session showed Bash +
   `read_image` doing useful work (cropping and annotating screenshots,
-  sampling pixel colors), so the preset may keep a read-only shell and
-  image reading and drop only write/edit. Ships with the bundle (item 7).
+  sampling pixel colors). Ships with the bundle (item 7).
 - **9. Curated ROM-hacking skills** (ADR-0008): a `skills/` directory in
   the plugin, registered through `ctx.skills`, one procedure per skill,
   model- and user-invocable. First set: `rom-orient`, `palette-swap`,

@@ -53,6 +53,18 @@ commit is the record; a file of ticked boxes stops being read.
 
 ## Agent / tools
 
+- **Headless runs carried the harness checkout's `AGENTS.md` into the
+  agent.** dsh injects the cwd's agent instructions as a USER
+  `<agent-instructions>` message; `trio.sh` ran `pnpm dsh` from
+  `/home/oof/deepseek-harness`, so every headless turn opened with the
+  harness's coding rulebook (thousands of tokens, wrong audience). Seen in
+  the first `/replay` of session `0d64843e`, 2026-10-05; fixed the same day by
+  running `bin.ts` from `~/.cache/jeromy/headless-cwd` (dsh walks up from
+  the cwd, so a directory inside the jeROMy repo picked up our own
+  `CLAUDE.md` instead; session `e64df8b5`). `/replay` lists the injected
+  kinds under `inputs`; `agent-instructions` there means the cwd is wrong.
+  If a `dsh-dev.sh` web session shows it, the workspace picker chose a repo
+  with an `AGENTS.md`/`CLAUDE.md`.
 - **`$`-prefixed hex collides with Markdown emphasis in the chat.** One
   answer in the 2026-10-05 click session rendered
   "sky-blue / 29lightgreen∗∗/∗∗29lightgreen∗∗/∗∗1A dark green": bold markers

@@ -52,6 +52,8 @@ one thing to fix.
   `http://127.0.0.1:9002/`, click a tile, ask the agent about it.
 - A script: `scripts/trio.sh` runs the /verify trio headless (it stops the
   web dsh for the duration and restarts it).
+- Watching either: `scripts/dsh-log.mjs tail latest --follow` streams the
+  agent's reasoning, tool calls and results as dsh writes them (`/replay`).
 
 ## Report
 
