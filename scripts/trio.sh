@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # The standing trio from /verify, run headlessly through dsh with the jeROMy
-# plugin: look, read, edit. Each is one `dsh --profile headless --json` run;
+# plugin: look, read, edit, click. Each is one `dsh --profile headless --json` run;
 # the JSON event streams and a summary land in .chat-out/trio-<stamp>/.
 # Only one dsh process can own the bridge port, so this stops a running web
 # instance first and brings it back afterwards.
 #
-# Usage: scripts/trio.sh [look|read|edit ...]   (default: all three)
+# Usage: scripts/trio.sh [look|read|edit|click ...]   (default: all four)
 #        scripts/trio.sh --task "<instruction>" [min-tool-calls]
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -21,12 +21,13 @@ declare -A TASK=(
   [look]="Take a screenshot of the emulator and describe what you see. Be specific about objects, text and colors."
   [read]="Using get_tile_at_pixel, tell me what tile is at screen pixel (128, 220) and which palette it uses. Then read that palette with get_palette and report its four color indices. Report raw tool values."
   [edit]="Take a screenshot. Then use write_palette to set background palette 1, color index 1 to NES color 0x12 (blue). Pause the emulator, step one frame, take another screenshot and tell me exactly what changed between the two images. Finally call clear_palette_overrides and resume_emulator. Report raw write_palette output."
+  [click]="Call get_tile_at_pixel at (176, 182) and get_pixel_color at (176, 182), then get_palette for the palette the first result named. Report all three raw outputs verbatim and say whether the pixel's nes_color is one of that palette's entries or the shared backdrop."
 )
-declare -A MIN_CALLS=([look]=1 [read]=2 [edit]=5)
+declare -A MIN_CALLS=([look]=1 [read]=2 [edit]=5 [click]=3)
 # --task "<text>": a one-off check named `custom` through the same machinery
 # (neutral cwd, bridge wait, replay line). Used by unattended runs.
 if [ "${1:-}" = "--task" ]; then TASK[custom]="$2"; MIN_CALLS[custom]="${3:-1}"; set -- custom; fi
-CHECKS=("$@"); [ ${#CHECKS[@]} -eq 0 ] && CHECKS=(look read edit)
+CHECKS=("$@"); [ ${#CHECKS[@]} -eq 0 ] && CHECKS=(look read edit click)
 
 owner_of() { ss -ltnp 2>/dev/null | grep -E ":$1 " | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2; }
 WEB_PID="$(owner_of 9001)"; RESTART=0
@@ -44,7 +45,7 @@ fi
 # calls than the task needs. "turn completed" alone is not a pass: on
 # 2026-10-05 an edit check "completed" with zero emulator access because the
 # Lua client had not reconnected yet.
-summarize() { python3 - "$1" "$2" <<'PY'
+summarize() { python3 - "$1" "$2" "${3:-}" <<'PY'
 import sys, json
 calls = steps = errs = 0; tin = tout = 0; final = ""; reason = "?"; err = None
 for line in open(sys.argv[1]):
@@ -61,6 +62,25 @@ for line in open(sys.argv[1]):
     elif t == "final": final = (e.get("text") or "").strip().replace("\n", " ")
     elif t == "error": err = e.get("message")
 need = int(sys.argv[2]); ok = err is None and errs == 0 and calls >= need
+# Field-level checks on raw tool results, never on the model's prose (ADR-0010 phase 4).
+if sys.argv[3:] == ["click"]:
+    results = {}
+    for line in open(sys.argv[1]):
+        line = line.strip()
+        if not line.startswith("{"): continue
+        e = json.loads(line)
+        if e.get("type") == "tool_call": results[e["callId"]] = e.get("tool")
+        if e.get("type") == "tool_result" and isinstance(e.get("result"), str):
+            try: results[results.get(e["callId"], "?")] = json.loads(e["result"])
+            except Exception: pass
+    tile = results.get("get_tile_at_pixel"); px = results.get("get_pixel_color"); pal = results.get("get_palette")
+    problems = []
+    if not isinstance(tile, dict) or tile.get("scroll_source") != "scanline": problems.append("get_tile_at_pixel did not answer from a scanline scroll (SMB always splits at the status bar)")
+    if not isinstance(px, dict) or "nes_color" not in px: problems.append("no get_pixel_color result")
+    if isinstance(tile, dict) and isinstance(px, dict) and isinstance(pal, dict):
+        colors = pal.get("colors", []); backdrop = pal.get("background_color")
+        if px["nes_color"] not in colors and px["nes_color"] != backdrop: problems.append(f"pixel color {px['nes_color']} not in palette {tile.get('palette_id')} {colors} nor backdrop {backdrop}")
+    if problems: ok = False; final = "CLICK CHECK: " + "; ".join(problems) + " · " + final
 print(f"steps {steps} · tool calls {calls} (need ≥{need}) · tool errors {errs} · tokens in {tin} out {tout} · turn_end {reason}" + (f" · ERROR {err}" if err else "") + ("" if ok else " · CHECK FAILED"))
 print("  " + (final[:220] + ("…" if len(final) > 220 else "")))
 sys.exit(0 if ok else 1)
@@ -83,7 +103,7 @@ run_check() { # $1 = name; sets code/sok/sid; writes $OUT/$1.jsonl
   ( cd "$WORK" && TSX_TSCONFIG_PATH="$DSH_SRC/tsconfig.json" timeout 420 node --import "$TSX_ESM" "$DSH_SRC/apps/cli/src/bin.ts" --profile headless --patch "$PATCH" --json "$task" ) > "$OUT/$name.jsonl" 2> "$OUT/$name.err"
   code=$?
   sid="$(grep -o '"sessionId":"session-[0-9a-f-]*"' "$OUT/$name.jsonl" | head -1 | cut -d'"' -f4)"
-  summary="$(summarize "$OUT/$name.jsonl" "${MIN_CALLS[$name]:-1}")"; sok=$?
+  summary="$(summarize "$OUT/$name.jsonl" "${MIN_CALLS[$name]:-1}" "$name")"; sok=$?
   echo "exit $code · $summary"
   [ -n "$sid" ] && echo "  replay: scripts/dsh-log.mjs show ${sid#session-} --images $OUT/$name-img"
   [ $code -eq 0 ] || echo "  stderr: $(grep -v '^\$ node' "$OUT/$name.err" | tail -3 | tr '\n' ' ')"

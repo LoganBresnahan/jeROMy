@@ -17,8 +17,13 @@ Verified procedure from the 2026-10-05 session on Super Mario Bros. (World).
 1. **Find the palette and slot.** If the user clicked in the emulator view,
    the context line already carries `tile_id`, `palette_id` and the four
    colors; use it. Otherwise call `get_tile_at_pixel` with an `x` (0-255)
-   and `y` (0-239) on the object. The answer's `palette_id` is the palette;
-   you still need the slot.
+   and `y` (0-239) on the object. The answer's `palette_id` is the palette
+   (it uses the scroll in effect at that scanline, `scroll_source`); you
+   still need the slot. Before trusting it, `get_pixel_color` at the same
+   point: the rendered `nes_color` must be one of that palette's four
+   entries or the shared backdrop. If it is not, a sprite is drawn over the
+   pixel or the readout is wrong; pick a pixel on the object's flat color
+   and look again.
 2. **Decide the slot.** `get_palette` with that `palette_id` returns
    `colors: [c0, c1, c2, c3]` as NES master-palette indices. Slot 0 of a
    background palette is the shared backdrop (changing it recolors the sky
@@ -65,8 +70,9 @@ Verified procedure from the 2026-10-05 session on Super Mario Bros. (World).
 - Sprite palettes (4-7) use slot 0 as transparent; recoloring it does nothing visible.
 - "It didn't change" after a write while paused is a missing `step_frame`, not a failed write.
 - A master-palette index is not a hue you can name from memory: `$36` is
-  orange, `$12` is blue, `$0F` is black. Read `nes-palette` facts from the
-  prompt or compare screenshots; do not describe `$36` as "a duplicate of black".
+  peach, `$27` is orange, `$12` is bright blue, `$0F` is black. Name colors
+  from the master-palette table in the prompt, and confirm with
+  `get_pixel_color`; do not describe `$36` as "a duplicate of black".
 
 ## Report shape
 

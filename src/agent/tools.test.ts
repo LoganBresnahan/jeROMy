@@ -65,6 +65,8 @@ describe("executeTool", () => {
     return {
       screenshot: vi.fn().mockResolvedValue({ png_base64: "AAAA" }),
       getTileAtPixel: vi.fn().mockResolvedValue({ tile_id: 1, palette_id: 0 }),
+      // One vblank $2005 pair, no mid-frame writes: scroll 0, source "vblank".
+      captureScrollWrites: vi.fn().mockResolvedValue({ frames: 1, stepped_frames: 0, start_frame: 0, end_frame: 1, other_register_writes: 0, final: { t: 0, v: 0, x: 0, w: false, scanline: 240, cycle: 0 }, writes: [{ frame: 0, scanline: 241, cycle: 10, reg: 5, value: 0, t: 0, v: 0, x: 0, w: false }, { frame: 0, scanline: 241, cycle: 20, reg: 5, value: 0, t: 0, v: 0, x: 0, w: true }] }),
       // (136,216,0) is SMB's pipe green as Mesen renders $29, sampled by the agent on 2026-10-05.
       getPixelColor: vi.fn().mockResolvedValue({ x: 176, y: 182, argb: 0xff88d800, r: 136, g: 216, b: 0 }),
       getPalette: vi.fn().mockResolvedValue({ palette_id: 0, colors: [0, 1, 2, 3] }),
@@ -131,11 +133,22 @@ describe("executeTool", () => {
     expect(parsed).toMatchObject({ x: 176, y: 182, rgb: [136, 216, 0], nes_color: 0x29, nes_color_hex: "0x29", name: "lime green" });
   });
 
-  it("get_tile_at_pixel passes params and returns text", async () => {
+  it("get_tile_at_pixel precise:false uses the request-time scroll and says so", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool("get_tile_at_pixel", { x: 128, y: 120, precise: false }, adapter);
+    expect(adapter.getTileAtPixel).toHaveBeenCalledWith(128, 120);
+    expect(adapter.captureScrollWrites).not.toHaveBeenCalled();
+    expect(JSON.parse((result as { text: string }).text).scroll_source).toBe("legacy");
+  });
+
+  it("get_tile_at_pixel captures a frame of scroll writes by default and reads the tile at the reconstructed address (ADR-0010)", async () => {
     const adapter = mockAdapter();
     const result = await executeTool("get_tile_at_pixel", { x: 128, y: 120 }, adapter);
 
-    expect(adapter.getTileAtPixel).toHaveBeenCalledWith(128, 120);
+    expect(adapter.captureScrollWrites).toHaveBeenCalledWith(1);
+    expect(adapter.readMemory).toHaveBeenCalledWith(0x2000 + 15 * 32 + 16, 1, "ppuDebug");
+    const parsed = JSON.parse((result as { text: string }).text);
+    expect(parsed).toMatchObject({ tile_x: 16, tile_y: 15, scroll_x: 0, scroll_y: 0, nametable: 0, scroll_source: "vblank", stepped_frames: 0 });
     expect(result.type).toBe("text");
   });
 

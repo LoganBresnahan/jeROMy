@@ -27,6 +27,7 @@ import type {
   EmulatorStatusResult,
   PixelColorResult,
   WaitFramesResult,
+  ScrollCaptureResult,
 } from "./protocol.js";
 
 export class MesenAdapter {
@@ -68,6 +69,15 @@ export class MesenAdapter {
    */
   async waitFrames(frames: number): Promise<WaitFramesResult> {
     return this.conn.request<WaitFramesResult>("wait_frames", { frames }, { timeoutMs: Math.ceil(frames / 60) * 1000 + 5000 });
+  }
+
+  /**
+   * Capture every $2000/$2005/$2006 write for one frame (two stepped frames
+   * while paused) with the PPU position, for the scanline-accurate scroll
+   * reconstruction (ADR-0010). Two-phase on the Lua side.
+   */
+  async captureScrollWrites(frames: number = 1): Promise<ScrollCaptureResult> {
+    return this.conn.request<ScrollCaptureResult>("capture_scroll_writes", { frames }, { timeoutMs: Math.ceil((frames + 2) / 60) * 1000 + 5000 });
   }
 
   /** Rendered color at a screen pixel; ground truth for what the user sees (ADR-0010). */

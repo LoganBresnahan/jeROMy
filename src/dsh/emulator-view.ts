@@ -8,8 +8,8 @@
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { nearestNesColor, nesColorName } from "../agent/nes-palette.js";
+import { lookupTileAtPixel, type PreciseTileResult } from "../agent/tile-lookup.js";
 import type { MesenAdapter } from "../bridge/mesen/adapter.js";
-import type { TileAtPixelResult } from "../bridge/mesen/protocol.js";
 
 export interface EmulatorViewDeps {
   mesen: () => MesenAdapter;
@@ -114,10 +114,12 @@ export class FramePump {
   }
 }
 
-export interface PickResult extends TileAtPixelResult {
+export interface PickResult extends PreciseTileResult {
   x: number;
   y: number;
   palette_colors: number[];
+  /** Universal backdrop ($3F00): what every background palette's slot 0 renders as. */
+  backdrop: number;
   /** Rendered color at the pixel, mapped to the master palette (ADR-0010). */
   pixel: { rgb: [number, number, number]; nes_color: number; name: string };
   mapping_name?: string;
@@ -129,24 +131,31 @@ export function formatPickContext(pick: Omit<PickResult, "injected">): string {
   const colors = pick.palette_colors.map((c) => `$${c.toString(16).toUpperCase().padStart(2, "0")}`).join(" ");
   const px = pick.pixel;
   const pxHex = `$${px.nes_color.toString(16).toUpperCase().padStart(2, "0")}`;
-  const inPalette = pick.palette_colors.includes(px.nes_color);
+  // Slot 0 of every background palette renders the shared backdrop, so a sky
+  // pixel is consistent with any palette; only a color outside both is a tell.
+  const inPalette = pick.palette_colors.includes(px.nes_color) || px.nes_color === pick.backdrop;
   // The tile readout uses the scroll at request time; on split-scroll frames
   // it can be wrong while the rendered color never is (ADR-0010).
+  const source = pick.scroll_source === "scanline"
+    ? `scroll ${pick.scroll_x},${pick.scroll_y} from the write at scanline ${pick.scroll_scanline}`
+    : pick.scroll_source === "vblank"
+      ? `scroll ${pick.scroll_x},${pick.scroll_y} from vblank (no mid-frame change)`
+      : `scroll ${pick.scroll_x},${pick.scroll_y} from the request-time PPU state (may be wrong on split-scroll frames)`;
   const caveat = inPalette
     ? "The rendered color is in that palette, so the readout is consistent."
-    : "That color is NOT one of the readout's palette entries: the tile readout assumes no mid-frame scroll change and is probably wrong here; trust the color.";
+    : "That color is NOT one of the readout's palette entries (a sprite over the pixel, or a scroll the capture missed); trust the color.";
   return `[emulator view] The user clicked pixel (${pick.x}, ${pick.y}): nametable ${pick.nametable} tile (${pick.tile_x}, ${pick.tile_y}), `
     + `tile_id ${pick.tile_id} (0x${pick.tile_id.toString(16).toUpperCase().padStart(2, "0")}), palette ${pick.palette_id} [${colors}], `
-    + `nametable_addr 0x${pick.nametable_addr.toString(16).toUpperCase()}, attribute_addr 0x${pick.attribute_addr.toString(16).toUpperCase()}. `
+    + `nametable_addr 0x${pick.nametable_addr.toString(16).toUpperCase()}, attribute_addr 0x${pick.attribute_addr.toString(16).toUpperCase()}, ${source}. `
     + `Rendered color at the pixel: ${pxHex} ${px.name} (rgb ${px.rgb.join(",")}). ${caveat}`;
 }
 
 export async function pickPixel(mesen: MesenAdapter, x: number, y: number): Promise<Omit<PickResult, "injected">> {
-  const tile = await mesen.getTileAtPixel(x, y);
+  const tile = await lookupTileAtPixel(mesen, x, y);
   const palette = await mesen.getPalette(tile.palette_id);
   const px = await mesen.getPixelColor(x, y);
   const nes = nearestNesColor([px.r, px.g, px.b]);
-  return { ...tile, x, y, palette_colors: palette.colors, pixel: { rgb: [px.r, px.g, px.b], nes_color: nes, name: nesColorName(nes) } };
+  return { ...tile, x, y, palette_colors: palette.colors, backdrop: palette.background_color ?? palette.colors[0], pixel: { rgb: [px.r, px.g, px.b], nes_color: nes, name: nesColorName(nes) } };
 }
 
 const PAGE = /* html */ `<!doctype html>

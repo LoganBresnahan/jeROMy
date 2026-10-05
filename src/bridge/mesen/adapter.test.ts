@@ -49,6 +49,13 @@ describe("MesenAdapter", () => {
     expect(result.waited).toBe(120);
   });
 
+  it("captureScrollWrites sends capture_scroll_writes with a timeout for the wait (ADR-0010)", async () => {
+    mockRequest.mockResolvedValue({ frames: 1, writes: [] });
+    const result = await adapter.captureScrollWrites(1);
+    expect(mockRequest).toHaveBeenCalledWith("capture_scroll_writes", { frames: 1 }, { timeoutMs: 6000 });
+    expect(result.frames).toBe(1);
+  });
+
   it("getPixelColor sends get_pixel_color with x and y (ADR-0010)", async () => {
     mockRequest.mockResolvedValue({ x: 1, y: 2, argb: 0xff88d800, r: 136, g: 216, b: 0 });
     const result = await adapter.getPixelColor(1, 2);

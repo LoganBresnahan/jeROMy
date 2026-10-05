@@ -382,6 +382,82 @@ function handlers.wait_frames(params)
   }
 end
 
+-- capture_scroll_writes: record every CPU write to the PPU registers
+-- ($2000-$3FFF, mirrors included) for N frames, with the PPU position and
+-- the loopy registers (t, v, fine x, w) as Mesen reports them right after
+-- the write (ADR-0010 phase 2). Pending: installs the hook now, answers from
+-- the endFrame N frames later; cancel removes the hook. Only one capture at
+-- a time; a new one tears down any previous hook first.
+local scroll_capture = nil  -- { ref = callback reference, writes = {...} }
+
+local function remove_scroll_capture()
+  if scroll_capture and scroll_capture.ref then
+    pcall(emu.removeMemoryCallback, scroll_capture.ref, emu.callbackType.write, 0x2000, 0x3FFF)
+  end
+  scroll_capture = nil
+end
+
+function handlers.capture_scroll_writes(params)
+  local frames = params.frames or 1
+  if frames < 1 or frames > 10 then error("frames must be 1-10") end
+  remove_scroll_capture()
+  -- Paused: endFrame never fires, so step two frames ourselves. The first
+  -- step only finishes the frame the break landed in and misses the writes
+  -- above the break point; the second is a whole frame, and the caller uses
+  -- the last frame's writes (frame == max). pending_steps is consumed by
+  -- the codeBreak loop one frame per round.
+  local paused = is_paused
+  if paused then
+    frames = 2
+    pending_steps = pending_steps + 2
+  end
+  local writes = {}
+  local other = 0
+  local start_frame = frame_counter
+  -- Mesen invokes write callbacks BEFORE the write lands and lets the return
+  -- value override it (ScriptingContext.cpp), so t/v/x/w here are the state
+  -- before this write; the TypeScript side applies the write itself.
+  local function on_write(addr, value)
+    local reg = addr & 7
+    if reg ~= 0 and reg ~= 5 and reg ~= 6 then other = other + 1; return end
+    if #writes >= 256 then return end
+    local st = emu.getState()
+    writes[#writes + 1] = {
+      frame = frame_counter - start_frame,
+      scanline = st["ppu.scanline"],
+      cycle = st["ppu.cycle"],
+      reg = reg,
+      value = value,
+      t = st["ppu.tmpVideoRamAddr"],
+      v = st["ppu.videoRamAddr"],
+      x = st["ppu.xScroll"],
+      w = st["ppu.writeToggle"],
+    }
+  end
+  local ref = emu.addMemoryCallback(on_write, emu.callbackType.write, 0x2000, 0x3FFF)
+  scroll_capture = { ref = ref, writes = writes }
+  return {
+    pending = {
+      frames = frames,
+      allow_paused = paused,
+      complete = function()
+        remove_scroll_capture()
+        local st = emu.getState()
+        return {
+          frames = frames,
+          stepped_frames = paused and 2 or 0,
+          start_frame = start_frame,
+          end_frame = frame_counter,
+          other_register_writes = other,
+          final = { t = st["ppu.tmpVideoRamAddr"], v = st["ppu.videoRamAddr"], x = st["ppu.xScroll"], w = st["ppu.writeToggle"], scanline = st["ppu.scanline"], cycle = st["ppu.cycle"] },
+          writes = writes,
+        }
+      end,
+      cancel = function() remove_scroll_capture() end,
+    },
+  }
+end
+
 -- get_pixel_color: the rendered ARGB at a screen position (ADR-0010). Ground
 -- truth regardless of mid-frame scroll splits; the TypeScript side maps it to
 -- the nearest master-palette index.
@@ -824,6 +900,14 @@ function handlers.debug_state(params)
   local state = emu.getState()
   local depth = params.depth or 2
   local path = params.path  -- optional: e.g. "nes.ppu" to drill into
+  local filter = params.filter  -- optional: only keys starting with this prefix (getState is flat, e.g. "ppu.")
+  if filter then
+    local out = {}
+    for k, v in pairs(state) do
+      if type(k) == "string" and k:sub(1, #filter) == filter then out[k] = tostring(v) end
+    end
+    return { keys = out }
+  end
 
   -- Navigate to a nested path if given
   local target = state

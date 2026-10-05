@@ -89,7 +89,8 @@ handler kept for verification.
 | Method | Params | Returns | Description |
 |---|---|---|---|
 | `screenshot` | — | `{png_base64, paused?}` | Capture current frame as base64 PNG |
-| `get_tile_at_pixel` | `{x, y}` | `{tile_id, palette_id, tile_x, tile_y, scroll_x, scroll_y, nametable, nametable_addr}` | Tile and palette info at screen pixel |
+| `get_tile_at_pixel` | `{x, y}` | `{tile_id, palette_id, tile_x, tile_y, scroll_x, scroll_y, nametable, nametable_addr}` | Tile and palette at a screen pixel from the request-time PPU scroll (the tool's `precise: false` path; wrong on split-scroll frames) |
+| `capture_scroll_writes` | `{frames?}` | `{frames, stepped_frames, start_frame, end_frame, other_register_writes, final{t,v,x,w,scanline,cycle}, writes[{frame, scanline, cycle, reg, value, t, v, x, w}]}` | Two-phase (ADR-0010): records every CPU write to $2000/$2005/$2006 for one frame with the loopy state *before* each write (Mesen calls write hooks pre-write); while paused it steps two frames itself and the last frame is the complete one. The TypeScript side reconstructs the scroll per scanline (`src/agent/scroll-reconstruct.ts`) |
 | `wait_frames` | `{frames}` | `{requested, waited}` | Two-phase: parks for N frames, answers from a later endFrame (ADR-0010); refused while paused |
 | `get_pixel_color` | `{x, y}` | `{x, y, argb, r, g, b}` | Rendered color at a screen pixel via `emu.getPixel`; ground truth on split-scroll frames (ADR-0010) |
 | `get_palette` | `{palette_id}` | `{palette_id, colors[], background_color}` | 4 NES color indices for a palette (0-7) |

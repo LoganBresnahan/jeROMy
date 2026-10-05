@@ -61,7 +61,20 @@ Verify: trio green (no regression across the synchronous tools);
 errors immediately while paused; after a forced disconnect mid-wait the
 Lua log shows the cancel and no stray send.
 
-### 2. Capture and reconstruction (`lua-scroll-write-capture`, `scanline-scroll-reconstruction`) — Fable, verify
+### 2. Capture and reconstruction (`lua-scroll-write-capture`, `scanline-scroll-reconstruction`) — Fable, verify — DONE 2026-10-05
+
+Shipped with two findings that changed the design: Mesen invokes write
+hooks *before* the write lands (and lets the return value override it), so
+the capture records the pre-write loopy state and the TypeScript side
+applies each write itself; and `emu.getState()` exposes `ppu.tmpVideoRamAddr`,
+`ppu.videoRamAddr`, `ppu.xScroll`, `ppu.writeToggle`, `ppu.scanline`,
+`ppu.cycle`, which lets a unit test check our loopy arithmetic against
+Mesen's own next-write state (it matches on the fixture). Reconstruction is
+TypeScript (`src/agent/scroll-reconstruct.ts`), pure, with the SMB title
+fixtures (`src/agent/fixtures/`) and hand-written lists for mid-frame $2006,
+mid-frame $2005 Y, a late $2006 load, and ambiguity. SMB toggles NMI through
+$2000 mid-frame without touching the nametable bits; only a changed select
+counts as an update.
 
 Capture first, behind a debug handler `capture_scroll_writes` that returns
 the raw list of `(scanline, dot, register, value)` through the pending
@@ -99,7 +112,18 @@ Unit fixtures: the recorded SMB list, plus hand-written lists for a
 mid-frame `$2006` pair, a mid-frame `$2005` Y-only change (must not apply
 this frame), and a stray single write.
 
-### 3. Precise lookup, running and paused (`get-tile-at-pixel-precise`, `paused-capture-steps-frame`) — Fable, verify
+### 3. Precise lookup, running and paused (`get-tile-at-pixel-precise`, `paused-capture-steps-frame`) — Fable, verify — DONE 2026-10-05
+
+`src/agent/tile-lookup.ts` is the one path for the tool and the picker:
+capture → reconstruct at the pixel's scanline → `tileAddressAt` (fine scroll
+added before dividing; nametable from the reconstructed bits; the row comes
+straight from v's vertical position) → two `ppuDebug` reads. `precise:
+false` and a refused capture fall back to the request-time Lua answer
+labelled `scroll_source: "legacy"` with a note. Paused is handled inside the
+capture handler: it bumps `pending_steps` by two and parks with
+`allow_paused`; the second stepped frame is the complete one. Verified via
+the pick route running (`scroll_source: scanline`, `scroll_scanline: 31`)
+and paused (`stepped_frames: 2`, still paused after).
 
 `get_tile_at_pixel` gains `precise` (default true): install the capture,
 wait one frame, answer with the scroll in effect at the clicked scanline.
@@ -121,7 +145,17 @@ Verify on SMB: a pipe-rim click running and paused both return
 `scroll_source: "scanline"`, non-zero scroll, the pipe tile, palette 0;
 `stepped_frames` only on the paused run; pause state unchanged after.
 
-### 4. Guard, skills, closing check (`raster-ambiguity-guard`, `skills-verify-against-pixel-color`, `smb-split-scroll-live-check`) — Opus
+### 4. Guard, skills, closing check (`raster-ambiguity-guard`, `skills-verify-against-pixel-color`, `smb-split-scroll-live-check`) — Opus — DONE 2026-10-05
+
+`scroll_ambiguous` counts distinct visible scanlines with a completed update
+(a `$2005` pair plus a `$2000` nametable switch on one line is one split;
+the first live run flagged exactly that false positive). `identify-click`
+reads `scroll_source`; `palette-swap` compares against `get_pixel_color`;
+the picker treats the shared backdrop as consistent with any background
+palette. `scripts/trio.sh click` parses the raw `get_tile_at_pixel`,
+`get_pixel_color` and `get_palette` results: scanline source, pixel color
+in the palette or the backdrop. No save-state setup: SMB's status-bar split
+exists on the title screen too, and the attract demo scrolls on its own.
 
 - Ambiguity guard: count completed scroll updates per scanline region
   (write pairs), never raw writes, or every SMB click flags; surface

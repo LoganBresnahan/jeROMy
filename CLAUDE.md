@@ -17,9 +17,11 @@ section with live ROM/mapping/pause state, and the emulator view on :9002.
 Verified headless through dsh on `deepseek-flash` and by Logan's click
 session in the sidebar. The v0.1 server, web UI, SQLCipher store and
 Anthropic provider were deleted at roadmap item 8 (2026-10-05); dsh's
-session log is the record (`/replay`). Open: item 7 (bundle + install from
-a clean machine), then items 12/13 (click correctness, prompt hygiene), 9
-(skills), 11 (preset), 10 (persistent edits). Build order: `docs/roadmap.md`;
+session log is the record (`/replay`). Items 12 (click correctness,
+ADR-0010: two-phase bridge requests, scroll capture, scanline-accurate
+`get_tile_at_pixel`) and 13 (prompt hygiene) shipped the same night. Open:
+item 7 (bundle + install from a clean machine), 9 (skills registration), 11
+(preset), 10 (persistent edits, ADR-0009). Build order: `docs/roadmap.md`;
 tonight's plan: `docs/plans/overnight-2026-10-05.md`.
 
 ## Stack

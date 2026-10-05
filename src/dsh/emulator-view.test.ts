@@ -7,6 +7,9 @@ function adapter(overrides: Record<string, unknown> = {}) {
     screenshot: vi.fn().mockResolvedValue({ png_base64: Buffer.from("png").toString("base64"), paused: false }),
     getEmulatorStatus: vi.fn().mockResolvedValue({ paused: false }),
     getTileAtPixel: vi.fn().mockResolvedValue({ nametable: 0, tile_x: 16, tile_y: 27, tile_id: 182, palette_id: 1, nametable_addr: 9072, attribute_addr: 9204, scroll_x: 0, scroll_y: 0 }),
+    // Precise path (ADR-0010): one vblank pair, scroll 0; nametable byte 182 at (16,27), attribute quadrant → palette 1.
+    captureScrollWrites: vi.fn().mockResolvedValue({ frames: 1, stepped_frames: 0, start_frame: 0, end_frame: 1, other_register_writes: 0, final: { t: 0, v: 0, x: 0, w: false, scanline: 240, cycle: 0 }, writes: [{ frame: 0, scanline: 241, cycle: 10, reg: 5, value: 0, t: 0, v: 0, x: 0, w: false }, { frame: 0, scanline: 241, cycle: 20, reg: 5, value: 0, t: 0, v: 0, x: 0, w: true }] }),
+    readMemory: vi.fn().mockImplementation(async (addr: number) => ({ address: addr, mem_type: "ppuDebug", bytes: [addr === 9072 ? 182 : addr === 9204 ? 0b00_01_00_00 : 0] })),
     getPalette: vi.fn().mockResolvedValue({ palette_id: 1, colors: [15, 54, 23, 15], background_color: 34 }),
     getPixelColor: vi.fn().mockResolvedValue({ x: 128, y: 220, argb: 0xff803e00, r: 128, g: 62, b: 0 }),
     pauseEmulator: vi.fn().mockResolvedValue({ paused: true }),
@@ -27,8 +30,9 @@ async function serve(a = adapter(), inject = vi.fn().mockReturnValue(true), mapp
 
 describe("emulator view (ADR-0004)", () => {
   it("formats the pick context the model receives, with hex ids and palette colors", () => {
-    const text = formatPickContext({ x: 128, y: 220, nametable: 0, tile_x: 16, tile_y: 27, tile_id: 182, palette_id: 1, nametable_addr: 9072, attribute_addr: 9204, scroll_x: 0, scroll_y: 0, palette_colors: [15, 54, 23, 15], pixel: { rgb: [128, 62, 0], nes_color: 0x17, name: "brown" } } as any);
+    const text = formatPickContext({ x: 128, y: 220, nametable: 0, tile_x: 16, tile_y: 27, tile_id: 182, palette_id: 1, nametable_addr: 9072, attribute_addr: 9204, scroll_x: 0, scroll_y: 0, scroll_source: "vblank", scroll_scanline: -1, stepped_frames: 0, scroll_ambiguous: false, palette_colors: [15, 54, 23, 15], pixel: { rgb: [128, 62, 0], nes_color: 0x17, name: "brown" } } as any);
     expect(text).toContain("Rendered color at the pixel: $17 brown (rgb 128,62,0)");
+    expect(text).toContain("from vblank");
     expect(text).toContain("consistent");
     expect(text).toContain("clicked pixel (128, 220)");
     expect(text).toContain("tile_id 182 (0xB6)");
@@ -36,18 +40,25 @@ describe("emulator view (ADR-0004)", () => {
     expect(text).toContain("nametable_addr 0x2370");
   });
 
+  it("formatPickContext treats the shared backdrop as consistent with any background palette", () => {
+    const text = formatPickContext({ x: 10, y: 10, nametable: 0, tile_x: 1, tile_y: 1, tile_id: 0x24, palette_id: 2, nametable_addr: 0x2021, attribute_addr: 0x23c0, scroll_x: 0, scroll_y: 0, scroll_source: "vblank", scroll_scanline: -1, stepped_frames: 0, scroll_ambiguous: false, palette_colors: [15, 48, 33, 15], backdrop: 0x22, pixel: { rgb: [146, 144, 255], nes_color: 0x22, name: "periwinkle" } } as any);
+    expect(text).toContain("consistent");
+  });
+
   it("formatPickContext warns when the rendered color is outside the readout's palette (ADR-0010)", () => {
-    const text = formatPickContext({ x: 176, y: 182, nametable: 0, tile_x: 22, tile_y: 22, tile_id: 0x24, palette_id: 2, nametable_addr: 0x22d6, attribute_addr: 0x23f5, scroll_x: 0, scroll_y: 0, palette_colors: [15, 48, 33, 15], pixel: { rgb: [136, 216, 0], nes_color: 0x29, name: "lime green" } } as any);
+    const text = formatPickContext({ x: 176, y: 182, nametable: 0, tile_x: 22, tile_y: 22, tile_id: 0x24, palette_id: 2, nametable_addr: 0x22d6, attribute_addr: 0x23f5, scroll_x: 53, scroll_y: 0, scroll_source: "scanline", scroll_scanline: 31, stepped_frames: 0, scroll_ambiguous: false, palette_colors: [15, 48, 33, 15], pixel: { rgb: [136, 216, 0], nes_color: 0x29, name: "lime green" } } as any);
     expect(text).toContain("$29 lime green");
+    expect(text).toContain("from the write at scanline 31");
     expect(text).toContain("NOT one of the readout's palette entries");
   });
 
   it("pickPixel resolves tile then palette through the bridge", async () => {
     const a = adapter();
     const pick = await pickPixel(a, 128, 220);
-    expect(a.getTileAtPixel).toHaveBeenCalledWith(128, 220);
+    expect(a.captureScrollWrites).toHaveBeenCalledWith(1);
+    expect(a.getTileAtPixel).not.toHaveBeenCalled();
     expect(a.getPalette).toHaveBeenCalledWith(1);
-    expect(pick.palette_colors).toEqual([15, 54, 23, 15]);
+    expect(pick).toMatchObject({ tile_id: 182, palette_id: 1, scroll_source: "vblank", palette_colors: [15, 54, 23, 15] });
   });
 
   it("serves the page, status and a PNG", async () => {

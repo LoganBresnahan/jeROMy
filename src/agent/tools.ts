@@ -8,6 +8,7 @@ import type { MesenAdapter } from "../bridge/mesen/index.js";
 import type { Disassembler, Arch } from "./disassembler.js";
 import type { GameMapping } from "../mappings/types.js";
 import { NES_MASTER_PALETTE_RGB, nearestNesColor, nesColorName } from "./nes-palette.js";
+import { lookupTileAtPixel } from "./tile-lookup.js";
 
 // -- Tool Definitions (JSON Schema for the LLM) -----------------------------
 
@@ -24,12 +25,13 @@ export const agentTools: ToolSpec[] = [
   {
     name: "get_tile_at_pixel",
     description:
-      "Get tile and palette info at a screen pixel coordinate. Returns tile_id, palette_id, tile position, scroll values, and nametable address. Uses the PPU scroll at request time, so on games that change scroll mid-frame (fixed status bar + scrolling playfield, e.g. SMB) it can name the wrong tile; confirm with get_pixel_color, whose color is what is actually rendered.",
+      "Get the nametable tile and palette under a screen pixel. By default it captures one frame of PPU scroll writes and uses the scroll in effect at that pixel's scanline, so games with a fixed status bar and a scrolling playfield (SMB) resolve correctly; the result says scroll_source \"scanline\" or \"vblank\". While paused it steps two frames to capture (stepped_frames: 2). Returns tile_id, palette_id, tile position, scroll values, nametable address. Cross-check with get_pixel_color when in doubt.",
     input_schema: {
       type: "object",
       properties: {
         x: { type: "number", description: "X pixel coordinate (0-255)" },
         y: { type: "number", description: "Y pixel coordinate (0-239)" },
+        precise: { type: "boolean", description: "Default true. False answers from the request-time PPU scroll in one request (fast, wrong on split-scroll frames)." },
       },
       required: ["x", "y"],
     },
@@ -694,10 +696,9 @@ export async function executeTool(
     }
 
     case "get_tile_at_pixel": {
-      const result = await adapter.getTileAtPixel(
-        input.x as number,
-        input.y as number
-      );
+      const result = await lookupTileAtPixel(adapter, input.x as number, input.y as number, {
+        precise: input.precise === undefined ? true : Boolean(input.precise),
+      });
       return { type: "text", text: JSON.stringify(result) };
     }
 

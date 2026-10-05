@@ -8,10 +8,10 @@ user-invocable: true
 # Identify a click
 
 The picker hands you tile and palette for a screen pixel, computed from the
-nametable and the PPU scroll. On games with a fixed status bar and a
-scrolling playfield (Super Mario Bros. is one) the scroll the tool reads is
-the status bar's, so the readout can name a sky tile when the user clicked a
-pipe. The rendered frame is ground truth; the readout is a hypothesis.
+nametable and the scroll in effect at that pixel's scanline (the picker and
+`get_tile_at_pixel` capture one frame of PPU scroll writes to get it, ADR-0010).
+The rendered color is still the ground truth: a sprite drawn over the pixel,
+or a `legacy` readout, can disagree with the tile.
 Procedure from Logan's click session, 2026-10-05; `get_pixel_color` added
 the same night (ADR-0010) and the picker's context line now ends with the
 rendered color and whether it fits the named palette.
@@ -21,8 +21,14 @@ rendered color and whether it fits the named palette.
 1. **Freeze the frame first.** `pause_emulator`, then `screenshot`. Nothing
    you measure is comparable if the game moves between calls.
 2. **Re-query at the same pixel.** `get_tile_at_pixel` with the clicked `x`,
-   `y`. Note `scroll_x`/`scroll_y`: a zero scroll during gameplay on a
-   side-scroller is the warning sign that the readout is off.
+   `y`. Read `scroll_source`: `scanline` means the scroll written at
+   `scroll_scanline` governs this pixel (a fixed status bar above a scrolling
+   playfield looks exactly like this); `vblank` means no mid-frame change;
+   `legacy` means the capture could not run and the scroll is the
+   request-time PPU state, so treat the tile as unverified. While paused the
+   tool steps two frames to capture (`stepped_frames: 2`) and stays paused.
+   `scroll_ambiguous: true` means more than one scroll update landed above
+   the pixel's line (raster effects); the answer uses the last one.
 3. **Check the readout against the pixels.** `get_pixel_color` at the
    clicked (x, y) and at one or two neighbors: its `nes_color` must be one
    of the named palette's four entries, else the readout is wrong. Then

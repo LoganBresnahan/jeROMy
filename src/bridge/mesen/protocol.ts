@@ -115,6 +115,33 @@ export interface TileAtPixelResult {
   attribute_addr: number;
 }
 
+/** One captured write to $2000/$2005/$2006 with the loopy state BEFORE it (ADR-0010). */
+export interface ScrollWrite {
+  /** Frame index relative to the capture start; the last frame is the complete one. */
+  frame: number;
+  /** Mesen scanline: -1 pre-render, 0-239 visible, 240 post, 241-260 vblank. */
+  scanline: number;
+  cycle: number;
+  /** PPU register number (address & 7): 0, 5 or 6. */
+  reg: number;
+  value: number;
+  t: number;
+  v: number;
+  x: number;
+  w: boolean;
+}
+
+/** Answer to capture_scroll_writes (ADR-0010): two-phase, one frame running or two stepped frames while paused. */
+export interface ScrollCaptureResult {
+  frames: number;
+  stepped_frames: number;
+  start_frame: number;
+  end_frame: number;
+  other_register_writes: number;
+  final: { t: number; v: number; x: number; w: boolean; scanline: number; cycle: number };
+  writes: ScrollWrite[];
+}
+
 /** Answer to wait_frames, the trivial two-phase request (ADR-0010). */
 export interface WaitFramesResult {
   requested: number;
