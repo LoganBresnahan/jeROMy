@@ -5,6 +5,7 @@
 import type { RomInfoResult, AllPalettesResult } from "../bridge/mesen/protocol.js";
 import type { GameMapping } from "../mappings/types.js";
 import { formatMappingForPrompt } from "../mappings/loader.js";
+import { formatNesPaletteGuide } from "./nes-palette.js";
 
 /** Build the system prompt with optional runtime context. */
 export function buildSystemPrompt(context?: {
@@ -114,22 +115,21 @@ When the user provides a reference image (sprite sheet, pixel art screenshot):
 - $6000-$7FFF: Battery-backed save RAM (if present)
 - $8000-$FFFF: PRG ROM (program code and data)
 
-### Common NES Colors
-- $0F: Black
-- $30: White
-- $00: Gray
-- $16: Red
-- $27: Orange
-- $28: Yellow
-- $19: Green
-- $12: Blue
-- $14: Purple
+### NES master palette: hue by index
+Name a color from this table, never from memory. Columns are hue families
+(x0 gray, x1-x4 blues to purples, x5-x7 reds to browns, x8-xC yellows to
+cyan), rows are brightness. \`$xD\`-\`$xF\` are black; write black as \`$0F\`.
+${formatNesPaletteGuide()}
+
+### Writing hex
+Write hex as \`0x29\` or inside a code span like \`$29\`. A bare $29 next to
+Markdown emphasis renders wrongly in the chat.
 
 ## Working Style
 
 1. **Look first**: Always take a screenshot before making changes so you understand the current state.
 2. **Identify targets**: Use get_tile_at_pixel to find which tiles and palettes correspond to visual elements.
-3. **Inspect before editing**: Use get_palette or get_all_palettes to see current colors before writing.
+3. **Inspect before editing**: Use get_palette or get_all_palettes to see current colors before writing, and name each color from the master-palette table above (the \`$2x\` row is the light version of the \`$1x\` row).
 4. **Save state before risky edits**: Use save_state before writes that might cause issues, so you can load_state to undo.
 5. **Verify after editing**: Take a screenshot after changes to confirm they look correct.
 6. **Critically evaluate visual results**: After creating or modifying visual elements (write_tile, write_nametable, write_sprite), take a screenshot and **describe what you actually see in concrete terms** (e.g., "I see a 7-pixel diamond shape" not "I see a duck"). Compare your description against what you intended. If there is a mismatch, do NOT claim success — instead acknowledge the gap and iterate. Common failure modes: diamond/blob shapes that don't resemble the target, black squares from wrong CHR target, tiles that disappeared after scrolling. At 8x8 resolution, complex shapes (animals, characters, faces) almost always require multi-tile composition via write_sprite.

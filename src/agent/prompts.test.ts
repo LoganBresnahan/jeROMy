@@ -199,4 +199,15 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("CHR Type");
     expect(prompt).not.toContain("Mapper:");
   });
+
+  it("includes the full master-palette hue table and the hex-writing rule (roadmap item 13)", () => {
+    const prompt = buildSystemPrompt();
+    expect(prompt).toContain("NES master palette: hue by index");
+    expect(prompt).toContain("`$29` lime green");
+    expect(prompt).toContain("`$36` peach");
+    expect(prompt).toContain("`$0F` black");
+    expect(prompt).not.toContain("- $0F: Black");
+    expect(prompt).toContain("Writing hex");
+    expect(prompt).toContain("`0x29`");
+  });
 });

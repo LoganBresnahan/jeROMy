@@ -1,6 +1,6 @@
 # ADR-0010: Pixel lookups answer from the framebuffer and the scroll in effect at that scanline
 
-**Status:** Proposed (build right after roadmap item 8; every click depends on it)
+**Status:** Accepted (2026-10-05, for the overnight run Logan authorized; it was Proposed the same day and is built right after roadmap item 8 because every click depends on it)
 **Date:** 2026-10-05
 
 ## Context

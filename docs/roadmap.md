@@ -113,11 +113,13 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
   (`pending` then answer on a later frame), documented in `docs/bridge.md`
   and reused by `trace_writes` in item 10. Until it lands, the picker's
   context line says the tile readout assumes no mid-frame scroll change.
-- **13. Prompt hygiene from the model's slips**: a NES master-palette hue
-  table in the prompt section (the model twice named a hue from an index
-  from memory, once wrongly), and guidance to write hex as `0x29` or inside
-  code spans, because `$`-prefixed hex collided with Markdown emphasis in
-  one answer. Small, do alongside item 12.
+- [x] **13. Prompt hygiene from the model's slips.** Done 2026-10-05: all
+  64 master-palette hue names (`NES_COLOR_NAMES`, hand-checked against SMB)
+  printed in the prompt as four brightness rows, a "name colors from the
+  table, never from memory" rule, and a hex-writing rule (`0x29` or a code
+  span). `nearestNesColor` added for ADR-0010's `get_pixel_color`. Verified
+  by asking the model to restate: it named `$22`/`$29`/`$1A`/`$36`
+  correctly and wrote hex in code spans (session `b83a8ddc`).
 - **10. Persistent edits** (ADR-0009), in the order the procedure needs:
   (a) `search_memory` + `trace_writes` (Lua memory callbacks,
   `convertAddress`), useful on their own; (b) `hacks/sha1-<sha1>/` with

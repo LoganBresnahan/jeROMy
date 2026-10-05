@@ -39,15 +39,7 @@ commit is the record; a file of ticked boxes stops being read.
   pixel's scanline. (b) needs a two-phase request in the bridge (install,
   answer next frame). Promoted to ADR-0010 and roadmap item 12. Until fixed, the pixel picker's context line should
   say the tile readout assumes no mid-frame scroll change. Found 2026-10-05.
-- **Emulator comes up paused after `scripts/mesen-up.sh` hands the ROM to a
-  running Mesen.** `get_emulator_status` reported paused, `screenshot`
-  returned an empty PNG, and the first model turn died with a provider 400
-  on the empty image. `resume_emulator` fixes it; cause not identified
-  (Mesen's PauseWhenInBackground is off). Guard added the same day: the
-  screenshot tool now returns an error text naming `resume_emulator`
-  instead of an empty image. Carry-in for roadmap item 3: the Mesen service
-  should resume (or step one frame) on connect, or the launcher should.
-  Found 2026-10-05.
+
 - **A palette override is not visible in a screenshot taken after
   `pause_emulator` + `step_frame`; it shows after `resume_emulator`.** The
   2026-10-05 edit check (session `eaf1faaa`, again in `trio-20261004-221850`)
@@ -79,12 +71,6 @@ commit is the record; a file of ticked boxes stops being read.
   kinds under `inputs`; `agent-instructions` there means the cwd is wrong.
   If a `dsh-dev.sh` web session shows it, the workspace picker chose a repo
   with an `AGENTS.md`/`CLAUDE.md`.
-- **`$`-prefixed hex collides with Markdown emphasis in the chat.** One
-  answer in the 2026-10-05 click session rendered
-  "sky-blue / 29lightgreen∗∗/∗∗29lightgreen∗∗/∗∗1A dark green": bold markers
-  and `$29` mangled each other. Whether dsh's renderer or the model's
-  output is at fault, the cure is on our side: prompt guidance to write hex
-  as `0x29` or in code spans (roadmap item 13). Found 2026-10-05.
 
 - **In the web app the agent still has Bash, read_image and the fs tools**
   despite the dev patch disabling `tool-bash`/`tool-fs`: dsh's web bundle
@@ -101,17 +87,4 @@ commit is the record; a file of ticked boxes stops being read.
   A crash or restart between the two loses them; dsh's session log still
   has the tool results, so they are recoverable by hand. Fix: a
   `ctx.storageDomain` ledger keyed by ROM SHA1 (roadmap item 5 carry-in).
-  Found 2026-10-05.
-
-- **Model slip on the headless read check (2026-10-05)**: raw values were
-  reported correctly, but the summary called NES color 54 ($36, orange) "a
-  duplicate of black"; in the click session it again guessed "$29-ish" and
-  "$1A-ish" before reading the table (and recovered). Roadmap item 13: a
-  master-palette hue table in the prompt section.
-
-- **v0.1 agent streams DeepSeek thinking blocks as raw JSON text**
-  (`{"type":"thinking",...}` lines in the reply) when run through the
-  Anthropic-compatible endpoint, because Phase 4.5 never landed. Not worth
-  fixing: the agent loop is deleted at roadmap item 8 and dsh handles
-  thinking. Documented so the model-check transcripts are read correctly.
   Found 2026-10-05.

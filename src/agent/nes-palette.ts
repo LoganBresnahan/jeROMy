@@ -69,3 +69,64 @@ export const NES_MASTER_PALETTE_RGB: [number, number, number][] = [
   [0, 0, 0],        // $3E #000000
   [0, 0, 0],        // $3F #000000
 ];
+
+/**
+ * Hue names for the 64 master-palette entries, one per index, derived from
+ * NES_MASTER_PALETTE_RGB above and hand-checked by Claude on 2026-10-05
+ * against SMB (World): $22 sky, $29/$1A pipe greens, $36 title-box peach,
+ * $16 Mario red, $27 ground orange. Same hue family reads the same word
+ * across rows so the model can reason "the $1x row is the darker $2x".
+ * The prompt prints these; the model names colors from here, not from memory
+ * (roadmap item 13: it twice named a hue from an index wrongly).
+ */
+export const NES_COLOR_NAMES: readonly string[] = [
+  // $00-$0F: dark
+  "dark gray", "dark blue", "dark indigo", "dark violet", "dark purple", "maroon", "dark red", "dark brown",
+  "dark olive", "dark green", "dark green", "dark sea green", "dark teal", "black", "black", "black",
+  // $10-$1F: medium
+  "gray", "blue", "bright blue", "violet", "purple", "magenta", "red", "brown",
+  "olive", "green", "green", "sea green", "teal", "black", "black", "black",
+  // $20-$2F: light
+  "white", "sky blue", "periwinkle", "lavender", "pink magenta", "pink", "coral", "orange",
+  "yellow", "lime green", "bright green", "mint green", "cyan", "dark gray", "black", "black",
+  // $30-$3F: pale
+  "white", "pale blue", "pale periwinkle", "pale lavender", "pale lilac", "pale pink", "peach", "tan",
+  "pale yellow", "pale lime", "pale green", "pale mint", "pale cyan", "light gray", "black", "black",
+];
+
+/** Name for a master-palette index; out-of-range indices wrap like the PPU does (6 bits). */
+export function nesColorName(index: number): string {
+  return NES_COLOR_NAMES[index & 0x3f];
+}
+
+/** Four lines, one per brightness row, for the system prompt. */
+export function formatNesPaletteGuide(): string {
+  const rows = ["$00-$0F (dark)", "$10-$1F (medium)", "$20-$2F (light)", "$30-$3F (pale)"];
+  return rows
+    .map((label, r) => {
+      const cells = [];
+      for (let c = 0; c < 16; c++) {
+        const i = r * 16 + c;
+        cells.push(`\`$${i.toString(16).toUpperCase().padStart(2, "0")}\` ${NES_COLOR_NAMES[i]}`);
+      }
+      return `- ${label}: ${cells.join(", ")}`;
+    })
+    .join("\n");
+}
+
+/** Nearest master-palette index to an RGB triple (Euclidean in RGB), skipping the $xD-$xF duplicates of black except $0F. */
+export function nearestNesColor(rgb: [number, number, number]): number {
+  let best = 0x0f;
+  let bestDist = Infinity;
+  for (let i = 0; i < NES_MASTER_PALETTE_RGB.length; i++) {
+    const col = i & 0x0f;
+    if (col >= 0x0d && i !== 0x0f) continue;
+    const [r, g, b] = NES_MASTER_PALETTE_RGB[i];
+    const d = (r - rgb[0]) ** 2 + (g - rgb[1]) ** 2 + (b - rgb[2]) ** 2;
+    if (d < bestDist) {
+      bestDist = d;
+      best = i;
+    }
+  }
+  return best;
+}
