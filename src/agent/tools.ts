@@ -3,16 +3,15 @@
  * Each tool maps to a MesenAdapter method (or the Capstone disassembler).
  */
 
-import type { LLMTool, ContentBlock } from "./provider.js";
+import type { ToolSpec, ContentBlock, StoredImage } from "./types.js";
 import type { MesenAdapter } from "../bridge/mesen/index.js";
 import type { Disassembler, Arch } from "./disassembler.js";
 import type { GameMapping } from "../mappings/types.js";
-import type { StoredImage } from "./agent.js";
 import { NES_MASTER_PALETTE_RGB } from "./nes-palette.js";
 
 // -- Tool Definitions (JSON Schema for the LLM) -----------------------------
 
-export const agentTools: LLMTool[] = [
+export const agentTools: ToolSpec[] = [
   {
     name: "screenshot",
     description:

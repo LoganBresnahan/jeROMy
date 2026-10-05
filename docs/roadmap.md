@@ -87,13 +87,14 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       works from a clean machine. ADR-0001. Carry-in: the bundle patch
       disables the session-log upload (`session-log-deepseek`
       `enabled: false`) as the dev patch does (ADR-0011, Logan 2026-10-05).
-- [ ] **8. Delete the old stack.** Remove `src/web`, `src/db`, `src/server`,
-      `src/index.ts`, `src/agent/agent.ts`, `src/agent/providers`. Rewrite
-      README as an install guide. Update `docs/README.md` and the
-      architecture docs that describe deleted code.
-      Carry-in: deleting `src/db` also clears the 9 `tsc` errors in
-      `docs/issues.md`; after this item the ship bar's typecheck has no
-      allowed residual, so remove that clause from `/shipshape`.
+- [x] **8. Delete the old stack.** Done 2026-10-05. Removed `src/web`,
+      `src/db`, `src/index.ts`, `src/agent/agent.ts`, `src/agent/provider*`,
+      `scripts/chat.mjs`, `scripts/dev-deepseek.sh`, the v0.1 architecture
+      docs and the `@anthropic-ai/sdk`, `@signalapp/sqlcipher`, `pngjs`,
+      `ws`, `happy-dom`, `esbuild` dependencies. Core tool types moved to
+      `src/agent/types.ts`. README is an install guide; overview and testing
+      guide rewritten; `/shipshape` has no typecheck residual. Suite green
+      twice, tsc clean, full trio green on the trimmed tree.
 - [x] **14. Session replay.** Done 2026-10-05 (ADR-0011). `scripts/dsh-log.mjs`
       reads dsh's persisted session log (reasoning, tool calls, results,
       images, usage; `list`/`show`/`tail --follow`/`stats`/`events`), with

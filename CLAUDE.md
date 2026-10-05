@@ -8,17 +8,19 @@ what it learned about the ROM as a shareable mapping.
 **`docs/DIRECTION.md` is the source of truth for product intent.** Read it
 before product-level decisions; keep it updated when scope changes.
 
-## Where we are (2026-10-05, late)
+## Where we are (2026-10-05, night)
 
-The dsh plugin runs. `scripts/dsh-dev.sh` boots the `jeromy` profile with
-`src/dsh/index.ts` mounted from source: 23 of 24 core tools registered
-through one mapper, `promote_mappings`, the full NES prompt section with
-live ROM/mapping/pause state, and the emulator view on :9002. Verified
-headless through dsh on `deepseek-flash`: screenshot as attachment, read
-check, and a 21-step edit check. The v0.1 standalone stack in `src/` still
-exists and is deleted at roadmap item 8; items 6 (human check of the view in
-the sidebar) and 7 (bundle + install from a clean machine) are open. Plan:
-`docs/plans/dsh-migration.md`. Build order: `docs/roadmap.md`.
+The dsh plugin is the only stack. `scripts/up.sh` boots the `jeromy`
+profile with `src/dsh/index.ts` mounted from source: 23 of 24 core tools
+registered through one mapper, `promote_mappings`, the full NES prompt
+section with live ROM/mapping/pause state, and the emulator view on :9002.
+Verified headless through dsh on `deepseek-flash` and by Logan's click
+session in the sidebar. The v0.1 server, web UI, SQLCipher store and
+Anthropic provider were deleted at roadmap item 8 (2026-10-05); dsh's
+session log is the record (`/replay`). Open: item 7 (bundle + install from
+a clean machine), then items 12/13 (click correctness, prompt hygiene), 9
+(skills), 11 (preset), 10 (persistent edits). Build order: `docs/roadmap.md`;
+tonight's plan: `docs/plans/overnight-2026-10-05.md`.
 
 ## Stack
 
@@ -31,8 +33,6 @@ the sidebar) and 7 (bundle + install from a clean machine) are open. Plan:
   prompt section, `SessionEventMap` events, loopback emulator-view page
   (ADR-0004), bundle patch + settings card. TypeScript ESM, Node 22+, pnpm
   inside dsh, npm here until the package is restructured.
-- **Delete at item 8:** `src/web`, `src/db`, `src/server`, `src/index.ts`,
-  `src/agent/agent.ts`, `src/agent/providers`, `src/agent/provider.ts`.
 - Runs in WSL2; Mesen2 runs on Windows; TCP on localhost between them.
 
 ## Non-negotiable rules
@@ -113,22 +113,15 @@ the sidebar) and 7 (bundle + install from a clean machine) are open. Plan:
 
 ## Commands
 
-- `npm run dev` — build the v0.1 web UI and start the server (HTTP :3000,
-  TCP :9001 for Mesen). Load `mesen/bridge.lua` in Mesen2's Script Window.
 - `npm test` — vitest, all suites once (run twice for the ship bar)
 - `npm run test:watch` — watch mode
 - `npx tsc --noEmit` — typecheck (test files are excluded from the build)
-- `npm run build` — tsc + esbuild web bundle to `dist/`
+- `npm run build` — tsc to `dist/`
 - `cd capstone && ./build.sh` — rebuild the Capstone WASM (needs emsdk; the
   built artifacts are gitignored and already present locally)
-- `scripts/dev-deepseek.sh` — the v0.1 server on `deepseek-flash` via
-  DeepSeek's Anthropic-compatible endpoint (needs `DEEPSEEK_API_KEY`, which
-  is set in the shell)
 - `scripts/mesen-up.sh [rom]` — launch or re-point Mesen2 on Windows from
   WSL with the ROM and `mesen/bridge.lua` (single-instance handoff; default
   ROM is SMB (World) in `C:\Users\tarsier\Documents`)
-- `node scripts/chat.mjs "<instruction>" [--out DIR]` — headless one-turn
-  chat against the running server; streams tool calls, saves screenshots
 - `scripts/up.sh [rom]` / `scripts/up.sh --down` — the one-move bring-up
   (dsh + Mesen + bridge wait); `scripts/trio.sh [look|read|edit]` — the
   headless checks, streams saved under `.chat-out/`
@@ -145,6 +138,15 @@ the sidebar) and 7 (bundle + install from a clean machine) are open. Plan:
   stats <id> | events <id> --type T` — read dsh's persisted session logs
   (`~/.dsh/sessions/*/session-*/session.v4.jsonl.zstd`; images under
   `~/.dsh/attachments/v1/objects/`). `<id>` is any unique prefix. See `/replay`.
+- `scripts/bridge-call.mjs <method> [json]` — call one Lua handler directly
+  (no dsh, no model): `get_lua_logs`, `debug_state`, `ping`, or any tool
+  handler. Needs port 9001 free (`scripts/up.sh --down` first, `up.sh` after).
+- `scripts/lua-log.sh [-f] [N]` — tail `bridge.lua`'s file log
+  (`Mesen2/LuaScriptData/bridge/jeromy-bridge.log` on the Windows side); the
+  place a Lua callback error shows up from WSL.
+- `scripts/mesen-up.sh --restart` — kill and relaunch Mesen so a changed
+  `bridge.lua` loads. The single-instance handoff swaps the ROM but keeps
+  the running script, so every Lua change needs this.
 - `scripts/budget.sh [floor]` — DeepSeek balance in USD; non-zero exit
   below the floor or when the account is unavailable. Check between items
   in an unattended run (`docs/plans/overnight-2026-10-05.md`).

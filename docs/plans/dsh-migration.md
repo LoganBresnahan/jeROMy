@@ -1,5 +1,7 @@
 # Rethink: jeROMy as a DeepSeek Harness plugin
 
+> **Status 2026-10-05:** phases through roadmap item 8 shipped; the delete column of the keep/delete table is done. Open: item 7 (bundle).
+
 Status: accepted 2026-10-05. Decisions recorded as ADR-0001 (plugin, not app), ADR-0002 (model and provider layer), ADR-0003 (persistence), ADR-0004 (emulator view), ADR-0005 (core/adapter layering). Build order in `docs/roadmap.md`. Supersedes `local-model.md` as the cost-reduction plan.
 
 ## Verdict

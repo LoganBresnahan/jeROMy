@@ -1,5 +1,7 @@
 # Phase 4: Tile Editing + Game Mappings + Emulator Control
 
+> **Historical (v0.1).** File paths below refer to the standalone stack deleted at roadmap item 8 (2026-10-05). The behavior shipped and lives on in `src/agent/tools.ts`, `src/mappings/` and `mesen/bridge.lua`; the UI parts are gone.
+
 > **Status: Complete** — All parts implemented and tested.
 
 ## What This Phase Delivers

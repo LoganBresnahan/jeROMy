@@ -1,187 +1,106 @@
 # jeROMy
 
-> **Status (2026-10-05): rethink in progress.** jeROMy is becoming a plugin
-> for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) on
-> `deepseek-flash`. The standalone server and web UI described below still
-> run and are being replaced; see [docs/DIRECTION.md](docs/DIRECTION.md),
-> [docs/roadmap.md](docs/roadmap.md) and the decision records in
-> [docs/adr/](docs/adr/README.md).
+AI ROM-hacking agent for retro games. You describe a change in plain
+language; the agent inspects the running game in Mesen2 (screenshots, tiles,
+palettes, nametables, memory), edits it live, verifies by looking, and
+records what it learned about the ROM as a shareable mapping.
 
-AI-powered ROM hacking agent for retro game modding via natural language.
-
-jeROMy connects to a live NES emulator (Mesen2), lets an AI agent analyze the game via screenshots and memory inspection, and execute modifications — palette swaps, memory edits, and more — from natural language instructions in a chat interface.
-
-## Architecture
+jeROMy is a plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+(dsh). dsh provides the chat UI, the model access (`deepseek-flash`, with
+native vision), sessions and settings; jeROMy provides the emulator bridge,
+the ROM-hacking tools, the NES prompt section, the mapping files and an
+emulator view page for dsh's sidebar browser. Product intent lives in
+[docs/DIRECTION.md](docs/DIRECTION.md); decisions in [docs/adr/](docs/adr/README.md);
+build order in [docs/roadmap.md](docs/roadmap.md).
 
 ```
-Browser (Chat + Emulator View)
-    │ WebSocket
-    ▼
-TypeScript Server (WSL2, :3000)
-    ├─→ Agent Core (LLM tool loop)
-    │     ├─→ Claude API (vision + tool use)
-    │     └─→ Capstone Disassembler (WASM)
-    └─→ TCP Bridge (:9001) ←→ Mesen2 Lua Client (Windows)
+dsh (web UI, model, sessions)  ──plugin──▶  jeROMy (src/dsh/)
+                                               │ EmulatorAdapter
+                                               ▼
+                               TCP :9001 ◀──── mesen/bridge.lua in Mesen2 (Windows)
+                               :9002 emulator view (sidebar Browser)
 ```
 
-- **TypeScript server** (WSL2) runs an HTTP/WebSocket server for the browser and a TCP server for the emulator
-- **Lua script** (Windows/Mesen2) connects as a TCP client, executes emulator API calls
-- **Browser** provides the chat panel and emulator view
-- **LLM agent** takes screenshots, analyzes with vision, calls emulator tools, iterates
+## What you need
 
-## Prerequisites
+- Windows with [Mesen2](https://www.mesen.ca/) 2.1+ and a NES ROM you own.
+  jeROMy never ships or fetches ROMs.
+- WSL2 (Ubuntu) with Node 22+ and pnpm, and a checkout of DeepSeek Harness
+  (`dsh-v0.2.1-alpha.1` or later) next to this repo.
+- A DeepSeek API key in `DEEPSEEK_API_KEY`.
 
-- [Node.js](https://nodejs.org/) v20+
-- [Mesen2](https://www.mesen.ca/) emulator (Windows)
-- An Anthropic API key ([console.anthropic.com](https://console.anthropic.com/))
-- WSL2 (if running the server on Linux alongside Mesen2 on Windows)
+Mesen2 settings, once per machine: Tools → Script Window → allow network
+access, allow I/O, script timeout 1 s, auto-start on load.
 
-### Optional
-
-- [Emscripten SDK](https://emscripten.org/) — only needed to rebuild the Capstone disassembler WASM
-
-## Quick Start
-
-### 1. Install dependencies
+## Install (from source, until the bundle ships)
 
 ```bash
-npm install
+git clone git@github.com:LoganBresnahan/jeROMy.git ~/jeROMy
+git clone https://github.com/deepseek-ai/deepseek-harness ~/deepseek-harness && (cd ~/deepseek-harness && pnpm install)
+cd ~/jeROMy && npm install
+cd ~/deepseek-harness && pnpm dsh jeromy --from-default-profile web   # creates ~/.dsh/profiles/jeromy once
 ```
 
-### 2. Set your API key
+`scripts/dsh-dev.sh` writes a patch overlay that mounts `src/dsh/index.ts`
+into the `jeromy` profile, selects `deepseek-flash`, enables the sidebar
+browser, turns off dsh's session-log upload, and removes the coding
+toolbelt. A packaged bundle (`dsh plugin --profile jeromy add`) is roadmap
+item 7.
+
+## Run
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-api03-...
+scripts/up.sh            # dsh (profile jeromy), Mesen2 with the ROM + bridge.lua, waits for the bridge
+scripts/up.sh --down     # stop dsh (Mesen stays open)
 ```
 
-Or create a `.env` file (not committed):
+`up.sh` prints the dsh URL. Open it, start a session, open the right-sidebar
+**Browser** at `http://127.0.0.1:9002/` for the live emulator view: click a
+pixel and the agent receives the tile, palette and address under it.
 
-```
-ANTHROPIC_API_KEY=sk-ant-api03-...
-```
+Try: "Take a screenshot and describe what you see", "What tile did I just
+click?", "Make the pipes red", "Find the lives counter in RAM".
 
-### 3. Build the Capstone disassembler (optional)
-
-This enables the `disassemble` tool for the agent. Skip this step if you don't need disassembly — the server starts fine without it.
+Headless checks and session review:
 
 ```bash
-# Install Emscripten (one-time)
-git clone https://github.com/emscripten-core/emsdk.git ~/emsdk
-cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest
-source ~/emsdk/emsdk_env.sh
-
-# Build Capstone WASM
-cd capstone && ./build.sh
+scripts/trio.sh                       # look / read / edit through dsh, streams under .chat-out/
+scripts/dsh-log.mjs show latest       # what the agent saw, reasoned and called (ADR-0011)
 ```
 
-### 4. Start the server
-
-```bash
-npm run dev
-```
-
-You should see:
+## Layout
 
 ```
-[jeROMy] Capstone disassembler loaded     (if WASM was built)
-[Bridge] TCP server listening on 0.0.0.0:9001
-[jeROMy] Web UI at http://localhost:3000
-[jeROMy] Waiting for Mesen2 to connect (load bridge.lua)...
+mesen/bridge.lua        Lua client inside Mesen2: JSON over TCP, palette overrides, memory, PPU
+src/bridge/mesen/       connection, protocol, EmulatorAdapter (host-agnostic)
+src/agent/tools.ts      the 24 ROM-hacking tools against the adapter; prompts.ts; nes-palette.ts
+src/mappings/           mapping loader + schema; mappings/sha1-*.json are the shipped artifact
+src/dsh/                the dsh plugin: Mesen service, tool registration, prompt section, emulator view
+skills/                 curated ROM-hacking procedures shipped with the plugin (ADR-0008)
+scripts/                up.sh, trio.sh, dsh-dev.sh, mesen-up.sh, dsh-log.mjs, budget.sh
+docs/                   DIRECTION, roadmap, issues inbox, ADRs, plans, bridge protocol
 ```
 
-### 5. Connect Mesen2
+Rules for working in the repo are in [CLAUDE.md](CLAUDE.md).
 
-1. Open Mesen2 and load a NES ROM
-2. Go to **Tools > Script Window**
-3. Click **Open** and load `mesen/bridge.lua`
+## Tools
 
-You should see `[Bridge] Mesen Lua client connected` in the server terminal.
-
-### 6. Open the UI
-
-Navigate to [http://localhost:3000](http://localhost:3000).
-
-- **Left panel**: Emulator view — click pixels to inspect tiles
-- **Right panel**: Chat — type natural language instructions for the agent
-
-Try:
-- "Take a screenshot and describe what you see"
-- "What palette is the main character using?"
-- "Change the background color to blue"
+Screenshot and pixel/tile lookup (`screenshot`, `get_tile_at_pixel`,
+`read_tile`, `read_nametable`), palettes (`get_palette`, `get_all_palettes`,
+`write_palette` with per-frame override, `clear_palette_overrides`), memory
+(`read_memory`, `write_memory`, `search_memory` planned), CPU and ROM info,
+save/load state, emulator control (`pause_emulator`, `resume_emulator`,
+`step_frame`, `get_emulator_status`), `disassemble` (Capstone WASM), and the
+mapping tools (`record_mapping`, `promote_mappings`). RAM edits are the
+default; CHR/PRG ROM is never written silently.
 
 ## Development
 
 ```bash
-npm run dev          # Start dev server (tsx, auto-restarts)
-npm run build        # Compile TypeScript
-npm test             # Run tests
-npm run test:watch   # Watch mode
+npm test             # vitest, all suites
+npx tsc --noEmit     # typecheck
+cd capstone && ./build.sh   # rebuild the Capstone WASM (needs emsdk; artifacts are gitignored)
 ```
-
-## Project Structure
-
-```
-jeROMy/
-├── mesen/
-│   └── bridge.lua                 # Lua client for Mesen2
-├── capstone/
-│   └── build.sh                   # Capstone WASM build script
-├── src/
-│   ├── index.ts                   # HTTP + WS + TCP server
-│   ├── bridge/mesen/              # TCP connection, protocol, adapter
-│   ├── agent/
-│   │   ├── provider.ts            # LLM-agnostic interface
-│   │   ├── providers/anthropic.ts # Claude implementation
-│   │   ├── agent.ts               # Tool loop core
-│   │   ├── tools.ts               # Tool definitions + executor
-│   │   ├── prompts.ts             # System prompt
-│   │   └── disassembler.ts        # Capstone WASM wrapper
-│   └── web/
-│       ├── index.html             # Browser UI
-│       ├── actors/                # UI actor components (gateway, sidebar, turns, etc.)
-│       ├── state/                 # EventStateActor/Manager (from Moby)
-│       └── utils/                 # Shared utilities (syntax highlight, code blocks, etc.)
-├── docs/
-│   ├── architecture/overview.md   # Full architecture doc
-│   └── bridge.md                  # TCP protocol spec
-└── package.json
-```
-
-## How It Works
-
-The agent runs a **tool loop**:
-
-1. User sends a natural language instruction via the chat panel
-2. The instruction + system prompt (NES hardware reference) is sent to Claude
-3. Claude decides which tools to call (screenshot, get_palette, write_memory, etc.)
-4. Tools are executed against the live emulator via the TCP bridge
-5. Results (including screenshots as images for vision) are sent back to Claude
-6. Claude reasons about the results and either calls more tools or responds
-7. Each step streams to the browser in real time
-
-The agent supports up to 25 tool-call iterations per instruction, with abort capability.
-
-## Available Tools
-
-| Tool | Description |
-|------|-------------|
-| `screenshot` | Capture current emulator frame (PNG, analyzed via vision) |
-| `get_tile_at_pixel` | Tile and palette info at a screen coordinate |
-| `get_palette` | 4 NES color indices for a palette (0-7) |
-| `write_palette` | Change a palette color (**frozen** — persists across frames) |
-| `get_all_palettes` | All 8 palettes (4 background + 4 sprite) |
-| `clear_palette_overrides` | Unfreeze palette colors (some or all) |
-| `read_memory` | Read bytes from any memory region |
-| `write_memory` | Write bytes to memory (live edit) |
-| `get_cpu_state` | CPU registers and PPU position |
-| `get_rom_info` | Loaded ROM metadata |
-| `save_state` | Save emulator state (for undo) |
-| `load_state` | Load emulator state (for rollback) |
-| `disassemble` | Disassemble bytes at address (6502/ARM via Capstone) |
-
-### Palette Freezing
-
-NES games rewrite palette RAM every frame during VBlank. A one-shot write would be overwritten in ~16ms. To make palette edits visible, `write_palette` **freezes** the color — the bridge script re-applies it every frame so the game can't clobber it. Use `clear_palette_overrides` to unfreeze and let the game resume control. Other memory edits via `write_memory` are **live** — they take effect immediately but may be overwritten by game code.
 
 ## License
 

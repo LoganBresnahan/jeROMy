@@ -29,10 +29,9 @@ npm test
 npx tsc --noEmit
 ```
 
-Known residual until roadmap item 8: `npx tsc --noEmit` reports errors only
-in `src/db/*` (row types vs `@signalapp/sqlcipher`'s generic constraint; see
-`docs/issues.md`). Typecheck counts as clean when every error is in `src/db`;
-one error anywhere else is a ✗.
+Typecheck has no allowed residual: one error anywhere is a ✗. (Harness
+types come through `scripts/link-dsh.sh` symlinks; `npm install` removes
+them, so a sudden flood of `@deepseek-ai/*` errors means re-run the link.)
 
 Coverage is judged by **behavior mapping**, not a percentage. Enumerate the
 public surface in scope and name the test that pins each behavior. Standing
@@ -80,10 +79,10 @@ top; a plan the change diverged from is amended, not silently contradicted.
 
 **CLAUDE.md Commands**: every listed command still exists and runs.
 
-**Pre-rethink docs** (`docs/architecture/*`, `docs/bridge.md`,
-`docs/guides/testing.md`): until roadmap item 8 they describe v0.1 and are
-allowed to lag; after item 8 each is rewritten or deleted. A change to the
-Lua protocol updates `docs/bridge.md` in the same commit regardless.
+**Reference docs** (`docs/architecture/overview.md`, `docs/bridge.md`,
+`docs/guides/testing.md`, `README.md`): rewritten for the plugin at item 8;
+they are held to the same drift check as everything else. A change to the
+Lua protocol updates `docs/bridge.md` in the same commit.
 
 Drift check, per doc that names code artifacts:
 
@@ -113,12 +112,13 @@ for t in $(grep -ohE '^\s+name: "[a-z_]+"' $T | grep -oE '[a-z_]+"' | tr -d '"')
 sent by the TypeScript adapter, and vice versa:
 
 ```bash
+# Only existing dirs: a missing path makes some greps (ugrep) exit non-zero even on a match.
 for h in $(grep -oE '^function handlers\.[a-z_]+' mesen/bridge.lua | sed 's/function handlers\.//'); do
-  grep -rq "\"$h\"" src/bridge/mesen/ src/core 2>/dev/null || echo "NO ADAPTER: $h"; done
-# allowed escape: debug_state (Lua-side debugging only)
-for m in $(grep -rohE --exclude='*.test.ts' 'request\("[a-z_]+"' src/bridge/mesen/ src/core 2>/dev/null | grep -oE '[a-z_]+"' | tr -d '"' | sort -u); do
+  grep -rq "\"$h\"" src/bridge/mesen/ || echo "NO ADAPTER: $h"; done
+# allowed escapes: debug_state, get_lua_logs, ping (Lua-side debugging only)
+for m in $(grep -rohE --exclude='*.test.ts' 'request(<[A-Za-z]+>)?\("[a-z_]+"' src/bridge/mesen/ | grep -oE '[a-z_]+"$' | tr -d '"' | sort -u); do
   grep -q "^function handlers\.$m" mesen/bridge.lua || echo "NO HANDLER: $m"; done
-# expect: no output beyond the escape
+# expect: no output beyond the escapes
 ```
 
 **Watchdog budget** — the blocking poll inside `codeBreak` stays under

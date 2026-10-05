@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Runtime-verification recipe for jeROMy — drive the agent against a live Mesen2 with a real ROM loaded, through the v0.1 server today and through a dsh profile once the plugin exists. This is the deploy analog for a local tool; a green /shipshape does not discharge it. Run after substantive changes to tools, the Lua bridge, the prompt, or the emulator view, and before claiming a roadmap item done.
+description: Runtime-verification recipe for jeROMy — drive the agent against a live Mesen2 with a real ROM loaded, through the dsh profile `jeromy`. This is the deploy analog for a local tool; a green /shipshape does not discharge it. Run after substantive changes to tools, the Lua bridge, the prompt, or the emulator view, and before claiming a roadmap item done.
 ---
 
 # /verify — exercise the change in the real loop
@@ -12,21 +12,7 @@ and a screenshot showed it. Unit tests mock the adapter; this does not.
 `mesen/bridge.lua` loaded in Tools → Script Window. If the bridge is not
 connected, stop and say so; do not simulate a result.
 
-## Handle A — v0.1 server (until roadmap item 1)
-
-```bash
-scripts/dev-deepseek.sh &            # server on deepseek-flash, :3000 / :9001
-scripts/mesen-up.sh                  # Mesen2 + SMB + bridge.lua, from WSL
-node scripts/chat.mjs "Take a screenshot and describe it" --out .chat-out
-```
-
-Expect `[Bridge] Mesen Lua client connected` in the server log. If the first
-screenshot comes back empty, the emulator is paused (known after a handoff,
-see `docs/issues.md`): send `{"action":"resume_emulator"}` over the
-WebSocket or ask the agent to resume. Screenshots land in `--out`; Read the
-PNGs yourself rather than trusting the description.
-
-## Handle B — dsh profile (from roadmap item 1)
+## Through dsh
 
 ```bash
 scripts/up.sh          # dsh + Mesen + bridge, prints URLs (see /up)
@@ -70,7 +56,7 @@ protocol test (bridge).
 ## Report
 
 ```
-VERIFY — jeROMy @ <sha> · handle <A|B> · ROM <name/sha1 prefix> · model <id>
+VERIFY — jeROMy @ <sha> · ROM <name/sha1 prefix> · model <id> · sessions <id prefixes>
   look      ✓|✗  <one line of what it described> · <image tokens / cost>
   read      ✓|✗  tile <id> palette <n> matches picker
   edit      ✓|✗  write_palette → visible in screenshot 2

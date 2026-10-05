@@ -1,184 +1,61 @@
-# Testing Guide
+# Testing
 
-jeROMy uses [Vitest](https://vitest.dev/) for all tests. The test suite has **834 tests across 29 files** covering the agent, bridge, state management, mappings, and utility layers.
+Two layers, and both are required before a roadmap item is called done:
+vitest units for what can be pinned without an emulator, and a live Mesen2
+session (`/verify`) for the rest. Behavior mapping over coverage numbers:
+every tool has a test that names it.
 
-## Running Tests
+## Running
 
 ```bash
-npm test             # Run all tests once
-npm run test:watch   # Watch mode (re-runs on file change)
+npm test              # all suites once; the ship bar runs it twice
+npm run test:watch
+npx tsc --noEmit      # typecheck (test files are excluded from the build)
 ```
 
-Vitest is configured via `package.json` scripts — there's no separate `vitest.config.ts`. Test files are co-located with source files using the `*.test.ts` naming convention.
+Vitest picks up `src/**/*.test.ts` and `scripts/**/*.test.mjs`
+(`vitest.config.ts`). No DOM environment is needed anywhere.
 
-**Note:** Test files are excluded from the TypeScript build via `tsconfig.json`:
-```json
-"exclude": ["node_modules", "dist", "src/**/*.test.ts"]
-```
-
----
-
-## Test Structure
+## Where tests live
 
 ```
-src/
-├── agent/
-│   ├── agent.test.ts          # Tool loop (mocked provider + adapter)
-│   ├── provider.test.ts       # Provider interface type checks
-│   ├── prompts.test.ts        # System prompt builder + emulator state
-│   └── tools.test.ts          # 21 tool definitions + executeTool()
-├── bridge/mesen/
-│   ├── adapter.test.ts        # MesenAdapter (mocked connection)
-│   ├── connection.test.ts     # TCP connection framing
-│   └── protocol.test.ts       # Protocol type guards + serialization
-├── db/
-│   ├── database.test.ts       # SQLCipher wrapper
-│   ├── eventStore.test.ts     # Append-only event log
-│   ├── sessionManager.test.ts # Session CRUD + forking
-│   └── snapshotManager.test.ts # Context compression
-├── mappings/
-│   └── loader.test.ts         # Mapping file loader + prompt formatting
-├── index.test.ts              # Server integration (WS actions)
-└── web/
-    ├── actors/
-    │   ├── gateway/GatewayActor.test.ts       # WS routing + interleaving
-    │   ├── virtual-list/VirtualListActor.test.ts # Turn management
-    │   ├── turn/TurnActor.test.ts             # Turn rendering
-    │   ├── input-area/InputAreaActor.test.ts   # Chat input
-    │   └── sidebar/EmulatorSidebar.test.ts     # Sidebar + pause state
-    ├── state/
-    │   ├── EventStateActor.test.ts       # Actor lifecycle, pub/sub
-    │   ├── EventStateManager.test.ts     # Manager registration, broadcast
-    │   ├── ShadowActor.test.ts           # Shadow DOM, adoptedStyleSheets
-    │   └── InterleavedShadowActor.test.ts # Content interleaving
-    └── utils/
-        ├── codeBlocks.test.ts        # Code fence detection
-        ├── deepEqual.test.ts         # Deep equality
-        ├── deepClone.test.ts         # Deep clone
-        ├── syntaxHighlight.test.ts   # 26 language highlighters
-        ├── wildcardMatch.test.ts     # Glob-style wildcard matching
-        ├── uniqueId.test.ts          # ID generation
-        └── pick.test.ts              # Object key picking
+src/bridge/mesen/
+  connection.test.ts      TCP server, newline framing, request ids, timeouts, disconnect
+  protocol.test.ts        request/response/error shapes
+  adapter.test.ts         each adapter method sends the matching Lua handler and params
+src/agent/
+  tools.test.ts           all 24 tools against a mocked EmulatorAdapter
+  prompts.test.ts         prompt assembly: emulator status, mapping context, CHR guide
+src/mappings/
+  loader.test.ts          SHA1 keying, missing file is not an error, merge, prompt formatting
+src/dsh/
+  core-tools.test.ts      core tool → dsh ToolDefinition mapping, image → attachment, errors
+  promote-mappings.test.ts  discoveries → mapping file
+  emulator-view.test.ts   SSE pump cadence, pick context line, routes, shutdown
+scripts/
+  dsh-log.test.mjs        multi-frame zstd decode, transcript rendering, session resolution (ADR-0011)
 ```
 
----
+## Patterns
 
-## Mock Patterns
+- **Mocked adapter.** Tool tests build an object implementing
+  `EmulatorAdapter` with `vi.fn()` per method and assert both the call and
+  the rendered result. No socket is opened.
+- **Real sockets for the bridge.** `connection.test.ts` starts the server on
+  port 0 and connects a `net.Socket`; timing assertions use deadline loops,
+  never fixed sleeps.
+- **Deadline loops over sleeps.** `emulator-view.test.ts` polls until a
+  condition holds or a deadline passes; the suite must survive a loaded
+  machine twice in a row.
+- **Fixture provenance.** Golden data (tile bytes, palette tables,
+  nametable dumps, session event shapes) names the ROM or session and who
+  hand-checked it, in a comment at the top of the test.
+- **Tool↔test parity** and **Lua handler↔adapter parity** are mechanical
+  checks in `/shipshape`; run them before claiming a tool or handler done.
 
-### Mocking the MesenConnection (adapter.test.ts)
+## What units cannot tell you
 
-The adapter creates a `MesenConnection` via `new`, so the mock must export a **class** (not an arrow function):
-
-```typescript
-vi.mock("./connection.js", () => {
-  const mockRequest = vi.fn();
-  class MockMesenConnection {
-    isConnected = true;
-    listen = vi.fn().mockResolvedValue(undefined);
-    shutdown = vi.fn();
-    request = mockRequest;
-  }
-  return {
-    MesenConnection: MockMesenConnection,
-    __mockRequest: mockRequest,  // test-only export for assertions
-  };
-});
-
-const { __mockRequest } = await import("./connection.js") as any;
-const mockRequest = __mockRequest as ReturnType<typeof vi.fn>;
-```
-
-This pattern exposes the mock request function so tests can set return values and assert calls.
-
-### Mocking the Adapter (tools.test.ts)
-
-For `executeTool()` tests, create a mock adapter object with all methods:
-
-```typescript
-function mockAdapter(overrides: Record<string, any> = {}) {
-  return {
-    screenshot: vi.fn().mockResolvedValue({ png_base64: "AAAA" }),
-    getTileAtPixel: vi.fn().mockResolvedValue({ tile_id: 1, palette_id: 0 }),
-    getPalette: vi.fn().mockResolvedValue({ palette_id: 0, colors: [0, 1, 2, 3] }),
-    // ... all adapter methods
-    ...overrides,
-  } as any;
-}
-```
-
-The `overrides` parameter lets individual tests inject failures:
-
-```typescript
-const adapter = mockAdapter({
-  getCpuState: vi.fn().mockRejectedValue(new Error("bridge disconnected")),
-});
-```
-
-### DOM Testing (happy-dom)
-
-State management tests use [happy-dom](https://github.com/nicedoc/happy-dom) for DOM APIs. Enable it per-file with a pragma:
-
-```typescript
-// @vitest-environment happy-dom
-
-import { describe, it, expect } from "vitest";
-```
-
-This provides `document`, `HTMLElement`, `CustomEvent`, `MutationObserver`, `CSSStyleSheet`, `ShadowRoot`, and other DOM APIs without a full browser.
-
----
-
-## Test Categories
-
-### Agent Tests
-
-- **agent.test.ts**: Tests the tool loop with a mocked `LLMProvider` that returns predefined responses. Verifies iteration flow, tool execution, abort handling, and event yielding.
-- **tools.test.ts**: Tests 21 tool definitions (names, schemas, required params) and the `executeTool()` dispatcher. Verifies default parameters, error handling, screenshot result type, and emulator control tools.
-- **prompts.test.ts**: Tests system prompt construction with and without runtime context, including emulator PAUSED/RUNNING state and game mapping injection.
-- **provider.test.ts**: Type-level tests for the provider interface.
-
-### Bridge Tests
-
-- **adapter.test.ts**: Tests all 19 adapter methods (including emulator control: pause, resume, step, status) by mocking the connection's `request()` function. Verifies parameter passing and return types.
-- **connection.test.ts**: Tests TCP message framing and request/response matching.
-- **protocol.test.ts**: Tests `isErrorResponse()` type guard and JSON serialization round-trips.
-
-### State Management Tests
-
-- **EventStateActor.test.ts**: Actor lifecycle (registration, publication, subscription), scoping helpers, DOM observation, circular dependency handling.
-- **EventStateManager.test.ts**: Manager registration, broadcast, subscription indexing (exact + wildcard), external messages, style injection.
-- **ShadowActor.test.ts**: Shadow DOM creation, `adoptedStyleSheets` caching, render/update lifecycle.
-- **InterleavedShadowActor.test.ts**: Content interleaving (text segments, tool batches, screenshots), fence carry-forward, streaming lifecycle.
-
-### Utility Tests
-
-- **codeBlocks.test.ts**: Code fence detection across languages, nested fences, edge cases.
-- **deepEqual.test.ts**: Primitives, arrays, objects, nested structures, special values (NaN, null, undefined, Date, RegExp).
-- **deepClone.test.ts**: Structural cloning, reference independence, special types.
-- **syntaxHighlight.test.ts**: 26 languages with expected token outputs, language aliases, edge cases.
-- **wildcardMatch.test.ts**: Pattern matching with `*` wildcards, dot-separated keys.
-- **uniqueId.test.ts**: ID generation, incrementing, prefix handling, counter reset.
-- **pick.test.ts**: Object key picking, missing keys, empty input.
-
----
-
-## Writing New Tests
-
-1. **Co-locate**: Place `foo.test.ts` next to `foo.ts`
-2. **Use `vi.fn()` for mocks**: Prefer Vitest's built-in mocking over manual stubs
-3. **Use `vi.mock()` for module-level mocks**: Must be at the top level, before imports
-4. **DOM tests**: Add `// @vitest-environment happy-dom` pragma and install `happy-dom` as devDependency
-5. **Async tests**: Use `async`/`await` — Vitest handles promises natively
-6. **No test files in build**: The `tsconfig.json` excludes `src/**/*.test.ts` from compilation
-
-### Test Naming Convention
-
-```typescript
-describe("ModuleName", () => {
-  it("does specific thing with specific input", async () => {
-    // arrange, act, assert
-  });
-});
-```
-
-Use present tense, describe behavior, not implementation.
+Whether the Lua side stays under Mesen's 1 s watchdog, whether a palette
+override is visible on screen, whether the model reads a screenshot
+correctly. That is `/verify`: `scripts/up.sh`, `scripts/trio.sh`, and a
+`/replay` of the sessions it produced (`scripts/dsh-log.mjs`).
