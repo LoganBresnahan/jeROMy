@@ -33,7 +33,9 @@ plan's `search-memory-tool`, `reset-emulator-tool` and the address seam of
   `record_mapping` takes `rom_origins`; prompt formatter prints them.
   Unit tests over temp dirs. Ends in /shipshape.
 
-### 2. Fable batch — `patch-format-writers` DONE 2026-10-05, `trace-writes-tool` open
+### 2. Fable batch — `patch-format-writers` and `trace-writes-tool` — DONE 2026-10-05
+
+`trace_writes`: two-phase, per-PC aggregation with an event cap (4096 recorded, counting continues), `max_writers`, PCs resolved through `convertAddress` at completion, refused while paused, `mode: read` for reads, `mem_type: ppu` for PPU address space. Live: `$2005` for 60 frames → 4 writer PCs (`0x8EE9/0x8EEC` the vblank pair, `0x8162/0x8168` the split pair) with PRG origins, 360 accesses, no visible stall; a cold address returns no writers with the "trigger the event" note.
 
 `src/hacks/patch.ts`: iNES layout (header, trainer, PRG/CHR starts), CRC32 (IEEE check value pinned), IPS writer (EOF-offset guard, 65535 splits, small-gap run merging) and BPS writer (beat varints, SourceRead/TargetRead), each checked by an **independent applier** in the tests plus a seeded fuzz. Live: the SMB `$29→$16` edit exported as a 14-byte IPS whose one record a hand parser read back at file offset 0xCDC = 16 + 0xCCC.
 

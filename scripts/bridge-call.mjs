@@ -27,30 +27,43 @@ const timeoutS = Number(flag("--timeout", 20));
 const paramsArg = args.slice(1).find((a) => a.startsWith("{"));
 const params = paramsArg ? JSON.parse(paramsArg) : {};
 
+const timer = setTimeout(() => {
+  console.error(`no Lua client connected within ${timeoutS}s (is bridge.lua running in Mesen? scripts/mesen-up.sh reloads it)`);
+  process.exit(1);
+}, timeoutS * 1000);
+
 const server = net.createServer((socket) => {
+  clearTimeout(timer);
   let buf = "";
   const id = `call-${Date.now()}`;
   socket.setEncoding("utf8");
   socket.on("data", (chunk) => {
     buf += chunk;
-    const nl = buf.indexOf("\n");
-    if (nl === -1) return;
-    const line = buf.slice(0, nl);
-    try {
-      const msg = JSON.parse(line);
-      if (msg.id !== id) return;
+    // Consume every complete line: heartbeats ({"heartbeat":true}) arrive on
+    // the same stream and must not block the response behind them.
+    for (;;) {
+      const nl = buf.indexOf("\n");
+      if (nl === -1) return;
+      const line = buf.slice(0, nl);
+      buf = buf.slice(nl + 1);
+      let msg;
+      try {
+        msg = JSON.parse(line);
+      } catch {
+        console.error(`unparseable line: ${line.slice(0, 200)}`);
+        continue;
+      }
+      if (msg.id !== id) continue;
       if (msg.error) {
         console.error(`bridge error: ${msg.error}`);
         process.exitCode = 1;
       } else {
         console.log(JSON.stringify(msg.result, null, 2));
       }
-    } catch (err) {
-      console.error(`unparseable response: ${line.slice(0, 200)}`);
-      process.exitCode = 1;
+      socket.end();
+      server.close();
+      return;
     }
-    socket.end();
-    server.close();
   });
   socket.write(`${JSON.stringify({ id, method, params })}\n`);
 });
@@ -64,12 +77,6 @@ server.on("error", (err) => {
   process.exit(1);
 });
 
-const timer = setTimeout(() => {
-  console.error(`no Lua client connected within ${timeoutS}s (is bridge.lua running in Mesen? scripts/mesen-up.sh reloads it)`);
-  server.close();
-  process.exit(1);
-}, timeoutS * 1000);
-timer.unref();
 
 server.listen(port, "0.0.0.0", () => {
   console.error(`[bridge-call] waiting for the Lua client on :${port} …`);

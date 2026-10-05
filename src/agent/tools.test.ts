@@ -14,6 +14,7 @@ describe("agentTools", () => {
     expect(names).toContain("get_pixel_color");
     expect(names).toContain("search_memory");
     expect(names).toContain("reset_emulator");
+    expect(names).toContain("trace_writes");
     expect(names).toContain("get_palette");
     expect(names).toContain("write_palette");
     expect(names).toContain("get_all_palettes");
@@ -78,6 +79,7 @@ describe("executeTool", () => {
       getPixelColor: vi.fn().mockResolvedValue({ x: 176, y: 182, argb: 0xff88d800, r: 136, g: 216, b: 0 }),
       searchMemory: vi.fn().mockResolvedValue({ mem_type: "prgRom", memory_size: 32768, start: 0, searched: 32768, offsets: [0x0cb4], truncated: false, pattern_length: 4 }),
       resetEmulator: vi.fn().mockResolvedValue({ reset: true, cleared_palette_overrides: 1 }),
+      traceWrites: vi.fn().mockResolvedValue({ address: 0x75a, length: 1, mem_type: "cpu", mode: "write", frames: 60, total_accesses: 2, recorded_accesses: 2, truncated: false, writers: [{ pc: 0x9087, count: 2, last_value: 2, last_address: 0x75a, last_frame: 3, samples: [], origin: { address: 0x1087, mem_type: "prgRom", mem_type_id: 45 } }] }),
       getPalette: vi.fn().mockResolvedValue({ palette_id: 0, colors: [0, 1, 2, 3] }),
       writePalette: vi.fn().mockResolvedValue({ old_color: 0, new_color: 0x27 }),
       getAllPalettes: vi.fn().mockResolvedValue({ palettes: [] }),
@@ -161,6 +163,15 @@ describe("executeTool", () => {
     expect((await executeTool("search_memory", {}, adapter) as { text: string }).text).toMatch(/^Error/);
     expect((await executeTool("search_memory", { pattern: [-1, -1] }, adapter) as { text: string }).text).toMatch(/all wildcards/);
     expect(adapter.searchMemory).not.toHaveBeenCalled();
+  });
+
+  it("trace_writes passes the range and formats writer PCs with their ROM origin (ADR-0009)", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool("trace_writes", { address: 0x75a, frames: 60 }, adapter);
+    expect(adapter.traceWrites).toHaveBeenCalledWith({ address: 0x75a, length: undefined, memType: undefined, frames: 60, mode: undefined });
+    const parsed = JSON.parse((result as { text: string }).text);
+    expect(parsed.writers[0]).toMatchObject({ pc_hex: "0x9087", origin_hex: "prgRom 0x1087" });
+    expect(parsed.note).toContain("Disassemble");
   });
 
   it("reset_emulator calls the adapter and says what survives (ADR-0009)", async () => {

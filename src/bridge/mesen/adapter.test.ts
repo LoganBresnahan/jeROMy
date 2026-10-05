@@ -56,6 +56,12 @@ describe("MesenAdapter", () => {
     expect(result.offsets).toEqual([0x0cb4]);
   });
 
+  it("traceWrites sends trace_writes with a timeout sized to the frames (ADR-0009)", async () => {
+    mockRequest.mockResolvedValue({ writers: [] });
+    await adapter.traceWrites({ address: 0x75a, frames: 120, mode: "write" });
+    expect(mockRequest).toHaveBeenCalledWith("trace_writes", { address: 0x75a, frames: 120, mode: "write" }, { timeoutMs: 7000 });
+  });
+
   it("resetEmulator sends reset_emulator (ADR-0009)", async () => {
     mockRequest.mockResolvedValue({ reset: true, cleared_palette_overrides: 0 });
     await adapter.resetEmulator();

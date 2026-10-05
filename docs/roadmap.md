@@ -136,8 +136,9 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
   `$16`, survives `reset_emulator`, restored; IPS/BPS writers checked by
   independent appliers; `export_patch`, `export_rom`, `undo_edit`; the
   exported `.hacked.nes` booted in Mesen with red bushes from a clean
-  start. Remaining: `trace_writes` (two-phase, per-PC writers) and the
-  `persist-edit` skill with its `trio.sh persist` check. Carry-in: after
+  start; `trace_writes` finds the writing PCs with their ROM origins.
+  Remaining: the `persist-edit` skill with its `trio.sh persist` check,
+  written from the first model-driven recolor. Carry-in: after
   Mesen reloads the ROM the emulator's copy no longer holds the ledgered
   edits while the ledger still lists them; offer an explicit
   `reapply_edits` (never silent, per the ROM-write rule) and say the

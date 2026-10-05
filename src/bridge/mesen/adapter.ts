@@ -31,6 +31,7 @@ import type {
   ConvertAddressResult,
   SearchMemoryResult,
   ResetEmulatorResult,
+  TraceWritesResult,
 } from "./protocol.js";
 
 export class MesenAdapter {
@@ -92,6 +93,19 @@ export class MesenAdapter {
       ...(opts.length !== undefined ? { length: opts.length } : {}),
       ...(opts.maxResults !== undefined ? { max_results: opts.maxResults } : {}),
     });
+  }
+
+  /** Who writes (or reads) an address range over N frames; two-phase on the Lua side (ADR-0009). */
+  async traceWrites(opts: { address: number; length?: number; memType?: MemoryType; frames?: number; mode?: "write" | "read"; maxWriters?: number }): Promise<TraceWritesResult> {
+    const frames = opts.frames ?? 60;
+    return this.conn.request<TraceWritesResult>("trace_writes", {
+      address: opts.address,
+      ...(opts.length !== undefined ? { length: opts.length } : {}),
+      ...(opts.memType !== undefined ? { mem_type: opts.memType } : {}),
+      frames,
+      ...(opts.mode !== undefined ? { mode: opts.mode } : {}),
+      ...(opts.maxWriters !== undefined ? { max_writers: opts.maxWriters } : {}),
+    }, { timeoutMs: Math.ceil(frames / 60) * 1000 + 5000 });
   }
 
   /** Soft-reset the console; clears palette overrides first (ADR-0009). */

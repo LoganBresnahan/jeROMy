@@ -98,6 +98,22 @@ export const agentTools: ToolSpec[] = [
     },
   },
   {
+    name: "trace_writes",
+    description:
+      "Find the code that writes (or reads) a memory address: installs a callback on the range for N frames (default 60, max 600) and returns each writing PC with its count, last value, up to 8 samples, and where that PC lives in the ROM (prgRom offset) so you can disassemble around it. Use it when search_memory is ambiguous or when you need the routine that copies a table into RAM/palette RAM. Refused while paused (frames must run); the game must actually perform the write during the window, so trigger the event (resume, play, or reset) first.",
+    input_schema: {
+      type: "object",
+      properties: {
+        address: { type: "number", description: "Start address (CPU space by default)" },
+        length: { type: "number", description: "Bytes in the range (default 1, max 256)" },
+        mem_type: { type: "string", description: "cpu (default), or ppu for PPU address space (e.g. palette RAM 0x3F01)" },
+        frames: { type: "number", description: "Frames to watch (default 60, max 600)" },
+        mode: { type: "string", enum: ["write", "read"], description: "Default write" },
+      },
+      required: ["address"],
+    },
+  },
+  {
     name: "reset_emulator",
     description:
       "Soft-reset the console (like the RESET button). Palette overrides are cleared first. A ROM edit that is still visible after a reset is persistent in the emulator's copy of the ROM; a RAM or palette edit is gone. Use it to prove an edit survived before exporting it.",
@@ -908,6 +924,25 @@ export async function executeTool(
       if (!restored) return { type: "text", text: JSON.stringify({ undone: false, seq, error: "read-back does not match the old bytes; ledger entry kept", read_back: back.bytes, expected: entry.old }) };
       ledger.removeEdit(seq);
       return { type: "text", text: JSON.stringify({ undone: true, seq, mem: entry.mem, offset: entry.offset, restored: entry.old, remaining_edits: ledger.readEdits().length, note: "Reset the emulator if the game already copied these bytes elsewhere." }) };
+    }
+
+    case "trace_writes": {
+      const result = await adapter.traceWrites({
+        address: input.address as number,
+        length: input.length as number | undefined,
+        memType: input.mem_type as MemoryType | undefined,
+        frames: input.frames as number | undefined,
+        mode: input.mode as "write" | "read" | undefined,
+      });
+      const writers = result.writers.map((w) => ({
+        ...w,
+        pc_hex: `0x${w.pc.toString(16).toUpperCase().padStart(4, "0")}`,
+        ...(w.origin ? { origin_hex: `${w.origin.mem_type ?? w.origin.mem_type_id} 0x${w.origin.address.toString(16).toUpperCase()}` } : {}),
+      }));
+      const note = result.writers.length === 0
+        ? "No access in the window: the game did not touch this range; trigger the event (resume, reset_emulator, play) and trace again."
+        : "Disassemble around a writer's pc (CPU address) to see what it copies from; origin_hex is that code's ROM offset.";
+      return { type: "text", text: JSON.stringify({ ...result, writers, note }) };
     }
 
     case "reset_emulator": {

@@ -142,6 +142,31 @@ export interface ScrollCaptureResult {
   writes: ScrollWrite[];
 }
 
+/** One PC that accessed the traced range (ADR-0009). */
+export interface TraceWriter {
+  pc: number;
+  count: number;
+  last_value: number;
+  last_address: number;
+  last_frame: number;
+  samples: Array<{ address: number; value: number; frame: number }>;
+  /** Where the PC lives through the mapper (prgRom offset for ROM code). */
+  origin: { address: number; mem_type?: string; mem_type_id: number } | null;
+}
+
+/** Answer to trace_writes: two-phase, N frames of write (or read) callbacks on a range (ADR-0009). */
+export interface TraceWritesResult {
+  address: number;
+  length: number;
+  mem_type: string;
+  mode: "write" | "read";
+  frames: number;
+  total_accesses: number;
+  recorded_accesses: number;
+  truncated: boolean;
+  writers: TraceWriter[];
+}
+
 /** Answer to search_memory (ADR-0009). */
 export interface SearchMemoryResult {
   mem_type: string;

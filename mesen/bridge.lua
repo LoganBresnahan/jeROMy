@@ -414,6 +414,98 @@ function handlers.reset_emulator(params)
   return { reset = true, cleared_palette_overrides = cleared }
 end
 
+-- trace_writes: who writes (or reads) an address range, for N frames
+-- (ADR-0009). Two-phase. The callback body is a counter plus one getState
+-- for the PC, recorded for at most MAX_TRACE_EVENTS accesses and
+-- max_writers distinct PCs; past the cap it only counts, so a hot address
+-- costs one table increment per access. One trace at a time; complete()
+-- resolves each PC through convertAddress once (the bank mapped at
+-- completion time, exact on NROM).
+local trace = nil
+local MAX_TRACE_EVENTS = 4096
+
+local function remove_trace()
+  if trace and trace.ref then
+    pcall(emu.removeMemoryCallback, trace.ref, trace.cb_type, trace.first, trace.last, trace.cpu_type, trace.mem_id)
+  end
+  trace = nil
+end
+
+function handlers.trace_writes(params)
+  local addr = params.address
+  if not addr then error("address is required") end
+  local length = params.length or 1
+  if length < 1 or length > 256 then error("length must be 1-256") end
+  local frames = params.frames or 60
+  if frames < 1 or frames > MAX_PENDING_FRAMES then error("frames must be 1-" .. MAX_PENDING_FRAMES) end
+  local mem_type = params.mem_type or "cpu"
+  local mode = params.mode or "write"
+  local cb_type = mode == "read" and emu.callbackType.read or emu.callbackType.write
+  local max_writers = params.max_writers or 64
+  if is_paused then error("trace_writes needs frames to run and the emulator is paused; resume_emulator first") end
+  remove_trace()
+  local writers, order = {}, {}
+  local total, recorded = 0, 0
+  local start_frame = frame_counter
+  local function on_access(a, v)
+    total = total + 1
+    if recorded >= MAX_TRACE_EVENTS then return end
+    recorded = recorded + 1
+    local pc = emu.getState()["cpu.pc"]
+    local w = writers[pc]
+    if not w then
+      if #order >= max_writers then return end
+      w = { pc = pc, count = 0, samples = {} }
+      writers[pc] = w
+      order[#order + 1] = pc
+    end
+    w.count = w.count + 1
+    w.last_value = v
+    w.last_address = a
+    w.last_frame = frame_counter - start_frame
+    if #w.samples < 8 then w.samples[#w.samples + 1] = { address = a, value = v, frame = frame_counter - start_frame } end
+  end
+  local first, last = addr, addr + length - 1
+  local ref, cpu_type, mem_id
+  if mem_type == "cpu" then
+    ref = emu.addMemoryCallback(on_access, cb_type, first, last)
+  else
+    mem_id = MT[mem_type]
+    if not mem_id then error("unknown mem_type: " .. tostring(mem_type)) end
+    cpu_type = emu.cpuType and emu.cpuType.nes or nil
+    ref = emu.addMemoryCallback(on_access, cb_type, first, last, cpu_type, mem_id)
+  end
+  trace = { ref = ref, cb_type = cb_type, first = first, last = last, cpu_type = cpu_type, mem_id = mem_id }
+  return {
+    pending = {
+      frames = frames,
+      complete = function()
+        remove_trace()
+        local out = {}
+        for _, pc in ipairs(order) do
+          local w = writers[pc]
+          local origin = nil
+          local ok, res = pcall(emu.convertAddress, pc)
+          if ok and type(res) == "table" then
+            local name = nil
+            for n, id in pairs(MT) do if id == res.memType then name = n end end
+            origin = { address = res.address, mem_type = name, mem_type_id = res.memType }
+          end
+          out[#out + 1] = { pc = pc, count = w.count, last_value = w.last_value, last_address = w.last_address, last_frame = w.last_frame, samples = w.samples, origin = origin }
+        end
+        table.sort(out, function(x, y) return x.count > y.count end)
+        return {
+          address = addr, length = length, mem_type = mem_type, mode = mode, frames = frames,
+          total_accesses = total, recorded_accesses = recorded,
+          truncated = recorded >= MAX_TRACE_EVENTS or #order >= max_writers,
+          writers = out,
+        }
+      end,
+      cancel = function() remove_trace() end,
+    },
+  }
+end
+
 -- convert_address: CPU (or other) address → its ROM/RAM origin through the
 -- mapper (ADR-0009). Returns Mesen's raw answer plus the memType name.
 function handlers.convert_address(params)
