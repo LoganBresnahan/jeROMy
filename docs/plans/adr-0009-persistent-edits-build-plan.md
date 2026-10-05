@@ -91,7 +91,9 @@ plan's `search-memory-tool`, `reset-emulator-tool` and the address seam of
   `scripts/mesen-up.sh <path>` and screenshotted, undo restores bytes,
   original ROM byte-identical afterwards (SHA1 from `get_rom_info`).
 
-### 5. Integration (Opus) → /verify — `persist-edit-skill-and-trio-check`
+### 5. Integration (Opus) → /verify — `persist-edit-skill-and-trio-check` — DONE 2026-10-05
+
+One model-driven recolor (session `ead938f1`, 93 calls, $0.11: it found the table, wrote the byte with a reason, reset, verified, recorded `rom_origins`, exported with `verify: true` showing the emulator matching the ledger; it also wandered for minutes stepping frames to "reach gameplay" and tried `save_state`, which has never worked under Mesen2, see `docs/issues.md`). `skills/persist-edit/SKILL.md` is written from that run, traps included. `trio.sh persist` drives the seven-call version and judges the raw results (ledgered write, `$16` in palette 0 after reset, patch written, undo restored, two resets); its first run exposed a real race (a palette read one request after an instant reset saw mid-init bytes), so `reset_emulator` is now two-phase and answers after 30 frames. Second run green (session `9780413e`).
 
 One real SMB recolor through dsh on deepseek-flash: find the palette table
 with `search_memory`, patch it, `reset_emulator`, confirm, `record_mapping`

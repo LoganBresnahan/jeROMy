@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # The standing trio from /verify, run headlessly through dsh with the jeROMy
-# plugin: look, read, edit, click. Each is one `dsh --profile headless --json` run;
+# plugin: look, read, edit, click, persist. Each is one `dsh --profile headless --json` run;
 # the JSON event streams and a summary land in .chat-out/trio-<stamp>/.
 # Only one dsh process can own the bridge port, so this stops a running web
 # instance first and brings it back afterwards.
 #
-# Usage: scripts/trio.sh [look|read|edit|click ...]   (default: all four)
+# Usage: scripts/trio.sh [look|read|edit|click|persist ...]   (default: all five)
 #        scripts/trio.sh --task "<instruction>" [min-tool-calls]
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -22,12 +22,13 @@ declare -A TASK=(
   [read]="Using get_tile_at_pixel, tell me what tile is at screen pixel (128, 220) and which palette it uses. Then read that palette with get_palette and report its four color indices. Report raw tool values."
   [edit]="Take a screenshot. Then use write_palette to set background palette 1, color index 1 to NES color 0x12 (blue). Pause the emulator, step one frame, take another screenshot and tell me exactly what changed between the two images. Finally call clear_palette_overrides and resume_emulator. Report raw write_palette output."
   [click]="Call get_tile_at_pixel at (176, 182) and get_pixel_color at (176, 182), then get_palette for the palette the first result named. Report all three raw outputs verbatim and say whether the pixel's nes_color is one of that palette's entries or the shared backdrop."
+  [persist]="Do exactly this, no extra tool calls, and report every raw tool output verbatim: (1) search_memory with hex \"0F 29 1A 0F\" in prgRom. (2) write_memory at the first offset plus 1, bytes [22] (decimal twenty-two, which is NES color 0x16 red; do not write 0x22), mem_type prgRom, reason \"trio persist check\". (3) reset_emulator. (4) get_palette 0. (5) export_patch with format ips. (6) undo_edit with the seq the write reported. (7) reset_emulator."
 )
-declare -A MIN_CALLS=([look]=1 [read]=2 [edit]=5 [click]=3)
+declare -A MIN_CALLS=([look]=1 [read]=2 [edit]=5 [click]=3 [persist]=7)
 # --task "<text>": a one-off check named `custom` through the same machinery
 # (neutral cwd, bridge wait, replay line). Used by unattended runs.
 if [ "${1:-}" = "--task" ]; then TASK[custom]="$2"; MIN_CALLS[custom]="${3:-1}"; set -- custom; fi
-CHECKS=("$@"); [ ${#CHECKS[@]} -eq 0 ] && CHECKS=(look read edit click)
+CHECKS=("$@"); [ ${#CHECKS[@]} -eq 0 ] && CHECKS=(look read edit click persist)
 
 owner_of() { ss -ltnp 2>/dev/null | grep -E ":$1 " | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2; }
 WEB_PID="$(owner_of 9001)"; RESTART=0
@@ -81,6 +82,29 @@ if sys.argv[3:] == ["click"]:
         colors = pal.get("colors", []); backdrop = pal.get("background_color")
         if px["nes_color"] not in colors and px["nes_color"] != backdrop: problems.append(f"pixel color {px['nes_color']} not in palette {tile.get('palette_id')} {colors} nor backdrop {backdrop}")
     if problems: ok = False; final = "CLICK CHECK: " + "; ".join(problems) + " · " + final
+if sys.argv[3:] == ["persist"]:
+    names = {}; res = []
+    for line in open(sys.argv[1]):
+        line = line.strip()
+        if not line.startswith("{"): continue
+        e = json.loads(line)
+        if e.get("type") == "tool_call": names[e["callId"]] = e.get("tool")
+        if e.get("type") == "tool_result" and isinstance(e.get("result"), str):
+            try: res.append((names.get(e["callId"], "?"), json.loads(e["result"])))
+            except Exception: res.append((names.get(e["callId"], "?"), e["result"]))
+    by = {}
+    for n, r in res: by.setdefault(n, []).append(r)
+    problems = []
+    w = next((r for r in by.get("write_memory", []) if isinstance(r, dict) and r.get("persistent")), None)
+    if not w or not w.get("ledger"): problems.append("write_memory to prgRom was not ledgered")
+    pal = next((r for r in by.get("get_palette", []) if isinstance(r, dict)), None)
+    if not pal or 22 not in pal.get("colors", []): problems.append("palette 0 did not read $16 after reset")
+    ex = next((r for r in by.get("export_patch", []) if isinstance(r, dict)), None)
+    if not ex or not ex.get("written"): problems.append("export_patch wrote nothing")
+    un = next((r for r in by.get("undo_edit", []) if isinstance(r, dict)), None)
+    if not un or not un.get("undone"): problems.append("undo_edit did not restore the byte")
+    if len(by.get("reset_emulator", [])) < 2: problems.append("reset_emulator not called twice")
+    if problems: ok = False; final = "PERSIST CHECK: " + "; ".join(problems) + " · " + final
 print(f"steps {steps} · tool calls {calls} (need ≥{need}) · tool errors {errs} · tokens in {tin} out {tout} · turn_end {reason}" + (f" · ERROR {err}" if err else "") + ("" if ok else " · CHECK FAILED"))
 print("  " + (final[:220] + ("…" if len(final) > 220 else "")))
 sys.exit(0 if ok else 1)

@@ -113,5 +113,32 @@ Human checks for you:
 - Remaining on item 10: `trace_writes`, the `persist-edit` skill and its
   trio check.
 
-Open questions: none blocking. Next: trace_writes, persist-edit skill, then
-item 7 (bundle).
+**Update 23:45, balance $8.8x.** Item 10 (ADR-0009) is done end to end:
+`c8161e7` trace_writes; next commit: `persist-edit` skill written from a
+real model run, `trio.sh persist` (its first run caught a reset race, so
+`reset_emulator` now waits 30 frames before answering), `save_state`
+finding logged. Full trio (look, read, edit, click, persist) is the ship bar
+for the night; see the final entry below.
+
+**Final entry, ~23:55 (local).** Full trio green: look, read, edit,
+click, persist, zero tool errors, no watchdog hits in the Lua log. Two more
+findings on the way to that:
+
+- Two earlier model runs tripped Mesen's 1 s watchdog inside the request
+  decoder while paused, which surfaced as 15 s tool timeouts. Not
+  reproducible by script; the paused poll is now line-mode (a request is
+  handled the moment it arrives: 200 ms → ~1 ms per call while paused), each
+  `codeBreak` callback is bounded by wall clock, and an undecodable request
+  is answered under its own id. Theory and next step are in
+  `docs/issues.md`.
+- `reset_emulator` answers only after 30 frames have run; a palette read one
+  request after an instant reset saw mid-init bytes.
+
+Also worth knowing: the `look` check ("take a screenshot and describe it")
+now costs the model 30-50 calls because it samples pixels with
+`get_pixel_color` to be sure of colors. Correct, but a prompt-hygiene
+candidate: say when one screenshot is enough.
+
+Open questions: none blocking. Next in the queue: item 7 (bundle +
+install from a clean machine), then `reapply_edits` and the save-state fix
+from the carry-ins.

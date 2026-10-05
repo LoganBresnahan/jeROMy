@@ -404,14 +404,31 @@ end
 
 -- reset_emulator: soft reset (ADR-0009: proving a ROM edit survived).
 -- Clears palette overrides first so a frozen color is not mistaken for a
--- persistent one; the pause flag is left alone (a reset while paused stays
--- paused in Mesen).
+-- persistent one. Two-phase: answers after `frames` (default 30) have run
+-- so the game has re-initialised RAM and palette RAM before the caller's
+-- next read; a get_palette one request after an instant reset still saw the
+-- pre-reset bytes (2026-10-05, trio persist). While paused it steps those
+-- frames itself and stays paused.
 function handlers.reset_emulator(params)
+  local frames = params.frames or 30
+  if frames < 1 or frames > MAX_PENDING_FRAMES then error("frames must be 1-" .. MAX_PENDING_FRAMES) end
   local cleared = 0
   for _ in pairs(palette_overrides) do cleared = cleared + 1 end
   palette_overrides = {}
+  local paused = is_paused
+  if paused then pending_steps = pending_steps + frames end
   emu.reset()
-  return { reset = true, cleared_palette_overrides = cleared }
+  local start = frame_counter
+  return {
+    pending = {
+      frames = frames,
+      allow_paused = paused,
+      complete = function()
+        return { reset = true, cleared_palette_overrides = cleared, frames_waited = frame_counter - start, paused = is_paused }
+      end,
+      cancel = function() end,
+    },
+  }
 end
 
 -- trace_writes: who writes (or reads) an address range, for N frames
@@ -1219,8 +1236,12 @@ local function handle_message(msg)
 
   local ok, request = pcall(json.decode, msg)
   if not ok then
+    -- Also the shape of a watchdog trip inside the decoder (seen 2026-10-05
+    -- while paused): recover the id by string match so the caller gets an
+    -- immediate error instead of a 15 s timeout, and can retry.
+    local id = msg:match('"id"%s*:%s*"([^"]+)"') or "error"
     emu.log("[jeROMy] JSON parse error: " .. tostring(request))
-    return json.encode({ id = "error", error = "invalid JSON: " .. tostring(request) })
+    return json.encode({ id = id, error = "bridge could not decode the request: " .. tostring(request) })
   end
 
   if type(request) ~= "table" then
@@ -1287,12 +1308,16 @@ end
 local function poll_connection()
   if not conn then return end
 
-  -- Try to receive data (non-blocking)
-  local data, err, partial = conn:receive(8192)
-  local chunk = data or partial
-
-  if chunk and #chunk > 0 then
-    recv_buffer = recv_buffer .. chunk
+  -- Line mode: a numeric pattern would block for the whole timeout waiting
+  -- for 8192 bytes even when a complete request is already in; "*l" returns
+  -- the moment a line arrives (paused requests went from 200 ms to ~0).
+  -- A timeout hands back the partial line, which is consumed from the
+  -- socket, so it is kept here until the rest arrives.
+  local data, err, partial = conn:receive("*l")
+  if data then
+    recv_buffer = recv_buffer .. data .. "\n"
+  elseif partial and #partial > 0 then
+    recv_buffer = recv_buffer .. partial
   end
 
   -- Process complete messages (newline-delimited)
@@ -1505,10 +1530,19 @@ local function on_code_break()
 
   -- Switch to blocking mode for the duration of this callback
   conn:settimeout(POLL_TIMEOUT)
+  local entered = os.clock()
 
   for round = 1, POLL_ROUNDS do
     -- Blocking poll — waits up to POLL_TIMEOUT seconds for data
     poll_connection()
+    -- Never let one callback run near the 1 s watchdog, whatever the rounds
+    -- and handlers cost: hand back to Mesen with a keep-alive step instead.
+    if os.clock() - entered > 0.6 and conn then
+      conn:settimeout(0)
+      step_active = true
+      emu.step(1, emu.stepType.step)
+      return
+    end
     if not conn then
       -- Dropped inside the poll. Keep the break alive so the next codeBreak
       -- can reconnect; without a step Mesen sits paused and nobody is called.

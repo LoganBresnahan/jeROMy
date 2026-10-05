@@ -182,6 +182,9 @@ export interface SearchMemoryResult {
 export interface ResetEmulatorResult {
   reset: boolean;
   cleared_palette_overrides: number;
+  /** Frames the bridge let run after the reset before answering (default 30). */
+  frames_waited: number;
+  paused: boolean;
 }
 
 /** Answer to convert_address: where a CPU/PPU address lives through the mapper (ADR-0009). */

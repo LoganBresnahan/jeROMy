@@ -93,7 +93,7 @@ handler kept for verification.
 | `capture_scroll_writes` | `{frames?}` | `{frames, stepped_frames, start_frame, end_frame, other_register_writes, final{t,v,x,w,scanline,cycle}, writes[{frame, scanline, cycle, reg, value, t, v, x, w}]}` | Two-phase (ADR-0010): records every CPU write to $2000/$2005/$2006 for one frame with the loopy state *before* each write (Mesen calls write hooks pre-write); while paused it steps two frames itself and the last frame is the complete one. The TypeScript side reconstructs the scroll per scanline (`src/agent/scroll-reconstruct.ts`) |
 | `search_memory` | `{pattern[], mem_type?, start?, length?, max_results?}` | `{mem_type, memory_size, start, searched, offsets[], truncated, pattern_length}` | Byte-pattern search, -1 = wildcard; ≤512 KiB per call (ADR-0009) |
 | `trace_writes` | `{address, length?, mem_type?, frames?, mode?, max_writers?}` | `{address, length, mem_type, mode, frames, total_accesses, recorded_accesses, truncated, writers[{pc, count, last_value, last_address, last_frame, samples[], origin}]}` | Two-phase (ADR-0009): write/read callback on a range for N frames; per-PC counts, PCs resolved through `convertAddress` at completion; refused while paused |
-| `reset_emulator` | — | `{reset, cleared_palette_overrides}` | `emu.reset()` after clearing palette overrides (ADR-0009) |
+| `reset_emulator` | `{frames?}` | `{reset, cleared_palette_overrides, frames_waited, paused}` | Two-phase: `emu.reset()` after clearing palette overrides, answered once `frames` (default 30) have run so RAM is re-initialised; steps them itself while paused (ADR-0009) |
 | `convert_address` | `{address, mem_type?}` | `{input, input_mem_type, address?, mem_type?, mem_type_id, raw}` | `emu.convertAddress` through the mapper: `$8000` → `prgRom` offset 0, `$3F01` (ppu) → `palette` 1 (ADR-0009) |
 | `wait_frames` | `{frames}` | `{requested, waited}` | Two-phase: parks for N frames, answers from a later endFrame (ADR-0010); refused while paused |
 | `get_pixel_color` | `{x, y}` | `{x, y, argb, r, g, b}` | Rendered color at a screen pixel via `emu.getPixel`; ground truth on split-scroll frames (ADR-0010) |
@@ -179,6 +179,17 @@ Each `codeBreak` invocation gets a fresh 1-second budget, so the bridge can rema
 - `pending_steps` / `pending_resume` — flags set by handlers, consumed in `codeBreak`
 
 External resume detection: if the user resumes via Mesen's own UI, `endFrame` fires with `step_active = false` and `is_paused = true` — the bridge detects this and clears `is_paused`.
+
+**Line-mode receive and the wall-clock guard** (2026-10-05): the paused poll
+reads with `receive("*l")`, so a request is handled the moment its line
+arrives instead of after the full `POLL_TIMEOUT` (paused round trips went
+from 200 ms to about 1 ms), and the `codeBreak` loop hands control back to
+Mesen with a keep-alive step as soon as it has spent 0.6 s of wall clock,
+whatever the round count. A request the decoder cannot parse is answered
+under its own id (recovered by string match) so the caller fails fast.
+Background: two model runs on 2026-10-05 saw "Maximum execution time (1
+seconds) exceeded" inside the JSON decoder while paused, which turned into
+15 s tool timeouts; see `docs/issues.md`.
 
 ## Palette Freezing
 

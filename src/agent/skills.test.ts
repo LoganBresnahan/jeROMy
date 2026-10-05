@@ -30,7 +30,7 @@ describe("shipped skills directory", () => {
   const skills = loadSkillFiles(SKILLS_DIR);
 
   it("contains the skills drafted from the 2026-10-05 sessions, each matching its directory name", () => {
-    expect(skills.map((s) => s.name)).toEqual(["identify-click", "palette-swap"]);
+    expect(skills.map((s) => s.name)).toEqual(["identify-click", "palette-swap", "persist-edit"]);
     for (const s of skills) {
       expect(s.description.length).toBeGreaterThan(20);
       expect(s.content).toContain("## Steps");
@@ -44,6 +44,7 @@ describe("shipped skills directory", () => {
     const notTools = new Set([
       "tile_id", "palette_id", "mapping_type", "color_index", "nes_color", "old_color", "scroll_x", "scroll_y",
       "scroll_source", "scroll_scanline", "stepped_frames", "scroll_ambiguous", "png_base64", "frozen",
+      "mem_type", "ledger_warning", "rom_path",
       // Example mapping names the skills suggest for record_mapping.
       "pipe_bush_hill_green", "title_logo_box",
     ]);

@@ -20,10 +20,12 @@ Anthropic provider were deleted at roadmap item 8 (2026-10-05); dsh's
 session log is the record (`/replay`). Items 12 (click correctness,
 ADR-0010: two-phase bridge requests, scroll capture, scanline-accurate
 `get_tile_at_pixel`), 13 (prompt hygiene), 9 (skills registered through
-`ctx.skills`) and 11 (`jeromy` agent preset, read-only sandbox default)
-shipped the same night. Open: item 7 (bundle + install from a clean
-machine) and 10 (persistent edits, ADR-0009). Build order: `docs/roadmap.md`;
-tonight's plan: `docs/plans/overnight-2026-10-05.md`.
+`ctx.skills`), 11 (`jeromy` agent preset, read-only sandbox default) and
+10 (persistent edits, ADR-0009: ledgered ROM writes under `hacks/`,
+`search_memory`/`trace_writes`, patch export, `persist-edit` skill) shipped
+the same night. Open: item 7 (bundle + install from a clean machine), then
+the Later list. Build order: `docs/roadmap.md`; the overnight log:
+`docs/plans/overnight-2026-10-05.md`.
 
 ## Stack
 
@@ -129,8 +131,9 @@ tonight's plan: `docs/plans/overnight-2026-10-05.md`.
   WSL with the ROM and `mesen/bridge.lua` (single-instance handoff; default
   ROM is SMB (World) in `C:\Users\tarsier\Documents`)
 - `scripts/up.sh [rom]` / `scripts/up.sh --down` — the one-move bring-up
-  (dsh + Mesen + bridge wait); `scripts/trio.sh [look|read|edit]` — the
-  headless checks, streams saved under `.chat-out/`
+  (dsh + Mesen + bridge wait); `scripts/trio.sh [look|read|edit|click|persist]`
+  or `scripts/trio.sh --task "<instruction>" [min-calls]` — the headless
+  checks, raw-result criteria per check, streams saved under `.chat-out/`
 - `scripts/dsh-dev.sh` — boot the `jeromy` dsh profile with the plugin
   mounted from `src/dsh/index.ts` (web UI on :3080, bridge on :9001). Runs
   `scripts/link-dsh.sh` first, which symlinks the harness checkout's

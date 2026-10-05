@@ -63,9 +63,9 @@ describe("MesenAdapter", () => {
   });
 
   it("resetEmulator sends reset_emulator (ADR-0009)", async () => {
-    mockRequest.mockResolvedValue({ reset: true, cleared_palette_overrides: 0 });
+    mockRequest.mockResolvedValue({ reset: true, cleared_palette_overrides: 0, frames_waited: 30, paused: false });
     await adapter.resetEmulator();
-    expect(mockRequest).toHaveBeenCalledWith("reset_emulator");
+    expect(mockRequest).toHaveBeenCalledWith("reset_emulator", { frames: 30 }, { timeoutMs: 6000 });
   });
 
   it("convertAddress sends convert_address with the memory type (ADR-0009)", async () => {

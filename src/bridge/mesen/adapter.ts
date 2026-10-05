@@ -108,9 +108,9 @@ export class MesenAdapter {
     }, { timeoutMs: Math.ceil(frames / 60) * 1000 + 5000 });
   }
 
-  /** Soft-reset the console; clears palette overrides first (ADR-0009). */
-  async resetEmulator(): Promise<ResetEmulatorResult> {
-    return this.conn.request<ResetEmulatorResult>("reset_emulator");
+  /** Soft-reset the console; clears palette overrides first and answers after `frames` have run (ADR-0009). */
+  async resetEmulator(frames: number = 30): Promise<ResetEmulatorResult> {
+    return this.conn.request<ResetEmulatorResult>("reset_emulator", { frames }, { timeoutMs: Math.ceil(frames / 60) * 1000 + 5000 });
   }
 
   /** Resolve a CPU (default) or PPU address to its ROM/RAM origin through the mapper (ADR-0009). */

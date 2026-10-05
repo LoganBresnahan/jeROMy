@@ -10,6 +10,34 @@ commit is the record; a file of ticked boxes stops being read.
 
 ## Bridge
 
+- **Watchdog trip inside the request decoder while paused.** Twice on
+  2026-10-05 (sessions `f02bae50`, `e0899303`), after `pause_emulator` and a
+  run of back-to-back `get_pixel_color` calls, the Lua log shows "JSON parse
+  error: Maximum execution time (1 seconds) exceeded"; the request was
+  answered under id `error`, so the tool timed out after 15 s. Not
+  reproduced by scripted bursts (spaced, parallel, sequential, with
+  screenshots) through `scratchpad/paused-burst.mjs`. Mitigations shipped
+  the same night: line-mode receive (per-request latency while paused
+  200 ms → ~1 ms, so far less time is spent inside each callback), a 0.6 s
+  wall-clock guard per `codeBreak` callback, and the request id recovered on
+  decode failure so a trip is an immediate error, not a timeout. If
+  "Maximum execution time" shows up in `scripts/lua-log.sh` again, the
+  working theory is that keep-alive `emu.step` calls nest `codeBreak`
+  callbacks inside the same watchdog window; the fix would be to let the
+  callback return without stepping when nothing is pending and rely on a
+  periodic step from the TypeScript side.
+
+- **`save_state` / `load_state` fail: "This function must be called inside
+  an exec memory operation callback for the main CPU".** Mesen2 only allows
+  `emu.createSavestate` / `loadSavestate` from an exec callback, and the
+  handlers call them from the request path. Seen 2026-10-05 in the
+  persist-edit run (session `ead938f1`), so the tools have never worked
+  under Mesen2 2.1.1. Fix: a two-phase handler that installs a one-shot
+  `exec` memory callback on the current PC range, performs the savestate
+  inside it, removes itself, and answers from the next `endFrame` (the
+  pending path from ADR-0010). Until then the tool descriptions should say
+  state slots are unavailable; `undo_edit` covers ROM edits.
+
 - **The Lua client sometimes never notices that a headless dsh run ended.**
   Reproduced twice on 2026-10-05 (trio runs 220244 and 221242): after the
   `read` run's last call the Lua log shows no `Disconnected` line at all,

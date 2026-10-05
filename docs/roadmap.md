@@ -125,24 +125,21 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
   span). `nearestNesColor` added for ADR-0010's `get_pixel_color`. Verified
   by asking the model to restate: it named `$22`/`$29`/`$1A`/`$36`
   correctly and wrote hex in code spans (session `b83a8ddc`).
-- **10. Persistent edits** (ADR-0009), per
-  `docs/plans/adr-0009-persistent-edits-build-plan.md`. Done 2026-10-05:
-  `search_memory` (chunked under the Lua watchdog), `reset_emulator`,
-  `convert_address`; `hacks/sha1-<sha1>/` with `edits.json` filled by every
-  prgRom/chrRom write (read-before/read-back, `reason`) and
-  `discoveries.json` replacing the in-memory ledger across restarts;
-  mapping schema v2 with `rom_origins` through `record_mapping`. Proven
-  live: SMB's level palette table found at PRG `0xCCB`, slot 1 patched to
-  `$16`, survives `reset_emulator`, restored; IPS/BPS writers checked by
-  independent appliers; `export_patch`, `export_rom`, `undo_edit`; the
-  exported `.hacked.nes` booted in Mesen with red bushes from a clean
-  start; `trace_writes` finds the writing PCs with their ROM origins.
-  Remaining: the `persist-edit` skill with its `trio.sh persist` check,
-  written from the first model-driven recolor. Carry-in: after
-  Mesen reloads the ROM the emulator's copy no longer holds the ledgered
-  edits while the ledger still lists them; offer an explicit
-  `reapply_edits` (never silent, per the ROM-write rule) and say the
-  divergence in the prompt section.
+- [x] **10. Persistent edits** (ADR-0009). Done 2026-10-05, five phases
+  per `docs/plans/adr-0009-persistent-edits-build-plan.md`: `search_memory`
+  (chunked under the Lua watchdog), `reset_emulator` (two-phase, answers
+  after the game re-initialised), `convert_address`, `trace_writes`
+  (per-PC writers with ROM origins); `hacks/sha1-<sha1>/` with `edits.json`
+  filled by every prgRom/chrRom write (read-before/read-back, `reason`) and
+  `discoveries.json` surviving restarts; mapping schema v2 `rom_origins`;
+  IPS/BPS writers checked by independent appliers; `export_patch`,
+  `export_rom`, `undo_edit`; the `persist-edit` skill from the first
+  model-driven recolor and `trio.sh persist`. Proof: SMB's level palette
+  table at PRG `0xCCB`, slot 1 `$29→$16`, survives reset; the exported
+  `.hacked.nes` booted in Mesen with red bushes from a clean start.
+  Carry-ins: `reapply_edits` for the ledger/emulator divergence after a
+  ROM reload (never silent); `save_state`/`load_state` need the exec-callback
+  fix (`docs/issues.md`).
 - [x] **11. A `jeromy` agent preset.** Done 2026-10-05 per Logan's call
   (read-only shell + `read_image`, no write/edit): the dev patch inserts
   `preset-jeromy` (persona, time context, bash without background jobs,
