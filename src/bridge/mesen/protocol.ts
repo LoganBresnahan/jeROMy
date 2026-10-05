@@ -167,6 +167,12 @@ export interface TraceWritesResult {
   writers: TraceWriter[];
 }
 
+export interface ClearPaletteOverridesResult {
+  cleared: number;
+  /** Slots whose pre-override color was written back (default behavior). */
+  restored: number;
+}
+
 /** Answer to search_memory (ADR-0009). */
 export interface SearchMemoryResult {
   mem_type: string;
@@ -280,9 +286,15 @@ export interface RomInfoResult {
   usesChrRam?: boolean;
 }
 
+/** save_state / load_state: two-phase, done inside an exec callback (Mesen2 requirement). Slots live in the running script. */
 export interface StateResult {
   slot: number;
   action: "saved" | "loaded";
+  /** Size of the state blob. */
+  bytes: number;
+  /** 1 when the emulator was paused and one frame had to run for the callback to fire. */
+  stepped_frames: number;
+  paused: boolean;
 }
 
 export interface ReadChrTileResult {

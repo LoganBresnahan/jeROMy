@@ -151,13 +151,15 @@ export class MesenAdapter {
   /** Clear frozen palette overrides (some or all). */
   async clearPaletteOverrides(
     paletteId?: number,
-    colorIndex?: number
+    colorIndex?: number,
+    restore?: boolean
   ): Promise<ClearPaletteOverridesResult> {
     return this.conn.request<ClearPaletteOverridesResult>(
       "clear_palette_overrides",
       {
         ...(paletteId != null ? { palette_id: paletteId } : {}),
         ...(colorIndex != null ? { color_index: colorIndex } : {}),
+        ...(restore != null ? { restore } : {}),
       }
     );
   }

@@ -10,7 +10,7 @@ import type { Disassembler, Arch } from "./disassembler.js";
 import type { GameMapping } from "../mappings/types.js";
 import { NES_MASTER_PALETTE_RGB, nearestNesColor, nesColorName } from "./nes-palette.js";
 import { lookupTileAtPixel } from "./tile-lookup.js";
-import { describeLedger, isRomMemory, ledgeredRomWrite, windowsPathToWsl, type EditLedger } from "./edit-ledger.js";
+import { describeLedger, isRomMemory, ledgeredRomWrite, ledgerDivergence, windowsPathToWsl, type EditLedger } from "./edit-ledger.js";
 import { applyEdits, applyIps, applyBps, crc32, encodeBps, encodeIps, inesLayout } from "../hacks/patch.js";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -83,6 +83,18 @@ export const agentTools: ToolSpec[] = [
       properties: {
         rom_path: { type: "string", description: "Path to the original ROM file if the one Mesen reported is not readable from here" },
         name: { type: "string", description: "Output file name (default: <rom name>.hacked.nes)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "reapply_edits",
+    description:
+      "Put the ledgered ROM edits back into the emulator after Mesen reloaded the ROM (restart, reload, ROM handoff): the ledger is a file and survives, the emulator's PRG/CHR copy comes back clean. Reads each entry first and writes only the ones whose bytes are missing; never runs on its own. With check: true it only reports which entries are present or missing.",
+    input_schema: {
+      type: "object",
+      properties: {
+        check: { type: "boolean", description: "Report only; write nothing" },
       },
       required: [],
     },
@@ -179,7 +191,7 @@ export const agentTools: ToolSpec[] = [
   {
     name: "clear_palette_overrides",
     description:
-      "Unfreeze palette overrides so the game can write its own colors again. Call with no arguments to clear all, or specify palette_id (and optionally color_index) to clear specific entries.",
+      "Stop re-applying frozen palette colors and put back the color each slot had before its first override (pass restore: false to only unfreeze). Clears one slot (palette_id + color_index), one palette, or everything.",
     input_schema: {
       type: "object",
       properties: {
@@ -191,7 +203,8 @@ export const agentTools: ToolSpec[] = [
           type: "number",
           description:
             "Color index within the palette (0-3). Only used with palette_id.",
-        },
+                restore: { type: "boolean", description: "Default true: write the pre-override color back" },
+},
       },
     },
   },
@@ -284,7 +297,7 @@ export const agentTools: ToolSpec[] = [
   },
   {
     name: "save_state",
-    description: "Save the current emulator state to a slot (for undo/backup).",
+    description: "Snapshot the whole emulator (RAM, PPU, CPU; not PRG/CHR ROM edits) into a slot held by the running bridge script, so load_state can roll back gameplay state. Slots vanish when Mesen reloads the script. While paused one frame runs so the snapshot can be taken. For ROM edits use the ledger (undo_edit).",
     input_schema: {
       type: "object",
       properties: {
@@ -298,7 +311,7 @@ export const agentTools: ToolSpec[] = [
   {
     name: "load_state",
     description:
-      "Load a previously saved emulator state from a slot (for undo/rollback).",
+      "Restore a slot saved with save_state in this bridge session (gameplay state only; ledgered ROM edits stay). While paused one frame runs so the restore can happen.",
     input_schema: {
       type: "object",
       properties: {
@@ -912,6 +925,26 @@ export async function executeTool(
       return { type: "text", text: JSON.stringify({ written: outPath, format, bytes: patchBytes.length, edits: edits.length, target_crc32: crc32(target).toString(16).toUpperCase().padStart(8, "0"), original_untouched: romPath, ...(verify ? { verify } : {}), notes }) };
     }
 
+    case "reapply_edits": {
+      if (!ledger) return { type: "text", text: "Error: no hack directory for this ROM (bridge not connected or ROM unknown)" };
+      const before = await ledgerDivergence(adapter, ledger);
+      if (input.check || before.missing.length === 0) {
+        return { type: "text", text: JSON.stringify({ ...before, applied: [], note: before.missing.length ? "entries missing from the emulator; call again without check to write them" : "the emulator holds every ledgered edit" }) };
+      }
+      const edits = ledger.readEdits();
+      const applied: number[] = [];
+      const failed: Array<{ seq: number; read_back: number[] }> = [];
+      for (const seq of before.missing) {
+        const e = edits.find((x) => x.seq === seq);
+        if (!e) continue;
+        // Direct adapter write: this re-applies existing entries, it does not ledger new ones.
+        await adapter.writeMemory(e.offset, e.new, e.mem);
+        const back = await adapter.readMemory(e.offset, e.length, e.mem);
+        if (back.bytes.every((b, i) => b === e.new[i])) applied.push(seq); else failed.push({ seq, read_back: back.bytes });
+      }
+      return { type: "text", text: JSON.stringify({ total: before.total, were_present: before.present, applied, failed, note: "Reset the emulator (reset_emulator) so the game re-reads the patched tables." }) };
+    }
+
     case "undo_edit": {
       if (!ledger) return { type: "text", text: "Error: no hack directory for this ROM (bridge not connected or ROM unknown)" };
       const seq = input.seq as number;
@@ -988,7 +1021,8 @@ export async function executeTool(
     case "clear_palette_overrides": {
       const result = await adapter.clearPaletteOverrides(
         input.palette_id as number | undefined,
-        input.color_index as number | undefined
+        input.color_index as number | undefined,
+        input.restore === undefined ? undefined : Boolean(input.restore)
       );
       return { type: "text", text: JSON.stringify(result) };
     }

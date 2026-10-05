@@ -237,6 +237,14 @@ describe("executeTool", () => {
     }
   });
 
+  it("clear_palette_overrides forwards restore:false and omits it by default", async () => {
+    const adapter = mockAdapter();
+    await executeTool("clear_palette_overrides", { palette_id: 1, color_index: 1, restore: false }, adapter);
+    expect(adapter.clearPaletteOverrides).toHaveBeenLastCalledWith(1, 1, false);
+    await executeTool("clear_palette_overrides", { palette_id: 1 }, adapter);
+    expect(adapter.clearPaletteOverrides).toHaveBeenLastCalledWith(1, undefined, undefined);
+  });
+
   it("clear_palette_overrides passes palette_id and color_index", async () => {
     const adapter = mockAdapter();
     const result = await executeTool(
@@ -245,7 +253,7 @@ describe("executeTool", () => {
       adapter
     );
 
-    expect(adapter.clearPaletteOverrides).toHaveBeenCalledWith(2, 1);
+    expect(adapter.clearPaletteOverrides).toHaveBeenCalledWith(2, 1, undefined);
     expect(result.type).toBe("text");
     if (result.type === "text") {
       expect(result.text).toContain("cleared");
@@ -256,7 +264,7 @@ describe("executeTool", () => {
     const adapter = mockAdapter();
     await executeTool("clear_palette_overrides", {}, adapter);
 
-    expect(adapter.clearPaletteOverrides).toHaveBeenCalledWith(undefined, undefined);
+    expect(adapter.clearPaletteOverrides).toHaveBeenCalledWith(undefined, undefined, undefined);
   });
 
   it("save_state defaults to slot 0", async () => {
@@ -397,6 +405,22 @@ describe("executeTool", () => {
       await executeTool("write_memory", { address: 0, bytes: [9], mem_type: "prgRom" }, adapter, null, null, null, store);
       expect(((await executeTool("export_patch", { rom_path: "/nonexistent.nes" }, adapter, null, null, null, store)) as { text: string }).text).toMatch(/not found/);
       expect(((await executeTool("export_patch", {}, adapter)) as { text: string }).text).toMatch(/no hack directory/);
+    });
+
+    it("reapply_edits reports missing entries in check mode and writes only those otherwise (ADR-0009 carry-in)", async () => {
+      const { store, adapter, emu } = setup();
+      await executeTool("write_memory", { address: 0xccc, bytes: [0x16], mem_type: "prgRom" }, adapter, null, null, null, store);
+      await executeTool("write_memory", { address: 0x10, bytes: [7, 8], mem_type: "chrRom" }, adapter, null, null, null, store);
+      // Mesen reloaded the ROM: the emulator's copy loses the first edit.
+      emu[16 + 0xccc] = (16 + 0xccc) * 7 & 0xff;
+      const check = JSON.parse(((await executeTool("reapply_edits", { check: true }, adapter, null, null, null, store)) as { text: string }).text);
+      expect(check).toMatchObject({ total: 2, present: [2], missing: [1], applied: [] });
+      expect(emu[16 + 0xccc]).not.toBe(0x16);
+      const applied = JSON.parse(((await executeTool("reapply_edits", {}, adapter, null, null, null, store)) as { text: string }).text);
+      expect(applied).toMatchObject({ applied: [1], failed: [], were_present: [2] });
+      expect(emu[16 + 0xccc]).toBe(0x16);
+      expect(store.readEdits()).toHaveLength(2); // nothing re-ledgered
+      expect(((await executeTool("reapply_edits", {}, adapter)) as { text: string }).text).toMatch(/no hack directory/);
     });
 
     it("undo_edit writes the old bytes back through the raw path, confirms, and removes the entry", async () => {

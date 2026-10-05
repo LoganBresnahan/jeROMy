@@ -146,9 +146,12 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
   model-driven recolor and `trio.sh persist`. Proof: SMB's level palette
   table at PRG `0xCCB`, slot 1 `$29→$16`, survives reset; the exported
   `.hacked.nes` booted in Mesen with red bushes from a clean start.
-  Carry-ins: `reapply_edits` for the ledger/emulator divergence after a
-  ROM reload (never silent); `save_state`/`load_state` need the exec-callback
-  fix (`docs/issues.md`).
+  Carry-ins closed 2026-10-05 (morning): `reapply_edits` (explicit, reads
+  first, writes only missing entries) with the prompt section stating how
+  many ledgered edits the emulator lacks; `save_state`/`load_state` rebuilt
+  as two-phase requests inside an exec callback (Mesen2's rule), slots held
+  by the running script; `clear_palette_overrides` restores the original
+  color by default.
 - [x] **11. A `jeromy` agent preset.** Done 2026-10-05 per Logan's call
   (read-only shell + `read_image`, no write/edit): the dev patch inserts
   `preset-jeromy` (persona, time context, bash without background jobs,

@@ -354,6 +354,9 @@ local POLL_ROUNDS = 3        -- iterations per codeBreak invocation
 -- values are NES color indices (0-63).
 ---------------------------------------------------------------------------
 local palette_overrides = {}
+-- The color each override replaced, kept from the first override of a slot so
+-- clear_palette_overrides can put it back (docs/issues.md, 2026-10-05).
+local palette_originals = {}
 
 -- screenshot: Capture current frame as base64-encoded PNG
 function handlers.screenshot(params)
@@ -415,6 +418,7 @@ function handlers.reset_emulator(params)
   local cleared = 0
   for _ in pairs(palette_overrides) do cleared = cleared + 1 end
   palette_overrides = {}
+  palette_originals = {}
   local paused = is_paused
   if paused then pending_steps = pending_steps + frames end
   emu.reset()
@@ -795,6 +799,7 @@ function handlers.write_palette(params)
 
   local addr = palette_id * 4 + color_index
   local old_color = readPalette(addr)
+  if palette_originals[addr] == nil then palette_originals[addr] = old_color end
   writePalette(addr, nes_color)
 
   -- Freeze: re-apply this value every frame so the game can't overwrite it
@@ -831,30 +836,30 @@ function handlers.clear_palette_overrides(params)
   -- If palette_id and color_index are given, clear just that one entry.
   -- If only palette_id is given, clear all 4 entries for that palette.
   -- Otherwise clear everything.
-  local cleared = 0
-
-  if params.palette_id and params.color_index then
-    local addr = params.palette_id * 4 + params.color_index
-    if palette_overrides[addr] ~= nil then
-      palette_overrides[addr] = nil
-      cleared = 1
+  local cleared, restored = 0, 0
+  local restore = params.restore ~= false  -- default: put the original color back
+  local function clear_one(addr)
+    if palette_overrides[addr] == nil then return end
+    palette_overrides[addr] = nil
+    cleared = cleared + 1
+    if restore and palette_originals[addr] ~= nil then
+      writePalette(addr, palette_originals[addr])
+      restored = restored + 1
     end
-  elseif params.palette_id then
-    local base = params.palette_id * 4
-    for i = 0, 3 do
-      if palette_overrides[base + i] ~= nil then
-        palette_overrides[base + i] = nil
-        cleared = cleared + 1
-      end
-    end
-  else
-    for k in pairs(palette_overrides) do
-      palette_overrides[k] = nil
-      cleared = cleared + 1
-    end
+    palette_originals[addr] = nil
   end
 
-  return { cleared = cleared }
+  if params.palette_id and params.color_index then
+    clear_one(params.palette_id * 4 + params.color_index)
+  elseif params.palette_id then
+    for i = 0, 3 do clear_one(params.palette_id * 4 + i) end
+  else
+    local addrs = {}
+    for k in pairs(palette_overrides) do addrs[#addrs + 1] = k end
+    for _, k in ipairs(addrs) do clear_one(k) end
+  end
+
+  return { cleared = cleared, restored = restored }
 end
 
 -- read_chr_tile: Read a single 8x8 tile from CHR memory, decoded to pixel grid
@@ -1033,34 +1038,70 @@ end
 
 -- save_state / load_state: Quick navigation
 -- Mesen2 API varies by build: discover the right function names at startup.
-local save_fn = emu.saveSavestateAsync or emu.saveSavestate or emu.createSavestate or emu.saveState or nil
-local load_fn = emu.loadSavestateAsync or emu.loadSavestate or emu.loadState or nil
+
+-- Save states (fix 2026-10-05): Mesen2 only allows createSavestate /
+-- loadSavestate from inside an exec memory callback for the main CPU, and
+-- its Lua API has no slots: the blob is a string the script keeps. Both
+-- handlers are two-phase: a one-shot exec hook on the whole CPU range does
+-- the work at the next executed instruction, and the request completes at
+-- the following endFrame. While paused one frame is stepped so an
+-- instruction runs; slots live in this script and vanish when it reloads.
+local state_slots = {}
+
+local function run_in_exec(work)
+  local job = { done = false, ok = nil, result = nil, ref = nil }
+  job.ref = emu.addMemoryCallback(function()
+    if job.done then return end
+    job.done = true
+    job.ok, job.result = pcall(work)
+  end, emu.callbackType.exec, 0x0000, 0xFFFF)
+  job.remove = function()
+    if job.ref ~= nil then
+      pcall(emu.removeMemoryCallback, job.ref, emu.callbackType.exec, 0x0000, 0xFFFF)
+      job.ref = nil
+    end
+  end
+  return job
+end
+
+local function state_request(slot, action, work)
+  local paused = is_paused
+  if paused then pending_steps = pending_steps + 1 end
+  local job = run_in_exec(work)
+  return {
+    pending = {
+      frames = 1,
+      allow_paused = paused,
+      complete = function()
+        job.remove()
+        if not job.done then error(action .. " never ran: no CPU instruction executed in the window") end
+        if not job.ok then error(action .. " failed: " .. tostring(job.result)) end
+        return { slot = slot, action = action, bytes = job.result, stepped_frames = paused and 1 or 0, paused = is_paused }
+      end,
+      cancel = function() job.remove() end,
+    },
+  }
+end
 
 function handlers.save_state(params)
   local slot = params.slot or 0
-  if save_fn then
-    save_fn(slot)
-    return { slot = slot, action = "saved" }
-  end
-  -- Fallback: try executeShortcut if available (Mesen2 exposes UI actions this way)
-  if emu.executeShortcut then
-    emu.executeShortcut("SaveState", tostring(slot + 1))
-    return { slot = slot, action = "saved", method = "executeShortcut" }
-  end
-  error("save state API not found. Available emu functions logged at startup.")
+  if not emu.createSavestate then error("emu.createSavestate is not available in this Mesen build") end
+  return state_request(slot, "saved", function()
+    local blob = emu.createSavestate()
+    state_slots[slot] = blob
+    return #blob
+  end)
 end
 
 function handlers.load_state(params)
   local slot = params.slot or 0
-  if load_fn then
-    load_fn(slot)
-    return { slot = slot, action = "loaded" }
-  end
-  if emu.executeShortcut then
-    emu.executeShortcut("LoadState", tostring(slot + 1))
-    return { slot = slot, action = "loaded", method = "executeShortcut" }
-  end
-  error("load state API not found. Available emu functions logged at startup.")
+  if not emu.loadSavestate then error("emu.loadSavestate is not available in this Mesen build") end
+  local blob = state_slots[slot]
+  if not blob then error("slot " .. slot .. " is empty in this script session (states live in the running bridge.lua; save_state first)") end
+  return state_request(slot, "loaded", function()
+    emu.loadSavestate(blob)
+    return #blob
+  end)
 end
 
 -- ping: Health check

@@ -70,6 +70,29 @@ export async function ledgeredRomWrite(
   }
 }
 
+export interface LedgerDivergence {
+  total: number;
+  /** Entries whose `new` bytes are what the emulator holds now. */
+  present: number[];
+  /** Entries whose bytes the emulator no longer holds (Mesen reloaded the ROM). */
+  missing: number[];
+}
+
+/**
+ * Compare every ledger entry against the emulator. Reads only; the ROM-write
+ * rule means re-applying is a separate, explicit tool (reapply_edits).
+ */
+export async function ledgerDivergence(adapter: MesenAdapter, ledger: Pick<EditLedger, "readEdits">, limit = 200): Promise<LedgerDivergence> {
+  const edits = ledger.readEdits().slice(0, limit);
+  const present: number[] = [];
+  const missing: number[] = [];
+  for (const e of edits) {
+    const now = await adapter.readMemory(e.offset, e.length, e.mem);
+    (now.bytes.every((b, i) => b === e.new[i]) ? present : missing).push(e.seq);
+  }
+  return { total: edits.length, present, missing };
+}
+
 /** One sentence for tool text about what was ledgered. */
 export function describeLedger(outcome: LedgeredOutcome, ledger: EditLedger | null | undefined): string {
   if (outcome.entry) return ` Ledgered as edit #${outcome.entry.seq} in ${ledger?.editsFile ?? "the hack directory"}.`;

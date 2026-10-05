@@ -100,13 +100,13 @@ handler kept for verification.
 | `get_palette` | `{palette_id}` | `{palette_id, colors[], background_color}` | 4 NES color indices for a palette (0-7) |
 | `write_palette` | `{palette_id, color_index, nes_color}` | `{old_color, new_color, frozen}` | Frozen palette edit — persists across frames |
 | `get_all_palettes` | — | `{palettes[]}` | All 8 palettes (4 BG + 4 sprite) |
-| `clear_palette_overrides` | `{palette_id?, color_index?}` | `{cleared}` | Unfreeze palette overrides (some or all) |
+| `clear_palette_overrides` | `{palette_id?, color_index?, restore?}` | `{cleared, restored}` | Unfreeze palette overrides (some or all) and, by default, write back the color each slot had before its first override |
 | `read_memory` | `{address, length?, mem_type?}` | `{bytes[]}` | Read bytes from memory region |
 | `write_memory` | `{address, bytes[], mem_type?}` | `{bytes_written}` | Write bytes to memory region |
 | `get_cpu_state` | — | `{a, x, y, sp, pc, status, cycle, scanline}` | CPU registers and PPU position |
 | `get_rom_info` | — | `{name, path, sha1, format}` | Loaded ROM metadata |
-| `save_state` | `{slot?}` | `{slot, action}` | Save emulator state |
-| `load_state` | `{slot?}` | `{slot, action}` | Load emulator state |
+| `save_state` | `{slot?}` | `{slot, action, bytes, stepped_frames, paused}` | Two-phase: `emu.createSavestate()` inside a one-shot exec callback (Mesen2 requires it), blob kept in the script's slot table; steps one frame while paused |
+| `load_state` | `{slot?}` | `{slot, action, bytes, stepped_frames, paused}` | Two-phase: `emu.loadSavestate(blob)` the same way; the slot must have been saved in this script session |
 | `ping` | — | `{pong, timestamp}` | Health check |
 | `debug_state` | `{depth?, path?}` | `{keys}` | Dump emu.getState() structure |
 | `get_lua_logs` | `{since?}` | `{logs[], count, overflow?}` | Retrieve buffered emu.log entries |

@@ -13,6 +13,7 @@ import type { GameMapping } from "../mappings/types.js";
 import type { ToolResult } from "../agent/tools.js";
 import { discoveryFromRecordResult } from "./tools/promote-mappings.js";
 import { HackStore } from "../hacks/store.js";
+import { ledgerDivergence, type LedgerDivergence } from "../agent/edit-ledger.js";
 
 declare module "@deepseek-ai/cordis" {
   interface Context {
@@ -48,6 +49,8 @@ export class MesenService extends Service {
   readonly discoveries: DiscoveredEntry[] = [];
   /** Edit ledger and discoveries for the loaded ROM; null until the bridge has reported a SHA1. */
   hackStore: HackStore | null = null;
+  /** Ledger vs emulator at connect time, for the prompt; null when there is no ledger. */
+  ledgerStatus: LedgerDivergence | null = null;
   private readonly mappingsDir: string | undefined;
   private readonly seedMappingsDir: string | undefined;
   private readonly hacksDir: string;
@@ -182,7 +185,8 @@ export class MesenService extends Service {
       try {
         this.discoveries.push(...this.hackStore.readDiscoveries());
         const edits = this.hackStore.readEdits().length;
-        if (this.discoveries.length || edits) this.ctx.logger.info(`mesen: hack dir ${this.hackStore.dir}: ${edits} ledgered edits, ${this.discoveries.length} unpromoted discoveries`);
+        this.ledgerStatus = edits ? await ledgerDivergence(this.adapter, this.hackStore) : null;
+        if (this.discoveries.length || edits) this.ctx.logger.info(`mesen: hack dir ${this.hackStore.dir}: ${edits} ledgered edits (${this.ledgerStatus?.missing.length ?? 0} missing from the emulator), ${this.discoveries.length} unpromoted discoveries`);
       } catch (error: unknown) {
         this.ctx.logger.warn(`mesen: could not read ${this.hackStore.dir}: ${error instanceof Error ? error.message : String(error)}`);
       }

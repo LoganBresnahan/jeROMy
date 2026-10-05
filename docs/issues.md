@@ -27,17 +27,6 @@ commit is the record; a file of ticked boxes stops being read.
   callback return without stepping when nothing is pending and rely on a
   periodic step from the TypeScript side.
 
-- **`save_state` / `load_state` fail: "This function must be called inside
-  an exec memory operation callback for the main CPU".** Mesen2 only allows
-  `emu.createSavestate` / `loadSavestate` from an exec callback, and the
-  handlers call them from the request path. Seen 2026-10-05 in the
-  persist-edit run (session `ead938f1`), so the tools have never worked
-  under Mesen2 2.1.1. Fix: a two-phase handler that installs a one-shot
-  `exec` memory callback on the current PC range, performs the savestate
-  inside it, removes itself, and answers from the next `endFrame` (the
-  pending path from ADR-0010). Until then the tool descriptions should say
-  state slots are unavailable; `undo_edit` covers ROM edits.
-
 - **The Lua client sometimes never notices that a headless dsh run ended.**
   Reproduced twice on 2026-10-05 (trio runs 220244 and 221242): after the
   `read` run's last call the Lua log shows no `Disconnected` line at all,
@@ -52,12 +41,6 @@ commit is the record; a file of ticked boxes stops being read.
   `mesen-up.sh --restart`. The next full trio passed with no retry. Delete
   this entry after a week of trio runs with no `bridge never connected`
   line; if one appears, `scripts/lua-log.sh` now has the evidence.
-- **`clear_palette_overrides` stops re-applying the override but does not
-  restore the original color**; `get_palette` still reads the overridden
-  value until the game rewrites that palette entry. Either the tool restores
-  `old_color` on clear, or its description says it does not. Decide when
-  porting the palette tools (roadmap item 4). Found 2026-10-05.
-
 ## Agent / tools
 
 - **A plugin row that names a package *directory* fails with "failed to
@@ -68,14 +51,3 @@ commit is the record; a file of ticked boxes stops being read.
   appeared once on a first web boot right after `dsh plugin add` and could
   not be reproduced on later fresh installs. If it returns, the startup
   diagnostics under `~/.dsh/logs/` have the cause.
-
-- **Ledger and emulator diverge after Mesen reloads the ROM.** The edit
-  ledger survives (it is a file) but Mesen's in-memory PRG/CHR copy comes
-  back clean after a restart, a reset-by-reload, or a ROM handoff, so
-  `edits.json` lists edits the emulator no longer shows. Seen 2026-10-05
-  after `scripts/mesen-up.sh --restart` with one entry in the ledger.
-  Silent re-application on connect is ruled out by the ROM-write rule; the
-  fix is an explicit `reapply_edits` tool plus a prompt-section line
-  ("N ledgered edits, M not present in the emulator"). Roadmap item 10
-  carry-in. Workaround: `export_rom` and load the `.hacked.nes`, or redo
-  the writes.

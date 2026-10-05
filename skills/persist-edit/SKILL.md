@@ -56,14 +56,17 @@ exported. Procedure from the 2026-10-05 run on Super Mario Bros. (World)
 
 ## Traps seen
 
-- `save_state` is not an undo for ROM edits; use the ledger (`undo_edit`).
+- `save_state` snapshots gameplay state (RAM, PPU), not ROM edits; undo a
+  ROM edit with `undo_edit`. After Mesen reloads the ROM the emulator's copy
+  is clean while the ledger still lists the edits: the prompt says so, and
+  `reapply_edits` puts them back (never on its own).
 - Stepping thousands of frames to "reach gameplay" burned most of the run;
   the title screen or `get_palette` already proves a palette change.
 - `search_memory` with the backdrop included (`22 29 1A 0F`) finds nothing
   on SMB.
-- After Mesen reloads the ROM, the emulator's copy is clean while the
-  ledger still lists the edit (`docs/issues.md`); redo the write or load the
-  exported `.hacked.nes`.
+- Stepping thousands of frames while paused to "see gameplay" is the most
+  expensive way to prove a palette change; `get_palette` after
+  `reset_emulator` proves it in one call.
 
 ## Report shape
 

@@ -53,10 +53,10 @@ Verified procedure from the 2026-10-05 session on Super Mario Bros. (World).
    `pause_emulator`, write, `step_frame` 1, screenshot, write the old color
    back, `step_frame` 1, screenshot. Two frames, one variable.
 8. **Leave it the way the user wants.** To keep: nothing more, the
-   override stays frozen for the session. To undo: `write_palette` the
-   `old_color` back. `clear_palette_overrides` only stops re-applying; it
-   does not restore the old value until the game next writes that palette
-   entry (it will on a scene change). `resume_emulator` if you paused.
+   override stays frozen for the session. To undo: `clear_palette_overrides`
+   for that palette and slot, which unfreezes and writes the pre-override
+   color back (`restore: false` only unfreezes). `resume_emulator` if you
+   paused. To make it permanent, switch to the `persist-edit` skill.
 9. **Record.** If you learned what a palette or slot controls, call
    `record_mapping` with `mapping_type: "palette"`, `id` the palette number,
    a `name` like `title_logo_box`, and `notes` naming the slot and the
