@@ -28,3 +28,6 @@ Template: `_template.md`.
 | [0010](0010-split-scroll-pixel-lookup.md) | Pixel lookups answer from the framebuffer and the scroll in effect at that scanline | Accepted | 2026-10-05 |
 | [0011](0011-session-replay-from-dsh-log.md) | Agent sessions are reviewed from dsh's persisted log, not a jeROMy log | Accepted | 2026-10-05 |
 | [0012](0012-one-package-plugin-and-bundle.md) | jeROMy installs as one npm package that is both the dsh plugin and a dsh bundle | Accepted | 2026-10-05 |
+| [0013](0013-clicks-never-step-and-know-sprites.md) | A click never advances the emulator, and a pick knows which sprite it landed on | Accepted | 2026-10-05 |
+| [0014](0014-region-selection-by-palette-slot.md) | The picker selects regions by palette slot, and every selection names its two edit paths | Accepted | 2026-10-05 |
+| [0015](0015-clicks-pause-and-queue-behind-checkboxes.md) | A click pauses the game, and clicks reach the model only when the person checks them for the next prompt | Accepted | 2026-10-05 |

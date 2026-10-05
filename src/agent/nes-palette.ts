@@ -115,6 +115,22 @@ export function formatNesPaletteGuide(): string {
 }
 
 /** Nearest master-palette index to an RGB triple (Euclidean in RGB), skipping the $xD-$xF duplicates of black except $0F. */
+/**
+ * Whether two master-palette indices render the same RGB. The NES has
+ * duplicates ($20 and $30 are both white; $0D, $0E, $0F, $1E, $1F, $2E, $2F,
+ * $3E, $3F are blacks), so a rendered pixel mapped to one index can still be
+ * "in" a palette that stores the other (ADR-0015 follow-up to ADR-0010).
+ */
+export function sameNesRgb(a: number, b: number): boolean {
+  const ca = NES_MASTER_PALETTE_RGB[a & 0x3f], cb = NES_MASTER_PALETTE_RGB[b & 0x3f];
+  return ca[0] === cb[0] && ca[1] === cb[1] && ca[2] === cb[2];
+}
+
+/** The entry of `palette` that renders as `nes`, preferring an exact index, else an RGB twin; undefined when none. */
+export function paletteEntryFor(nes: number, palette: readonly number[]): number | undefined {
+  return palette.find((c) => c === nes) ?? palette.find((c) => sameNesRgb(c, nes));
+}
+
 export function nearestNesColor(rgb: [number, number, number]): number {
   let best = 0x0f;
   let bestDist = Infinity;

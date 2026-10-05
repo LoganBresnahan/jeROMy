@@ -12,6 +12,8 @@ describe("agentTools", () => {
     expect(names).toContain("screenshot");
     expect(names).toContain("get_tile_at_pixel");
     expect(names).toContain("get_pixel_color");
+    expect(names).toContain("list_sprites");
+    expect(names).toContain("get_region");
     expect(names).toContain("search_memory");
     expect(names).toContain("reset_emulator");
     expect(names).toContain("trace_writes");
@@ -77,6 +79,13 @@ describe("executeTool", () => {
       captureScrollWrites: vi.fn().mockResolvedValue({ frames: 1, stepped_frames: 0, start_frame: 0, end_frame: 1, other_register_writes: 0, final: { t: 0, v: 0, x: 0, w: false, scanline: 240, cycle: 0 }, writes: [{ frame: 0, scanline: 241, cycle: 10, reg: 5, value: 0, t: 0, v: 0, x: 0, w: false }, { frame: 0, scanline: 241, cycle: 20, reg: 5, value: 0, t: 0, v: 0, x: 0, w: true }] }),
       // (136,216,0) is SMB's pipe green as Mesen renders $29, sampled by the agent on 2026-10-05.
       getPixelColor: vi.fn().mockResolvedValue({ x: 176, y: 182, argb: 0xff88d800, r: 136, g: 216, b: 0 }),
+      // SMB: background pattern table $1000, 8x8 sprites from $0000, nothing over the pixel (ADR-0013).
+      getSprites: vi.fn().mockResolvedValue({ large_sprites: false, sprite_pattern_addr: 0, background_pattern_addr: 0x1000, sprites_enabled: true, count: 0, sprites: [] }),
+      // A window of one background slot (ADR-0014).
+      readRegion: vi.fn().mockImplementation(async (p: { x: number; y: number; w: number; h: number }) => {
+        const n = p.w * p.h;
+        return { ...p, large_sprites: false, background_pattern_addr: 0x1000, sprite_pattern_addr: 0, layer: Array(n).fill(1), palette: Array(n).fill(0), slot: Array(n).fill(1), tile: Array(n).fill(0x162), oam: Array(n).fill(-1) };
+      }),
       searchMemory: vi.fn().mockResolvedValue({ mem_type: "prgRom", memory_size: 32768, start: 0, searched: 32768, offsets: [0x0cb4], truncated: false, pattern_length: 4 }),
       resetEmulator: vi.fn().mockResolvedValue({ reset: true, cleared_palette_overrides: 1 }),
       traceWrites: vi.fn().mockResolvedValue({ address: 0x75a, length: 1, mem_type: "cpu", mode: "write", frames: 60, total_accesses: 2, recorded_accesses: 2, truncated: false, writers: [{ pc: 0x9087, count: 2, last_value: 2, last_address: 0x75a, last_frame: 3, samples: [], origin: { address: 0x1087, mem_type: "prgRom", mem_type_id: 45 } }] }),
@@ -206,7 +215,31 @@ describe("executeTool", () => {
     expect(adapter.readMemory).toHaveBeenCalledWith(0x2000 + 15 * 32 + 16, 1, "ppuDebug");
     const parsed = JSON.parse((result as { text: string }).text);
     expect(parsed).toMatchObject({ tile_x: 16, tile_y: 15, scroll_x: 0, scroll_y: 0, nametable: 0, scroll_source: "vblank", stepped_frames: 0 });
+    // ADR-0013: the pattern-space index and the on-screen cell ride along, and the sprite check ran at the pixel.
+    expect(parsed).toMatchObject({ chr_tile: 0x100 + 0, screen_box: { x: 128, y: 120, width: 8, height: 8 }, sprites: [] });
+    expect(adapter.getSprites).toHaveBeenCalledWith({ x: 128, y: 120 });
     expect(result.type).toBe("text");
+  });
+
+  it("get_region fills by slot from the bridge's pixel map and drops the runs from the model's text (ADR-0014)", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool("get_region", { x: 128, y: 120 }, adapter);
+    expect(adapter.readRegion).toHaveBeenCalledWith(expect.objectContaining({ x: 96, y: 88, w: 64, h: 64 }));
+    const parsed = JSON.parse((result as { text: string }).text);
+    expect(parsed).toMatchObject({ mode: "color", layer: "background", palette: 0, slot: 1, pixel_count: 4096, truncated: true });
+    expect(parsed.runs).toBeUndefined();
+    expect(parsed.summary).toContain("slot 1 of background palette 0");
+    const obj = await executeTool("get_region", { x: 128, y: 120, mode: "object" }, adapter);
+    expect(JSON.parse((obj as { text: string }).text).mode).toBe("object");
+  });
+
+  it("list_sprites decodes OAM through the bridge, filtered to a pixel when given one (ADR-0013)", async () => {
+    const adapter = mockAdapter();
+    await executeTool("list_sprites", {}, adapter);
+    expect(adapter.getSprites).toHaveBeenLastCalledWith(undefined);
+    const result = await executeTool("list_sprites", { x: 116, y: 190 }, adapter);
+    expect(adapter.getSprites).toHaveBeenLastCalledWith({ x: 116, y: 190 });
+    expect(JSON.parse((result as { text: string }).text)).toMatchObject({ large_sprites: false, count: 0 });
   });
 
   it("write_palette passes all params correctly", async () => {

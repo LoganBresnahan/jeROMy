@@ -22,6 +22,8 @@ import { MesenService } from "./mesen-service.js";
 import { makeCoreTools } from "./tools/core-tools.js";
 import { makePromoteMappingsTool } from "./tools/promote-mappings.js";
 import { createEmulatorViewServer } from "./emulator-view.js";
+import { ClickHistory } from "./click-history.js";
+import type { PreStepDecision } from "@deepseek-ai/dsh-agent";
 import { JEROMY_SECTION_NAME, JEROMY_SECTION_ORDER, jeromySectionText } from "./prompt.js";
 
 declare module "@deepseek-ai/dsh-llm" {
@@ -72,7 +74,7 @@ export function apply(ctx: Context, config: Config): void {
   // Tools and the prompt section need the bridge service plus dsh's registries.
   // ctx.inject holds this scope PENDING until all services exist and unwinds
   // it (tools unregister, section removed, view server closed) if any goes away.
-  ctx.inject(["mesen", "tools", "attachments", "systemPrompt", "agents"], (scope) => {
+  ctx.inject(["mesen", "tools", "attachments", "systemPrompt"], (scope) => {
     const tools = makeCoreTools({
       mesen: () => scope.mesen.adapter,
       attachments: () => scope.get("attachments"),
@@ -97,16 +99,22 @@ export function apply(ctx: Context, config: Config): void {
       interpolate: false,
     });
 
-    // The emulator view hands pixel clicks to whichever agent the person is
-    // driving: the current initiator, else the most recently created one.
-    const inject = (text: string): boolean => {
-      const agent = scope.agents.currentInitiator() ?? scope.agents.list().at(-1);
-      if (!agent) return false;
-      agent.inject(createUserMessage({ content: [{ type: "text", text }], source: VIEW_SOURCE }));
-      return true;
-    };
+    // Clicks wait in the history until the person sends a prompt; the checked
+    // ones then enter that step ahead of the prompt as logged user messages
+    // (ADR-0015, ADR-0003). Only a step that carries a person's own message
+    // takes them: tool-result steps and subagent turns leave them waiting.
+    const history = new ClickHistory();
+    scope.on("agent/pre-step", async ({ messages, turn, signal }, next): Promise<PreStepDecision> => {
+      const decision = await next();
+      if (decision.kind === "reject" || signal.aborted) return decision;
+      if (!messages.some((m) => m.source.kind === "user")) return decision;
+      const clicks = history.takeSelected(turn);
+      if (clicks.length === 0) return decision;
+      const context = clicks.map((c) => createUserMessage({ content: [{ type: "text", text: c.text }], source: VIEW_SOURCE }));
+      return { ...decision, messages: [...context, ...decision.messages] };
+    });
     const view = createEmulatorViewServer(
-      { mesen: () => scope.mesen.adapter, inject, log: (m) => scope.logger.warn(m), luaScript: LUA_FOR_MESEN },
+      { mesen: () => scope.mesen.adapter, history, log: (m) => scope.logger.warn(m), luaScript: LUA_FOR_MESEN },
       () => scope.mesen.romInfo?.name ?? null,
       (tileId) => scope.mesen.mappingNameFor(tileId),
     );

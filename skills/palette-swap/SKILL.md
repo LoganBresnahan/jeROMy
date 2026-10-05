@@ -15,8 +15,11 @@ Verified procedure from the 2026-10-05 session on Super Mario Bros. (World).
 ## Steps
 
 1. **Find the palette and slot.** If the user clicked in the emulator view,
-   the context line already carries `tile_id`, `palette_id` and the four
-   colors; use it. Otherwise call `get_tile_at_pixel` with an `x` (0-255)
+   the context line already carries `tile_id`, `palette_id`, the four
+   colors and, in color mode, the "Selected region" sentence with the slot
+   and its blast radius (ADR-0014); use it and skip to step 4. Without a
+   click, `get_region` at a pixel on the object answers the same way.
+   Otherwise call `get_tile_at_pixel` with an `x` (0-255)
    and `y` (0-239) on the object. The answer's `palette_id` is the palette
    (it uses the scroll in effect at that scanline, `scroll_source`); you
    still need the slot. Before trusting it, `get_pixel_color` at the same
@@ -31,8 +34,13 @@ Verified procedure from the 2026-10-05 session on Super Mario Bros. (World).
    object's pixels use. If the user named a color ("the orange part"), pick
    the slot whose master-palette index matches; do not guess hue from the
    index number.
-3. **Check who else shares it.** `get_all_palettes` once, then look at the
-   neighbors: `read_nametable` over the region around the object (tile ids
+3. **Check who else shares it.** The region sentence (or `get_region`)
+   already counts the pixels in view that share the slot and names the
+   tiles and OAM entries that draw them; when the user wants only part of
+   an object recolored (the button, not the face) and the palette has no
+   free slot, say that a palette edit cannot do it and a tile edit would
+   need a slot taken from elsewhere. Then `get_all_palettes` once and look
+   at the neighbors: `read_nametable` over the region around the object (tile ids
    and `palette_id` per cell) tells you which other tiles use the same
    palette. Say up front what else will change. On SMB 1-1, background
    palette 1 slot 1 (`$36`) is the title-logo box fill, not the ground

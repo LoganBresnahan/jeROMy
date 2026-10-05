@@ -8,10 +8,10 @@ what it learned about the ROM as a shareable mapping.
 **`docs/DIRECTION.md` is the source of truth for product intent.** Read it
 before product-level decisions; keep it updated when scope changes.
 
-## Where we are (2026-10-05, night)
+## Where we are (2026-10-05, afternoon)
 
 The dsh plugin is the only stack. `scripts/up.sh` boots the `jeromy`
-profile with `src/dsh/index.ts` mounted from source: 26 of 27 core tools
+profile with `src/dsh/index.ts` mounted from source: 28 of 29 core tools
 registered through one mapper, `promote_mappings`, the full NES prompt
 section with live ROM/mapping/pause state, and the emulator view on :9002.
 Verified headless through dsh on `deepseek-flash` and by Logan's click
@@ -26,15 +26,24 @@ ADR-0010: two-phase bridge requests, scroll capture, scanline-accurate
 the same night, and item 7 (one installable package, ADR-0012, proven by
 `scripts/install-check.sh`) the next morning. Every item in "Now" and
 "Next" is done, carry-ins included (`reapply_edits`, save states inside an
-exec callback, restoring `clear_palette_overrides`); what remains is the
-Later list, which needs Logan's product call before any of it starts. Build order: `docs/roadmap.md`; the overnight log:
-`docs/plans/overnight-2026-10-05.md`.
+exec callback, restoring `clear_palette_overrides`). Item 15 (ADR-0013)
+came out of Logan's first click session afterwards: a standing scroll-write
+ring in `bridge.lua` so no lookup or click ever steps the emulator,
+`get_sprites`/`list_sprites` with a pattern-byte hit test so a click on
+Mario names Mario, `chr_tile` and a screen-space box in the picker. Item 16
+(ADR-0014, Logan's call the same afternoon) added region selection by
+palette slot: four modes in the view, `read_region` + `src/agent/region.ts`,
+the `get_region` tool, and every selection stating its two edit paths; item
+17 (ADR-0015) made a click pause the game and queue in a per-mode history
+with checkboxes, the checked clicks entering the person's next prompt
+through `agent/pre-step`. The rest of the Later list still needs his call. Build order: `docs/roadmap.md`;
+the overnight log: `docs/plans/overnight-2026-10-05.md`.
 
 ## Stack
 
 - **Keep:** `mesen/bridge.lua` (Lua in Mesen2, JSON over TCP, the only part
   on Windows), `src/bridge/mesen/*` (connection, protocol, adapter),
-  `src/agent/tools.ts` (27 tools), `src/agent/prompts.ts`, `src/mappings/*`
+  `src/agent/tools.ts` (29 tools), `src/agent/prompts.ts`, `src/mappings/*`
   and `mappings/*.json`, `src/agent/disassembler.ts` (Capstone WASM),
   `src/agent/nes-palette.ts`. These move under `src/core/` (ADR-0005).
 - **Target (shipping):** `src/dsh/` plugin: Mesen service, core tools
@@ -59,6 +68,10 @@ Later list, which needs Logan's product call before any of it starts. Build orde
 - **Never write CHR ROM or PRG ROM silently.** RAM edits are the default;
   persistent edits are explicit in the tool call and recorded as events.
 - **Never ship or fetch ROMs.** Users bring their own.
+- **No lookup, pick or read-only tool advances the emulator** (ADR-0013).
+  Scroll comes from the standing ring in `bridge.lua`; only `step_frame`,
+  `reset_emulator`, save states and the view's Step button run frames, and
+  each says so in its result.
 - **Mapping files are the artifact.** Keyed by ROM SHA1 in `mappings/`;
   discoveries promote there from session events, never the other way round.
   Per-user state lives in `hacks/sha1-<sha1>/` (edit ledger, unpromoted
@@ -111,7 +124,7 @@ Later list, which needs Logan's product call before any of it starts. Build orde
   parity, Lua handler↔adapter parity, watchdog budget, dsh import boundary).
   Proposes fixes, doesn't apply them.
 - `/verify` — runtime check against a live Mesen2: `scripts/up.sh` then
-  `scripts/trio.sh` (look, read, edit headless through dsh) plus the human
+  `scripts/trio.sh` (look, read, edit, click, region, persist headless through dsh) plus the human
   pixel-picker check in the sidebar. A green `/shipshape` does not
   discharge it.
 - `/replay` — read what the DeepSeek agent did in a dsh session
@@ -135,7 +148,7 @@ Later list, which needs Logan's product call before any of it starts. Build orde
   WSL with the ROM and `mesen/bridge.lua` (single-instance handoff; default
   ROM is SMB (World) in `C:\Users\tarsier\Documents`)
 - `scripts/up.sh [rom]` / `scripts/up.sh --down` — the one-move bring-up
-  (dsh + Mesen + bridge wait); `scripts/trio.sh [look|read|edit|click|persist]`
+  (dsh + Mesen + bridge wait); `scripts/trio.sh [look|read|edit|click|region|persist]`
   or `scripts/trio.sh --task "<instruction>" [min-calls]` — the headless
   checks, raw-result criteria per check, streams saved under `.chat-out/`
 - `scripts/dsh-dev.sh` — boot the `jeromy` dsh profile with the plugin
@@ -144,8 +157,10 @@ Later list, which needs Logan's product call before any of it starts. Build orde
   packages into `node_modules/@deepseek-ai` (dev only, not committed).
 - Emulator view (ADR-0004): while `scripts/dsh-dev.sh` runs, open the
   right-sidebar **Browser** in dsh and enter `http://127.0.0.1:9002/`
-  (live screenshot, pixel picker, pause/step/resume). A click injects a
-  `[emulator view] The user clicked pixel ...` line into the live agent.
+  (live screenshot, pixel picker with four selection modes,
+  pause/step/resume). A click pauses the game and queues a
+  `[emulator view] The user clicked pixel ...` line in the click history;
+  the checked lines go with the next prompt (ADR-0015).
   `curl http://127.0.0.1:9002/status` checks it headlessly.
 - `scripts/dsh-log.mjs list | show <id|latest> | tail latest --follow |
   stats <id> | events <id> --type T` — read dsh's persisted session logs

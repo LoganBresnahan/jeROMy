@@ -27,6 +27,21 @@ commit is the record; a file of ticked boxes stops being read.
   callback return without stepping when nothing is pending and rely on a
   periodic step from the TypeScript side.
 
+- **A paused game is not frozen: the keep-alive creeps through
+  instructions.** Each `codeBreak` round that finds nothing to do ends with
+  `emu.step(1, step)` so the callback fires again, which advances the CPU
+  by one instruction every poll cycle (about one or two a second). Over a
+  minute's pause SMB's CPU walks into its NMI, where it writes `$2001` with
+  rendering off, and anything that reads the live PPU mask then says
+  "nothing is drawn" (session `d8b747b1`, 2026-10-05: `get_region` a
+  minute after the click). Fixed for the mask by sealing it with the ring's
+  frame (`frame_mask` in `bridge.lua`); still true for anything else that
+  reads live CPU or PPU state while paused (`get_cpu_state`, `read_memory`
+  of RAM the NMI touches, `debug_state`). The real fix is a keep-alive that
+  does not execute instructions, which is the same change the watchdog
+  entry above asks for; until then, treat a long pause as "paused at some
+  point inside the next frame", not at the frame boundary.
+
 - **The Lua client sometimes never notices that a headless dsh run ended.**
   Reproduced twice on 2026-10-05 (trio runs 220244 and 221242): after the
   `read` run's last call the Lua log shows no `Disconnected` line at all,
@@ -41,6 +56,25 @@ commit is the record; a file of ticked boxes stops being read.
   `mesen-up.sh --restart`. The next full trio passed with no retry. Delete
   this entry after a week of trio runs with no `bridge never connected`
   line; if one appears, `scripts/lua-log.sh` now has the evidence.
+- **A web dsh restarted by `trio.sh` came up without the plugin's ports.**
+  Once on 2026-10-05 (after `trio.sh click` followed within a minute by
+  `trio.sh --task`): the restarted instance listened on :3080 but neither
+  :9001 nor :9002 was bound, the Lua client logged no `Connected` after
+  the headless run's disconnect, and `.dsh-dev/dsh.log` had been
+  overwritten by the second restart and held only the boot banner, so the
+  cause (a plugin import failure, or an `EADDRINUSE` on :9001 while the
+  headless process was still letting go) is unknown. `scripts/up.sh --down
+  && scripts/up.sh` fixed it. `trio.sh` now waits for the view's `/status`
+  after its restart and prints a warning when it does not come back, so
+  the next occurrence is seen immediately; if it recurs, keep that
+  instance's log before restarting. Second data point the same afternoon:
+  the 45 s wait warned after `trio.sh --task`, but two minutes later all
+  three ports were bound, the log showed the bridge server listening and
+  the Lua client connected 9 s after the headless run's disconnect, and
+  `/status` answered in 10 ms; so that one was a slow cold boot, not a
+  missing plugin. The wait is now 120 s with 3 s per probe. The first
+  incident (no :9001 minutes later) stays unexplained.
+
 ## Agent / tools
 
 - **A plugin row that names a package *directory* fails with "failed to

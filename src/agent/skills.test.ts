@@ -44,7 +44,7 @@ describe("shipped skills directory", () => {
     const notTools = new Set([
       "tile_id", "palette_id", "mapping_type", "color_index", "nes_color", "old_color", "scroll_x", "scroll_y",
       "scroll_source", "scroll_scanline", "stepped_frames", "scroll_ambiguous", "png_base64", "frozen",
-      "mem_type", "ledger_warning", "rom_path",
+      "mem_type", "ledger_warning", "rom_path", "chr_tile", "hit_tile", "sprite_hit",
       // Example mapping names the skills suggest for record_mapping.
       "pipe_bush_hill_green", "title_logo_box",
     ]);

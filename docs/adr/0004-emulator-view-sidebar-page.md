@@ -1,6 +1,6 @@
 # ADR-0004: Emulator view is a loopback page in dsh's sidebar browser
 
-**Status:** Accepted, implemented 2026-10-05 (`src/dsh/emulator-view.ts`, port 9002)
+**Status:** Accepted, implemented 2026-10-05 (`src/dsh/emulator-view.ts`, port 9002). The "a click calls `agent.inject()`" part is superseded by ADR-0015: clicks queue in a history and enter the person's next prompt at `agent/pre-step`.
 **Date:** 2026-10-05
 
 ## Context

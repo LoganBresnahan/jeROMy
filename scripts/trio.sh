@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # The standing trio from /verify, run headlessly through dsh with the jeROMy
-# plugin: look, read, edit, click, persist. Each is one `dsh --profile headless --json` run;
+# plugin: look, read, edit, click, region, persist. Each is one `dsh --profile headless --json` run;
 # the JSON event streams and a summary land in .chat-out/trio-<stamp>/.
 # Only one dsh process can own the bridge port, so this stops a running web
 # instance first and brings it back afterwards.
 #
-# Usage: scripts/trio.sh [look|read|edit|click|persist ...]   (default: all five)
+# Usage: scripts/trio.sh [look|read|edit|click|region|persist ...]   (default: all six)
 #        scripts/trio.sh --task "<instruction>" [min-tool-calls]
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -22,13 +22,14 @@ declare -A TASK=(
   [read]="Using get_tile_at_pixel, tell me what tile is at screen pixel (128, 220) and which palette it uses. Then read that palette with get_palette and report its four color indices. Report raw tool values."
   [edit]="Take a screenshot. Then use write_palette to set background palette 1, color index 1 to NES color 0x12 (blue). Pause the emulator, step one frame, take another screenshot and tell me exactly what changed between the two images. Finally call clear_palette_overrides and resume_emulator. Report raw write_palette output."
   [click]="Call get_tile_at_pixel at (176, 182) and get_pixel_color at (176, 182), then get_palette for the palette the first result named. Report all three raw outputs verbatim and say whether the pixel's nes_color is one of that palette's entries or the shared backdrop."
+  [region]="Call get_region at (176, 182) in color mode, then get_region at (176, 182) in object mode. Report both raw outputs verbatim and, in one sentence, say what a palette edit of the color-mode slot would also recolor according to the summary."
   [persist]="Do exactly this, no extra tool calls, and report every raw tool output verbatim: (1) search_memory with hex \"0F 29 1A 0F\" in prgRom. (2) write_memory at the first offset plus 1, bytes [22] (decimal twenty-two, which is NES color 0x16 red; do not write 0x22), mem_type prgRom, reason \"trio persist check\". (3) reset_emulator. (4) get_palette 0. (5) export_patch with format ips. (6) undo_edit with the seq the write reported. (7) reset_emulator."
 )
-declare -A MIN_CALLS=([look]=1 [read]=2 [edit]=5 [click]=3 [persist]=7)
+declare -A MIN_CALLS=([look]=1 [read]=2 [edit]=5 [click]=3 [region]=2 [persist]=7)
 # --task "<text>": a one-off check named `custom` through the same machinery
 # (neutral cwd, bridge wait, replay line). Used by unattended runs.
 if [ "${1:-}" = "--task" ]; then TASK[custom]="$2"; MIN_CALLS[custom]="${3:-1}"; set -- custom; fi
-CHECKS=("$@"); [ ${#CHECKS[@]} -eq 0 ] && CHECKS=(look read edit click persist)
+CHECKS=("$@"); [ ${#CHECKS[@]} -eq 0 ] && CHECKS=(look read edit click region persist)
 
 owner_of() { ss -ltnp 2>/dev/null | grep -E ":$1 " | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2; }
 WEB_PID="$(owner_of 9001)"; RESTART=0
@@ -82,6 +83,32 @@ if sys.argv[3:] == ["click"]:
         colors = pal.get("colors", []); backdrop = pal.get("background_color")
         if px["nes_color"] not in colors and px["nes_color"] != backdrop: problems.append(f"pixel color {px['nes_color']} not in palette {tile.get('palette_id')} {colors} nor backdrop {backdrop}")
     if problems: ok = False; final = "CLICK CHECK: " + "; ".join(problems) + " · " + final
+if sys.argv[3:] == ["region"]:
+    # ADR-0014: the pipe at (176, 182) is background palette 0; the fill must be by slot, with both edit paths stated.
+    names = {}; regions = []
+    for line in open(sys.argv[1]):
+        line = line.strip()
+        if not line.startswith("{"): continue
+        e = json.loads(line)
+        if e.get("type") == "tool_call": names[e["callId"]] = e.get("tool")
+        if e.get("type") == "tool_result" and names.get(e["callId"]) == "get_region" and isinstance(e.get("result"), str):
+            try: regions.append(json.loads(e["result"]))
+            except Exception: pass
+    problems = []
+    modes = {r.get("mode") for r in regions}
+    if not {"color", "object"} <= modes: problems.append(f"expected a color and an object get_region result, saw modes {sorted(m for m in modes if m)}")
+    # The demo cycles title, gameplay and castle scenes, so only the shape of the answer is pinned, not the palette.
+    for r in regions:
+        if r.get("layer") not in ("background", "sprite"): problems.append(f"{r.get('mode')} region has no layer: {r.get('layer')}")
+        if not r.get("pixel_count"): problems.append(f"{r.get('mode')} region is empty")
+        if "tile edit" not in r.get("summary", ""): problems.append(f"{r.get('mode')} summary does not state the tile-edit path")
+        # The demo scrolls, so (176, 182) is the pipe or the sky: slot 1-3 with the palette-edit sentence, or slot 0 named as the backdrop.
+        if r.get("mode") == "color":
+            summary = r.get("summary", "")
+            if r.get("slot") in (1, 2, 3) and "palette edit" not in summary: problems.append("color summary does not state the palette-edit path")
+            if r.get("slot") == 0 and "backdrop" not in summary: problems.append("color region on slot 0 does not name the backdrop")
+            if r.get("slot") not in (0, 1, 2, 3): problems.append(f"color region has no slot: {r.get('slot')}")
+    if problems: ok = False; final = "REGION CHECK: " + "; ".join(problems) + " · " + final
 if sys.argv[3:] == ["persist"]:
     names = {}; res = []
     for line in open(sys.argv[1]):
@@ -155,6 +182,19 @@ done
 if [ $RESTART -eq 1 ]; then
   echo "[trio] restarting the web dsh"
   (setsid nohup "$REPO/scripts/dsh-dev.sh" --no-open > "$REPO/.dsh-dev/dsh.log" 2>&1 &)
+  # The web instance is only back when the plugin's view answers; a dsh that
+  # listens on :3080 without :9001/:9002 happened once after a trio
+  # (docs/issues.md, 2026-10-05) and is worth knowing about now, not later.
+  # A cold tsx boot plus the Lua client's reconnect can take over a minute.
+  waited=0
+  until curl -sf --max-time 3 http://127.0.0.1:9002/status 2>/dev/null | grep -q '"connected":true'; do
+    [ $waited -ge 120 ] && break; sleep 2; waited=$((waited + 2))
+  done
+  if [ $waited -lt 120 ]; then
+    echo "[trio] web dsh back: view connected after ${waited}s"
+  else
+    echo "[trio] WARNING: web dsh restarted but the view on :9002 did not report a connected bridge within 120 s; keep .dsh-dev/dsh.log, then scripts/up.sh --down && scripts/up.sh (docs/issues.md)" >&2
+  fi
 fi
 echo "[trio] streams in $OUT"
 exit $FAIL

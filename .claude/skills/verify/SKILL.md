@@ -16,7 +16,7 @@ connected, stop and say so; do not simulate a result.
 
 ```bash
 scripts/up.sh          # dsh + Mesen + bridge, prints URLs (see /up)
-scripts/trio.sh        # look, read, edit — headless through dsh, streams saved under .chat-out/
+scripts/trio.sh        # look, read, edit, click, region, persist — headless through dsh, streams under .chat-out/
 ```
 
 `trio.sh` stops the web dsh for its duration (one process owns the bridge
@@ -25,8 +25,18 @@ port) and restarts it. It prints a `replay:` line per check; run it
 tool trace and reasoning, not just the `final` text. For `look` and
 `edit`, Read the copied PNGs rather than trusting the description. For the
 human half, open the right-sidebar Browser at `http://127.0.0.1:9002/`,
-click a tile, and ask the agent about "the pixel I clicked"; then
-`/replay` that web session too (`scripts/dsh-log.mjs list` shows it by cwd).
+pause, and click in each selection mode (ADR-0014): in **Color** a click
+on Mario's hat tints the hat and nothing of the sky; a click on an overalls
+button tints the button alone and the pick text says the slot is shared
+with his face and that sprite palette 4 has no free slot; in **Object** a
+click anywhere on Mario tints all of him; the frame must not move on any
+click (ADR-0013), and the first click on a running game pauses it
+(ADR-0015). The history under the frame lists each click per mode with
+its checkbox, newest checked; untick one, send a prompt about "the thing
+I clicked", and `/replay` that web session (`scripts/dsh-log.mjs list`
+shows it by cwd): exactly the checked lines appear as `jeromy-view`
+messages ahead of the prompt, the rows dim as sent, and the answer comes
+from the context line, not from pixel sampling.
 
 ## The standing trio, plus what the change touched
 

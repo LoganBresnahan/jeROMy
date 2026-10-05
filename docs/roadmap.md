@@ -112,6 +112,48 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       from `~/.cache/jeromy/headless-cwd` so no repo's `AGENTS.md` or
       `CLAUDE.md` is injected into the agent. Out of order on purpose: it
       is the instrument for evaluating everything after it.
+- [x] **15. Clicks that hold still and know about sprites** (ADR-0013).
+      Done 2026-10-05 from Logan's first click session after the run
+      (`2c572b4f`: a click on a paused game stepped it two frames, the box
+      was drawn at nametable coordinates, and a click on Mario's hat named
+      the sky tile under him). `bridge.lua` keeps a standing ring of the
+      last completed frame's scroll writes, so `capture_scroll_writes`
+      answers at once and nothing but `step_frame`, resets, save states and
+      the Step button ever advances the emulator; `get_sprites` decodes OAM
+      through PPUCTRL and hit-tests the clicked pixel against the pattern
+      bytes; the lookup, the picker and the new `list_sprites` tool carry
+      `sprite_hit`, `chr_tile` (nametable id through the background pattern
+      table) and `screen_box`; the view's box is screen-space, the sprite's
+      8x8 cell when one draws the pixel. README gained the boot walkthrough
+      and how to get the view into the sidebar.
+- [x] **16. Region selection by palette slot** (ADR-0014, the Later list's
+      "select regions and label them", started on Logan's call 2026-10-05).
+      Four selection modes in the view (pixel, tile, color, object; color
+      the default) and a `get_region` tool. `read_region` in `bridge.lua`
+      renders a 64x64 window into a PPU-faithful map (layer, palette, slot,
+      tile, OAM per pixel) with the per-row scroll from the ring; the fill
+      in `src/agent/region.ts` selects by slot, never by rendered color,
+      and every answer states the two edit paths: how many pixels in view
+      share the slot (palette edit) and whether the palette has a free slot
+      (tile edit). The overlay tints the region and persists until the next
+      click. Build plan: `docs/plans/adr-0014-region-selection-build-plan.md`.
+      Carry-ins: labelling a selection into a mapping group from the view;
+      object mode preferring an existing mapping group; the eight-sprites-
+      per-line overflow rule.
+- [x] **17. Clicks pause the game and queue behind checkboxes** (ADR-0015,
+      Logan's call 2026-10-05). `POST /pick` pauses a running game before
+      the readout and leaves it paused ("Pause on click" toggle; off =
+      pause for the readout, resume after); the context line says which. A
+      click no longer reaches the model by itself: `ClickHistory` keeps it
+      in memory, checked by default when it is the newest of its mode, and
+      the plugin's `agent/pre-step` listener enters the checked records
+      ahead of the person's next prompt as logged `jeromy-view` messages.
+      The page lists the history per mode (a., b., c.) with checkboxes,
+      redraws a click's highlight from its row, dims sent rows, clears on
+      demand, and follows `clicks_rev` on the stream. Human check pending:
+      Logan's next web session, replayed. Carry-ins: a "send now" route if
+      a running turn ever needs a click; history keyed by session if it
+      should survive a restart.
 
 ## Next
 
@@ -182,8 +224,9 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
 
 ## Later / unscoped
 
-- User-assisted object identification: select regions in the emulator view
-  and label them ("this 2x3 tile region is the question block").
+- Labelling a selection from the emulator view ("this 2x3 tile region is
+  the question block"): the selecting half shipped as item 16 (ADR-0014);
+  the label box that records a mapping group is its first carry-in.
 - Batch edits ("all pipes green to red"), template edits from reference
   images, copy/paste between tiles and games.
 - Edit recipes: a replayable script of edits.

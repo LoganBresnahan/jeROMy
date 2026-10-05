@@ -132,9 +132,86 @@ export interface ScrollWrite {
 }
 
 /** Answer to capture_scroll_writes (ADR-0010): two-phase, one frame running or two stepped frames while paused. */
+/** One OAM entry as the PPU will draw it (ADR-0013). */
+export interface SpriteInfo {
+  index: number;
+  /** Screen position of the sprite's top-left pixel (OAM Y + 1). */
+  x: number;
+  y: number;
+  width: 8;
+  height: 8 | 16;
+  /** Raw OAM tile byte and attribute byte. */
+  tile: number;
+  attr: number;
+  /** Sprite palette 4-7. */
+  palette: number;
+  behind_background: boolean;
+  flip_h: boolean;
+  flip_v: boolean;
+  /** Index into the 512-tile pattern space of the sprite's (top) tile: what read_tile wants. */
+  chr_tile: number;
+  chr_tile_bottom?: number;
+  /** Present when the request named a pixel: the pattern value 0-3 drawn there, whether it is opaque, the CHR tile it came from, and the 8x8 screen cell. */
+  pixel_value?: number;
+  opaque?: boolean;
+  hit_tile?: number;
+  cell?: { x: number; y: number; width: number; height: number };
+}
+
+export interface SpritesResult {
+  large_sprites: boolean;
+  sprite_pattern_addr: number;
+  background_pattern_addr: number;
+  sprites_enabled: boolean;
+  count: number;
+  sprites: SpriteInfo[];
+}
+
+/** Background scroll in effect on one window row, from the ring reconstruction (ADR-0014). */
+export interface RegionRow {
+  /** Horizontal scroll (coarse*8 + fine) and nametable X bit for this scanline. */
+  scroll_x: number;
+  nt_x: number;
+  /** Vertical position of the PPU's v register within the nametable (0-239) and nametable Y bit. */
+  v_y: number;
+  nt_y: number;
+}
+
+export interface ReadRegionParams {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rows: RegionRow[];
+}
+
+/** A PPU-faithful pixel map of a screen window; arrays are row-major, length w*h (ADR-0014). */
+export interface ReadRegionResult {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  large_sprites: boolean;
+  background_pattern_addr: number;
+  sprite_pattern_addr: number;
+  /** 0 none (rendering off), 1 background, 2 sprite. */
+  layer: number[];
+  /** Palette 0-7 drawing the pixel. */
+  palette: number[];
+  /** Slot 0-3 within that palette (background slot 0 = backdrop; sprite slot 0 never appears). */
+  slot: number[];
+  /** Pattern-space tile index drawing the pixel, or -1. */
+  tile: number[];
+  /** OAM index for sprite pixels, else -1. */
+  oam: number[];
+}
+
 export interface ScrollCaptureResult {
   frames: number;
+  /** Always 0 since ADR-0013: a one-frame capture answers from the standing ring. */
   stepped_frames: number;
+  /** "ring": the last completed frame; "frames": a live multi-frame hook. Absent from older scripts. */
+  source?: "ring" | "frames";
   start_frame: number;
   end_frame: number;
   other_register_writes: number;

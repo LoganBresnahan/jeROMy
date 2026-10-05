@@ -586,20 +586,86 @@ local function remove_scroll_capture()
   scroll_capture = nil
 end
 
+-- Standing scroll-write ring (ADR-0013): every CPU write to $2000/$2005/
+-- $2006 is recorded with the pre-write loopy state into the frame in
+-- progress, and endFrame seals that list as the last completed frame. A
+-- one-frame capture answers from the sealed frame at once, paused or
+-- running. Never make this hook conditional or step to fill it: a pick
+-- while paused has no other source of the frame's writes, and stepping on
+-- a click moved the game under the user (ADR-0013).
+local scroll_ring = { current = {}, last = nil, last_frame = -1, last_mask = nil }
+
+local function ring_on_write(addr, value)
+  local reg = addr & 7
+  if reg ~= 0 and reg ~= 5 and reg ~= 6 then return end
+  local cur = scroll_ring.current
+  if #cur >= 256 then return end
+  local st = emu.getState()
+  cur[#cur + 1] = {
+    frame = 0,
+    scanline = st["ppu.scanline"],
+    cycle = st["ppu.cycle"],
+    reg = reg,
+    value = value,
+    t = st["ppu.tmpVideoRamAddr"],
+    v = st["ppu.videoRamAddr"],
+    x = st["ppu.xScroll"],
+    w = st["ppu.writeToggle"],
+  }
+end
+
+local function ring_seal_frame()
+  scroll_ring.last = scroll_ring.current
+  scroll_ring.last_frame = frame_counter
+  scroll_ring.current = {}
+  -- The mask that drew this frame. Never read the mask live for a lookup:
+  -- SMB switches rendering off inside its NMI, and a pause (whose keep-alive
+  -- steps creep through instructions) can sit in that window for minutes,
+  -- making every "is anything drawn here" answer wrong (ADR-0014, 2026-10-05).
+  local st = emu.getState()
+  scroll_ring.last_mask = {
+    background = st["ppu.mask.backgroundEnabled"] ~= false,
+    sprites = st["ppu.mask.spritesEnabled"] ~= false,
+  }
+end
+
+-- Rendering flags as of the last completed frame, falling back to the live
+-- state before the first frame has sealed.
+local function frame_mask(st)
+  local m = scroll_ring.last_mask
+  if m then return m.background, m.sprites, "frame" end
+  return st["ppu.mask.backgroundEnabled"] ~= false, st["ppu.mask.spritesEnabled"] ~= false, "live"
+end
+
+-- A write callback's return value replaces the written byte, so this hook
+-- must return nothing (guarded() drops the arguments, hence its own pcall).
+emu.addMemoryCallback(function(addr, value)
+  local ok, err = pcall(ring_on_write, addr, value)
+  if not ok then emu.log("[jeROMy] scrollRing callback error: " .. tostring(err)) end
+end, emu.callbackType.write, 0x2000, 0x3FFF)
+
 function handlers.capture_scroll_writes(params)
   local frames = params.frames or 1
   if frames < 1 or frames > 10 then error("frames must be 1-10") end
-  remove_scroll_capture()
-  -- Paused: endFrame never fires, so step two frames ourselves. The first
-  -- step only finishes the frame the break landed in and misses the writes
-  -- above the break point; the second is a whole frame, and the caller uses
-  -- the last frame's writes (frame == max). pending_steps is consumed by
-  -- the codeBreak loop one frame per round.
-  local paused = is_paused
-  if paused then
-    frames = 2
-    pending_steps = pending_steps + 2
+  if frames == 1 then
+    if not scroll_ring.last then error("no completed frame in the scroll ring yet (script just started)") end
+    local st = emu.getState()
+    return {
+      frames = 1,
+      stepped_frames = 0,
+      source = "ring",
+      start_frame = scroll_ring.last_frame - 1,
+      end_frame = scroll_ring.last_frame,
+      other_register_writes = 0,
+      final = { t = st["ppu.tmpVideoRamAddr"], v = st["ppu.videoRamAddr"], x = st["ppu.xScroll"], w = st["ppu.writeToggle"], scanline = st["ppu.scanline"], cycle = st["ppu.cycle"] },
+      writes = scroll_ring.last,
+    }
   end
+  -- Several frames: a live hook over the next N frames. Paused, endFrame
+  -- never fires and ADR-0013 forbids stepping for a lookup, so refuse.
+  if is_paused then error("capturing more than one frame needs a running emulator; one frame answers from the ring while paused (ADR-0013)") end
+  remove_scroll_capture()
+  local paused = false
   local writes = {}
   local other = 0
   local start_frame = frame_counter
@@ -634,7 +700,8 @@ function handlers.capture_scroll_writes(params)
         local st = emu.getState()
         return {
           frames = frames,
-          stepped_frames = paused and 2 or 0,
+          stepped_frames = 0,
+          source = "frames",
           start_frame = start_frame,
           end_frame = frame_counter,
           other_register_writes = other,
@@ -667,6 +734,224 @@ function handlers.get_pixel_color(params)
     r = (argb >> 16) & 0xFF,
     g = (argb >> 8) & 0xFF,
     b = argb & 0xFF,
+  }
+end
+
+-- get_sprites: OAM decoded through the PPU control flags (ADR-0013). With
+-- x and y, only the sprites covering that pixel, each hit-tested against its
+-- pattern bytes read through PPU address space (so CHR banking holds) and
+-- carrying the 8x8 cell the pixel falls in; without them, every sprite that
+-- is on screen. chr_tile is the index into the 512-tile pattern space, the
+-- number read_tile/write_tile want, never the raw OAM tile byte.
+function handlers.get_sprites(params)
+  local st = emu.getState()
+  local large = st["ppu.control.largeSprites"] == true
+  local height = large and 16 or 8
+  local sprite_base = st["ppu.control.spritePatternAddr"] or 0
+  local bg_base = st["ppu.control.backgroundPatternAddr"] or 0
+  local px, py = params.x, params.y
+  local filter = px ~= nil and py ~= nil
+  if filter and (px < 0 or px > 255 or py < 0 or py > 239) then error("x must be 0-255 and y 0-239") end
+  local out = {}
+  for i = 0, 63 do
+    local o = i * 4
+    local y0 = emu.read(o, MT.oam) + 1   -- OAM Y is the scanline above the sprite's first row
+    local tile = emu.read(o + 1, MT.oam)
+    local attr = emu.read(o + 2, MT.oam)
+    local x0 = emu.read(o + 3, MT.oam)
+    if y0 <= 239 then
+      local covers = (not filter) or (px >= x0 and px < x0 + 8 and py >= y0 and py < y0 + height)
+      if covers then
+        local flip_h = (attr & 0x40) ~= 0
+        local flip_v = (attr & 0x80) ~= 0
+        local top_addr, bottom_addr
+        if large then
+          top_addr = (tile & 1) * 0x1000 + (tile & 0xFE) * 16
+          bottom_addr = top_addr + 16
+        else
+          top_addr = sprite_base + tile * 16
+        end
+        local entry = {
+          index = i, x = x0, y = y0, width = 8, height = height,
+          tile = tile, attr = attr, palette = 4 + (attr & 3),
+          behind_background = (attr & 0x20) ~= 0, flip_h = flip_h, flip_v = flip_v,
+          chr_tile = top_addr // 16,
+        }
+        if large then entry.chr_tile_bottom = bottom_addr // 16 end
+        if filter then
+          local row = py - y0
+          local col = px - x0
+          if flip_v then row = height - 1 - row end
+          if flip_h then col = 7 - col end
+          local addr = top_addr
+          if large and row >= 8 then addr = bottom_addr; row = row - 8 end
+          local p0 = emu.read(addr + row, MT.ppuDebug)
+          local p1 = emu.read(addr + row + 8, MT.ppuDebug)
+          local bit = 7 - col
+          local value = (((p1 >> bit) & 1) << 1) | ((p0 >> bit) & 1)
+          entry.pixel_value = value
+          entry.opaque = value ~= 0
+          entry.hit_tile = addr // 16
+          local cell_y = y0
+          if large and (py - y0) >= 8 then cell_y = y0 + 8 end
+          entry.cell = { x = x0, y = cell_y, width = 8, height = 8 }
+        end
+        out[#out + 1] = entry
+      end
+    end
+  end
+  local _, spr_on, mask_source = frame_mask(st)
+  return {
+    large_sprites = large,
+    sprite_pattern_addr = sprite_base,
+    background_pattern_addr = bg_base,
+    sprites_enabled = spr_on,
+    mask_source = mask_source,
+    count = #out,
+    sprites = out,
+  }
+end
+
+-- read_region: a PPU-faithful pixel map of a screen window (ADR-0014). For
+-- every pixel: layer (0 none, 1 background, 2 sprite), palette, slot, the
+-- pattern-space tile and the OAM index, resolved the way the PPU composes
+-- them (lower OAM index wins; behind-background sprites lose to an opaque
+-- background pixel). The caller supplies the background scroll per row
+-- (from the ring reconstruction, ADR-0013): Lua never guesses the scroll.
+-- Window is capped at 64x64 so the response stays near 60 KB and the loop
+-- well inside the codeBreak budget; reads are cached per tile row.
+function handlers.read_region(params)
+  local x0, y0 = params.x, params.y
+  local w, h = params.w or 64, params.h or 64
+  local rows = params.rows
+  if not x0 or not y0 then error("x and y are required") end
+  if w < 1 or h < 1 or w > 64 or h > 64 then error("w and h must be 1-64") end
+  if x0 < 0 or y0 < 0 or x0 + w > 256 or y0 + h > 240 then error("window must lie within 256x240") end
+  if not rows or #rows ~= h then error("rows must hold one scroll entry per window row") end
+
+  local st = emu.getState()
+  local large = st["ppu.control.largeSprites"] == true
+  local height = large and 16 or 8
+  local sprite_base = st["ppu.control.spritePatternAddr"] or 0
+  local bg_base = st["ppu.control.backgroundPatternAddr"] or 0
+  local bg_on, spr_on, mask_source = frame_mask(st)
+
+  local n = w * h
+  local layer, palette, slot, tile, oam = {}, {}, {}, {}, {}
+  for i = 1, n do layer[i] = 0; palette[i] = 0; slot[i] = 0; tile[i] = -1; oam[i] = -1 end
+
+  local pat_cache = {}
+  local function pattern_row(addr)  -- addr = tile base + row; returns plane0, plane1
+    local c = pat_cache[addr]
+    if c then return c[1], c[2] end
+    local p0, p1 = emu.read(addr, MT.ppuDebug), emu.read(addr + 8, MT.ppuDebug)
+    pat_cache[addr] = { p0, p1 }
+    return p0, p1
+  end
+
+  -- Sprites first, lowest OAM index claiming each pixel.
+  local spr_behind = {}
+  if spr_on then
+    for i = 0, 63 do
+      local o = i * 4
+      local sy = emu.read(o, MT.oam) + 1
+      if sy <= 239 and sy < y0 + h and sy + height > y0 then
+        local tbyte = emu.read(o + 1, MT.oam)
+        local attr = emu.read(o + 2, MT.oam)
+        local sx = emu.read(o + 3, MT.oam)
+        if sx < x0 + w and sx + 8 > x0 then
+          local flip_h, flip_v = (attr & 0x40) ~= 0, (attr & 0x80) ~= 0
+          local top_addr, bottom_addr
+          if large then
+            top_addr = (tbyte & 1) * 0x1000 + (tbyte & 0xFE) * 16
+            bottom_addr = top_addr + 16
+          else
+            top_addr = sprite_base + tbyte * 16
+          end
+          for r = 0, height - 1 do
+            local py = sy + r
+            if py >= y0 and py < y0 + h then
+              local row = flip_v and (height - 1 - r) or r
+              local addr = top_addr
+              if large and row >= 8 then addr = bottom_addr; row = row - 8 end
+              local p0, p1 = pattern_row(addr + row)
+              for c = 0, 7 do
+                local px = sx + c
+                if px >= x0 and px < x0 + w then
+                  local idx = (py - y0) * w + (px - x0) + 1
+                  if oam[idx] == -1 then
+                    local col = flip_h and (7 - c) or c
+                    local bit = 7 - col
+                    local v = (((p1 >> bit) & 1) << 1) | ((p0 >> bit) & 1)
+                    if v ~= 0 then
+                      oam[idx] = i
+                      layer[idx] = 2
+                      palette[idx] = 4 + (attr & 3)
+                      slot[idx] = v
+                      tile[idx] = addr // 16
+                      spr_behind[idx] = (attr & 0x20) ~= 0
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  -- Background per row with the supplied scroll, then compose.
+  local nt_cache = {}
+  for r = 0, h - 1 do
+    local row = rows[r + 1]
+    local scroll_x = row.scroll_x or 0
+    local nt_x = row.nt_x or 0
+    local vy = row.v_y or 0
+    local nt_y = row.nt_y or 0
+    for c = 0, w - 1 do
+      local idx = r * w + c + 1
+      local bslot, bpal, btile = 0, 0, -1
+      if bg_on then
+        local nx = x0 + c + scroll_x
+        local ntx = nt_x
+        if nx >= 256 then nx = nx - 256; ntx = ntx ~ 1 end
+        local nt_base = 0x2000 + (nt_y * 2 + ntx) * 0x400
+        local tx, ty = nx // 8, vy // 8
+        local key = nt_base + ty * 32 + tx
+        local ent = nt_cache[key]
+        if not ent then
+          local tbyte = emu.read(key, MT.ppuDebug)
+          local abyte = emu.read(nt_base + 0x3C0 + (ty // 4) * 8 + (tx // 4), MT.ppuDebug)
+          local shift = ((ty % 4) // 2) * 4 + ((tx % 4) // 2) * 2
+          ent = { tile = tbyte, pal = (abyte >> shift) & 3 }
+          nt_cache[key] = ent
+        end
+        local p0, p1 = pattern_row(bg_base + ent.tile * 16 + (vy % 8))
+        local bit = 7 - (nx % 8)
+        bslot = (((p1 >> bit) & 1) << 1) | ((p0 >> bit) & 1)
+        bpal = ent.pal
+        btile = (bg_base + ent.tile * 16) // 16
+      end
+      local sprite_here = oam[idx] ~= -1
+      if sprite_here and spr_behind[idx] and bslot ~= 0 then sprite_here = false end
+      if not sprite_here then
+        if bg_on then
+          layer[idx] = 1; palette[idx] = bpal; slot[idx] = bslot; tile[idx] = btile; oam[idx] = -1
+        else
+          layer[idx] = 0; palette[idx] = 0; slot[idx] = 0; tile[idx] = -1; oam[idx] = -1
+        end
+      end
+    end
+  end
+
+  return {
+    x = x0, y = y0, w = w, h = h,
+    large_sprites = large,
+    background_pattern_addr = bg_base,
+    sprite_pattern_addr = sprite_base,
+    rendering = { background = bg_on, sprites = spr_on, source = mask_source },
+    layer = layer, palette = palette, slot = slot, tile = tile, oam = oam,
   }
 end
 
@@ -1484,6 +1769,7 @@ end
 
 local function on_end_frame()
   frame_counter = frame_counter + 1
+  ring_seal_frame()
   -- External resume detection: if is_paused is true but step_active is
   -- false, the game is running freely — someone resumed via Mesen's UI.
   --

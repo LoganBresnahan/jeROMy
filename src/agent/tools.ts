@@ -10,6 +10,7 @@ import type { Disassembler, Arch } from "./disassembler.js";
 import type { GameMapping } from "../mappings/types.js";
 import { NES_MASTER_PALETTE_RGB, nearestNesColor, nesColorName } from "./nes-palette.js";
 import { lookupTileAtPixel } from "./tile-lookup.js";
+import { getRegionAt } from "./region.js";
 import { describeLedger, isRomMemory, ledgeredRomWrite, ledgerDivergence, windowsPathToWsl, type EditLedger } from "./edit-ledger.js";
 import { applyEdits, applyIps, applyBps, crc32, encodeBps, encodeIps, inesLayout } from "../hacks/patch.js";
 import { createHash } from "node:crypto";
@@ -31,7 +32,7 @@ export const agentTools: ToolSpec[] = [
   {
     name: "get_tile_at_pixel",
     description:
-      "Get the nametable tile and palette under a screen pixel. By default it captures one frame of PPU scroll writes and uses the scroll in effect at that pixel's scanline, so games with a fixed status bar and a scrolling playfield (SMB) resolve correctly; the result says scroll_source \"scanline\" or \"vblank\". While paused it steps two frames to capture (stepped_frames: 2). Returns tile_id, palette_id, tile position, scroll values, nametable address. Cross-check with get_pixel_color when in doubt.",
+      "Get the nametable tile and palette under a screen pixel, plus the sprites drawn over it. It uses the scroll in effect at that pixel's scanline, taken from the last completed frame's PPU scroll writes, so a fixed status bar over a scrolling playfield (SMB) resolves correctly (scroll_source \"scanline\" or \"vblank\"); it never advances the emulator, paused or running. Returns tile_id, chr_tile (the pattern-space index read_tile/write_tile want), palette_id, screen_box (where that tile sits on screen), scroll values, nametable address, sprites covering the pixel and sprite_hit (the sprite drawing an opaque pixel there, with hit_tile and its 8x8 cell). Cross-check with get_pixel_color when in doubt.",
     input_schema: {
       type: "object",
       properties: {
@@ -40,6 +41,33 @@ export const agentTools: ToolSpec[] = [
         precise: { type: "boolean", description: "Default true. False answers from the request-time PPU scroll in one request (fast, wrong on split-scroll frames)." },
       },
       required: ["x", "y"],
+    },
+  },
+  {
+    name: "get_region",
+    description:
+      "Select what is drawn around a screen pixel by palette slot, the way the PPU composes it (ADR-0014). mode \"color\": the connected run of pixels with the same layer, palette and slot (a hat, a button, a pipe rim). mode \"object\": the connected opaque pixels of the same layer and palette (all of Mario, the whole pipe). Returns the slot(s), pixel count, bounding box, the CHR tiles and OAM entries involved, how many other pixels in the 64x64 window share that slot (what a palette edit also recolors), which slots of that palette are unused in view (whether a tile edit could give the region its own color), and a summary sentence. Use it before any recolor to state the blast radius; never flood-fill rendered colors yourself.",
+    input_schema: {
+      type: "object",
+      properties: {
+        x: { type: "number", description: "X pixel coordinate (0-255)" },
+        y: { type: "number", description: "Y pixel coordinate (0-239)" },
+        mode: { type: "string", enum: ["color", "object"], description: "Default color" },
+      },
+      required: ["x", "y"],
+    },
+  },
+  {
+    name: "list_sprites",
+    description:
+      "Decode OAM: the hardware sprites as the PPU will draw them (screen x/y, 8x8 or 8x16 per the current PPUCTRL, raw tile byte, chr_tile = the pattern-space index read_tile wants, sprite palette 4-7, flips, behind-background priority). Only on-screen sprites are listed. With x and y, only the sprites whose box covers that pixel, each hit-tested against its pattern bytes (opaque, pixel_value, hit_tile, the 8x8 screen cell). Use it when a pixel's rendered color is not in the background palette, to find which sprite is the player or an enemy, or before editing a character's tiles.",
+    input_schema: {
+      type: "object",
+      properties: {
+        x: { type: "number", description: "Optional X pixel (0-255); with y, filters to sprites covering the pixel" },
+        y: { type: "number", description: "Optional Y pixel (0-239)" },
+      },
+      required: [],
     },
   },
   {
@@ -842,6 +870,18 @@ export async function executeTool(
       const result = await lookupTileAtPixel(adapter, input.x as number, input.y as number, {
         precise: input.precise === undefined ? true : Boolean(input.precise),
       });
+      return { type: "text", text: JSON.stringify(result) };
+    }
+
+    case "get_region": {
+      const mode = input.mode === "object" ? "object" : "color";
+      const { runs: _runs, ...region } = await getRegionAt(adapter, input.x as number, input.y as number, mode);
+      return { type: "text", text: JSON.stringify(region) };
+    }
+
+    case "list_sprites": {
+      const at = input.x !== undefined && input.y !== undefined ? { x: Number(input.x), y: Number(input.y) } : undefined;
+      const result = await adapter.getSprites(at);
       return { type: "text", text: JSON.stringify(result) };
     }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { lookupTileAtPixel } from "./tile-lookup.js";
+import { backgroundCellAt, lookupTileAtPixel } from "./tile-lookup.js";
 import type { ScrollCapture } from "./scroll-reconstruct.js";
 
 // Paused SMB title fixture (Claude, 2026-10-05, Mesen2 2.1.1): last stepped
@@ -13,6 +13,7 @@ function adapterWith(overrides: Record<string, unknown> = {}) {
     getTileAtPixel: vi.fn().mockResolvedValue({ tile_id: 0x24, palette_id: 2, tile_x: 22, tile_y: 22, scroll_x: 0, scroll_y: 0, nametable: 0, nametable_addr: 0x22d6, attribute_addr: 0x23f5 }),
     captureScrollWrites: vi.fn().mockResolvedValue(paused),
     readMemory: vi.fn().mockImplementation(async (addr: number) => ({ address: addr, mem_type: "ppuDebug", bytes: [mem.get(addr) ?? 0] })),
+    getSprites: vi.fn().mockResolvedValue({ large_sprites: true, sprite_pattern_addr: 0, background_pattern_addr: 0x1000, sprites_enabled: true, count: 0, sprites: [] }),
     mem,
     ...overrides,
   } as any;
@@ -27,7 +28,42 @@ describe("lookupTileAtPixel (ADR-0010)", () => {
     const r = await lookupTileAtPixel(a, 176, 182);
     expect(a.captureScrollWrites).toHaveBeenCalledWith(1);
     expect(a.getTileAtPixel).not.toHaveBeenCalled();
-    expect(r).toMatchObject({ tile_id: 0x62, palette_id: 0, nametable: 0, nametable_addr: 0x2000 + 22 * 32 + 28, scroll_x: 53, scroll_y: 0, scroll_source: "scanline", scroll_scanline: 31, stepped_frames: 2, scroll_ambiguous: false, tile_x: 22, tile_y: 22 });
+    expect(r).toMatchObject({ tile_id: 0x62, palette_id: 0, nametable: 0, nametable_addr: 0x2000 + 22 * 32 + 28, scroll_x: 53, scroll_y: 0, scroll_source: "scanline", scroll_scanline: 31, stepped_frames: 0, scroll_ambiguous: false, tile_x: 22, tile_y: 22 });
+    // ADR-0013: screen cell of that tile (176+53 = 229, 229 & 7 = 5 → left edge 171) and the pattern-space index.
+    expect(r.screen_box).toEqual({ x: 171, y: 176, width: 8, height: 8 });
+    expect(r.chr_tile).toBe(0x162);
+    expect(r.sprites).toEqual([]);
+    expect(r.sprite_hit).toBeUndefined();
+  });
+
+  it("reports the sprite drawing the pixel, first opaque in OAM order, and survives a bridge without get_sprites (ADR-0013)", async () => {
+    const behind = { index: 2, x: 170, y: 176, width: 8, height: 16, tile: 0x40, attr: 0, palette: 4, behind_background: false, flip_h: false, flip_v: false, chr_tile: 0x40, pixel_value: 0, opaque: false };
+    const hit = { ...behind, index: 9, tile: 0x42, chr_tile: 0x42, pixel_value: 3, opaque: true, hit_tile: 0x43, cell: { x: 170, y: 176, width: 8, height: 8 } };
+    const a = adapterWith({ getSprites: vi.fn().mockResolvedValue({ large_sprites: true, sprite_pattern_addr: 0, background_pattern_addr: 0x1000, sprites_enabled: true, count: 2, sprites: [behind, hit] }) });
+    const r = await lookupTileAtPixel(a, 176, 182);
+    expect(a.getSprites).toHaveBeenCalledWith({ x: 176, y: 182 });
+    expect(r.sprites).toHaveLength(2);
+    expect(r.sprite_hit?.index).toBe(9);
+
+    const old = adapterWith({ getSprites: vi.fn().mockRejectedValue(new Error("Bridge error: unknown method: get_sprites")) });
+    const r2 = await lookupTileAtPixel(old, 176, 182);
+    expect(r2.sprites).toBeUndefined();
+    expect(r2.chr_tile).toBeUndefined();
+    expect(r2.tile_id).toBe(0);
+  });
+
+  it("ignores sprite hits while the PPU has sprites switched off (scene transition)", async () => {
+    const hit = { index: 5, x: 170, y: 176, width: 8, height: 8, tile: 0x4a, attr: 0, palette: 4, behind_background: false, flip_h: false, flip_v: false, chr_tile: 0x4a, pixel_value: 1, opaque: true, hit_tile: 0x4a, cell: { x: 170, y: 176, width: 8, height: 8 } };
+    const a = adapterWith({ getSprites: vi.fn().mockResolvedValue({ large_sprites: false, sprite_pattern_addr: 0, background_pattern_addr: 0x1000, sprites_enabled: false, count: 1, sprites: [hit] }) });
+    const r = await lookupTileAtPixel(a, 176, 182);
+    expect(r.sprites).toHaveLength(1);
+    expect(r.sprite_hit).toBeUndefined();
+  });
+
+  it("backgroundCellAt applies the scroll to find the tile's screen cell", () => {
+    expect(backgroundCellAt(0, 0, 0, 0)).toEqual({ x: 0, y: 0, width: 8, height: 8 });
+    expect(backgroundCellAt(116, 190, 173, 0)).toEqual({ x: 115, y: 184, width: 8, height: 8 });
+    expect(backgroundCellAt(5, 239, 7, 237)).toEqual({ x: 1, y: 235, width: 8, height: 8 });
   });
 
   it("extracts the palette from the right attribute quadrant", async () => {

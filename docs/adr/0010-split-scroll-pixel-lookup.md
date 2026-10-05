@@ -1,6 +1,6 @@
 # ADR-0010: Pixel lookups answer from the framebuffer and the scroll in effect at that scanline
 
-**Status:** Accepted (2026-10-05, for the overnight run Logan authorized; it was Proposed the same day and is built right after roadmap item 8 because every click depends on it)
+**Status:** Accepted (2026-10-05, for the overnight run Logan authorized; it was Proposed the same day and is built right after roadmap item 8 because every click depends on it). The paused clause of decision 3 (step one frame to capture) is superseded by ADR-0013: the capture now answers from a standing ring and never steps.
 **Date:** 2026-10-05
 
 ## Context

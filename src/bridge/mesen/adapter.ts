@@ -30,6 +30,9 @@ import type {
   ScrollCaptureResult,
   ConvertAddressResult,
   SearchMemoryResult,
+  SpritesResult,
+  ReadRegionParams,
+  ReadRegionResult,
   ResetEmulatorResult,
   TraceWritesResult,
 } from "./protocol.js";
@@ -121,6 +124,16 @@ export class MesenAdapter {
   /** Rendered color at a screen pixel; ground truth for what the user sees (ADR-0010). */
   async getPixelColor(x: number, y: number): Promise<PixelColorResult> {
     return this.conn.request<PixelColorResult>("get_pixel_color", { x, y });
+  }
+
+  /** PPU-faithful pixel map of a window ≤64x64, with the caller's per-row background scroll (ADR-0014). */
+  async readRegion(params: ReadRegionParams): Promise<ReadRegionResult> {
+    return this.conn.request<ReadRegionResult>("read_region", { ...params });
+  }
+
+  /** OAM decoded as the PPU draws it; with `at`, only the sprites covering that pixel, hit-tested (ADR-0013). */
+  async getSprites(at?: { x: number; y: number }): Promise<SpritesResult> {
+    return this.conn.request<SpritesResult>("get_sprites", at ? { x: at.x, y: at.y } : {});
   }
 
   /** Get the 4 NES color indices for a palette (0-7). */
