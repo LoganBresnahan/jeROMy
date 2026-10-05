@@ -72,6 +72,17 @@ export interface LoadStateParams {
   slot?: number;
 }
 
+export interface ReadChrTileParams {
+  tile_id: number;
+  source?: "chrRom" | "chrRam";
+}
+
+export interface WriteChrTileParams {
+  tile_id: number;
+  pixels: number[][];
+  target?: "chrRom" | "chrRam";
+}
+
 export type MemoryType =
   | "cpu"
   | "ppu"
@@ -81,6 +92,7 @@ export type MemoryType =
   | "oam"
   | "prgRom"
   | "chrRom"
+  | "chrRam"
   | "workRam"
   | "saveRam";
 
@@ -88,6 +100,7 @@ export type MemoryType =
 
 export interface ScreenshotResult {
   png_base64: string;
+  paused?: boolean;
 }
 
 export interface TileAtPixelResult {
@@ -157,11 +170,31 @@ export interface RomInfoResult {
   path: string;
   sha1: string;
   format: string;
+  /** Mapper number (NES-specific, parsed from iNES header). */
+  mapper?: number;
+  /** CHR ROM size in KB (NES-specific). 0 or absent means CHR RAM. */
+  chrRomSize?: number;
+  /** PRG ROM size in KB (NES-specific). */
+  prgRomSize?: number;
+  /** Convenience flag: true if game uses CHR RAM (NES: chrRomSize === 0). */
+  usesChrRam?: boolean;
 }
 
 export interface StateResult {
   slot: number;
   action: "saved" | "loaded";
+}
+
+export interface ReadChrTileResult {
+  tile_id: number;
+  source: string;
+  pixels: number[][];
+}
+
+export interface WriteChrTileResult {
+  tile_id: number;
+  target: string;
+  rows_written: number;
 }
 
 export interface PingResult {
@@ -178,4 +211,23 @@ export interface LuaLogsResult {
   logs: LuaLogEntry[];
   count: number;
   overflow?: number;
+}
+
+// -- Emulator Control Types -------------------------------------------------
+
+export interface PauseEmulatorResult {
+  paused: true;
+}
+
+export interface ResumeEmulatorResult {
+  resumed: true;
+}
+
+export interface StepFrameResult {
+  stepped: number;
+  paused: boolean;
+}
+
+export interface EmulatorStatusResult {
+  paused: boolean;
 }

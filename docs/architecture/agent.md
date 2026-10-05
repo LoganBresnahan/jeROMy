@@ -129,18 +129,20 @@ Tool results are sent as `user` messages per the Anthropic API convention.
 
 `buildSystemPrompt()` in `prompts.ts` constructs the system prompt with:
 
-1. **Base prompt**: Agent identity, capabilities, NES hardware reference (palettes, tiles, memory map, common colors), working style guidelines
+1. **Base prompt**: Agent identity, capabilities, NES hardware reference (palettes, tiles, memory map, common colors), working style guidelines, emulator control guidance (when to pause/step/resume), CHR tile editing guide
 2. **Runtime context** (dynamic, fetched from emulator at run start):
    - ROM info (name, format, SHA1) — if connected
    - Current palettes (all 8 with hex color values) — if connected
+   - Emulator status (PAUSED / RUNNING) — if connected
+   - Game mapping summary — if a mapping file exists for the loaded ROM
 
-The agent fetches runtime context via `adapter.getRomInfo()` and `adapter.getAllPalettes()` in parallel, with graceful fallback if the emulator is disconnected.
+The agent fetches runtime context via `adapter.getRomInfo()`, `adapter.getAllPalettes()`, and `adapter.getEmulatorStatus()` in parallel, with graceful fallback if the emulator is disconnected. If a game mapping file exists for the ROM's SHA1, it's loaded and appended to the prompt.
 
 ---
 
 ## Tools
 
-`agentTools` in `tools.ts` defines 13 tools as JSON Schema objects for the LLM:
+`agentTools` in `tools.ts` defines 21 tools as JSON Schema objects for the LLM:
 
 | Tool | Required Params | Adapter Method |
 |------|----------------|----------------|
@@ -157,6 +159,14 @@ The agent fetches runtime context via `adapter.getRomInfo()` and `adapter.getAll
 | `save_state` | — | `adapter.saveState()` |
 | `load_state` | — | `adapter.loadState()` |
 | `disassemble` | `address` | reads memory + Capstone WASM |
+| `read_tile` | `tile_id` | `adapter.readChrTile()` + ASCII art |
+| `write_tile` | `tile_id, pixels` | `adapter.writeChrTile()` |
+| `read_nametable` | `x, y, width, height` | `adapter.readMemory()` (PPU) |
+| `write_nametable` | `x, y, tile_ids` | `adapter.writeMemory()` (PPU) |
+| `record_mapping` | `mapping_type, id, name` | in-memory mapping store |
+| `pause_emulator` | — | `adapter.pauseEmulator()` |
+| `resume_emulator` | — | `adapter.resumeEmulator()` |
+| `step_frame` | — | `adapter.stepFrame()` |
 
 ### Tool Execution
 
@@ -170,6 +180,9 @@ Defaults applied by the executor:
 - `write_memory`: `mem_type="cpu"`
 - `save_state` / `load_state`: `slot=0`
 - `disassemble`: `length=32`, `arch="6502"`
+- `read_tile`: `source="chrRom"`
+- `write_tile`: `target="chrRam"`
+- `step_frame`: `count=1`
 
 If the `disassembler` is not provided (Capstone WASM not built), the `disassemble` tool returns a "not available" message instead of failing.
 

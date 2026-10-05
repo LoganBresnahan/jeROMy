@@ -168,4 +168,41 @@ describe("MesenAdapter", () => {
     await adapter.rawRequest("debug_state", { depth: 3 });
     expect(mockRequest).toHaveBeenCalledWith("debug_state", { depth: 3 });
   });
+
+  // -- Emulator Control Tests ------------------------------------------------
+
+  it("pauseEmulator sends pause_emulator method", async () => {
+    mockRequest.mockResolvedValue({ paused: true });
+    const result = await adapter.pauseEmulator();
+    expect(mockRequest).toHaveBeenCalledWith("pause_emulator");
+    expect(result.paused).toBe(true);
+  });
+
+  it("resumeEmulator sends resume_emulator method", async () => {
+    mockRequest.mockResolvedValue({ resumed: true });
+    const result = await adapter.resumeEmulator();
+    expect(mockRequest).toHaveBeenCalledWith("resume_emulator");
+    expect(result.resumed).toBe(true);
+  });
+
+  it("stepFrame defaults to count 1", async () => {
+    mockRequest.mockResolvedValue({ stepped: 1, paused: true });
+    const result = await adapter.stepFrame();
+    expect(mockRequest).toHaveBeenCalledWith("step_frame", { count: 1 });
+    expect(result.stepped).toBe(1);
+  });
+
+  it("stepFrame passes explicit count", async () => {
+    mockRequest.mockResolvedValue({ stepped: 5, paused: true });
+    const result = await adapter.stepFrame(5);
+    expect(mockRequest).toHaveBeenCalledWith("step_frame", { count: 5 });
+    expect(result.stepped).toBe(5);
+  });
+
+  it("getEmulatorStatus sends get_emulator_status method", async () => {
+    mockRequest.mockResolvedValue({ paused: false });
+    const result = await adapter.getEmulatorStatus();
+    expect(mockRequest).toHaveBeenCalledWith("get_emulator_status");
+    expect(result.paused).toBe(false);
+  });
 });

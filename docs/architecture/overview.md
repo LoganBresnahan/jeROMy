@@ -51,19 +51,18 @@
 │              │          Mesen2 (Windows)                        │
 │  ┌───────────▼───────────┐                                     │
 │  │   bridge.lua          │                                     │
-│  │   TCP Server (LuaSocket)                                    │
-│  │   Non-blocking polling │                                    │
-│  │   (endFrame callback) │                                     │
+│  │   TCP Client (LuaSocket)                                    │
+│  │   endFrame: non-blocking│                                   │
+│  │   codeBreak: blocking rx│                                   │
 │  │                       │                                     │
 │  │   Handlers:           │                                     │
-│  │   • screenshot()      │                                     │
+│  │   • screenshot        │                                     │
 │  │   • get_tile_at_pixel │                                     │
-│  │   • get_palette()     │                                     │
-│  │   • write_palette()   │                                     │
+│  │   • get/write palette │                                     │
 │  │   • read/write memory │                                     │
-│  │   • breakpoints       │                                     │
+│  │   • read/write CHR tile│                                    │
+│  │   • pause/resume/step │                                     │
 │  │   • save/load state   │                                     │
-│  │   • CPU state         │                                     │
 │  └───────────────────────┘                                     │
 │              ▲                                                  │
 │         NES ROM loaded                                         │
@@ -135,10 +134,11 @@ The agent's edit operations are mostly system-agnostic — "replace pixel data a
 
 The Lua script runs inside Mesen2 and turns the emulator into a controllable tool server.
 
-- **TCP server** using built-in LuaSocket (`require("socket.core")`)
-- **Non-blocking polling** via `settimeout(0)` in `endFrame` callback
+- **TCP client** using built-in LuaSocket (`require("socket.core")`)
+- **Dual polling modes**: non-blocking `endFrame` callback (game running) + blocking `codeBreak` callback (game paused)
 - **JSON protocol** — newline-delimited JSON request/response
-- **Tool handlers** for all emulator operations (see [Bridge Protocol](bridge-protocol.md))
+- **Tool handlers** for all emulator operations (see [Bridge Protocol](../bridge.md))
+- **Emulator control** — pause/resume/step via blocking TCP receive under Mesen's 1-second Lua watchdog
 
 The Lua script is the only component that runs on Windows. Everything else runs in WSL2.
 
@@ -355,7 +355,7 @@ Fork Session "rock-orange-edit" at seq 9 → Creates "rock-blue-edit"
 | Emulator | Mesen2 | Built-in LuaSocket, comprehensive API, multi-console |
 | Bridge Protocol | JSON-over-TCP (newline delimited) | Simple, debuggable, LuaSocket compatible |
 | Web Server | Native Node.js http + ws | Minimal deps, WebSocket for real-time |
-| Frontend | TBD (React/Svelte/Vanilla) | To be decided in prototype phase |
+| Frontend | Vanilla JS + Actor System | Shadow DOM actors, no framework dependency |
 | Build | Vite (frontend) + tsc (backend) | Fast builds, standard tooling |
 | License | AGPL-3.0 | Open source, copyleft |
 
@@ -436,8 +436,14 @@ Connect Claude via Anthropic SDK. Agent can take a screenshot, analyze it with v
 ### Phase 3: State Management
 Add the event-sourced DB. Record all tool calls and edits. Implement forking and rollback. Edit history timeline in the UI.
 
-### Phase 4: ROM Patching
-Add breakpoints, disassembly reading, ROM byte patching. The agent traces runtime values back to ROM addresses and makes persistent changes.
+### Phase 4: Tile Editing + Game Mappings + Emulator Control
+CHR tile read/write (change sprite shapes, not just colors), game mapping files (community-shareable JSON that teaches the agent about specific ROMs), nametable editing, discovery-to-mapping pipeline, and pause/step/resume emulator control for precise edit-verify workflows. [Full plan →](phase4-plan.md)
 
-### Phase 5: Advanced
-Vision-based sprite identification (no clicking required), compression-aware patching, game logic modifications via assembly reasoning.
+### Phase 5: Sprite & Animation Editing
+OAM inspection/editing, multi-tile sprite composition, animation frame identification, visual tile editor UI.
+
+### Phase 6: Timeline UI
+Visual event timeline, fork tree visualization, event filtering, time-travel debugging.
+
+### Phase 7: Game Logic & Code Analysis
+Disassembly-guided mapping, game routine identification, ROM patching for logic changes, IPS/BPS patch export.

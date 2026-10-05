@@ -207,11 +207,19 @@ WS Message
     ├─ action === "server_log"
     │   └─ EmulatorSidebar.log()
     │
-    └─ emulator responses (screenshot, get_all_palettes, etc.)
-        └─ EmulatorSidebar.render*() methods
+    ├─ emulator responses (screenshot, get_all_palettes, etc.)
+    │   └─ EmulatorSidebar.render*() methods
+    │
+    └─ emulator control (pause_emulator, resume_emulator, step_frame, get_emulator_status)
+        └─ EmulatorSidebar.setEmulatorPaused() + log
 ```
 
-The `EmulatorSidebar` is **not an actor** — it's a plain class that operates directly on the DOM. It handles the left panel (emulator canvas, palette display, tile info, logs). The gateway calls its methods to push data and it calls `gateway.send()` for outbound commands.
+The `EmulatorSidebar` is **not an actor** — it's a plain class that operates directly on the DOM. It handles the left panel (emulator canvas, palette display, tile info, logs, and emulator control buttons). The gateway calls its methods to push data and it calls `gateway.send()` for outbound commands.
+
+The sidebar tracks emulator pause state via `setEmulatorPaused(paused)`:
+- Updates status text: "Connected (Paused)" / "Connected"
+- Stops auto-refresh when paused (prevents flooding identical frames)
+- Pause/Step/Resume buttons send `pause-emu`, `step-frame`, `resume-emu` WS actions
 
 ---
 

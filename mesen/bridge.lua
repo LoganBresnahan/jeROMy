@@ -299,6 +299,26 @@ end
 local handlers = {}
 
 ---------------------------------------------------------------------------
+-- Emulator pause state
+--
+-- When paused, the codeBreak callback uses BLOCKING TCP receives
+-- (200ms timeout × 3 iterations = ~600ms) to wait for commands.
+-- This stays under Mesen's 1-second Lua watchdog (which only checks
+-- between Lua VM instructions, not during C socket calls).
+--
+-- emu.step() does NOT block — it queues and returns immediately.
+-- The step executes AFTER the callback returns.
+-- emu.step(1, emu.stepType.ppuFrame) = advance exactly 1 rendered frame.
+---------------------------------------------------------------------------
+local is_paused = false
+local step_active = false    -- true after emu.step() from codeBreak; tells
+                             -- endFrame not to clear is_paused
+local pending_steps = 0      -- step_frame count (decremented 1/turn in codeBreak)
+local pending_resume = false  -- resume flag (checked each codeBreak turn)
+local POLL_TIMEOUT = 0.2     -- seconds per blocking receive (×3 = 600ms)
+local POLL_ROUNDS = 3        -- iterations per codeBreak invocation
+
+---------------------------------------------------------------------------
 -- Palette Freeze: overrides re-applied every frame so the game can't
 -- clobber them during VBlank.  Keys are palette RAM offsets (0-31),
 -- values are NES color indices (0-63).
@@ -308,7 +328,7 @@ local palette_overrides = {}
 -- screenshot: Capture current frame as base64-encoded PNG
 function handlers.screenshot(params)
   local png = emu.takeScreenshot()
-  return { png_base64 = base64_encode(png) }
+  return { png_base64 = base64_encode(png), paused = is_paused }
 end
 
 -- get_tile_at_pixel: Given screen coordinates, return tile and palette info
@@ -503,6 +523,78 @@ function handlers.clear_palette_overrides(params)
   return { cleared = cleared }
 end
 
+-- read_chr_tile: Read a single 8x8 tile from CHR memory, decoded to pixel grid
+function handlers.read_chr_tile(params)
+  local tile_id = params.tile_id
+  local source = params.source or "chrRom"  -- "chrRom" or "chrRam"
+
+  if not tile_id then
+    error("tile_id is required")
+  end
+
+  local mt = MT[source]
+  if not mt then
+    error("unsupported CHR source: " .. tostring(source) .. " (try chrRom or chrRam)")
+  end
+
+  -- Each tile is 16 bytes: 2 bitplanes of 8 rows
+  local base = tile_id * 16
+  local pixels = {}  -- 8 rows of 8 pixels (values 0-3)
+
+  for row = 0, 7 do
+    local plane0 = emu.read(base + row, mt)
+    local plane1 = emu.read(base + row + 8, mt)
+    local row_pixels = {}
+    for col = 0, 7 do
+      local bit = 7 - col
+      local lo = (plane0 >> bit) & 1
+      local hi = (plane1 >> bit) & 1
+      row_pixels[col + 1] = hi * 2 + lo
+    end
+    pixels[row + 1] = row_pixels
+  end
+
+  return { tile_id = tile_id, source = source, pixels = pixels }
+end
+
+-- write_chr_tile: Encode a pixel grid back to CHR format and write it
+function handlers.write_chr_tile(params)
+  local tile_id = params.tile_id
+  local pixels = params.pixels
+  local target = params.target or "chrRam"  -- "chrRam" preferred; "chrRom" for ROM patching
+
+  if not tile_id then
+    error("tile_id is required")
+  end
+  if not pixels or #pixels ~= 8 then
+    error("pixels must be an 8-row array of 8 values each")
+  end
+
+  local mt = MT[target]
+  if not mt then
+    error("unsupported CHR target: " .. tostring(target) .. " (try chrRam or chrRom)")
+  end
+
+  local base = tile_id * 16
+  for row = 0, 7 do
+    local plane0, plane1 = 0, 0
+    local row_pixels = pixels[row + 1]
+    if not row_pixels or #row_pixels ~= 8 then
+      error("row " .. row .. " must have exactly 8 pixel values")
+    end
+    for col = 0, 7 do
+      local bit = 7 - col
+      local px = row_pixels[col + 1]
+      if (px & 1) ~= 0 then plane0 = plane0 | (1 << bit) end
+      if (px & 2) ~= 0 then plane1 = plane1 | (1 << bit) end
+    end
+    emu.write(base + row, plane0, mt)
+    emu.write(base + row + 8, plane1, mt)
+  end
+
+  return { tile_id = tile_id, target = target, rows_written = 8 }
+end
+
 -- read_memory: Read bytes from a memory region
 function handlers.read_memory(params)
   local addr = params.address
@@ -564,14 +656,45 @@ function handlers.get_cpu_state(params)
 end
 
 -- get_rom_info: Return metadata about the loaded ROM
+-- For NES ROMs, also parses the iNES header to extract mapper/CHR info.
 function handlers.get_rom_info(params)
   local info = emu.getRomInfo()
-  return {
+  local result = {
     name = info.name,
     path = info.path,
     sha1 = info.fileSha1Hash,
     format = info.format
   }
+
+  -- Parse iNES header for NES ROMs only
+  local fmt = (info.format or ""):lower()
+  if fmt == "ines" or fmt == "nes" or fmt == "unif" or fmt:find("nes") then
+    local ok, header = pcall(function()
+      local f = io.open(info.path, "rb")
+      if not f then return nil end
+      local data = f:read(16)
+      f:close()
+      if not data or #data < 16 then return nil end
+      -- Verify iNES magic: "NES\x1A"
+      if data:sub(1, 4) ~= "NES\x1a" then return nil end
+      return data
+    end)
+
+    if ok and header then
+      local prg_pages = header:byte(5)  -- 16KB each
+      local chr_pages = header:byte(6)  -- 8KB each, 0 = CHR RAM
+      local flags6 = header:byte(7)
+      local flags7 = header:byte(8)
+      local mapper = ((flags7 & 0xF0) | (flags6 >> 4))
+
+      result.prgRomSize = prg_pages * 16  -- KB
+      result.chrRomSize = chr_pages * 8   -- KB, 0 = uses CHR RAM
+      result.mapper = mapper
+      result.usesChrRam = (chr_pages == 0)
+    end
+  end
+
+  return result
 end
 
 -- save_state / load_state: Quick navigation
@@ -664,6 +787,40 @@ function handlers.debug_state(params)
   end
 
   return { keys = enumerate(target, depth) }
+end
+
+---------------------------------------------------------------------------
+-- Emulator Control: pause, resume, step frame
+---------------------------------------------------------------------------
+
+-- pause_emulator: Break execution and mark as paused.
+-- breakExecution() internally does Step(1, Step) — runs 1 more CPU
+-- instruction then breaks. codeBreak fires after the callback returns.
+function handlers.pause_emulator(params)
+  is_paused = true
+  step_active = true  -- prevent endFrame from clearing is_paused before codeBreak fires
+  emu.breakExecution()
+  return { paused = true }
+end
+
+-- resume_emulator: Sets a flag for the next codeBreak turn.
+-- codeBreak calls emu.resume() and returns → Mesen runs freely.
+function handlers.resume_emulator(params)
+  pending_resume = true
+  return { resumed = true }
+end
+
+-- step_frame: Queues N frames. codeBreak steps one PPU frame per turn
+-- via emu.step(1, emu.stepType.ppuFrame), decrementing until done.
+function handlers.step_frame(params)
+  local count = params.count or 1
+  pending_steps = pending_steps + count
+  return { stepped = count, paused = true }
+end
+
+-- get_emulator_status: Query current pause/run state
+function handlers.get_emulator_status(params)
+  return { paused = is_paused }
 end
 
 ---------------------------------------------------------------------------
@@ -845,6 +1002,25 @@ if not try_connect() then
 end
 
 emu.addEventCallback(function()
+  -- External resume detection: if is_paused is true but step_active is
+  -- false, the game is running freely — someone resumed via Mesen's UI.
+  --
+  -- When codeBreak calls emu.step(), it sets step_active = true. The
+  -- step fires endFrame (for full-frame steps), then codeBreak fires and
+  -- clears step_active. If endFrame fires WITHOUT step_active, it means
+  -- the game is running on its own (external resume).
+  --
+  -- We clear step_active after checking so that if codeBreak doesn't
+  -- re-set it (because the step was cancelled by external resume), the
+  -- next endFrame detects it. This gives a 2-frame detection delay (~33ms).
+  if is_paused then
+    if not step_active then
+      is_paused = false
+      emu.log("[jeROMy] endFrame: detected external resume (Mesen UI)")
+    end
+    step_active = false  -- consumed; codeBreak will re-set if still paused
+  end
+
   -- Re-apply frozen palette overrides every frame (before the game's VBlank
   -- writes take visible effect on the *next* frame the PPU renders).
   for addr, color in pairs(palette_overrides) do
@@ -863,6 +1039,70 @@ emu.addEventCallback(function()
     poll_connection()
   end
 end, emu.eventType.endFrame)
+
+-- On pause (codeBreak): blocking-receive TCP polling.
+--
+-- When the emulator breaks, this callback gets ONE chance to process
+-- commands. We make the most of it by switching the socket to blocking
+-- mode (200ms timeout) and looping up to 3 times (~600ms total).
+-- This stays under Mesen's 1-second Lua watchdog, which only fires
+-- between Lua VM instructions (not during C socket waits).
+--
+-- On each iteration we poll TCP (blocking up to 200ms), then check
+-- the flags set by handlers. If step/resume is requested, we handle
+-- it and return. If nothing arrives after 3 rounds, we try a best-
+-- effort keep-alive (emu.step 1 instruction) and return.
+emu.addEventCallback(function()
+  if not conn then return end
+
+  -- Clear step_active from previous turn
+  step_active = false
+
+  -- Mark as paused
+  if not is_paused then
+    emu.log("[jeROMy] codeBreak: paused (external or Mesen UI)")
+  end
+  is_paused = true
+
+  -- Switch to blocking mode for the duration of this callback
+  conn:settimeout(POLL_TIMEOUT)
+
+  for round = 1, POLL_ROUNDS do
+    -- Blocking poll — waits up to POLL_TIMEOUT seconds for data
+    poll_connection()
+
+    -- Resume? → callback returns → Mesen runs freely
+    if pending_resume then
+      emu.log("[jeROMy] codeBreak: resuming (round " .. round .. ")")
+      pending_resume = false
+      pending_steps = 0
+      is_paused = false
+      step_active = false
+      conn:settimeout(0)  -- restore non-blocking
+      emu.resume()
+      return
+    end
+
+    -- Step? → queue 1 PPU frame, return → Mesen executes it, breaks again
+    if pending_steps > 0 then
+      pending_steps = pending_steps - 1
+      emu.log("[jeROMy] codeBreak: stepping 1 frame, " .. pending_steps .. " remaining (round " .. round .. ")")
+      step_active = true
+      conn:settimeout(0)  -- restore non-blocking
+      emu.step(1, emu.stepType.ppuFrame)
+      return
+    end
+  end
+
+  -- No commands after POLL_ROUNDS rounds. Restore non-blocking and
+  -- try a best-effort keep-alive: step 1 instruction to maybe trigger
+  -- another codeBreak. If Mesen's internal sleep loop blocks it, this
+  -- codeBreak was our only chance — next command waits for an external
+  -- resume event.
+  conn:settimeout(0)
+  step_active = true
+  emu.step(1, emu.stepType.step)
+end, emu.eventType.codeBreak)
 
 -- Cleanup on script end
 emu.addEventCallback(function()

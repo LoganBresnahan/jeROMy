@@ -5,6 +5,7 @@
  * against the emulator, and iterates until the task is complete.
  */
 
+import { PNG } from "pngjs";
 import type {
   LLMProvider,
   LLMMessage,
@@ -15,8 +16,17 @@ import type {
 } from "./provider.js";
 import type { MesenAdapter } from "../bridge/mesen/index.js";
 import type { Disassembler } from "./disassembler.js";
+import type { GameMapping } from "../mappings/types.js";
+import { loadMapping } from "../mappings/loader.js";
 import { agentTools, executeTool, type ToolResult } from "./tools.js";
 import { buildSystemPrompt } from "./prompts.js";
+
+/** Decoded image stored for tool access. */
+export interface StoredImage {
+  data: Buffer;
+  width: number;
+  height: number;
+}
 
 // -- Agent Events (yielded to the caller) ------------------------------------
 
@@ -40,7 +50,7 @@ export type AgentEvent =
 // -- Options -----------------------------------------------------------------
 
 export interface AgentOptions {
-  /** Max tool-loop iterations before stopping (default: 25). */
+  /** Max tool-loop iterations before stopping (default: 50). */
   maxIterations?: number;
   /** Max tokens per LLM response (default: 4096). */
   maxTokens?: number;
@@ -52,7 +62,7 @@ export interface AgentOptions {
 
 // -- Agent -------------------------------------------------------------------
 
-const DEFAULT_MAX_ITERATIONS = 25;
+const DEFAULT_MAX_ITERATIONS = 50;
 
 export class Agent {
   private provider: LLMProvider;
@@ -66,6 +76,13 @@ export class Agent {
   /** Conversation history for the current session. */
   private history: LLMMessage[] = [];
   private abortController: AbortController | null = null;
+
+  /** Currently loaded game mapping (set by buildContextualPrompt). */
+  private currentMapping: GameMapping | null = null;
+
+  /** Decoded user-uploaded images, keyed by "image_0", "image_1", etc. */
+  private imageStore: Map<string, StoredImage> = new Map();
+  private imageCounter = 0;
 
   constructor(
     provider: LLMProvider,
@@ -92,6 +109,14 @@ export class Agent {
   /** Clear conversation history (start fresh). */
   resetHistory(): void {
     this.history = [];
+    this.imageStore.clear();
+    this.imageCounter = 0;
+    this.log("[Agent] Image store cleared");
+  }
+
+  /** Get the image store (for tool access). */
+  getImageStore(): Map<string, StoredImage> {
+    return this.imageStore;
   }
 
   /** Replace conversation history (used by session manager to restore state). */
@@ -132,6 +157,22 @@ export class Agent {
         }));
         content.push({ type: "text" as const, text: instruction });
         this.history.push({ role: "user", content });
+
+        // Decode and store images for tool access (extract_sprite)
+        for (const img of options.images) {
+          try {
+            const png = PNG.sync.read(Buffer.from(img.data, "base64"));
+            const key = `image_${this.imageCounter++}`;
+            this.imageStore.set(key, {
+              data: png.data,
+              width: png.width,
+              height: png.height,
+            });
+            this.log(`[Agent] Stored reference image ${key} (${png.width}x${png.height})`);
+          } catch (err: any) {
+            this.log(`[Agent] Failed to decode uploaded image: ${err.message}`);
+          }
+        }
       } else {
         this.history.push({ role: "user", content: instruction });
       }
@@ -179,7 +220,7 @@ export class Agent {
             // Log assistant text content
             if (textBlocks.length > 0) {
               const fullText = textBlocks.map((b) => b.text).join("");
-              const preview = fullText.length > 300 ? fullText.slice(0, 300) + "…" : fullText;
+              const preview = fullText.length > 2000 ? fullText.slice(0, 2000) + "…" : fullText;
               this.log(`[Agent]   Assistant text:\n${preview}`);
             }
 
@@ -249,7 +290,9 @@ export class Agent {
               toolCall.name,
               toolCall.input,
               this.adapter,
-              this.disassembler
+              this.disassembler,
+              this.currentMapping,
+              this.imageStore
             );
           } catch (err: any) {
             result = { type: "text", text: `Error: ${err.message}` };
@@ -333,19 +376,40 @@ export class Agent {
     }
   }
 
+  /** Get the currently loaded game mapping (if any). */
+  getMapping(): GameMapping | null {
+    return this.currentMapping;
+  }
+
   /** Build system prompt with runtime context from the emulator. */
   private async buildContextualPrompt(): Promise<string> {
-    let romInfo, palettes;
+    let romInfo, palettes, emulatorStatus;
     try {
       if (this.adapter.isConnected) {
-        [romInfo, palettes] = await Promise.all([
+        [romInfo, palettes, emulatorStatus] = await Promise.all([
           this.adapter.getRomInfo().catch(() => undefined),
           this.adapter.getAllPalettes().catch(() => undefined),
+          this.adapter.getEmulatorStatus().catch(() => undefined),
         ]);
       }
     } catch {
       // Non-critical — just use base prompt
     }
-    return buildSystemPrompt({ romInfo, palettes });
+
+    // Load game mapping by ROM SHA1 (if available)
+    let mapping: GameMapping | null = null;
+    if (romInfo?.sha1) {
+      try {
+        mapping = loadMapping(romInfo.sha1);
+        if (mapping) {
+          this.log(`[Agent] Loaded game mapping: ${mapping.rom_name} (${Object.keys(mapping.tiles).length} tiles, ${Object.keys(mapping.addresses).length} addresses)`);
+        }
+      } catch {
+        // Non-critical — mapping file may not exist or be malformed
+      }
+    }
+    this.currentMapping = mapping;
+
+    return buildSystemPrompt({ romInfo, palettes, mapping, emulatorPaused: emulatorStatus?.paused });
   }
 }

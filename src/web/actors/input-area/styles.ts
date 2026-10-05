@@ -112,4 +112,12 @@ export const inputAreaStyles = `
   .btn-abort.visible { display: block; }
 
   .btn-send.hidden { display: none; }
+
+  .btn-upload {
+    background: #1a3a5c;
+    border-color: #2a5a8c;
+  }
+  .btn-upload:hover { background: #2a5a8c; }
+
+  .file-input-hidden { display: none; }
 `;

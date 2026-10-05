@@ -52,6 +52,8 @@ export class EmulatorSidebar {
 
   // State
   private _refreshInterval: ReturnType<typeof setInterval> | null = null;
+  private _screenshotInFlight = false;
+  private _paused = false;
   private _nativeWidth = 256;
   private _nativeHeight = 240;
   private _rawLogs: string[] = [];
@@ -138,6 +140,15 @@ export class EmulatorSidebar {
         case 'clear-logs':
           this._clearLogs();
           break;
+        case 'pause-emu':
+          this._gateway?.send('pause_emulator');
+          break;
+        case 'resume-emu':
+          this._gateway?.send('resume_emulator');
+          break;
+        case 'step-frame':
+          this._gateway?.send('step_frame', { count: 1 });
+          break;
       }
     });
   }
@@ -147,6 +158,7 @@ export class EmulatorSidebar {
   // ============================================
 
   renderScreenshot(base64: string): void {
+    this._screenshotInFlight = false;
     const img = new Image();
     img.onload = () => {
       if (this._canvas.width !== img.width || this._canvas.height !== img.height) {
@@ -162,6 +174,33 @@ export class EmulatorSidebar {
     img.src = `data:image/png;base64,${base64}`;
   }
 
+  /** Called when a screenshot request fails (timeout, error). Resets in-flight flag. */
+  screenshotFailed(): void {
+    this._screenshotInFlight = false;
+  }
+
+  // ============================================
+  // Emulator Pause State
+  // ============================================
+
+  /** Update the emulator pause state. Stops auto-refresh when paused. */
+  setEmulatorPaused(paused: boolean): void {
+    this._paused = paused;
+    // Update status text if connected
+    if (this._statusDot.classList.contains('connected')) {
+      this._statusText.textContent = paused ? 'Connected (Paused)' : 'Connected';
+    }
+    // Stop auto-refresh when paused to avoid flooding identical frames
+    if (paused && this._refreshInterval) {
+      this.stopAutoRefresh();
+      this.log('Auto-refresh stopped (emulator paused)', 'info');
+    }
+  }
+
+  get isPaused(): boolean {
+    return this._paused;
+  }
+
   // ============================================
   // Auto-Refresh
   // ============================================
@@ -169,6 +208,9 @@ export class EmulatorSidebar {
   startAutoRefresh(): void {
     if (this._refreshInterval) return;
     this._refreshInterval = setInterval(() => {
+      // Skip if a screenshot request is already in-flight (e.g. emulator paused)
+      if (this._screenshotInFlight) return;
+      this._screenshotInFlight = true;
       this._gateway?.send('screenshot');
     }, 100);
     this.log('Auto-refresh started (10 FPS)', 'info');

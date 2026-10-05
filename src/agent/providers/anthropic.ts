@@ -15,7 +15,7 @@ import type {
 
 export interface AnthropicProviderOptions {
   apiKey?: string; // defaults to ANTHROPIC_API_KEY env var
-  model?: string; // defaults to claude-sonnet-4-20250514
+  model?: string; // env JEROMY_MODEL, defaults to claude-sonnet-4-20250514
   log?: (text: string) => void; // log callback (default: console.log)
 }
 

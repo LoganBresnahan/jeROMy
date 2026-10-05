@@ -35,7 +35,16 @@ import type {
   AssistantResponseData,
   ToolCallData,
   ToolResultData,
+  MappingDiscoveredData,
+  MappingHypothesisData,
+  SpriteEditData,
 } from "./db/index.js";
+import {
+  loadMapping,
+  saveMapping,
+  mergeMappings,
+  type DiscoveredEntry,
+} from "./mappings/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const HTTP_PORT = 3000;
@@ -51,6 +60,7 @@ const mesen = new MesenAdapter({
 // -- Agent (LLM + tool loop) ------------------------------------------------
 
 const provider = new AnthropicProvider({
+  model: process.env.JEROMY_MODEL,
   log: (text) => broadcastLog(text),
 });
 let agent: Agent; // initialized in start()
@@ -406,6 +416,76 @@ wss.on("connection", (ws: WebSocket) => {
       return;
     }
 
+    // -- Mapping Promotion -----------------------------------------------------
+
+    if (msg.action === "promote_mappings") {
+      const sessionId = msg.params?.session_id as string ?? activeSessionId;
+      if (!sessionId) {
+        ws.send(JSON.stringify({ action: "promote_mappings", error: "No active session" }));
+        return;
+      }
+
+      try {
+        // Get ROM info for the SHA1
+        let romSha1: string | undefined;
+        let romName: string | undefined;
+        if (mesen.isConnected) {
+          const info = await mesen.getRomInfo().catch(() => null);
+          romSha1 = info?.sha1;
+          romName = info?.name;
+        }
+        if (!romSha1) {
+          ws.send(JSON.stringify({ action: "promote_mappings", error: "Cannot determine ROM SHA1 — emulator not connected" }));
+          return;
+        }
+
+        // Collect mapping_discovered events from the session
+        const events = eventStore.getSessionEvents(sessionId);
+        const discoveries: DiscoveredEntry[] = [];
+        for (const event of events) {
+          if (event.type === "mapping_discovered") {
+            const data = event.data as MappingDiscoveredData;
+            // Parse the description format: "type:id → name (notes)"
+            const match = data.description.match(/^(\w+):(.+?) → (.+?)(?:\s*\((.+)\))?$/);
+            if (match) {
+              discoveries.push({
+                mapping_type: match[1] as DiscoveredEntry["mapping_type"],
+                id: match[2],
+                name: match[3],
+                notes: match[4],
+                confidence: 1,
+              });
+            }
+          }
+        }
+
+        if (discoveries.length === 0) {
+          ws.send(JSON.stringify({ action: "promote_mappings", result: { promoted: 0, message: "No confirmed discoveries to promote" } }));
+          return;
+        }
+
+        // Load existing mapping and merge
+        const existing = loadMapping(romSha1);
+        const merged = mergeMappings(existing, discoveries, romSha1, romName ?? "Unknown");
+        saveMapping(merged);
+
+        broadcastLog(`[DB] Promoted ${discoveries.length} discoveries to mapping file for ${romName ?? romSha1}`);
+        ws.send(JSON.stringify({
+          action: "promote_mappings",
+          result: {
+            promoted: discoveries.length,
+            rom_sha1: romSha1,
+            rom_name: romName,
+            total_tiles: Object.keys(merged.tiles).length,
+            total_addresses: Object.keys(merged.addresses).length,
+          },
+        }));
+      } catch (err: any) {
+        ws.send(JSON.stringify({ action: "promote_mappings", error: err.message }));
+      }
+      return;
+    }
+
     // -- Direct Emulator Commands (Phase 1 passthrough) ----------------------
 
     if (!mesen.isConnected) {
@@ -470,6 +550,20 @@ wss.on("connection", (ws: WebSocket) => {
             (msg.params?.since as number) ?? 0
           );
           break;
+        case "pause_emulator":
+          result = await mesen.pauseEmulator();
+          break;
+        case "resume_emulator":
+          result = await mesen.resumeEmulator();
+          break;
+        case "step_frame":
+          result = await mesen.stepFrame(
+            (msg.params?.count as number) ?? 1
+          );
+          break;
+        case "get_emulator_status":
+          result = await mesen.getEmulatorStatus();
+          break;
         case "debug_state":
           // Pass through directly to the bridge for state inspection
           result = await mesen.rawRequest("debug_state", msg.params ?? {});
@@ -495,16 +589,18 @@ wss.on("connection", (ws: WebSocket) => {
 
 // -- Rich History Turns (for UI session switching) --------------------------
 
+interface ToolEntry {
+  name: string;
+  detail: string;
+  result: string;
+  isError: boolean;
+}
+
 interface RichTurn {
   role: "user" | "assistant";
   text: string;
   hasImages?: boolean;
-  tools?: Array<{
-    name: string;
-    detail: string;
-    result: string;
-    isError: boolean;
-  }>;
+  toolBatches?: ToolEntry[][];
   usage?: { input_tokens: number; output_tokens: number };
 }
 
@@ -516,7 +612,9 @@ function buildRichTurns(sessionId: string): RichTurn[] {
   const events = eventStore.getSessionEvents(sessionId);
   const turns: RichTurn[] = [];
   let currentAssistant: RichTurn | null = null;
-  const toolMap = new Map<string, NonNullable<RichTurn["tools"]>[0]>();
+  let currentBatch: ToolEntry[] | null = null;
+  let lastEventWasToolResult = false;
+  const toolMap = new Map<string, ToolEntry>();
 
   for (const event of events) {
     switch (event.type) {
@@ -528,13 +626,23 @@ function buildRichTurns(sessionId: string): RichTurn[] {
         const data = event.data as UserInstructionData;
         turns.push({ role: "user", text: data.message, hasImages: data.has_images });
         toolMap.clear();
+        currentBatch = null;
+        lastEventWasToolResult = false;
         break;
       }
       case "tool_call": {
         if (!currentAssistant) {
-          currentAssistant = { role: "assistant", text: "", tools: [] };
+          currentAssistant = { role: "assistant", text: "", toolBatches: [] };
         }
-        if (!currentAssistant.tools) currentAssistant.tools = [];
+        if (!currentAssistant.toolBatches) currentAssistant.toolBatches = [];
+
+        // Start a new batch if this is the first tool call or if previous event
+        // was a tool_result (meaning a new iteration started)
+        if (!currentBatch || lastEventWasToolResult) {
+          currentBatch = [];
+          currentAssistant.toolBatches.push(currentBatch);
+        }
+
         const data = event.data as ToolCallData;
         const detail = Object.entries(data.input)
           .slice(0, 3)
@@ -548,9 +656,10 @@ function buildRichTurns(sessionId: string): RichTurn[] {
             return `${k}: ${val}`;
           })
           .join(", ");
-        const toolEntry = { name: data.name, detail, result: "", isError: false };
-        currentAssistant.tools.push(toolEntry);
+        const toolEntry: ToolEntry = { name: data.name, detail, result: "", isError: false };
+        currentBatch.push(toolEntry);
         toolMap.set(data.tool_use_id, toolEntry);
+        lastEventWasToolResult = false;
         break;
       }
       case "tool_result": {
@@ -560,6 +669,7 @@ function buildRichTurns(sessionId: string): RichTurn[] {
           tool.result = data.result;
           tool.isError = data.is_error;
         }
+        lastEventWasToolResult = true;
         break;
       }
       case "assistant_response": {
@@ -571,6 +681,8 @@ function buildRichTurns(sessionId: string): RichTurn[] {
         currentAssistant.usage = data.usage;
         turns.push(currentAssistant);
         currentAssistant = null;
+        currentBatch = null;
+        lastEventWasToolResult = false;
         toolMap.clear();
         break;
       }
@@ -615,6 +727,48 @@ function extractDomainEvents(sessionId: string, toolName: string, resultJson: st
         },
         asset_type: null,
       } as NewEvent<"memory_read">);
+    }
+    if (toolName === "write_tile" && result.tile_id != null) {
+      eventStore.append(sessionId, {
+        type: "sprite_edit",
+        data: {
+          tile_id: result.tile_id,
+          description: `Wrote tile ${result.tile_id} to ${result.target ?? "chrRam"}`,
+        } as SpriteEditData,
+        asset_type: "tile",
+      } as NewEvent<"sprite_edit">);
+    }
+    if (toolName === "record_mapping" && result.recorded) {
+      const confidence = result.confidence ?? 1;
+      if (confidence >= 1) {
+        eventStore.append(sessionId, {
+          type: "mapping_discovered",
+          data: {
+            address: 0,
+            asset_type: result.mapping_type === "address" ? null : result.mapping_type,
+            description: `${result.mapping_type}:${result.id} → ${result.name}${result.notes ? ` (${result.notes})` : ""}`,
+            confirmed: true,
+          } as MappingDiscoveredData,
+          asset_type: result.mapping_type === "tile" ? "tile"
+            : result.mapping_type === "palette" ? "palette"
+            : result.mapping_type === "sprite" ? "sprite"
+            : null,
+        } as NewEvent<"mapping_discovered">);
+      } else {
+        eventStore.append(sessionId, {
+          type: "mapping_hypothesis",
+          data: {
+            address: 0,
+            asset_type: result.mapping_type === "address" ? null : result.mapping_type,
+            description: `${result.mapping_type}:${result.id} → ${result.name}${result.notes ? ` (${result.notes})` : ""}`,
+            confidence,
+          } as MappingHypothesisData,
+          asset_type: result.mapping_type === "tile" ? "tile"
+            : result.mapping_type === "palette" ? "palette"
+            : result.mapping_type === "sprite" ? "sprite"
+            : null,
+        } as NewEvent<"mapping_hypothesis">);
+      }
     }
   } catch {
     // Non-JSON result or missing fields — skip domain event extraction

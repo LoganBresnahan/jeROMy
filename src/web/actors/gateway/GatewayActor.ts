@@ -35,16 +35,18 @@ import type { ActorConfig } from '../../state/types.js';
 // Rich Turn (returned by server for history load)
 // ============================================
 
+interface ToolEntry {
+  name: string;
+  detail: string;
+  result: string;
+  isError: boolean;
+}
+
 interface RichTurn {
   role: 'user' | 'assistant';
   text: string;
   hasImages?: boolean;
-  tools?: Array<{
-    name: string;
-    detail: string;
-    result: string;
-    isError: boolean;
-  }>;
+  toolBatches?: ToolEntry[][];
   usage?: { input_tokens: number; output_tokens: number };
 }
 
@@ -366,6 +368,9 @@ export class GatewayActor extends EventStateActor {
     // Error responses
     if (msg.error) {
       this.sidebar.log(`Error [${action}]: ${msg.error}`, 'error');
+      if (action === 'screenshot') {
+        this.sidebar.screenshotFailed();
+      }
       return;
     }
 
@@ -384,6 +389,26 @@ export class GatewayActor extends EventStateActor {
       case 'get_lua_logs': {
         const luaResult = msg.result as { logs: Array<{ ts: number; msg: string }>; overflow?: number };
         this.sidebar.handleLuaLogs(luaResult.logs, luaResult.overflow);
+        break;
+      }
+      case 'pause_emulator':
+        this.sidebar.setEmulatorPaused(true);
+        this.sidebar.log('Emulator paused', 'info');
+        break;
+      case 'resume_emulator':
+        this.sidebar.setEmulatorPaused(false);
+        this.sidebar.log('Emulator resumed', 'info');
+        break;
+      case 'step_frame': {
+        const stepResult = msg.result as { stepped: number; paused: boolean };
+        this.sidebar.log(`Stepped ${stepResult.stepped} frame(s)`, 'info');
+        // Request a screenshot so the user can see the stepped frame
+        this.send('screenshot');
+        break;
+      }
+      case 'get_emulator_status': {
+        const statusResult = msg.result as { paused: boolean };
+        this.sidebar.setEmulatorPaused(statusResult.paused);
         break;
       }
       default:
@@ -747,24 +772,26 @@ export class GatewayActor extends EventStateActor {
         const text = turn.hasImages ? `${turn.text}\n[attached screenshot]` : turn.text;
         this.virtualList.addTextSegment(turnId, text);
       } else {
-        // Assistant turn: tools → tool results → text → usage
-        if (turn.tools && turn.tools.length > 0) {
-          this.virtualList.startToolBatch(
-            turnId,
-            turn.tools.map((t) => ({ name: t.name, detail: t.detail }))
-          );
-          turn.tools.forEach((t, i) => {
-            this.virtualList.updateToolInCurrentBatch(
+        // Assistant turn: tool batches → tool results → text → usage
+        if (turn.toolBatches && turn.toolBatches.length > 0) {
+          for (const batch of turn.toolBatches) {
+            this.virtualList.startToolBatch(
               turnId,
-              i,
-              t.isError ? 'error' : 'done'
+              batch.map((t) => ({ name: t.name, detail: t.detail }))
             );
-          });
-          this.virtualList.completeCurrentToolBatch(turnId);
+            batch.forEach((t, i) => {
+              this.virtualList.updateToolInCurrentBatch(
+                turnId,
+                i,
+                t.isError ? 'error' : 'done'
+              );
+            });
+            this.virtualList.completeCurrentToolBatch(turnId);
 
-          for (const tool of turn.tools) {
-            if (tool.result) {
-              this.virtualList.addToolResult(turnId, tool.name, tool.result, tool.isError);
+            for (const tool of batch) {
+              if (tool.result) {
+                this.virtualList.addToolResult(turnId, tool.name, tool.result, tool.isError);
+              }
             }
           }
         }

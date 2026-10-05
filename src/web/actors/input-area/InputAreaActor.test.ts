@@ -347,6 +347,36 @@ describe('InputAreaActor', () => {
       const preview = query(element, '#attachPreview');
       expect(preview?.classList.contains('visible')).toBe(false);
     });
+
+    it('attachImage sets custom media type and label for uploads', () => {
+      createActor();
+      actor.attachImage('AAAA==', 'image/jpeg', 'upload');
+
+      const label = query(element, '#attachLabel');
+      expect(label?.textContent).toContain('Image attached');
+
+      const thumb = query(element, '#attachThumb') as HTMLImageElement;
+      expect(thumb.src).toContain('data:image/jpeg;base64,');
+    });
+
+    it('attachScreenshot sets frame label', () => {
+      createActor();
+      actor.attachScreenshot('AAAA==');
+
+      const label = query(element, '#attachLabel');
+      expect(label?.textContent).toContain('Frame attached');
+    });
+
+    it('clearAttachment resets media type', () => {
+      createActor();
+      actor.attachImage('AAAA==', 'image/jpeg', 'upload');
+      actor.clearAttachment();
+
+      // Re-attach as screenshot — should be PNG
+      actor.attachScreenshot('BBBB==');
+      const thumb = query(element, '#attachThumb') as HTMLImageElement;
+      expect(thumb.src).toContain('data:image/png;base64,');
+    });
   });
 
   // ========================================

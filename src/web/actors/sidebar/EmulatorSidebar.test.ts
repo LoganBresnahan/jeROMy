@@ -397,9 +397,13 @@ describe('EmulatorSidebar', () => {
       createSidebar();
       sidebar.startAutoRefresh();
 
-      vi.advanceTimersByTime(500);
+      // Simulate screenshot response after each tick to reset in-flight flag
+      for (let i = 0; i < 5; i++) {
+        vi.advanceTimersByTime(100);
+        sidebar.renderScreenshot('AAAA==');
+      }
 
-      // 100ms interval, 500ms = 5 calls
+      // 100ms interval, 5 ticks = 5 calls
       expect(mockGateway.send).toHaveBeenCalledWith('screenshot');
       expect(mockGateway.send.mock.calls.filter(
         (c: any[]) => c[0] === 'screenshot'
@@ -423,7 +427,12 @@ describe('EmulatorSidebar', () => {
       createSidebar();
       sidebar.startAutoRefresh();
 
-      vi.advanceTimersByTime(200);
+      // Simulate 2 ticks with responses
+      vi.advanceTimersByTime(100);
+      sidebar.renderScreenshot('AAAA==');
+      vi.advanceTimersByTime(100);
+      sidebar.renderScreenshot('AAAA==');
+
       sidebar.stopAutoRefresh();
       vi.advanceTimersByTime(500);
 
@@ -523,6 +532,87 @@ describe('EmulatorSidebar', () => {
       // After clear, there should be a "Logs cleared" message
       expect(logEl.children.length).toBe(1);
       expect(logEl.textContent).toContain('Logs cleared');
+    });
+  });
+
+  // ========================================
+  // Emulator Pause State
+  // ========================================
+
+  describe('Emulator Pause State', () => {
+    it('setEmulatorPaused(true) updates status text', () => {
+      createSidebar();
+      // Simulate connected state
+      const dot = document.getElementById('statusDot')!;
+      dot.classList.add('connected');
+      const text = document.getElementById('statusText')!;
+      text.textContent = 'Connected';
+
+      sidebar.setEmulatorPaused(true);
+
+      expect(text.textContent).toBe('Connected (Paused)');
+      expect(sidebar.isPaused).toBe(true);
+    });
+
+    it('setEmulatorPaused(false) restores status text', () => {
+      createSidebar();
+      const dot = document.getElementById('statusDot')!;
+      dot.classList.add('connected');
+      const text = document.getElementById('statusText')!;
+      text.textContent = 'Connected';
+
+      sidebar.setEmulatorPaused(true);
+      sidebar.setEmulatorPaused(false);
+
+      expect(text.textContent).toBe('Connected');
+      expect(sidebar.isPaused).toBe(false);
+    });
+
+    it('setEmulatorPaused(true) stops auto-refresh if running', () => {
+      vi.useFakeTimers();
+      createSidebar();
+      sidebar.startAutoRefresh();
+
+      sidebar.setEmulatorPaused(true);
+
+      // Auto-refresh should have been stopped
+      mockGateway.send.mockClear();
+      vi.advanceTimersByTime(500);
+      expect(mockGateway.send).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it('pause-emu button sends pause_emulator command', () => {
+      createSidebar();
+      const btn = document.createElement('button');
+      btn.setAttribute('data-action', 'pause-emu');
+      container.appendChild(btn);
+
+      btn.click();
+
+      expect(mockGateway.send).toHaveBeenCalledWith('pause_emulator');
+    });
+
+    it('resume-emu button sends resume_emulator command', () => {
+      createSidebar();
+      const btn = document.createElement('button');
+      btn.setAttribute('data-action', 'resume-emu');
+      container.appendChild(btn);
+
+      btn.click();
+
+      expect(mockGateway.send).toHaveBeenCalledWith('resume_emulator');
+    });
+
+    it('step-frame button sends step_frame command', () => {
+      createSidebar();
+      const btn = document.createElement('button');
+      btn.setAttribute('data-action', 'step-frame');
+      container.appendChild(btn);
+
+      btn.click();
+
+      expect(mockGateway.send).toHaveBeenCalledWith('step_frame', { count: 1 });
     });
   });
 

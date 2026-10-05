@@ -1,6 +1,6 @@
 # Testing Guide
 
-jeROMy uses [Vitest](https://vitest.dev/) for all tests. The test suite has **726 tests across 36 files** covering the agent, bridge, state management, and utility layers.
+jeROMy uses [Vitest](https://vitest.dev/) for all tests. The test suite has **834 tests across 29 files** covering the agent, bridge, state management, mappings, and utility layers.
 
 ## Running Tests
 
@@ -25,13 +25,27 @@ src/
 ├── agent/
 │   ├── agent.test.ts          # Tool loop (mocked provider + adapter)
 │   ├── provider.test.ts       # Provider interface type checks
-│   ├── prompts.test.ts        # System prompt builder
-│   └── tools.test.ts          # Tool definitions + executeTool()
+│   ├── prompts.test.ts        # System prompt builder + emulator state
+│   └── tools.test.ts          # 21 tool definitions + executeTool()
 ├── bridge/mesen/
 │   ├── adapter.test.ts        # MesenAdapter (mocked connection)
 │   ├── connection.test.ts     # TCP connection framing
 │   └── protocol.test.ts       # Protocol type guards + serialization
+├── db/
+│   ├── database.test.ts       # SQLCipher wrapper
+│   ├── eventStore.test.ts     # Append-only event log
+│   ├── sessionManager.test.ts # Session CRUD + forking
+│   └── snapshotManager.test.ts # Context compression
+├── mappings/
+│   └── loader.test.ts         # Mapping file loader + prompt formatting
+├── index.test.ts              # Server integration (WS actions)
 └── web/
+    ├── actors/
+    │   ├── gateway/GatewayActor.test.ts       # WS routing + interleaving
+    │   ├── virtual-list/VirtualListActor.test.ts # Turn management
+    │   ├── turn/TurnActor.test.ts             # Turn rendering
+    │   ├── input-area/InputAreaActor.test.ts   # Chat input
+    │   └── sidebar/EmulatorSidebar.test.ts     # Sidebar + pause state
     ├── state/
     │   ├── EventStateActor.test.ts       # Actor lifecycle, pub/sub
     │   ├── EventStateManager.test.ts     # Manager registration, broadcast
@@ -119,13 +133,13 @@ This provides `document`, `HTMLElement`, `CustomEvent`, `MutationObserver`, `CSS
 ### Agent Tests
 
 - **agent.test.ts**: Tests the tool loop with a mocked `LLMProvider` that returns predefined responses. Verifies iteration flow, tool execution, abort handling, and event yielding.
-- **tools.test.ts**: Tests tool definitions (names, schemas, required params) and the `executeTool()` dispatcher. Verifies default parameters, error handling, and screenshot result type.
-- **prompts.test.ts**: Tests system prompt construction with and without runtime context.
+- **tools.test.ts**: Tests 21 tool definitions (names, schemas, required params) and the `executeTool()` dispatcher. Verifies default parameters, error handling, screenshot result type, and emulator control tools.
+- **prompts.test.ts**: Tests system prompt construction with and without runtime context, including emulator PAUSED/RUNNING state and game mapping injection.
 - **provider.test.ts**: Type-level tests for the provider interface.
 
 ### Bridge Tests
 
-- **adapter.test.ts**: Tests all 15+ adapter methods by mocking the connection's `request()` function. Verifies parameter passing and return types.
+- **adapter.test.ts**: Tests all 19 adapter methods (including emulator control: pause, resume, step, status) by mocking the connection's `request()` function. Verifies parameter passing and return types.
 - **connection.test.ts**: Tests TCP message framing and request/response matching.
 - **protocol.test.ts**: Tests `isErrorResponse()` type guard and JSON serialization round-trips.
 

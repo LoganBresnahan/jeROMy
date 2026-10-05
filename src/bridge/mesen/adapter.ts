@@ -18,7 +18,13 @@ import type {
   StateResult,
   PingResult,
   LuaLogsResult,
+  ReadChrTileResult,
+  WriteChrTileResult,
   MemoryType,
+  PauseEmulatorResult,
+  ResumeEmulatorResult,
+  StepFrameResult,
+  EmulatorStatusResult,
 } from "./protocol.js";
 
 export class MesenAdapter {
@@ -139,6 +145,30 @@ export class MesenAdapter {
     return this.conn.request<StateResult>("load_state", { slot });
   }
 
+  /** Read a single 8x8 tile from CHR memory, decoded to a pixel grid. */
+  async readChrTile(
+    tileId: number,
+    source: "chrRom" | "chrRam" = "chrRom"
+  ): Promise<ReadChrTileResult> {
+    return this.conn.request<ReadChrTileResult>("read_chr_tile", {
+      tile_id: tileId,
+      source,
+    });
+  }
+
+  /** Write an 8x8 pixel grid to CHR memory. */
+  async writeChrTile(
+    tileId: number,
+    pixels: number[][],
+    target: "chrRom" | "chrRam" = "chrRam"
+  ): Promise<WriteChrTileResult> {
+    return this.conn.request<WriteChrTileResult>("write_chr_tile", {
+      tile_id: tileId,
+      pixels,
+      target,
+    });
+  }
+
   /** Health check — verify the bridge is responsive. */
   async ping(): Promise<PingResult> {
     return this.conn.request<PingResult>("ping");
@@ -147,6 +177,28 @@ export class MesenAdapter {
   /** Retrieve buffered emu.log entries from the Lua side. */
   async getLuaLogs(since: number = 0): Promise<LuaLogsResult> {
     return this.conn.request<LuaLogsResult>("get_lua_logs", { since });
+  }
+
+  // -- Emulator Control -------------------------------------------------------
+
+  /** Pause the emulator (break execution). */
+  async pauseEmulator(): Promise<PauseEmulatorResult> {
+    return this.conn.request<PauseEmulatorResult>("pause_emulator");
+  }
+
+  /** Resume emulator execution. */
+  async resumeEmulator(): Promise<ResumeEmulatorResult> {
+    return this.conn.request<ResumeEmulatorResult>("resume_emulator");
+  }
+
+  /** Advance the emulator by N frames (default 1) while keeping it paused. */
+  async stepFrame(count: number = 1): Promise<StepFrameResult> {
+    return this.conn.request<StepFrameResult>("step_frame", { count });
+  }
+
+  /** Query the current emulator pause/run state. */
+  async getEmulatorStatus(): Promise<EmulatorStatusResult> {
+    return this.conn.request<EmulatorStatusResult>("get_emulator_status");
   }
 
   /** Send a raw request — for debugging and discovery. */

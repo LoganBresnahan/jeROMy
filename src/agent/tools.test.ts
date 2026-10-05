@@ -17,6 +17,23 @@ describe("agentTools", () => {
     expect(names).toContain("save_state");
     expect(names).toContain("load_state");
     expect(names).toContain("disassemble");
+    // Phase 4 tools
+    expect(names).toContain("read_tile");
+    expect(names).toContain("write_tile");
+    expect(names).toContain("read_nametable");
+    expect(names).toContain("write_nametable");
+    expect(names).toContain("write_sprite");
+    expect(names).toContain("record_mapping");
+    // Emulator control tools
+    expect(names).toContain("pause_emulator");
+    expect(names).toContain("resume_emulator");
+    expect(names).toContain("step_frame");
+  });
+
+  it("includes extract_sprite and find_unused_tiles tools", () => {
+    const names = agentTools.map((t) => t.name);
+    expect(names).toContain("extract_sprite");
+    expect(names).toContain("find_unused_tiles");
   });
 
   it("each tool has name, description, and valid input_schema", () => {
@@ -57,6 +74,29 @@ describe("executeTool", () => {
       clearPaletteOverrides: vi.fn().mockResolvedValue({ cleared: 4 }),
       saveState: vi.fn().mockResolvedValue({ slot: 0, action: "saved" }),
       loadState: vi.fn().mockResolvedValue({ slot: 0, action: "loaded" }),
+      readChrTile: vi.fn().mockResolvedValue({
+        tile_id: 0xB4,
+        source: "chrRom",
+        pixels: [
+          [0, 0, 0, 0, 1, 1, 2, 2],
+          [0, 0, 1, 1, 2, 2, 2, 2],
+          [0, 1, 2, 2, 2, 2, 2, 2],
+          [1, 2, 2, 2, 2, 2, 2, 2],
+          [1, 2, 2, 2, 2, 2, 2, 2],
+          [0, 1, 2, 2, 2, 2, 2, 2],
+          [0, 0, 1, 1, 2, 2, 2, 2],
+          [0, 0, 0, 0, 1, 1, 2, 2],
+        ],
+      }),
+      writeChrTile: vi.fn().mockResolvedValue({
+        tile_id: 0xB4,
+        target: "chrRam",
+        rows_written: 8,
+      }),
+      pauseEmulator: vi.fn().mockResolvedValue({ paused: true }),
+      resumeEmulator: vi.fn().mockResolvedValue({ resumed: true }),
+      stepFrame: vi.fn().mockResolvedValue({ stepped: 1, paused: true }),
+      getEmulatorStatus: vi.fn().mockResolvedValue({ paused: false }),
       ...overrides,
     } as any;
   }
@@ -166,5 +206,506 @@ describe("executeTool", () => {
     await expect(executeTool("get_cpu_state", {}, adapter)).rejects.toThrow(
       "bridge disconnected"
     );
+  });
+
+  // -- Phase 4 Tool Tests ---------------------------------------------------
+
+  it("read_tile returns ASCII art preview and pixel data", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool("read_tile", { tile_id: 0xB4 }, adapter);
+
+    expect(adapter.readChrTile).toHaveBeenCalledWith(0xB4, "chrRom");
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("$B4");
+      // ASCII art uses . 1 2 3 characters
+      expect(result.text).toContain(". . . . 1 1 2 2");
+      expect(result.text).toContain("Raw pixels:");
+    }
+  });
+
+  it("read_tile includes tile name from mapping", async () => {
+    const adapter = mockAdapter();
+    const mapping = {
+      tiles: { "0xB4": { name: "cloud-top-left", category: "background" as const } },
+    } as any;
+    const result = await executeTool("read_tile", { tile_id: 0xB4 }, adapter, null, mapping);
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("cloud-top-left");
+    }
+  });
+
+  it("read_tile uses chrRam source when specified", async () => {
+    const adapter = mockAdapter();
+    await executeTool("read_tile", { tile_id: 10, source: "chrRam" }, adapter);
+    expect(adapter.readChrTile).toHaveBeenCalledWith(10, "chrRam");
+  });
+
+  it("write_tile calls writeChrTile with correct params", async () => {
+    const adapter = mockAdapter();
+    const pixels = Array.from({ length: 8 }, () => Array(8).fill(0));
+    pixels[0][0] = 3;
+
+    const result = await executeTool(
+      "write_tile",
+      { tile_id: 0xB4, pixels, target: "chrRam" },
+      adapter
+    );
+
+    expect(adapter.writeChrTile).toHaveBeenCalledWith(0xB4, pixels, "chrRam");
+    expect(result.type).toBe("text");
+  });
+
+  it("write_tile warns when writing to chrRom", async () => {
+    const adapter = mockAdapter();
+    const pixels = Array.from({ length: 8 }, () => Array(8).fill(0));
+
+    const result = await executeTool(
+      "write_tile",
+      { tile_id: 1, pixels, target: "chrRom" },
+      adapter
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("CHR ROM");
+    }
+  });
+
+  it("write_tile rejects invalid pixel grid dimensions", async () => {
+    const adapter = mockAdapter();
+    const badPixels = [[0, 0], [1, 1]]; // Only 2x2 instead of 8x8
+
+    const result = await executeTool(
+      "write_tile",
+      { tile_id: 1, pixels: badPixels },
+      adapter
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("Error");
+      expect(result.text).toContain("8x8");
+    }
+  });
+
+  it("read_nametable reads tile IDs from PPU memory", async () => {
+    const adapter = mockAdapter({
+      readMemory: vi.fn().mockResolvedValue({ bytes: [0x24] }),
+    });
+    const result = await executeTool(
+      "read_nametable",
+      { x: 0, y: 0, width: 2, height: 2 },
+      adapter
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("Nametable 0");
+      expect(result.text).toContain("24"); // tile ID in hex
+    }
+    // Should read both nametable and attribute bytes
+    expect(adapter.readMemory).toHaveBeenCalled();
+  });
+
+  it("write_nametable writes tile IDs to PPU memory", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool(
+      "write_nametable",
+      { x: 0, y: 0, tile_ids: [[1, 2], [3, 4]] },
+      adapter
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      const parsed = JSON.parse(result.text);
+      expect(parsed.tiles_written).toBe(4);
+    }
+    expect(adapter.writeMemory).toHaveBeenCalled();
+  });
+
+  it("record_mapping returns confirmation with event type", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool(
+      "record_mapping",
+      { mapping_type: "tile", id: "0xB4", name: "cloud-top-left", confidence: 1 },
+      adapter
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      const parsed = JSON.parse(result.text);
+      expect(parsed.recorded).toBe(true);
+      expect(parsed.event_type).toBe("mapping_discovered");
+    }
+  });
+
+  it("record_mapping returns hypothesis for low confidence", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool(
+      "record_mapping",
+      { mapping_type: "tile", id: "0x45", name: "maybe-question-block", confidence: 0.7 },
+      adapter
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      const parsed = JSON.parse(result.text);
+      expect(parsed.event_type).toBe("mapping_hypothesis");
+      expect(parsed.confidence).toBe(0.7);
+    }
+  });
+
+  // -- Emulator Control Tool Tests -------------------------------------------
+
+  it("pause_emulator calls adapter.pauseEmulator", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool("pause_emulator", {}, adapter);
+
+    expect(adapter.pauseEmulator).toHaveBeenCalled();
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      const parsed = JSON.parse(result.text);
+      expect(parsed.paused).toBe(true);
+    }
+  });
+
+  it("resume_emulator calls adapter.resumeEmulator", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool("resume_emulator", {}, adapter);
+
+    expect(adapter.resumeEmulator).toHaveBeenCalled();
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      const parsed = JSON.parse(result.text);
+      expect(parsed.resumed).toBe(true);
+    }
+  });
+
+  it("step_frame defaults count to 1", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool("step_frame", {}, adapter);
+
+    expect(adapter.stepFrame).toHaveBeenCalledWith(1);
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      const parsed = JSON.parse(result.text);
+      expect(parsed.stepped).toBe(1);
+    }
+  });
+
+  it("step_frame passes explicit count", async () => {
+    const adapter = mockAdapter({
+      stepFrame: vi.fn().mockResolvedValue({ stepped: 10, paused: true }),
+    });
+    const result = await executeTool("step_frame", { count: 10 }, adapter);
+
+    expect(adapter.stepFrame).toHaveBeenCalledWith(10);
+    if (result.type === "text") {
+      const parsed = JSON.parse(result.text);
+      expect(parsed.stepped).toBe(10);
+    }
+  });
+
+  // -- write_tile ASCII preview -----------------------------------------------
+
+  it("write_tile returns ASCII art preview of written pixels", async () => {
+    const adapter = mockAdapter();
+    const pixels = Array.from({ length: 8 }, () => Array(8).fill(0));
+    pixels[0][0] = 3;
+    pixels[0][1] = 3;
+    pixels[0][2] = 3;
+
+    const result = await executeTool(
+      "write_tile",
+      { tile_id: 0x10, pixels, target: "chrRam" },
+      adapter
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("Preview:");
+      expect(result.text).toContain("3 3 3 . . . . .");
+      expect(result.text).toContain("Wrote tile $10");
+      expect(result.text).toContain("chrRam");
+    }
+  });
+
+  // -- write_sprite -----------------------------------------------------------
+
+  it("write_sprite splits 16x16 grid into 4 tiles and places in nametable", async () => {
+    const adapter = mockAdapter();
+    const pixels = Array.from({ length: 16 }, () => Array(16).fill(1));
+    pixels[0][0] = 3; // top-left quadrant marker
+    pixels[0][8] = 2; // top-right quadrant marker
+
+    const result = await executeTool(
+      "write_sprite",
+      { pixels, x: 5, y: 10, start_tile_id: 0xF0, target: "chrRam" },
+      adapter
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("4 tiles");
+      expect(result.text).toContain("2x2");
+      expect(result.text).toContain("$F0");
+      expect(result.text).toContain("$F3");
+      expect(result.text).toContain("Preview");
+    }
+
+    // Should have written 4 tiles to CHR
+    expect(adapter.writeChrTile).toHaveBeenCalledTimes(4);
+    // Should have placed 4 entries in the nametable
+    expect(adapter.writeMemory).toHaveBeenCalledTimes(4);
+  });
+
+  it("write_sprite rejects non-multiple-of-tile_size dimensions", async () => {
+    const adapter = mockAdapter();
+    const pixels = Array.from({ length: 10 }, () => Array(10).fill(0));
+
+    const result = await executeTool(
+      "write_sprite",
+      { pixels, x: 0, y: 0, start_tile_id: 0 },
+      adapter
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("Error");
+      expect(result.text).toContain("multiples of 8");
+    }
+  });
+
+  it("write_sprite supports custom tile_size", async () => {
+    const adapter = mockAdapter();
+    // 16x16 grid with tile_size=16 should produce exactly 1 tile
+    const pixels = Array.from({ length: 16 }, () => Array(16).fill(2));
+
+    const result = await executeTool(
+      "write_sprite",
+      { pixels, x: 0, y: 0, start_tile_id: 0xA0, tile_size: 16 },
+      adapter
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("1 tiles");
+      expect(result.text).toContain("1x1");
+    }
+    expect(adapter.writeChrTile).toHaveBeenCalledTimes(1);
+  });
+
+  it("write_sprite warns when writing to chrRom", async () => {
+    const adapter = mockAdapter();
+    const pixels = Array.from({ length: 8 }, () => Array(8).fill(0));
+
+    const result = await executeTool(
+      "write_sprite",
+      { pixels, x: 0, y: 0, start_tile_id: 0, target: "chrRom" },
+      adapter
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("WARNING");
+      expect(result.text).toContain("CHR ROM");
+    }
+  });
+
+  // -- extract_sprite ---------------------------------------------------------
+
+  it("extract_sprite quantizes a solid-color 8x8 region", async () => {
+    const adapter = mockAdapter({
+      // Palette with black, red, orange, white
+      getPalette: vi.fn().mockResolvedValue({
+        palette_id: 0,
+        colors: [0x0F, 0x16, 0x27, 0x30],
+      }),
+    });
+
+    // Create a simple 8x8 RGBA image — all bright red (close to NES $16 = rgb 164,34,0)
+    const width = 8, height = 8;
+    const data = Buffer.alloc(width * height * 4);
+    for (let i = 0; i < width * height; i++) {
+      data[i * 4 + 0] = 170; // R
+      data[i * 4 + 1] = 30;  // G
+      data[i * 4 + 2] = 5;   // B
+      data[i * 4 + 3] = 255; // A (fully opaque)
+    }
+
+    const imageStore = new Map([
+      ["image_0", { data, width, height }],
+    ]);
+
+    const result = await executeTool(
+      "extract_sprite",
+      { x: 0, y: 0, width: 8, height: 8, palette_id: 0 },
+      adapter, null, null, imageStore,
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("8x8");
+      expect(result.text).toContain("pixels:");
+      expect(result.text).toContain("Preview:");
+      expect(result.text).toContain("Palette 0");
+    }
+  });
+
+  it("extract_sprite treats transparent pixels as palette index 0", async () => {
+    const adapter = mockAdapter({
+      getPalette: vi.fn().mockResolvedValue({
+        palette_id: 4,
+        colors: [0x0F, 0x30, 0x16, 0x12],
+      }),
+    });
+
+    const width = 8, height = 8;
+    const data = Buffer.alloc(width * height * 4); // all zeroes = transparent black
+
+    const imageStore = new Map([
+      ["image_0", { data, width, height }],
+    ]);
+
+    const result = await executeTool(
+      "extract_sprite",
+      { x: 0, y: 0, width: 8, height: 8, palette_id: 4 },
+      adapter, null, null, imageStore,
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      // All transparent → all palette index 0
+      const match = result.text.match(/pixels: (\[.*\])/);
+      expect(match).toBeTruthy();
+      const pixels = JSON.parse(match![1]);
+      const allZero = pixels.every((row: number[]) => row.every((p: number) => p === 0));
+      expect(allZero).toBe(true);
+    }
+  });
+
+  it("extract_sprite returns error when no images uploaded", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool(
+      "extract_sprite",
+      { x: 0, y: 0, width: 8, height: 8, palette_id: 0 },
+      adapter, null, null, new Map(),
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("Error");
+      expect(result.text).toContain("No reference images");
+    }
+  });
+
+  it("extract_sprite validates crop bounds", async () => {
+    const adapter = mockAdapter({
+      getPalette: vi.fn().mockResolvedValue({
+        palette_id: 0, colors: [0x0F, 0x30, 0x16, 0x12],
+      }),
+    });
+
+    const imageStore = new Map([
+      ["image_0", { data: Buffer.alloc(8 * 8 * 4), width: 8, height: 8 }],
+    ]);
+
+    const result = await executeTool(
+      "extract_sprite",
+      { x: 0, y: 0, width: 100, height: 100, palette_id: 0 },
+      adapter, null, null, imageStore,
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("Error");
+      expect(result.text).toContain("exceeds image bounds");
+    }
+  });
+
+  it("extract_sprite pads dimensions to multiples of 8", async () => {
+    const adapter = mockAdapter({
+      getPalette: vi.fn().mockResolvedValue({
+        palette_id: 0, colors: [0x0F, 0x30, 0x16, 0x12],
+      }),
+    });
+
+    const width = 20, height = 20;
+    const data = Buffer.alloc(width * height * 4, 0xFF); // all white, fully opaque
+
+    const imageStore = new Map([
+      ["image_0", { data, width, height }],
+    ]);
+
+    const result = await executeTool(
+      "extract_sprite",
+      { x: 0, y: 0, width: 13, height: 11, palette_id: 0 },
+      adapter, null, null, imageStore,
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      // 13 → 16, 11 → 16
+      expect(result.text).toContain("16x16");
+    }
+  });
+
+  it("extract_sprite returns error for missing image_id", async () => {
+    const adapter = mockAdapter();
+    const imageStore = new Map([
+      ["image_0", { data: Buffer.alloc(64), width: 8, height: 8 }],
+    ]);
+
+    const result = await executeTool(
+      "extract_sprite",
+      { x: 0, y: 0, width: 8, height: 8, palette_id: 0, image_id: "image_5" },
+      adapter, null, null, imageStore,
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("Error");
+      expect(result.text).toContain("image_5");
+      expect(result.text).toContain("image_0");
+    }
+  });
+
+  // -- find_unused_tiles -------------------------------------------------------
+
+  it("find_unused_tiles identifies tiles not in nametable", async () => {
+    const adapter = mockAdapter({
+      readMemory: vi.fn().mockImplementation(async () => {
+        // All nametable entries use tile IDs 0-9 repeating
+        const bytes = Array.from({ length: 32 }, (_, i) => i % 10);
+        return { bytes };
+      }),
+    });
+
+    const result = await executeTool(
+      "find_unused_tiles",
+      { count: 5 },
+      adapter,
+    );
+
+    expect(result.type).toBe("text");
+    if (result.type === "text") {
+      expect(result.text).toContain("unused tile IDs");
+      // Tile IDs 10+ should all be unused; we asked for 5
+      expect(result.text).toContain("$0A"); // first unused = 10
+    }
+  });
+
+  it("find_unused_tiles reads 30 rows of nametable", async () => {
+    const adapter = mockAdapter({
+      readMemory: vi.fn().mockResolvedValue({ bytes: Array(32).fill(0x24) }),
+    });
+
+    await executeTool("find_unused_tiles", {}, adapter);
+
+    // Should read 30 rows
+    expect(adapter.readMemory).toHaveBeenCalledTimes(30);
   });
 });
