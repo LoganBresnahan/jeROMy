@@ -34,7 +34,7 @@ commit is the record; a file of ticked boxes stops being read.
   write callback on $2000/$2005/$2006 for one frame recording
   `(scanline, value)`, then use the scroll in effect at the clicked
   pixel's scanline. (b) needs a two-phase request in the bridge (install,
-  answer next frame). Until fixed, the pixel picker's context line should
+  answer next frame). Promoted to ADR-0010 and roadmap item 12. Until fixed, the pixel picker's context line should
   say the tile readout assumes no mid-frame scroll change. Found 2026-10-05.
 - **Emulator comes up paused after `scripts/mesen-up.sh` hands the ROM to a
   running Mesen.** `get_emulator_status` reported paused, `screenshot`
@@ -52,6 +52,13 @@ commit is the record; a file of ticked boxes stops being read.
   porting the palette tools (roadmap item 4). Found 2026-10-05.
 
 ## Agent / tools
+
+- **`$`-prefixed hex collides with Markdown emphasis in the chat.** One
+  answer in the 2026-10-05 click session rendered
+  "sky-blue / 29lightgreen∗∗/∗∗29lightgreen∗∗/∗∗1A dark green": bold markers
+  and `$29` mangled each other. Whether dsh's renderer or the model's
+  output is at fault, the cure is on our side: prompt guidance to write hex
+  as `0x29` or in code spans (roadmap item 13). Found 2026-10-05.
 
 - **In the web app the agent still has Bash, read_image and the fs tools**
   despite the dev patch disabling `tool-bash`/`tool-fs`: dsh's web bundle
@@ -72,8 +79,9 @@ commit is the record; a file of ticked boxes stops being read.
 
 - **Model slip on the headless read check (2026-10-05)**: raw values were
   reported correctly, but the summary called NES color 54 ($36, orange) "a
-  duplicate of black". Prompt could carry a short master-palette hue table
-  so the model does not guess hue from index. Note for item 5's prompt work.
+  duplicate of black"; in the click session it again guessed "$29-ish" and
+  "$1A-ish" before reading the table (and recovered). Roadmap item 13: a
+  master-palette hue table in the prompt section.
 
 - **v0.1 agent streams DeepSeek thinking blocks as raw JSON text**
   (`{"type":"thinking",...}` lines in the reply) when run through the
