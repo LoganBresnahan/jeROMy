@@ -21,6 +21,21 @@ commit is the record; a file of ticked boxes stops being read.
 
 ## Bridge
 
+- **`get_tile_at_pixel` resolves the wrong tile on split-scroll frames.**
+  The Lua handler reads `ppu.xScroll`/`ppu.yScroll` from `emu.getState()`
+  at request time. SMB zeroes the scroll in NMI for the fixed status bar and
+  sets the playfield scroll mid-frame after the sprite-0 hit, so the value
+  read during vblank or while paused is 0 and the lookup lands on a sky
+  tile. Seen 2026-10-05 in Logan's click session: readout said tile $24
+  palette 2, the pixel was a pipe rim (palette 0, color $29); the agent
+  caught it by sampling the framebuffer. Fix design: (a) `get_pixel_color`
+  via `emu.getPixel(x, y)` mapped back to a master-palette index, which is
+  ground truth regardless of scroll; (b) a per-scanline scroll capture: a
+  write callback on $2000/$2005/$2006 for one frame recording
+  `(scanline, value)`, then use the scroll in effect at the clicked
+  pixel's scanline. (b) needs a two-phase request in the bridge (install,
+  answer next frame). Until fixed, the pixel picker's context line should
+  say the tile readout assumes no mid-frame scroll change. Found 2026-10-05.
 - **Emulator comes up paused after `scripts/mesen-up.sh` hands the ROM to a
   running Mesen.** `get_emulator_status` reported paused, `screenshot`
   returned an empty PNG, and the first model turn died with a provider 400
@@ -38,6 +53,16 @@ commit is the record; a file of ticked boxes stops being read.
 
 ## Agent / tools
 
+- **In the web app the agent still has Bash, read_image and the fs tools**
+  despite the dev patch disabling `tool-bash`/`tool-fs`: dsh's web bundle
+  already disables those base rows and each agent preset mounts its own
+  tool rows inside its realm, so only headless runs honored our disables.
+  Not simply a bug to fix: in the 2026-10-05 click session the agent used
+  Bash (Python) to crop and annotate the screenshot and sample the exact
+  pixel color, which is how it caught the tile-readout error above.
+  Decision for roadmap item 11: a `jeromy` preset that keeps a read-only
+  shell and `read_image` and drops write/edit, versus no shell at all.
+  Found 2026-10-05.
 - **Unpromoted discoveries die with the process.** `record_mapping` results
   live in memory on the Mesen service until `promote_mappings` writes them.
   A crash or restart between the two loses them; dsh's session log still

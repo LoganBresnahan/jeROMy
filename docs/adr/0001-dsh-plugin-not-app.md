@@ -39,6 +39,12 @@ defaults. Plugins install into named profiles.
 5. The repository, README and GitHub topic (`dsh-plugin`) present jeROMy as a
    plugin.
 
+**Note 2026-10-05 on decision 2.** In the web bundle, tool availability
+is per agent preset (presets mount their own tool rows in a realm; the base
+rows are already disabled), so removing the coding toolbelt is a jeROMy
+agent preset shipped with the bundle, not a patch disabling base ids. The
+patch form still works for the headless profile. Roadmap item 11.
+
 ## Consequences
 
 - `src/web`, `src/db`, `src/server`, `src/index.ts`, `src/agent/agent.ts`

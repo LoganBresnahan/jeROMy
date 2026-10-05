@@ -70,22 +70,17 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       Carry-in: the discovery ledger is per process; move it to a
       `ctx.storageDomain` keyed by ROM SHA1 so an unpromoted discovery
       survives a restart.
-- [ ] **6. Emulator view page.** Built 2026-10-05 (`src/dsh/emulator-view.ts`):
-      loopback page on :9002 with a live view pushed over Server-Sent
-      Events from one shared frame pump (10 fps while running, 1 Hz state
-      while paused, unchanged frames not resent, off-thread decode; measured
-      30 events / 3 s), zoom, pixel picker, pause/step/resume; a click resolves tile + palette
-      through the bridge, highlights the tile, and injects a one-line context
-      into the live agent (`[emulator view] The user clicked pixel ...`).
-      Opened in dsh's right-sidebar Browser tab (enabled in the dev patch).
-      Unit-tested at the HTTP level. Logan confirmed it working in the
-      sidebar 2026-10-05. Found and fixed the same night: a browser tab's
-      open event stream kept the frame pump polling after dsh disposed the
-      plugin scope, crashing headless runs at shutdown; the view now shuts
-      the pump and its streams down with the scope. `scripts/trio.sh`
-      passes all three checks in 47 s. Remaining: the pixel-click injection
-      has only been exercised through `/pick` returning `injected: true`;
-      a person asking the agent about a clicked tile closes this item.
+- [x] **6. Emulator view page.** Done 2026-10-05. Loopback page on :9002,
+      SSE frame pump (10 fps running, 1 Hz paused, unchanged frames not
+      resent), zoom, pixel picker, pause/step/resume, in dsh's right-sidebar
+      Browser. Logan's click check: the agent received the injected context
+      line, froze the frame, cross-checked the readout against the rendered
+      pixels, identified a pipe rim, recorded two mappings, and flagged that
+      the tool's tile readout was wrong. Two carry-ins came out of that run,
+      both in `docs/issues.md`: `get_tile_at_pixel` ignores mid-frame scroll
+      splits (SMB status bar), and in the web app the tool set is governed by
+      the agent preset, not by the base-row disables in our patch.
+
 - [ ] **7. Bundle + profile.** `cordis.patch.yml` that inserts the jeROMy
       plugins and removes the coding-agent tools; setup settings card that
       shows the Lua script path for Mesen. `dsh plugin --profile jeromy add`
@@ -108,6 +103,13 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
   dump-and-diff), `export_rom`, `undo_edit`, `reset_emulator`; (d) mapping
   schema v2 with `rom_origins`; (e) the `persist-edit` skill from the first
   real SMB recolor that survives a reset, with its `trio.sh` check.
+- **11. A `jeromy` agent preset** for the web app: dsh's web bundle
+  disables the base coding tools and lets each agent preset mount its own,
+  so "remove the coding toolbelt" (ADR-0001) is a preset, not a patch row.
+  Decision pending (see issues.md): Logan's click session showed Bash +
+  `read_image` doing useful work (cropping and annotating screenshots,
+  sampling pixel colors), so the preset may keep a read-only shell and
+  image reading and drop only write/edit. Ships with the bundle (item 7).
 - **9. Curated ROM-hacking skills** (ADR-0008): a `skills/` directory in
   the plugin, registered through `ctx.skills`, one procedure per skill,
   model- and user-invocable. First set: `rom-orient`, `palette-swap`,
