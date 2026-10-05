@@ -41,6 +41,13 @@ Adopt that flow here, with `docs/` as the root (this repo already uses it):
 6. `CLAUDE.md` at the root holds the rules, stack, conventions, skills and
    commands. It is not a work tracker; the roadmap is.
 
+**Amendment 2026-10-05.** A fourth skill, `/up`, owns the bring-up:
+`scripts/up.sh` starts dsh with the plugin from source, hands Mesen the ROM
+and `bridge.lua` from WSL, waits for the bridge and prints the URLs;
+`scripts/trio.sh` runs the `/verify` trio headless through dsh and restores
+the web instance. These exist because the sequence was being carried in a
+person's head across sessions, which is exactly what this ADR is against.
+
 ## Consequences
 
 - Each slice costs a little more up front (an ADR, a roadmap tick) and far

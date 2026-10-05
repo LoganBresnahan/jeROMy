@@ -39,6 +39,15 @@ rest is not a requirement for this project.
 5. `src/db` is deleted. Snapshots/context compression are dsh's
    `compaction` concern.
 
+**Amendment 2026-10-05.** Decision 2 is narrowed: jeROMy registers no
+`SessionEventMap` entries for now. dsh's session log already records every
+tool call and result durably and replays them, which covers palette, tile,
+nametable and memory writes (they are tool calls with their arguments and
+`old_color`/old bytes in the result). `record_mapping` discoveries are kept
+in a process-level ledger on the Mesen service and written to the mapping
+file by `promote_mappings`; moving that ledger into a `ctx.storageDomain` is
+the remaining durability gap (roadmap item 5 carry-in).
+
 ## Consequences
 
 - Zero-copy forking is lost; dsh deep-clones seed events. Acceptable at

@@ -30,6 +30,10 @@ Three things fall out of the loop and are the actual assets:
 3. **The mappings**: per-ROM JSON keyed by SHA1 that names tiles, palettes,
    sprites and memory addresses. Discovered in sessions, promoted to files,
    shared with other people.
+4. **The procedures**: curated skills, one per kind of hack (recolor an
+   object, redraw a tile, find a variable), shipped with the plugin and
+   loaded on demand by the model or invoked as a command by the person
+   (ADR-0008).
 
 ## Shape (decided 2026-10-05)
 

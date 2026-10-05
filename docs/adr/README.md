@@ -22,3 +22,5 @@ Template: `_template.md`.
 | [0004](0004-emulator-view-sidebar-page.md) | Emulator view is a loopback page in dsh's sidebar browser | Accepted | 2026-10-05 |
 | [0005](0005-core-plus-adapter-layering.md) | Host-agnostic `core/` plus a thin `dsh/` adapter | Accepted | 2026-10-05 |
 | [0006](0006-documentation-driven-workflow.md) | Documentation-driven workflow: ADRs, roadmap, issues inbox, skills | Accepted | 2026-10-05 |
+| [0007](0007-framebuffer-stream.md) | Push-based binary frame channel for the emulator view, if 10 fps stops being enough | Proposed | 2026-10-05 |
+| [0008](0008-curated-rom-hacking-skills.md) | Ship curated ROM-hacking skills with the plugin, one per procedure | Proposed | 2026-10-05 |

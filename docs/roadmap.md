@@ -7,37 +7,85 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
 
 ## Now
 
-- [ ] **0. Model check.** Run the current stack against DeepSeek's
-      Anthropic-compatible endpoint (`ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`,
-      `DEEPSEEK_API_KEY` is already in the environment). Judge four things on
-      a real ROM: screenshot understanding, reading ASCII tile dumps, a
-      palette edit end to end, tool-call reliability over a multi-step turn.
-      Record cost per turn. If V4.1-Flash fails here, stop and rethink
-      ADR-0002 before anything below.
-- [ ] **1. Scaffold the plugin.** Install dsh (pin the version), create
-      profile `jeromy`, mount a hello plugin from this repo via `--patch`,
-      confirm it loads in the web UI. Decide the package name
-      (`dsh-jeromy`). ADR-0001.
-- [ ] **2. Extract `src/core/`.** Move bridge, adapter, protocol, tool specs,
-      prompt text, mapping loader, disassembler and palette table under
-      `src/core/` with zero dsh imports. Tests move with them. ADR-0005.
-- [ ] **3. Mesen service + screenshot tool.** `ctx.mesen` service wrapping
-      connection+adapter; port `screenshot` to `defineTool` returning an
-      image through `ctx.attachments`. This proves the image path on
-      `deepseek-flash` through dsh. Carry-in: if images inside tool results
-      fail on the OpenAI-compatible route, fall back to `agent.inject()` of a
-      user-turn image and record the finding in ADR-0002.
-- [ ] **4. Port the remaining tools** in groups: palette, memory, CHR tile,
-      nametable/sprite, emulator control, mapping, disassembly. Tool↔test
-      parity holds after each group (`/shipshape`).
-- [ ] **5. Prompt section + mappings + session events.** NES hardware
-      reference, emulator status and the loaded ROM's mapping as a system
-      prompt section. Palette/tile/memory writes and `record_mapping` as
-      `SessionEventMap` entries. Promote-to-file for mappings. ADR-0003.
-- [ ] **6. Emulator view page.** Loopback page served by the plugin: live
-      screenshot, zoom, pixel picker, pause/step/resume. Opened in dsh's
-      sidebar browser. Clicks POST to the plugin, which injects the pixel
-      result into the agent. ADR-0004.
+- [x] **0. Model check.** Done 2026-10-05 against `deepseek-flash` through
+      the Anthropic-compatible endpoint, SMB (World) in Mesen 2.1.1, driven
+      headlessly with `scripts/chat.mjs`. Look: accurate description of the
+      1-1 start screen (4.7k in / 0.5k out tokens, about $0.002 at peak).
+      Read: `get_tile_at_pixel`/`get_palette` values reported verbatim and
+      matching a direct bridge probe. Edit: `write_palette` visible in the
+      next screenshot (title-logo box orange to blue); the agent noticed my
+      prompt had mislabeled that slot as "the ground" and said so rather
+      than claiming success. That turn ran 139 s and 31k in / 22k out tokens
+      because the v0.1 agent streams DeepSeek's thinking blocks as raw text
+      and re-plans around them; dsh handles thinking natively, so this is
+      not a model problem. V4.1-Flash passes; ADR-0002 stands.
+      Automation that fell out: `scripts/mesen-up.sh` (launch Mesen with ROM
+      + Lua from WSL, single-instance handoff works), `scripts/dev-deepseek.sh`,
+      `scripts/chat.mjs`. Findings in `docs/issues.md`.
+- [x] **1. Scaffold the plugin.** Done 2026-10-05. Profile `jeromy`
+      created from the web template; `scripts/dsh-dev.sh` writes a `--patch`
+      overlay (plugin mounted from `src/dsh/index.ts`, `deepseek-flash` as
+      default model, bash/pwsh/fs/fs-search tools disabled) and boots the
+      harness checkout under tsx. `scripts/link-dsh.sh` symlinks the harness
+      workspace packages into `node_modules/@deepseek-ai` so the plugin and
+      the host share one copy of cordis and dsh-tools. Package name
+      `dsh-jeromy` is still only a plan; publishing is item 7.
+- [x] **2. Core boundary.** Done 2026-10-05 in substance: `src/dsh/` is the
+      only directory importing `@deepseek-ai/*` (the `/shipshape` grep enforces
+      it) and it reaches core only through `src/bridge`, `src/agent/tools.ts`,
+      `src/agent/prompts.ts`, `src/mappings`. The physical move into
+      `src/core/` is deferred to item 8, when the dead directories go and the
+      remaining ones can be renamed in one commit.
+- [x] **3. Mesen service + screenshot tool.** Done 2026-10-05. `ctx.mesen`
+      (`src/dsh/mesen-service.ts`) owns the TCP server, resumes a paused
+      emulator on connect, caches ROM info, mapping and pause state for the
+      prompt. First headless turn through dsh: screenshot saved through
+      `ctx.attachments`, delivered to `deepseek-flash` as an image block,
+      described correctly. The image-in-tool-result question from ADR-0002 is
+      answered: it works on the native DeepSeek route.
+- [x] **4. Port the remaining tools.** Done 2026-10-05 for 23 of 24: one
+      mapper (`src/dsh/tools/core-tools.ts`) turns every core spec into a raw
+      JSON-schema dsh ToolDefinition, persists image results as attachments,
+      waits up to 10 s for the bridge, and reports outcomes to the service.
+      Verified headless: `get_tile_at_pixel` + `get_palette` values identical
+      to a direct bridge probe; the edit check (write_palette, screenshot,
+      clear) ran 21 steps in which the model paused, toggled the entry with
+      single-frame steps to isolate the effect, and refused to attribute
+      free-running gameplay differences to the edit. Whole turn about 40k
+      input tokens, nearly all cache hits. Carry-in: `extract_sprite` needs user-uploaded
+      images, which in dsh arrive as attachments on the user message; port it
+      when the emulator view (item 6) or an upload flow exists. Capstone
+      failed under the harness loader (Node required the CommonJS build as
+      ESM because the repo is `type: module`); fixed the same day with
+      `capstone/package.json` scoping that directory to CommonJS.
+- [x] **5. Prompt section + mappings + promote.** Done 2026-10-05, with a
+      scope change: the section is core `buildSystemPrompt` with cached ROM
+      info, mapping and pause state; mappings load from the plugin's
+      `mappings/` by SHA1 on connect; `promote_mappings` (dsh-layer tool)
+      merges this process's confirmed `record_mapping` results into
+      `mappings/sha1-*.json` through core `mergeMappings`/`saveMapping`.
+      Separate `SessionEventMap` entries were dropped: dsh already logs every
+      tool call and result durably, which is what the v0.1 domain events
+      existed to approximate (ADR-0003 amended 2026-10-05).
+      Carry-in: the discovery ledger is per process; move it to a
+      `ctx.storageDomain` keyed by ROM SHA1 so an unpromoted discovery
+      survives a restart.
+- [ ] **6. Emulator view page.** Built 2026-10-05 (`src/dsh/emulator-view.ts`):
+      loopback page on :9002 with a live view pushed over Server-Sent
+      Events from one shared frame pump (10 fps while running, 1 Hz state
+      while paused, unchanged frames not resent, off-thread decode; measured
+      30 events / 3 s), zoom, pixel picker, pause/step/resume; a click resolves tile + palette
+      through the bridge, highlights the tile, and injects a one-line context
+      into the live agent (`[emulator view] The user clicked pixel ...`).
+      Opened in dsh's right-sidebar Browser tab (enabled in the dev patch).
+      Unit-tested at the HTTP level. Logan confirmed it working in the
+      sidebar 2026-10-05. Found and fixed the same night: a browser tab's
+      open event stream kept the frame pump polling after dsh disposed the
+      plugin scope, crashing headless runs at shutdown; the view now shuts
+      the pump and its streams down with the scope. `scripts/trio.sh`
+      passes all three checks in 47 s. Remaining: the pixel-click injection
+      has only been exercised through `/pick` returning `injected: true`;
+      a person asking the agent about a clicked tile closes this item.
 - [ ] **7. Bundle + profile.** `cordis.patch.yml` that inserts the jeROMy
       plugins and removes the coding-agent tools; setup settings card that
       shows the Lua script path for Mesen. `dsh plugin --profile jeromy add`
@@ -51,6 +99,16 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       allowed residual, so remove that clause from `/shipshape`.
 
 ## Next
+
+- **9. Curated ROM-hacking skills** (ADR-0008): a `skills/` directory in
+  the plugin, registered through `ctx.skills`, one procedure per skill,
+  model- and user-invocable. First set: `rom-orient`, `palette-swap`,
+  `tile-redraw`, `sprite-swap`, `find-variable`, `layout-edit`,
+  `promote-and-share`; each with a `trio.sh` check and a shipshape grep
+  that every tool it names exists. Write them from real SMB sessions, not
+  from memory. Standing rule: a procedure is written up the session it is
+  figured out. Drafted so far: `skills/palette-swap/SKILL.md` (from the
+  2026-10-05 edit checks; not yet registered with dsh).
 
 - **Sprite & animation editing** (old Phase 5): OAM inspection/editing,
   multi-tile sprite composition, animation frame identification,
@@ -69,6 +127,9 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
   images, copy/paste between tiles and games.
 - Edit recipes: a replayable script of edits.
 - Second adapter (mGBA or an SNES emulator) to prove the platform layering.
+- Smooth emulator view: a one-way binary frame channel from Lua (ADR-0007,
+  proposed). Try the 20 fps setting first; adopt only when 10 fps is a
+  measured complaint or tool latency rises while the view is open.
 
 ## Shipped (pre-rethink, 2026-02 to 2026-03)
 

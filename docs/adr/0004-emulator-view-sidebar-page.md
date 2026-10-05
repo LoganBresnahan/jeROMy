@@ -1,6 +1,6 @@
 # ADR-0004: Emulator view is a loopback page in dsh's sidebar browser
 
-**Status:** Accepted
+**Status:** Accepted, implemented 2026-10-05 (`src/dsh/emulator-view.ts`, port 9002)
 **Date:** 2026-10-05
 
 ## Context

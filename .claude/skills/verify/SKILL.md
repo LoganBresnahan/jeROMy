@@ -15,20 +15,30 @@ connected, stop and say so; do not simulate a result.
 ## Handle A — v0.1 server (until roadmap item 1)
 
 ```bash
-ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic ANTHROPIC_API_KEY=$DEEPSEEK_API_KEY npm run dev
+scripts/dev-deepseek.sh &            # server on deepseek-flash, :3000 / :9001
+scripts/mesen-up.sh                  # Mesen2 + SMB + bridge.lua, from WSL
+node scripts/chat.mjs "Take a screenshot and describe it" --out .chat-out
 ```
 
-Expect `[Bridge] Mesen Lua client connected`. Open http://localhost:3000.
+Expect `[Bridge] Mesen Lua client connected` in the server log. If the first
+screenshot comes back empty, the emulator is paused (known after a handoff,
+see `docs/issues.md`): send `{"action":"resume_emulator"}` over the
+WebSocket or ask the agent to resume. Screenshots land in `--out`; Read the
+PNGs yourself rather than trusting the description.
 
 ## Handle B — dsh profile (from roadmap item 1)
 
 ```bash
-dsh --profile jeromy --patch ./cordis.yml      # dev: plugin from source
-dsh --profile jeromy --dump-config | grep -i jeromy
+scripts/up.sh          # dsh + Mesen + bridge, prints URLs (see /up)
+scripts/trio.sh        # look, read, edit — headless through dsh, streams saved under .chat-out/
 ```
 
-Expect the jeROMy plugins in the dumped config and the Mesen service
-reporting connected in the plugin's settings card.
+`trio.sh` stops the web dsh for its duration (one process owns the bridge
+port) and restarts it. Read each check's `final` text and the saved JSON
+stream; for `look` and `edit`, also open the attachment PNGs dsh saved
+(under `~/.dsh/attachments/`) rather than trusting the description. For the
+human half, open the right-sidebar Browser at `http://127.0.0.1:9002/`,
+click a tile, and ask the agent about "the pixel I clicked".
 
 ## The standing trio, plus what the change touched
 

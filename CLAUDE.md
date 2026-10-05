@@ -8,13 +8,17 @@ what it learned about the ROM as a shareable mapping.
 **`docs/DIRECTION.md` is the source of truth for product intent.** Read it
 before product-level decisions; keep it updated when scope changes.
 
-## Where we are (2026-10-05)
+## Where we are (2026-10-05, late)
 
-Mid-rethink. jeROMy is becoming a **DeepSeek Harness (dsh) plugin**
-(ADR-0001) on `deepseek-flash` (ADR-0002). The v0.1 standalone stack in
-`src/` (own web UI, SQLCipher store, Anthropic adapter, Node server) still
-runs and is the thing roadmap item 0 tests against; it is deleted at roadmap
-item 8. Plan: `docs/plans/dsh-migration.md`. Build order: `docs/roadmap.md`.
+The dsh plugin runs. `scripts/dsh-dev.sh` boots the `jeromy` profile with
+`src/dsh/index.ts` mounted from source: 23 of 24 core tools registered
+through one mapper, `promote_mappings`, the full NES prompt section with
+live ROM/mapping/pause state, and the emulator view on :9002. Verified
+headless through dsh on `deepseek-flash`: screenshot as attachment, read
+check, and a 21-step edit check. The v0.1 standalone stack in `src/` still
+exists and is deleted at roadmap item 8; items 6 (human check of the view in
+the sidebar) and 7 (bundle + install from a clean machine) are open. Plan:
+`docs/plans/dsh-migration.md`. Build order: `docs/roadmap.md`.
 
 ## Stack
 
@@ -84,15 +88,20 @@ item 8. Plan: `docs/plans/dsh-migration.md`. Build order: `docs/roadmap.md`.
 
 ## Skills & workflows
 
+- `/up` — bring the loop up from WSL in one move (`scripts/up.sh`): dsh
+  profile `jeromy` from source, Mesen2 with ROM + `bridge.lua`, bridge
+  connected, URLs printed. `--down` stops dsh. Run before anything that
+  touches the emulator.
 - `/orient` — session-start bearing: commits + roadmap + docs reconciled
   against memory, drift flagged. Read-only.
 - `/shipshape` — pre-commit verification: tests green twice + typecheck,
   docs current, conventions hold (ADR citations, no escaped TODOs, tool↔test
   parity, Lua handler↔adapter parity, watchdog budget, dsh import boundary).
   Proposes fixes, doesn't apply them.
-- `/verify` — runtime recipe against a live Mesen2: today through
-  `npm run dev`, after roadmap item 1 through `dsh --profile jeromy`.
-  A green `/shipshape` does not discharge it.
+- `/verify` — runtime check against a live Mesen2: `scripts/up.sh` then
+  `scripts/trio.sh` (look, read, edit headless through dsh) plus the human
+  pixel-picker check in the sidebar. A green `/shipshape` does not
+  discharge it.
 - `adr-plan` workflow (`.claude/workflows/adr-plan.js`) — decompose an
   accepted ADR into an effort-ranked, dependency-ordered build checklist
   before implementing it. Output goes to `docs/plans/adr-NNNN-<topic>-build-plan.md`.
@@ -107,5 +116,28 @@ item 8. Plan: `docs/plans/dsh-migration.md`. Build order: `docs/roadmap.md`.
 - `npm run build` — tsc + esbuild web bundle to `dist/`
 - `cd capstone && ./build.sh` — rebuild the Capstone WASM (needs emsdk; the
   built artifacts are gitignored and already present locally)
-- Env: `DEEPSEEK_API_KEY` is set in the shell. For roadmap item 0:
-  `ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic ANTHROPIC_API_KEY=$DEEPSEEK_API_KEY npm run dev`
+- `scripts/dev-deepseek.sh` — the v0.1 server on `deepseek-flash` via
+  DeepSeek's Anthropic-compatible endpoint (needs `DEEPSEEK_API_KEY`, which
+  is set in the shell)
+- `scripts/mesen-up.sh [rom]` — launch or re-point Mesen2 on Windows from
+  WSL with the ROM and `mesen/bridge.lua` (single-instance handoff; default
+  ROM is SMB (World) in `C:\Users\tarsier\Documents`)
+- `node scripts/chat.mjs "<instruction>" [--out DIR]` — headless one-turn
+  chat against the running server; streams tool calls, saves screenshots
+- `scripts/up.sh [rom]` / `scripts/up.sh --down` — the one-move bring-up
+  (dsh + Mesen + bridge wait); `scripts/trio.sh [look|read|edit]` — the
+  headless checks, streams saved under `.chat-out/`
+- `scripts/dsh-dev.sh` — boot the `jeromy` dsh profile with the plugin
+  mounted from `src/dsh/index.ts` (web UI on :3080, bridge on :9001). Runs
+  `scripts/link-dsh.sh` first, which symlinks the harness checkout's
+  packages into `node_modules/@deepseek-ai` (dev only, not committed).
+- Emulator view (ADR-0004): while `scripts/dsh-dev.sh` runs, open the
+  right-sidebar **Browser** in dsh and enter `http://127.0.0.1:9002/`
+  (live screenshot, pixel picker, pause/step/resume). A click injects a
+  `[emulator view] The user clicked pixel ...` line into the live agent.
+  `curl http://127.0.0.1:9002/status` checks it headlessly.
+- Headless turn through dsh (the scripted check):
+  `cd /home/oof/deepseek-harness && pnpm dsh --profile headless --patch /home/oof/jeROMy/.dsh-dev/cordis.yml --json "<task>"`.
+  Only one dsh process can own port 9001 at a time; stop the web one first.
+- dsh source checkout: `/home/oof/deepseek-harness` (pnpm workspace,
+  `dsh-v0.2.1-alpha.1`). Profiles: `~/.dsh/profiles/{web,jeromy}`.
