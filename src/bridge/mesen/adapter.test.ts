@@ -42,6 +42,13 @@ describe("MesenAdapter", () => {
     expect(result.tile_id).toBe(42);
   });
 
+  it("getPixelColor sends get_pixel_color with x and y (ADR-0010)", async () => {
+    mockRequest.mockResolvedValue({ x: 1, y: 2, argb: 0xff88d800, r: 136, g: 216, b: 0 });
+    const result = await adapter.getPixelColor(1, 2);
+    expect(mockRequest).toHaveBeenCalledWith("get_pixel_color", { x: 1, y: 2 });
+    expect(result.g).toBe(216);
+  });
+
   it("getPalette passes palette_id", async () => {
     mockRequest.mockResolvedValue({ palette_id: 3, colors: [0, 1, 2, 3], background_color: 0 });
     const result = await adapter.getPalette(3);

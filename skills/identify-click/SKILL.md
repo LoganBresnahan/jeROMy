@@ -12,8 +12,9 @@ nametable and the PPU scroll. On games with a fixed status bar and a
 scrolling playfield (Super Mario Bros. is one) the scroll the tool reads is
 the status bar's, so the readout can name a sky tile when the user clicked a
 pipe. The rendered frame is ground truth; the readout is a hypothesis.
-Procedure from Logan's click session, 2026-10-05 (draft: step 3 relies on a
-pixel-color tool that is still a carry-in in docs/issues.md).
+Procedure from Logan's click session, 2026-10-05; `get_pixel_color` added
+the same night (ADR-0010) and the picker's context line now ends with the
+rendered color and whether it fits the named palette.
 
 ## Steps
 
@@ -22,14 +23,13 @@ pixel-color tool that is still a carry-in in docs/issues.md).
 2. **Re-query at the same pixel.** `get_tile_at_pixel` with the clicked `x`,
    `y`. Note `scroll_x`/`scroll_y`: a zero scroll during gameplay on a
    side-scroller is the warning sign that the readout is off.
-3. **Check the readout against the pixels.** Look at the screenshot around
-   (x, y). Read the palette the tool named with `get_palette`, and
-   `get_all_palettes` once. If the colors at the click do not belong to the
-   named palette's four entries, the readout is wrong; find the palette whose
-   ramp matches what you see (SMB: `$22 $29 $1A $0F` is sky / light green /
-   dark green / black, the pipe-bush-hill ramp). When `get_pixel_color`
-   exists, use it; until then say which palette the visible colors imply and
-   how confident you are.
+3. **Check the readout against the pixels.** `get_pixel_color` at the
+   clicked (x, y) and at one or two neighbors: its `nes_color` must be one
+   of the named palette's four entries, else the readout is wrong. Then
+   `get_all_palettes` once and find the palette whose entries contain the
+   sampled colors (SMB: `$22 $29 $1A $0F` is periwinkle / lime green /
+   green / black, the pipe-bush-hill ramp). Name hues from the prompt's
+   master-palette table, never from the index alone.
 4. **Name the object.** Describe it as a thing in the game (pipe rim, cloud,
    brick platform), then its tile position and palette. `read_nametable`
    around the position shows the neighboring tile ids, which tells you the

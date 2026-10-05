@@ -11,7 +11,7 @@ before product-level decisions; keep it updated when scope changes.
 ## Where we are (2026-10-05, night)
 
 The dsh plugin is the only stack. `scripts/up.sh` boots the `jeromy`
-profile with `src/dsh/index.ts` mounted from source: 23 of 24 core tools
+profile with `src/dsh/index.ts` mounted from source: 24 of 25 core tools
 registered through one mapper, `promote_mappings`, the full NES prompt
 section with live ROM/mapping/pause state, and the emulator view on :9002.
 Verified headless through dsh on `deepseek-flash` and by Logan's click
@@ -26,7 +26,7 @@ tonight's plan: `docs/plans/overnight-2026-10-05.md`.
 
 - **Keep:** `mesen/bridge.lua` (Lua in Mesen2, JSON over TCP, the only part
   on Windows), `src/bridge/mesen/*` (connection, protocol, adapter),
-  `src/agent/tools.ts` (24 tools), `src/agent/prompts.ts`, `src/mappings/*`
+  `src/agent/tools.ts` (25 tools), `src/agent/prompts.ts`, `src/mappings/*`
   and `mappings/*.json`, `src/agent/disassembler.ts` (Capstone WASM),
   `src/agent/nes-palette.ts`. These move under `src/core/` (ADR-0005).
 - **Target:** `src/dsh/` plugin: Mesen service, `defineTool` mappings,

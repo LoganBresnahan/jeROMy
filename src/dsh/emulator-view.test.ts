@@ -8,6 +8,7 @@ function adapter(overrides: Record<string, unknown> = {}) {
     getEmulatorStatus: vi.fn().mockResolvedValue({ paused: false }),
     getTileAtPixel: vi.fn().mockResolvedValue({ nametable: 0, tile_x: 16, tile_y: 27, tile_id: 182, palette_id: 1, nametable_addr: 9072, attribute_addr: 9204, scroll_x: 0, scroll_y: 0 }),
     getPalette: vi.fn().mockResolvedValue({ palette_id: 1, colors: [15, 54, 23, 15], background_color: 34 }),
+    getPixelColor: vi.fn().mockResolvedValue({ x: 128, y: 220, argb: 0xff803e00, r: 128, g: 62, b: 0 }),
     pauseEmulator: vi.fn().mockResolvedValue({ paused: true }),
     resumeEmulator: vi.fn().mockResolvedValue({ resumed: true }),
     stepFrame: vi.fn().mockResolvedValue({ paused: true, stepped: 1 }),
@@ -26,11 +27,19 @@ async function serve(a = adapter(), inject = vi.fn().mockReturnValue(true), mapp
 
 describe("emulator view (ADR-0004)", () => {
   it("formats the pick context the model receives, with hex ids and palette colors", () => {
-    const text = formatPickContext({ x: 128, y: 220, nametable: 0, tile_x: 16, tile_y: 27, tile_id: 182, palette_id: 1, nametable_addr: 9072, attribute_addr: 9204, scroll_x: 0, scroll_y: 0, palette_colors: [15, 54, 23, 15] } as any);
+    const text = formatPickContext({ x: 128, y: 220, nametable: 0, tile_x: 16, tile_y: 27, tile_id: 182, palette_id: 1, nametable_addr: 9072, attribute_addr: 9204, scroll_x: 0, scroll_y: 0, palette_colors: [15, 54, 23, 15], pixel: { rgb: [128, 62, 0], nes_color: 0x17, name: "brown" } } as any);
+    expect(text).toContain("Rendered color at the pixel: $17 brown (rgb 128,62,0)");
+    expect(text).toContain("consistent");
     expect(text).toContain("clicked pixel (128, 220)");
     expect(text).toContain("tile_id 182 (0xB6)");
     expect(text).toContain("palette 1 [$0F $36 $17 $0F]");
     expect(text).toContain("nametable_addr 0x2370");
+  });
+
+  it("formatPickContext warns when the rendered color is outside the readout's palette (ADR-0010)", () => {
+    const text = formatPickContext({ x: 176, y: 182, nametable: 0, tile_x: 22, tile_y: 22, tile_id: 0x24, palette_id: 2, nametable_addr: 0x22d6, attribute_addr: 0x23f5, scroll_x: 0, scroll_y: 0, palette_colors: [15, 48, 33, 15], pixel: { rgb: [136, 216, 0], nes_color: 0x29, name: "lime green" } } as any);
+    expect(text).toContain("$29 lime green");
+    expect(text).toContain("NOT one of the readout's palette entries");
   });
 
   it("pickPixel resolves tile then palette through the bridge", async () => {

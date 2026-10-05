@@ -70,6 +70,7 @@ sees the close directly).
 |---|---|---|---|
 | `screenshot` | — | `{png_base64, paused?}` | Capture current frame as base64 PNG |
 | `get_tile_at_pixel` | `{x, y}` | `{tile_id, palette_id, tile_x, tile_y, scroll_x, scroll_y, nametable, nametable_addr}` | Tile and palette info at screen pixel |
+| `get_pixel_color` | `{x, y}` | `{x, y, argb, r, g, b}` | Rendered color at a screen pixel via `emu.getPixel`; ground truth on split-scroll frames (ADR-0010) |
 | `get_palette` | `{palette_id}` | `{palette_id, colors[], background_color}` | 4 NES color indices for a palette (0-7) |
 | `write_palette` | `{palette_id, color_index, nes_color}` | `{old_color, new_color, frozen}` | Frozen palette edit — persists across frames |
 | `get_all_palettes` | — | `{palettes[]}` | All 8 palettes (4 BG + 4 sprite) |

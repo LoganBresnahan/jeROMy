@@ -7,7 +7,7 @@ import type { ToolSpec, ContentBlock, StoredImage } from "./types.js";
 import type { MesenAdapter } from "../bridge/mesen/index.js";
 import type { Disassembler, Arch } from "./disassembler.js";
 import type { GameMapping } from "../mappings/types.js";
-import { NES_MASTER_PALETTE_RGB } from "./nes-palette.js";
+import { NES_MASTER_PALETTE_RGB, nearestNesColor, nesColorName } from "./nes-palette.js";
 
 // -- Tool Definitions (JSON Schema for the LLM) -----------------------------
 
@@ -24,7 +24,20 @@ export const agentTools: ToolSpec[] = [
   {
     name: "get_tile_at_pixel",
     description:
-      "Get tile and palette info at a screen pixel coordinate. Returns tile_id, palette_id, tile position, scroll values, and nametable address.",
+      "Get tile and palette info at a screen pixel coordinate. Returns tile_id, palette_id, tile position, scroll values, and nametable address. Uses the PPU scroll at request time, so on games that change scroll mid-frame (fixed status bar + scrolling playfield, e.g. SMB) it can name the wrong tile; confirm with get_pixel_color, whose color is what is actually rendered.",
+    input_schema: {
+      type: "object",
+      properties: {
+        x: { type: "number", description: "X pixel coordinate (0-255)" },
+        y: { type: "number", description: "Y pixel coordinate (0-239)" },
+      },
+      required: ["x", "y"],
+    },
+  },
+  {
+    name: "get_pixel_color",
+    description:
+      "The rendered color at a screen pixel: RGB plus the nearest NES master-palette index and its hue name. Ground truth regardless of scroll splits; use it to check which palette a clicked object really uses (its color must be one of that palette's four entries).",
     input_schema: {
       type: "object",
       properties: {
@@ -686,6 +699,22 @@ export async function executeTool(
         input.y as number
       );
       return { type: "text", text: JSON.stringify(result) };
+    }
+
+    case "get_pixel_color": {
+      const px = await adapter.getPixelColor(input.x as number, input.y as number);
+      const nes = nearestNesColor([px.r, px.g, px.b]);
+      return {
+        type: "text",
+        text: JSON.stringify({
+          x: px.x,
+          y: px.y,
+          rgb: [px.r, px.g, px.b],
+          nes_color: nes,
+          nes_color_hex: `0x${nes.toString(16).toUpperCase().padStart(2, "0")}`,
+          name: nesColorName(nes),
+        }),
+      };
     }
 
     case "get_palette": {

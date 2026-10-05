@@ -6,6 +6,7 @@ describe("agentTools", () => {
     const names = agentTools.map((t) => t.name);
     expect(names).toContain("screenshot");
     expect(names).toContain("get_tile_at_pixel");
+    expect(names).toContain("get_pixel_color");
     expect(names).toContain("get_palette");
     expect(names).toContain("write_palette");
     expect(names).toContain("get_all_palettes");
@@ -64,6 +65,8 @@ describe("executeTool", () => {
     return {
       screenshot: vi.fn().mockResolvedValue({ png_base64: "AAAA" }),
       getTileAtPixel: vi.fn().mockResolvedValue({ tile_id: 1, palette_id: 0 }),
+      // (136,216,0) is SMB's pipe green as Mesen renders $29, sampled by the agent on 2026-10-05.
+      getPixelColor: vi.fn().mockResolvedValue({ x: 176, y: 182, argb: 0xff88d800, r: 136, g: 216, b: 0 }),
       getPalette: vi.fn().mockResolvedValue({ palette_id: 0, colors: [0, 1, 2, 3] }),
       writePalette: vi.fn().mockResolvedValue({ old_color: 0, new_color: 0x27 }),
       getAllPalettes: vi.fn().mockResolvedValue({ palettes: [] }),
@@ -117,6 +120,15 @@ describe("executeTool", () => {
       screenshot: vi.fn().mockResolvedValue({ png_base64: "", paused: true }),
     });
     await expect(executeTool("screenshot", {}, adapter)).rejects.toThrow(/paused.*resume_emulator/);
+  });
+
+  it("get_pixel_color maps the rendered RGB to the nearest NES index and hue name (ADR-0010)", async () => {
+    const adapter = mockAdapter();
+    const result = await executeTool("get_pixel_color", { x: 176, y: 182 }, adapter);
+    expect(adapter.getPixelColor).toHaveBeenCalledWith(176, 182);
+    expect(result.type).toBe("text");
+    const parsed = JSON.parse((result as { text: string }).text);
+    expect(parsed).toMatchObject({ x: 176, y: 182, rgb: [136, 216, 0], nes_color: 0x29, nes_color_hex: "0x29", name: "lime green" });
   });
 
   it("get_tile_at_pixel passes params and returns text", async () => {

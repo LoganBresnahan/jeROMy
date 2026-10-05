@@ -25,6 +25,7 @@ import type {
   ResumeEmulatorResult,
   StepFrameResult,
   EmulatorStatusResult,
+  PixelColorResult,
 } from "./protocol.js";
 
 export class MesenAdapter {
@@ -58,6 +59,11 @@ export class MesenAdapter {
   /** Get tile and palette info at a screen pixel coordinate. */
   async getTileAtPixel(x: number, y: number): Promise<TileAtPixelResult> {
     return this.conn.request<TileAtPixelResult>("get_tile_at_pixel", { x, y });
+  }
+
+  /** Rendered color at a screen pixel; ground truth for what the user sees (ADR-0010). */
+  async getPixelColor(x: number, y: number): Promise<PixelColorResult> {
+    return this.conn.request<PixelColorResult>("get_pixel_color", { x, y });
   }
 
   /** Get the 4 NES color indices for a palette (0-7). */

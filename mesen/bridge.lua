@@ -360,6 +360,29 @@ function handlers.screenshot(params)
 end
 
 -- get_tile_at_pixel: Given screen coordinates, return tile and palette info
+-- get_pixel_color: the rendered ARGB at a screen position (ADR-0010). Ground
+-- truth regardless of mid-frame scroll splits; the TypeScript side maps it to
+-- the nearest master-palette index.
+function handlers.get_pixel_color(params)
+  local x = params.x
+  local y = params.y
+  if not x or not y then
+    error("x and y are required")
+  end
+  if x < 0 or x > 255 or y < 0 or y > 239 then
+    error("x must be 0-255 and y 0-239")
+  end
+  local argb = emu.getPixel(x, y)
+  return {
+    x = x,
+    y = y,
+    argb = argb,
+    r = (argb >> 16) & 0xFF,
+    g = (argb >> 8) & 0xFF,
+    b = argb & 0xFF,
+  }
+end
+
 function handlers.get_tile_at_pixel(params)
   local x = params.x
   local y = params.y

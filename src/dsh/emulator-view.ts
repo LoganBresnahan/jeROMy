@@ -7,6 +7,7 @@
  * it (model-visible means logged, ADR-0003). No dsh client bundle involved.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { nearestNesColor, nesColorName } from "../agent/nes-palette.js";
 import type { MesenAdapter } from "../bridge/mesen/adapter.js";
 import type { TileAtPixelResult } from "../bridge/mesen/protocol.js";
 
@@ -117,6 +118,8 @@ export interface PickResult extends TileAtPixelResult {
   x: number;
   y: number;
   palette_colors: number[];
+  /** Rendered color at the pixel, mapped to the master palette (ADR-0010). */
+  pixel: { rgb: [number, number, number]; nes_color: number; name: string };
   mapping_name?: string;
   injected: boolean;
 }
@@ -124,15 +127,26 @@ export interface PickResult extends TileAtPixelResult {
 /** The sentence the model receives for a pixel click. Stable: tests and prompts refer to it. */
 export function formatPickContext(pick: Omit<PickResult, "injected">): string {
   const colors = pick.palette_colors.map((c) => `$${c.toString(16).toUpperCase().padStart(2, "0")}`).join(" ");
+  const px = pick.pixel;
+  const pxHex = `$${px.nes_color.toString(16).toUpperCase().padStart(2, "0")}`;
+  const inPalette = pick.palette_colors.includes(px.nes_color);
+  // The tile readout uses the scroll at request time; on split-scroll frames
+  // it can be wrong while the rendered color never is (ADR-0010).
+  const caveat = inPalette
+    ? "The rendered color is in that palette, so the readout is consistent."
+    : "That color is NOT one of the readout's palette entries: the tile readout assumes no mid-frame scroll change and is probably wrong here; trust the color.";
   return `[emulator view] The user clicked pixel (${pick.x}, ${pick.y}): nametable ${pick.nametable} tile (${pick.tile_x}, ${pick.tile_y}), `
     + `tile_id ${pick.tile_id} (0x${pick.tile_id.toString(16).toUpperCase().padStart(2, "0")}), palette ${pick.palette_id} [${colors}], `
-    + `nametable_addr 0x${pick.nametable_addr.toString(16).toUpperCase()}, attribute_addr 0x${pick.attribute_addr.toString(16).toUpperCase()}.`;
+    + `nametable_addr 0x${pick.nametable_addr.toString(16).toUpperCase()}, attribute_addr 0x${pick.attribute_addr.toString(16).toUpperCase()}. `
+    + `Rendered color at the pixel: ${pxHex} ${px.name} (rgb ${px.rgb.join(",")}). ${caveat}`;
 }
 
 export async function pickPixel(mesen: MesenAdapter, x: number, y: number): Promise<Omit<PickResult, "injected">> {
   const tile = await mesen.getTileAtPixel(x, y);
   const palette = await mesen.getPalette(tile.palette_id);
-  return { ...tile, x, y, palette_colors: palette.colors };
+  const px = await mesen.getPixelColor(x, y);
+  const nes = nearestNesColor([px.r, px.g, px.b]);
+  return { ...tile, x, y, palette_colors: palette.colors, pixel: { rgb: [px.r, px.g, px.b], nes_color: nes, name: nesColorName(nes) } };
 }
 
 const PAGE = /* html */ `<!doctype html>

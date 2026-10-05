@@ -106,13 +106,17 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
 
 ## Next
 
-- **12. Click correctness** (ADR-0010), first after item 8: `get_pixel_color`
-  from `emu.getPixel` mapped to a master-palette index; `get_tile_at_pixel`
+- **12. Click correctness** (ADR-0010), first after item 8. Part 1 done
+  2026-10-05: `get_pixel_color` (Lua `emu.getPixel` → nearest master-palette
+  index + hue name), the picker's context line ends with the rendered color
+  and says whether it fits the readout's palette, `get_tile_at_pixel`'s
+  description carries the split-scroll caveat, `identify-click` verifies
+  against it (sessions `99da5d7b`, pick route checked). Remaining, per
+  `docs/plans/adr-0010-split-scroll-build-plan.md`: `get_tile_at_pixel`
   using the scroll in effect at the clicked scanline via a one-frame write
   callback on $2000/$2005/$2006; the bridge's first two-phase request
   (`pending` then answer on a later frame), documented in `docs/bridge.md`
-  and reused by `trace_writes` in item 10. Until it lands, the picker's
-  context line says the tile readout assumes no mid-frame scroll change.
+  and reused by `trace_writes` in item 10.
 - [x] **13. Prompt hygiene from the model's slips.** Done 2026-10-05: all
   64 master-palette hue names (`NES_COLOR_NAMES`, hand-checked against SMB)
   printed in the prompt as four brightness rows, a "name colors from the

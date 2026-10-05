@@ -37,8 +37,10 @@ commit is the record; a file of ticked boxes stops being read.
   write callback on $2000/$2005/$2006 for one frame recording
   `(scanline, value)`, then use the scroll in effect at the clicked
   pixel's scanline. (b) needs a two-phase request in the bridge (install,
-  answer next frame). Promoted to ADR-0010 and roadmap item 12. Until fixed, the pixel picker's context line should
-  say the tile readout assumes no mid-frame scroll change. Found 2026-10-05.
+  answer next frame). Promoted to ADR-0010 and roadmap item 12. (a) shipped 2026-10-05 as
+  `get_pixel_color`, and the picker's context line now reports the rendered
+  color and flags a readout whose palette does not contain it; (b) is the
+  open half. Found 2026-10-05.
 
 - **A palette override is not visible in a screenshot taken after
   `pause_emulator` + `step_frame`; it shows after `resume_emulator`.** The

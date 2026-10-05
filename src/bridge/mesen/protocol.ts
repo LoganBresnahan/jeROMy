@@ -115,6 +115,16 @@ export interface TileAtPixelResult {
   attribute_addr: number;
 }
 
+/** Rendered color at a screen pixel (ADR-0010). */
+export interface PixelColorResult {
+  x: number;
+  y: number;
+  argb: number;
+  r: number;
+  g: number;
+  b: number;
+}
+
 export interface PaletteResult {
   palette_id: number;
   colors: number[];
