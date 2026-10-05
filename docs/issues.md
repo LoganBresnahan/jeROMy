@@ -79,23 +79,3 @@ commit is the record; a file of ticked boxes stops being read.
   ("N ledgered edits, M not present in the emulator"). Roadmap item 10
   carry-in. Workaround: `export_rom` and load the `.hacked.nes`, or redo
   the writes.
-
-- **Headless runs carried the harness checkout's `AGENTS.md` into the
-  agent.** dsh injects the cwd's agent instructions as a USER
-  `<agent-instructions>` message; `trio.sh` ran `pnpm dsh` from
-  `/home/oof/deepseek-harness`, so every headless turn opened with the
-  harness's coding rulebook (thousands of tokens, wrong audience). Seen in
-  the first `/replay` of session `0d64843e`, 2026-10-05; fixed the same day by
-  running `bin.ts` from `~/.cache/jeromy/headless-cwd` (dsh walks up from
-  the cwd, so a directory inside the jeROMy repo picked up our own
-  `CLAUDE.md` instead; session `e64df8b5`). `/replay` lists the injected
-  kinds under `inputs`; `agent-instructions` there means the cwd is wrong.
-  If a `dsh-dev.sh` web session shows it, the workspace picker chose a repo
-  with an `AGENTS.md`/`CLAUDE.md`.
-
-- **Unpromoted discoveries die with the process.** `record_mapping` results
-  live in memory on the Mesen service until `promote_mappings` writes them.
-  A crash or restart between the two loses them; dsh's session log still
-  has the tool results, so they are recoverable by hand. Fix: a
-  `ctx.storageDomain` ledger keyed by ROM SHA1 (roadmap item 5 carry-in).
-  Found 2026-10-05.
