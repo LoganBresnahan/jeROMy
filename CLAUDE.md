@@ -25,8 +25,9 @@ ADR-0010: two-phase bridge requests, scroll capture, scanline-accurate
 `search_memory`/`trace_writes`, patch export, `persist-edit` skill) shipped
 the same night, and item 7 (one installable package, ADR-0012, proven by
 `scripts/install-check.sh`) the next morning. Every item in "Now" and
-"Next" is done; what remains is the Later list and the carry-ins on items
-10 and 12. Build order: `docs/roadmap.md`; the overnight log:
+"Next" is done, carry-ins included (`reapply_edits`, save states inside an
+exec callback, restoring `clear_palette_overrides`); what remains is the
+Later list, which needs Logan's product call before any of it starts. Build order: `docs/roadmap.md`; the overnight log:
 `docs/plans/overnight-2026-10-05.md`.
 
 ## Stack
