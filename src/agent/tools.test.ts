@@ -1,4 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { HackStore } from "../hacks/store.js";
+import { applyBps, applyIps } from "../hacks/patch.js";
 import { agentTools, executeTool } from "./tools.js";
 
 describe("agentTools", () => {
@@ -312,6 +317,86 @@ describe("executeTool", () => {
       const parsed = JSON.parse(((await executeTool("write_memory", { address: 1, bytes: [1], mem_type: "chrRom" }, adapter)) as { text: string }).text);
       expect(parsed.ledger).toBeNull();
       expect(parsed.ledger_warning).toMatch(/no hack directory/);
+    });
+  });
+
+  describe("export_patch / export_rom / undo_edit (ADR-0009)", () => {
+    // A 16 KiB PRG + 8 KiB CHR iNES image on disk, a real HackStore in a temp dir, and an adapter whose
+    // prgRom/chrRom reads come from a mutable copy of that image so undo's read-back is honest.
+    function setup() {
+      const root = mkdtempSync(join(tmpdir(), "jeromy-export-"));
+      const rom = new Uint8Array(16 + 16384 + 8192);
+      rom.set([0x4e, 0x45, 0x53, 0x1a, 1, 1, 0, 0]);
+      for (let i = 16; i < rom.length; i++) rom[i] = (i * 7) & 0xff;
+      const romPath = join(root, "Game (World).nes");
+      writeFileSync(romPath, rom);
+      const emu = new Uint8Array(rom); // the emulator's copy
+      const store = new HackStore(root, "ABC123");
+      const adapter = mockAdapter({
+        getRomInfo: vi.fn().mockResolvedValue({ name: "Game (World).nes", path: romPath, sha1: "ABC123", format: "iNES" }),
+        readMemory: vi.fn().mockImplementation(async (addr: number, len: number, mem: string) => {
+          const base = mem === "prgRom" ? 16 : mem === "chrRom" ? 16 + 16384 : 0;
+          return { address: addr, mem_type: mem, bytes: Array.from(emu.subarray(base + addr, base + addr + len)) };
+        }),
+        writeMemory: vi.fn().mockImplementation(async (addr: number, bytes: number[], mem: string) => {
+          const base = mem === "prgRom" ? 16 : mem === "chrRom" ? 16 + 16384 : 0;
+          emu.set(bytes, base + addr);
+          return { bytes_written: bytes.length };
+        }),
+      });
+      return { root, rom, romPath, emu, store, adapter };
+    }
+
+    it("export_patch writes an IPS that an independent applier turns into the ledgered ROM", async () => {
+      const { rom, store, adapter } = setup();
+      await executeTool("write_memory", { address: 0xccc, bytes: [0x16], mem_type: "prgRom", reason: "pipes red" }, adapter, null, null, null, store);
+      await executeTool("write_memory", { address: 0x10, bytes: [1, 2, 3], mem_type: "chrRom" }, adapter, null, null, null, store);
+      const out = JSON.parse(((await executeTool("export_patch", {}, adapter, null, null, null, store)) as { text: string }).text);
+      expect(out.written).toBe(join(store.dir, "patch.ips"));
+      expect(out.edits).toBe(2);
+      const patched = applyIps(rom, new Uint8Array(readFileSync(out.written)));
+      expect(patched[16 + 0xccc]).toBe(0x16);
+      expect(Array.from(patched.subarray(16 + 16384 + 0x10, 16 + 16384 + 0x13))).toEqual([1, 2, 3]);
+      expect(patched.length).toBe(rom.length);
+    });
+
+    it("export_patch bps carries CRCs and verify mode compares the emulator against the ledger", async () => {
+      const { rom, store, adapter, emu } = setup();
+      await executeTool("write_memory", { address: 0xccc, bytes: [0x16], mem_type: "prgRom" }, adapter, null, null, null, store);
+      emu[16 + 0x200] ^= 0xff; // an edit made behind the ledger's back
+      const out = JSON.parse(((await executeTool("export_patch", { format: "bps", verify: true }, adapter, null, null, null, store)) as { text: string }).text);
+      expect(out.written.endsWith("patch.bps")).toBe(true);
+      expect(applyBps(rom, new Uint8Array(readFileSync(out.written))).target[16 + 0xccc]).toBe(0x16);
+      expect(out.verify.differences).toEqual([{ mem: "prgRom", offset: 0x200, emulator: emu[16 + 0x200], ledger: rom[16 + 0x200] }]);
+    });
+
+    it("export_rom writes <name>.hacked.nes beside the ledger and leaves the original byte-identical", async () => {
+      const { rom, romPath, store, adapter } = setup();
+      await executeTool("write_memory", { address: 0, bytes: [9], mem_type: "prgRom" }, adapter, null, null, null, store);
+      const out = JSON.parse(((await executeTool("export_rom", {}, adapter, null, null, null, store)) as { text: string }).text);
+      expect(out.written).toBe(join(store.dir, "Game (World).hacked.nes"));
+      const hacked = new Uint8Array(readFileSync(out.written));
+      expect(hacked[16]).toBe(9);
+      expect(Buffer.compare(readFileSync(romPath), Buffer.from(rom))).toBe(0);
+    });
+
+    it("refuses to export an empty ledger or without a ROM file, and says so", async () => {
+      const { store, adapter } = setup();
+      expect(((await executeTool("export_patch", {}, adapter, null, null, null, store)) as { text: string }).text).toMatch(/ledger is empty/);
+      await executeTool("write_memory", { address: 0, bytes: [9], mem_type: "prgRom" }, adapter, null, null, null, store);
+      expect(((await executeTool("export_patch", { rom_path: "/nonexistent.nes" }, adapter, null, null, null, store)) as { text: string }).text).toMatch(/not found/);
+      expect(((await executeTool("export_patch", {}, adapter)) as { text: string }).text).toMatch(/no hack directory/);
+    });
+
+    it("undo_edit writes the old bytes back through the raw path, confirms, and removes the entry", async () => {
+      const { store, adapter, emu } = setup();
+      await executeTool("write_memory", { address: 0xccc, bytes: [0x16], mem_type: "prgRom" }, adapter, null, null, null, store);
+      expect(emu[16 + 0xccc]).toBe(0x16);
+      const out = JSON.parse(((await executeTool("undo_edit", { seq: 1 }, adapter, null, null, null, store)) as { text: string }).text);
+      expect(out).toMatchObject({ undone: true, seq: 1, remaining_edits: 0 });
+      expect(emu[16 + 0xccc]).toBe((16 + 0xccc) * 7 & 0xff);
+      expect(store.readEdits()).toEqual([]);
+      expect(((await executeTool("undo_edit", { seq: 1 }, adapter, null, null, null, store)) as { text: string }).text).toMatch(/no ledger entry/);
     });
   });
 

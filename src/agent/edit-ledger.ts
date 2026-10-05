@@ -13,8 +13,20 @@ import type { EditEntry, NewEdit, RomMemory } from "../hacks/store.js";
 /** What core needs from the hack store; the dsh layer supplies the instance for the loaded ROM. */
 export interface EditLedger {
   appendEdit(edit: NewEdit): EditEntry;
+  readEdits(): EditEntry[];
+  removeEdit(seq: number): EditEntry;
+  ensureDir(): void;
   /** Path of the ledger file, for tool text. */
   readonly editsFile: string;
+  /** The hack directory exports land in. */
+  readonly dir: string;
+}
+
+/** `C:\Users\x\rom.nes` → `/mnt/c/Users/x/rom.nes`; a path that is already POSIX is returned as is. */
+export function windowsPathToWsl(p: string): string {
+  const m = /^([A-Za-z]):[\\/](.*)$/.exec(p);
+  if (!m) return p;
+  return `/mnt/${m[1].toLowerCase()}/${m[2].replace(/\\/g, "/")}`;
 }
 
 export function isRomMemory(mem: string): mem is RomMemory {

@@ -96,5 +96,22 @@ Human checks for you:
 2. Type `/identify-click` or ask "what did I click" and watch it use
    `get_pixel_color`.
 
-Open questions: none blocking. Next in the queue: ADR-0009 (plan running
-as of 23:10), then item 7 (bundle).
+**Update 23:30, balance $8.9x.** ADR-0009 (item 10) is most of the way:
+
+- `83af8c6` search_memory, reset_emulator, convert_address; build plan.
+- `c86b886` hack directory, edit ledger (every PRG/CHR write, old/new
+  bytes, reason), discoveries on disk, mapping schema v2 `rom_origins`.
+- next commit: IPS/BPS writers with independent appliers, `export_patch`,
+  `export_rom`, `undo_edit`. **The exported `.hacked.nes` booted in Mesen
+  with red bushes from a clean start** (title screen, the `$29` slot of the
+  level palette table at PRG `0xCCC` set to `$16`). Original restored and
+  the test ledger emptied; the export artifacts are left in
+  `hacks/sha1-33d2.../` for you to look at.
+- Finding: after Mesen reloads the ROM the ledger and the emulator's copy
+  diverge (`docs/issues.md`); `reapply_edits` is the carry-in, never a
+  silent re-apply.
+- Remaining on item 10: `trace_writes`, the `persist-edit` skill and its
+  trio check.
+
+Open questions: none blocking. Next: trace_writes, persist-edit skill, then
+item 7 (bundle).

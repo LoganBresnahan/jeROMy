@@ -33,7 +33,9 @@ plan's `search-memory-tool`, `reset-emulator-tool` and the address seam of
   `record_mapping` takes `rom_origins`; prompt formatter prints them.
   Unit tests over temp dirs. Ends in /shipshape.
 
-### 2. Fable batch — `patch-format-writers`, `trace-writes-tool`
+### 2. Fable batch — `patch-format-writers` DONE 2026-10-05, `trace-writes-tool` open
+
+`src/hacks/patch.ts`: iNES layout (header, trainer, PRG/CHR starts), CRC32 (IEEE check value pinned), IPS writer (EOF-offset guard, 65535 splits, small-gap run merging) and BPS writer (beat varints, SourceRead/TargetRead), each checked by an **independent applier** in the tests plus a seeded fuzz. Live: the SMB `$29→$16` edit exported as a 14-byte IPS whose one record a hand parser read back at file offset 0xCDC = 16 + 0xCCC.
 
 - `src/hacks/patch.ts`: CRC32 (hand-rolled, no dependency), IPS writer
   (split records > 65535, refuse offsets ≥ 0x1000000 and the `EOF` offset
@@ -71,7 +73,9 @@ plan's `search-memory-tool`, `reset-emulator-tool` and the address seam of
   (a `ledger: false` flag on the internal write helper), decided here.
   /verify: write a chrRom tile, read `edits.json`, re-read the 16 bytes.
 
-### 4. Export and undo (Opus) → /verify — `export-patch-tool`, `export-rom-tool`, `undo-edit-tool`
+### 4. Export and undo (Opus) → /verify — `export-patch-tool`, `export-rom-tool`, `undo-edit-tool` — DONE 2026-10-05
+
+`export_patch` (ips/bps, self-checked with the independent applier before writing, `verify: true` dumps PRG/CHR in 4 KiB chunks and lists bytes the ledger does not explain), `export_rom` (`<name>.hacked.nes` beside the ledger, original never written, path from `get_rom_info` through `windowsPathToWsl`), `undo_edit` (raw adapter write, read-back, entry removed). Live (session `ba57b41e`): IPS and `.hacked.nes` written; the hacked copy handed to Mesen booted with **red bushes** on the title screen from a clean start; original restored.
 
 - `export_patch` (IPS default, BPS on request) from the ledger with the
   header rule; `verify: true` dumps PRG and CHR through `read_memory` in

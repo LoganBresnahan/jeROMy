@@ -10,7 +10,11 @@ import type { Disassembler, Arch } from "./disassembler.js";
 import type { GameMapping } from "../mappings/types.js";
 import { NES_MASTER_PALETTE_RGB, nearestNesColor, nesColorName } from "./nes-palette.js";
 import { lookupTileAtPixel } from "./tile-lookup.js";
-import { describeLedger, isRomMemory, ledgeredRomWrite, type EditLedger } from "./edit-ledger.js";
+import { describeLedger, isRomMemory, ledgeredRomWrite, windowsPathToWsl, type EditLedger } from "./edit-ledger.js";
+import { applyEdits, applyIps, applyBps, crc32, encodeBps, encodeIps, inesLayout } from "../hacks/patch.js";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 
 // -- Tool Definitions (JSON Schema for the LLM) -----------------------------
 
@@ -53,6 +57,44 @@ export const agentTools: ToolSpec[] = [
         max_results: { type: "number", description: "Cap on offsets returned (default 64)" },
       },
       required: [],
+    },
+  },
+  {
+    name: "export_patch",
+    description:
+      "Write the edit ledger (every PRG/CHR ROM write this ROM has received through jeROMy) as a patch file in the ROM's hack directory: IPS by default, BPS on request (BPS carries CRC32s so it refuses the wrong ROM). Offsets include the iNES header. The patch is checked by re-applying it with an independent reader before the tool returns. The original ROM file is read, never written. With verify: true it also dumps PRG and CHR from the emulator and reports bytes that differ from the ledger (edits made some other way).",
+    input_schema: {
+      type: "object",
+      properties: {
+        format: { type: "string", enum: ["ips", "bps"], description: "Default ips" },
+        rom_path: { type: "string", description: "Path to the original ROM file if the one Mesen reported is not readable from here" },
+        verify: { type: "boolean", description: "Also dump PRG/CHR from the emulator and diff against the ledger (slower)" },
+        name: { type: "string", description: "File name without extension (default: patch)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "export_rom",
+    description:
+      "Apply the edit ledger to a copy of the original ROM and write <rom name>.hacked.nes in the ROM's hack directory. The original is never modified. The copy is for the user's own use; jeROMy never distributes ROMs. Load it with scripts/mesen-up.sh <path> to prove the hack from a clean start.",
+    input_schema: {
+      type: "object",
+      properties: {
+        rom_path: { type: "string", description: "Path to the original ROM file if the one Mesen reported is not readable from here" },
+        name: { type: "string", description: "Output file name (default: <rom name>.hacked.nes)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "undo_edit",
+    description:
+      "Undo one ledgered ROM edit by its seq (see edits.json or the ledger field of the write's result): writes the old bytes back into the emulator's ROM copy, confirms by reading them, and removes the entry. Does not reset; call reset_emulator afterwards if the game has already copied the bytes somewhere (palette RAM, for instance).",
+    input_schema: {
+      type: "object",
+      properties: { seq: { type: "number", description: "Ledger entry number" } },
+      required: ["seq"],
     },
   },
   {
@@ -793,6 +835,79 @@ export async function executeTool(
       });
       const hexOffsets = result.offsets.map((o) => `0x${o.toString(16).toUpperCase()}`);
       return { type: "text", text: JSON.stringify({ ...result, offsets_hex: hexOffsets }) };
+    }
+
+    case "export_patch":
+    case "export_rom": {
+      if (!ledger) return { type: "text", text: "Error: no hack directory for this ROM (bridge not connected or ROM unknown)" };
+      const info = await adapter.getRomInfo();
+      const romPath = (input.rom_path as string | undefined) ?? windowsPathToWsl(info.path ?? "");
+      if (!romPath || !existsSync(romPath)) {
+        return { type: "text", text: `Error: original ROM file not found at ${JSON.stringify(romPath)} (Mesen reported ${JSON.stringify(info.path)}); pass rom_path` };
+      }
+      const original = new Uint8Array(readFileSync(romPath));
+      const fileSha1 = createHash("sha1").update(original).digest("hex").toUpperCase();
+      const notes: string[] = [];
+      if (info.sha1 && info.sha1.toUpperCase() !== fileSha1) {
+        // Mesen hashes the ROM data without the header; the file hash differs by design. Warn only on a header-less mismatch too.
+        const headerless = createHash("sha1").update(original.subarray(inesLayout(original).prgStart)).digest("hex").toUpperCase();
+        if (headerless !== info.sha1.toUpperCase()) notes.push(`WARNING: ${basename(romPath)} does not hash to the ROM Mesen reported (${info.sha1}); is it the same file?`);
+      }
+      const edits = ledger.readEdits();
+      if (edits.length === 0) return { type: "text", text: "Error: the edit ledger is empty; nothing to export (RAM, palette and CHR RAM writes are not persistent edits)" };
+      const target = applyEdits(original, edits);
+      ledger.ensureDir();
+      if (name === "export_rom") {
+        const outName = (input.name as string | undefined) ?? basename(romPath).replace(/\.nes$/i, "") + ".hacked.nes";
+        const outPath = join(ledger.dir, outName);
+        writeFileSync(outPath, target);
+        return { type: "text", text: JSON.stringify({ written: outPath, bytes: target.length, edits_applied: edits.length, original_untouched: romPath, sha1: createHash("sha1").update(target).digest("hex").toUpperCase(), notes }) };
+      }
+      const format = ((input.format as string | undefined) ?? "ips").toLowerCase();
+      const outPath = join(ledger.dir, `${(input.name as string | undefined) ?? "patch"}.${format}`);
+      let patchBytes: Uint8Array;
+      if (format === "bps") {
+        patchBytes = encodeBps(original, target, JSON.stringify({ tool: "jeROMy", rom: info.name, edits: edits.length }));
+        const check = applyBps(original, patchBytes).target;
+        if (Buffer.compare(Buffer.from(check), Buffer.from(target)) !== 0) return { type: "text", text: "Error: BPS self-check failed; patch not written" };
+      } else if (format === "ips") {
+        patchBytes = encodeIps(original, target);
+        const check = applyIps(original, patchBytes);
+        if (Buffer.compare(Buffer.from(check), Buffer.from(target)) !== 0) return { type: "text", text: "Error: IPS self-check failed; patch not written" };
+      } else {
+        return { type: "text", text: `Error: unknown format ${format}; use ips or bps` };
+      }
+      writeFileSync(outPath, patchBytes);
+      let verify: Record<string, unknown> | undefined;
+      if (input.verify) {
+        const layout = inesLayout(original);
+        const differences: Array<{ mem: string; offset: number; emulator: number; ledger: number }> = [];
+        for (const [mem, size, start] of [["prgRom", layout.prgSize, layout.prgStart], ["chrRom", layout.chrSize, layout.chrStart]] as const) {
+          for (let off = 0; off < size && differences.length < 64; off += 4096) {
+            const len = Math.min(4096, size - off);
+            const dump = await adapter.readMemory(off, len, mem);
+            for (let i = 0; i < len && differences.length < 64; i++) {
+              if (dump.bytes[i] !== target[start + off + i]) differences.push({ mem, offset: off + i, emulator: dump.bytes[i], ledger: target[start + off + i] });
+            }
+          }
+        }
+        verify = { bytes_compared: layout.prgSize + layout.chrSize, differences, note: differences.length ? "the emulator holds edits the ledger does not; they are not in the patch" : "emulator matches the ledger" };
+      }
+      return { type: "text", text: JSON.stringify({ written: outPath, format, bytes: patchBytes.length, edits: edits.length, target_crc32: crc32(target).toString(16).toUpperCase().padStart(8, "0"), original_untouched: romPath, ...(verify ? { verify } : {}), notes }) };
+    }
+
+    case "undo_edit": {
+      if (!ledger) return { type: "text", text: "Error: no hack directory for this ROM (bridge not connected or ROM unknown)" };
+      const seq = input.seq as number;
+      const entry = ledger.readEdits().find((e) => e.seq === seq);
+      if (!entry) return { type: "text", text: `Error: no ledger entry with seq ${seq}` };
+      // Direct adapter write on purpose: an undo must not ledger an inverse entry (ADR-0009).
+      await adapter.writeMemory(entry.offset, entry.old, entry.mem);
+      const back = await adapter.readMemory(entry.offset, entry.length, entry.mem);
+      const restored = back.bytes.every((b, i) => b === entry.old[i]);
+      if (!restored) return { type: "text", text: JSON.stringify({ undone: false, seq, error: "read-back does not match the old bytes; ledger entry kept", read_back: back.bytes, expected: entry.old }) };
+      ledger.removeEdit(seq);
+      return { type: "text", text: JSON.stringify({ undone: true, seq, mem: entry.mem, offset: entry.offset, restored: entry.old, remaining_edits: ledger.readEdits().length, note: "Reset the emulator if the game already copied these bytes elsewhere." }) };
     }
 
     case "reset_emulator": {

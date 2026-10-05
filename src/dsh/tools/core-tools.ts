@@ -147,7 +147,9 @@ export function makeCoreTools(deps: CoreToolDeps): ToolDefinition[] {
       },
       async execute(args: unknown, exec: ToolRunContext): Promise<CoreToolValue> {
         const adapter = deps.mesen();
-        if (!adapter.isConnected && !(await deps.waitForConnection(BRIDGE_WAIT_MS, exec.signal))) {
+        // Always wait: the service also uses this to finish identifying the
+        // ROM after the connect edge, which the ledger tools depend on.
+        if (!(await deps.waitForConnection(BRIDGE_WAIT_MS, exec.signal))) {
           throw new Error("Mesen bridge is not connected. Load mesen/bridge.lua in Mesen2's Script Window (or run scripts/mesen-up.sh).");
         }
         const result = await executeTool(

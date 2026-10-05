@@ -32,6 +32,17 @@ commit is the record; a file of ticked boxes stops being read.
 
 ## Agent / tools
 
+- **Ledger and emulator diverge after Mesen reloads the ROM.** The edit
+  ledger survives (it is a file) but Mesen's in-memory PRG/CHR copy comes
+  back clean after a restart, a reset-by-reload, or a ROM handoff, so
+  `edits.json` lists edits the emulator no longer shows. Seen 2026-10-05
+  after `scripts/mesen-up.sh --restart` with one entry in the ledger.
+  Silent re-application on connect is ruled out by the ROM-write rule; the
+  fix is an explicit `reapply_edits` tool plus a prompt-section line
+  ("N ledgered edits, M not present in the emulator"). Roadmap item 10
+  carry-in. Workaround: `export_rom` and load the `.hacked.nes`, or redo
+  the writes.
+
 - **Headless runs carried the harness checkout's `AGENTS.md` into the
   agent.** dsh injects the cwd's agent instructions as a USER
   `<agent-instructions>` message; `trio.sh` ran `pnpm dsh` from

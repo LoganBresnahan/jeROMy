@@ -133,10 +133,15 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
   `discoveries.json` replacing the in-memory ledger across restarts;
   mapping schema v2 with `rom_origins` through `record_mapping`. Proven
   live: SMB's level palette table found at PRG `0xCCB`, slot 1 patched to
-  `$16`, survives `reset_emulator`, restored. Remaining: `trace_writes`
-  (two-phase, per-PC writers), IPS/BPS writers with an independent applier,
-  `export_patch` / `export_rom` / `undo_edit`, and the `persist-edit` skill
-  with its `trio.sh persist` check from the first real SMB recolor.
+  `$16`, survives `reset_emulator`, restored; IPS/BPS writers checked by
+  independent appliers; `export_patch`, `export_rom`, `undo_edit`; the
+  exported `.hacked.nes` booted in Mesen with red bushes from a clean
+  start. Remaining: `trace_writes` (two-phase, per-PC writers) and the
+  `persist-edit` skill with its `trio.sh persist` check. Carry-in: after
+  Mesen reloads the ROM the emulator's copy no longer holds the ledgered
+  edits while the ledger still lists them; offer an explicit
+  `reapply_edits` (never silent, per the ROM-write rule) and say the
+  divergence in the prompt section.
 - [x] **11. A `jeromy` agent preset.** Done 2026-10-05 per Logan's call
   (read-only shell + `read_image`, no write/edit): the dev patch inserts
   `preset-jeromy` (persona, time context, bash without background jobs,

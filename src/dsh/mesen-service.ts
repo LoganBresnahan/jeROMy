@@ -77,7 +77,14 @@ export class MesenService extends Service {
       if (signal?.aborted || Date.now() >= deadline) return this.adapter.isConnected;
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
-    return true;
+    // Connected is not yet identified: refresh() runs after the connect edge
+    // and the ledger tools need the ROM's hack store. A headless run's first
+    // call hit this gap (2026-10-05, "no hack directory" on undo_edit).
+    while (!this.romInfo && this.adapter.isConnected) {
+      if (signal?.aborted || Date.now() >= deadline) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return this.adapter.isConnected;
   }
 
   /** Track emulator state from tool outcomes so the prompt section stays honest without async work. */
