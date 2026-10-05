@@ -42,6 +42,13 @@ describe("MesenAdapter", () => {
     expect(result.tile_id).toBe(42);
   });
 
+  it("waitFrames sends wait_frames with a per-request timeout sized to the wait (ADR-0010)", async () => {
+    mockRequest.mockResolvedValue({ requested: 120, waited: 120 });
+    const result = await adapter.waitFrames(120);
+    expect(mockRequest).toHaveBeenCalledWith("wait_frames", { frames: 120 }, { timeoutMs: 7000 });
+    expect(result.waited).toBe(120);
+  });
+
   it("getPixelColor sends get_pixel_color with x and y (ADR-0010)", async () => {
     mockRequest.mockResolvedValue({ x: 1, y: 2, argb: 0xff88d800, r: 136, g: 216, b: 0 });
     const result = await adapter.getPixelColor(1, 2);

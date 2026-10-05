@@ -119,7 +119,8 @@ export class MesenConnection {
    */
   async request<TResult>(
     method: string,
-    params: Record<string, unknown> = {}
+    params: Record<string, unknown> = {},
+    options: { timeoutMs?: number } = {}
   ): Promise<TResult> {
     if (!this.connected || !this.client) {
       throw new Error("No Mesen bridge client connected");
@@ -128,12 +129,15 @@ export class MesenConnection {
     const id = uuid();
     const msg: BridgeRequest = { id, method, params };
     const line = JSON.stringify(msg) + "\n";
+    // Two-phase requests (ADR-0010) are answered from a later frame; the
+    // caller knows how long it asked the emulator to wait, the default does not.
+    const timeoutMs = options.timeoutMs ?? this.requestTimeout;
 
     return new Promise<TResult>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error(`Request ${method} timed out after ${this.requestTimeout}ms`));
-      }, this.requestTimeout);
+        reject(new Error(`Request ${method} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
 
       this.pending.set(id, {
         resolve: (resp) => {

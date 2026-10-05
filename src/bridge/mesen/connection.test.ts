@@ -60,6 +60,16 @@ describe("MesenConnection", () => {
       );
     });
 
+    it("honors a per-request timeout longer than the default (ADR-0010 two-phase requests)", async () => {
+      // Default timeout here is 2000 ms; a parked request may legitimately take longer.
+      tcpClient.on("data", (data) => {
+        const req = JSON.parse(data.toString().trim());
+        setTimeout(() => tcpClient.write(JSON.stringify({ id: req.id, result: { waited: 1 } }) + "\n"), 2300);
+      });
+      const result = await server.request<{ waited: number }>("wait_frames", { frames: 1 }, { timeoutMs: 4000 });
+      expect(result.waited).toBe(1);
+    }, 6000);
+
     it("times out if client never responds", async () => {
       // Client receives but never replies
       await expect(

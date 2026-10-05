@@ -343,6 +343,8 @@ local step_active = false    -- true after emu.step() from codeBreak; tells
                              -- endFrame not to clear is_paused
 local pending_steps = 0      -- step_frame count (decremented 1/turn in codeBreak)
 local pending_resume = false  -- resume flag (checked each codeBreak turn)
+local frame_counter = 0       -- endFrame count since script start (two-phase requests, ADR-0010)
+local MAX_PENDING_FRAMES = 600  -- ~10 s: a parked request past this is an error
 local POLL_TIMEOUT = 0.2     -- seconds per blocking receive (×3 = 600ms)
 local POLL_ROUNDS = 3        -- iterations per codeBreak invocation
 
@@ -360,6 +362,26 @@ function handlers.screenshot(params)
 end
 
 -- get_tile_at_pixel: Given screen coordinates, return tile and palette info
+-- wait_frames: the smallest two-phase request (ADR-0010). Parks for N frames
+-- and answers with how many actually elapsed; exists so the pending path can
+-- be exercised without the scroll capture.
+function handlers.wait_frames(params)
+  local n = params.frames or 1
+  if n < 1 or n > MAX_PENDING_FRAMES then
+    error("frames must be 1-" .. MAX_PENDING_FRAMES)
+  end
+  local start = frame_counter
+  return {
+    pending = {
+      frames = n,
+      complete = function()
+        return { requested = n, waited = frame_counter - start }
+      end,
+      cancel = function() end,
+    },
+  }
+end
+
 -- get_pixel_color: the rendered ARGB at a screen position (ADR-0010). Ground
 -- truth regardless of mid-frame scroll splits; the TypeScript side maps it to
 -- the nearest master-palette index.
@@ -880,6 +902,41 @@ end
 local conn = nil
 local recv_buffer = ""
 local reconnect_countdown = 0  -- frames until next reconnect attempt
+-- A peer that exits without the FIN reaching us (seen 2026-10-05 when a
+-- headless dsh run ended: no "Disconnected" ever logged, the client sat on a
+-- dead socket while the next server listened) is only detected by sending.
+-- The TypeScript side ignores heartbeat lines; the second send after a RST
+-- fails and triggers a reconnect within ~4 s.
+local HEARTBEAT_INTERVAL = 120  -- frames (~2s)
+local heartbeat_countdown = HEARTBEAT_INTERVAL
+
+-- Two-phase requests (ADR-0010). A handler may return
+--   { pending = { frames = N, complete = fn, cancel = fn, allow_paused = bool } }
+-- instead of a result: the request id is parked here and answered from a
+-- later endFrame when `frames` have elapsed, with complete()'s return value.
+-- cancel() runs on cap expiry and on disconnect so memory callbacks never
+-- outlive their request. Completion runs only from endFrame, never from the
+-- codeBreak blocking poll, so it cannot eat the 600 ms watchdog budget.
+local pending_requests = {}
+
+local function cancel_all_pending(reason)
+  for id, p in pairs(pending_requests) do
+    if p.cancel then pcall(p.cancel) end
+    emu.log("[jeROMy] pending " .. p.method .. " (" .. tostring(id) .. ") cancelled: " .. reason)
+    pending_requests[id] = nil
+  end
+end
+
+local function drop_connection(reason)
+  emu.log("[jeROMy] " .. reason .. "; reconnecting")
+  emu.displayMessage("jeROMy", "Disconnected from bridge")
+  cancel_all_pending("connection dropped")
+  if conn then conn:close() end
+  conn = nil
+  recv_buffer = ""
+  reconnect_countdown = 0
+  heartbeat_countdown = HEARTBEAT_INTERVAL
+end
 
 local function try_connect()
   local tcp = socket.tcp()
@@ -944,6 +1001,26 @@ local function handle_message(msg)
   local success, result = pcall(handler, params)
   local elapsed = os.clock() - t0
 
+  if success and type(result) == "table" and result.pending then
+    local pend = result.pending
+    if is_paused and not pend.allow_paused then
+      -- endFrame does not fire while paused, so a parked request could never
+      -- complete; fail now rather than leak the handler's callbacks.
+      if pend.cancel then pcall(pend.cancel) end
+      emu.log("[jeROMy] ← " .. method .. " refused: pending while paused")
+      return json.encode({ id = id, error = method .. " needs frames to run and the emulator is paused; resume_emulator or step_frame first" })
+    end
+    pending_requests[id] = {
+      method = method,
+      frames = pend.frames or 1,
+      complete = pend.complete,
+      cancel = pend.cancel,
+      started = frame_counter,
+    }
+    emu.log("[jeROMy] … " .. method .. " pending for " .. tostring(pend.frames or 1) .. " frame(s)")
+    return nil
+  end
+
   if success then
     if method ~= "screenshot" and method ~= "ping" then
       emu.log("[jeROMy] ← " .. method .. " ok (" .. string.format("%.3f", elapsed) .. "s)")
@@ -982,25 +1059,52 @@ local function poll_connection()
         response = json.encode({ id = "error", error = "internal error: " .. tostring(response) })
       end
 
-      local send_ok, send_err = conn:send(response .. "\n")
-      if not send_ok then
-        emu.log("[jeROMy] Send error: " .. tostring(send_err))
-        conn:close()
-        conn = nil
-        recv_buffer = ""
-        emu.displayMessage("jeROMy", "Disconnected from bridge")
-        return
+      if response ~= nil then
+        local send_ok, send_err = conn:send(response .. "\n")
+        if not send_ok then
+          drop_connection("Send error: " .. tostring(send_err))
+          return
+        end
       end
     end
   end
 
   -- Check for disconnect
   if err == "closed" then
-    emu.log("[jeROMy] Disconnected from bridge server")
-    emu.displayMessage("jeROMy", "Disconnected from bridge")
-    conn:close()
-    conn = nil
-    recv_buffer = ""
+    drop_connection("Disconnected from bridge server")
+  end
+end
+
+-- Answer parked requests whose frames have elapsed. endFrame only.
+local function tick_pending()
+  if next(pending_requests) == nil then return end
+  for id, p in pairs(pending_requests) do
+    if p.started ~= frame_counter then p.frames = p.frames - 1 end
+    local waited = frame_counter - p.started
+    local response = nil
+    if p.frames <= 0 then
+      local ok, result = pcall(p.complete)
+      if ok then
+        emu.log("[jeROMy] ← " .. p.method .. " completed after " .. waited .. " frame(s)")
+        response = json.encode({ id = id, result = result })
+      else
+        emu.log("[jeROMy] ← " .. p.method .. " FAILED on completion: " .. tostring(result))
+        response = json.encode({ id = id, error = tostring(result) })
+      end
+      pending_requests[id] = nil
+    elseif waited > MAX_PENDING_FRAMES then
+      if p.cancel then pcall(p.cancel) end
+      emu.log("[jeROMy] ← " .. p.method .. " cancelled: exceeded " .. MAX_PENDING_FRAMES .. " frames")
+      response = json.encode({ id = id, error = p.method .. " did not complete within " .. MAX_PENDING_FRAMES .. " frames" })
+      pending_requests[id] = nil
+    end
+    if response and conn then
+      local send_ok, send_err = conn:send(response .. "\n")
+      if not send_ok then
+        drop_connection("Send error: " .. tostring(send_err))
+        return
+      end
+    end
   end
 end
 
@@ -1008,23 +1112,6 @@ end
 -- Main: Connect to bridge server and register frame callback
 ---------------------------------------------------------------------------
 local RECONNECT_INTERVAL = 120  -- frames between reconnect attempts (~2s at 60fps)
--- A peer that exits without the FIN reaching us (seen 2026-10-05 when a
--- headless dsh run ended: no "Disconnected" ever logged, the client sat on a
--- dead socket while the next server listened) is only detected by sending.
--- The TypeScript side ignores heartbeat lines; the second send after a RST
--- fails and triggers a reconnect within ~4 s.
-local HEARTBEAT_INTERVAL = 120  -- frames (~2s)
-local heartbeat_countdown = HEARTBEAT_INTERVAL
-
-local function drop_connection(reason)
-  emu.log("[jeROMy] " .. reason .. "; reconnecting")
-  emu.displayMessage("jeROMy", "Disconnected from bridge")
-  if conn then conn:close() end
-  conn = nil
-  recv_buffer = ""
-  reconnect_countdown = 0
-  heartbeat_countdown = HEARTBEAT_INTERVAL
-end
 
 local function send_heartbeat()
   heartbeat_countdown = heartbeat_countdown - 1
@@ -1078,6 +1165,7 @@ if not try_connect() then
 end
 
 local function on_end_frame()
+  frame_counter = frame_counter + 1
   -- External resume detection: if is_paused is true but step_active is
   -- false, the game is running freely — someone resumed via Mesen's UI.
   --
@@ -1113,6 +1201,7 @@ local function on_end_frame()
     end
   else
     poll_connection()
+    if conn then tick_pending() end
     if conn then send_heartbeat() end
   end
 end
@@ -1130,8 +1219,28 @@ emu.addEventCallback(guarded("endFrame", on_end_frame), emu.eventType.endFrame)
 -- the flags set by handlers. If step/resume is requested, we handle
 -- it and return. If nothing arrives after 3 rounds, we try a best-
 -- effort keep-alive (emu.step 1 instruction) and return.
+local last_paused_connect_attempt = 0
+
 local function on_code_break()
-  if not conn then return end
+  if not conn then
+    -- Paused and disconnected: endFrame never runs, so this is the only place
+    -- a reconnect can happen. One bounded attempt (0.5 s connect timeout) at
+    -- most once a second, then a keep-alive step so we are called again.
+    if os.time() - last_paused_connect_attempt >= 1 then
+      last_paused_connect_attempt = os.time()
+      if try_connect() then
+        emu.log("[jeROMy] codeBreak: reconnected while paused")
+      end
+    end
+    if not conn then
+      -- Throttle the retry loop: each keep-alive step re-enters this callback
+      -- after one instruction, which would otherwise spin at CPU speed.
+      pcall(socket.sleep, 0.2)
+      step_active = true
+      emu.step(1, emu.stepType.step)
+      return
+    end
+  end
 
   -- Clear step_active from previous turn
   step_active = false
@@ -1148,6 +1257,13 @@ local function on_code_break()
   for round = 1, POLL_ROUNDS do
     -- Blocking poll — waits up to POLL_TIMEOUT seconds for data
     poll_connection()
+    if not conn then
+      -- Dropped inside the poll. Keep the break alive so the next codeBreak
+      -- can reconnect; without a step Mesen sits paused and nobody is called.
+      step_active = true
+      emu.step(1, emu.stepType.step)
+      return
+    end
 
     -- Resume? → callback returns → Mesen runs freely
     if pending_resume then

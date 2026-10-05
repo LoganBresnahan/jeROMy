@@ -26,6 +26,7 @@ import type {
   StepFrameResult,
   EmulatorStatusResult,
   PixelColorResult,
+  WaitFramesResult,
 } from "./protocol.js";
 
 export class MesenAdapter {
@@ -59,6 +60,14 @@ export class MesenAdapter {
   /** Get tile and palette info at a screen pixel coordinate. */
   async getTileAtPixel(x: number, y: number): Promise<TileAtPixelResult> {
     return this.conn.request<TileAtPixelResult>("get_tile_at_pixel", { x, y });
+  }
+
+  /**
+   * Park a request for N frames and learn how many elapsed: the smallest
+   * two-phase request (ADR-0010). Debug/verification only; not a model tool.
+   */
+  async waitFrames(frames: number): Promise<WaitFramesResult> {
+    return this.conn.request<WaitFramesResult>("wait_frames", { frames }, { timeoutMs: Math.ceil(frames / 60) * 1000 + 5000 });
   }
 
   /** Rendered color at a screen pixel; ground truth for what the user sees (ADR-0010). */

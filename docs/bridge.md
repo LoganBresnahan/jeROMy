@@ -64,12 +64,33 @@ second heartbeat after the RST fails and the client reconnects within ~4 s.
 No heartbeat is sent while paused (`codeBreak` uses blocking receives and
 sees the close directly).
 
+### Two-phase (pending) requests
+
+Some handlers need frames to run before they can answer (ADR-0010: the
+scroll-write capture; ADR-0009: `trace_writes`). Such a handler returns
+`{ pending = { frames = N, complete = fn, cancel = fn, allow_paused = bool } }`
+to the Lua dispatcher instead of a result. The dispatcher parks the request
+id, sends nothing yet, and answers from a later `endFrame` once `N` frames
+have elapsed, with `complete()`'s return value under the original id. On
+the wire this is invisible: one request, one response, matched by id; the
+TypeScript caller passes a per-request `timeoutMs` sized to the wait.
+
+Rules: completion runs only from `endFrame`, never from the paused
+`codeBreak` poll, so it cannot touch the watchdog budget. A pending request
+issued while paused is refused at once with an error naming
+`resume_emulator`/`step_frame` (frames do not run while paused) unless the
+handler sets `allow_paused` and arranges the steps itself. `cancel()` runs
+on the 600-frame cap and on disconnect, so a handler's memory callbacks
+never outlive its request. `wait_frames {frames}` is the trivial pending
+handler kept for verification.
+
 ## Available Methods
 
 | Method | Params | Returns | Description |
 |---|---|---|---|
 | `screenshot` | — | `{png_base64, paused?}` | Capture current frame as base64 PNG |
 | `get_tile_at_pixel` | `{x, y}` | `{tile_id, palette_id, tile_x, tile_y, scroll_x, scroll_y, nametable, nametable_addr}` | Tile and palette info at screen pixel |
+| `wait_frames` | `{frames}` | `{requested, waited}` | Two-phase: parks for N frames, answers from a later endFrame (ADR-0010); refused while paused |
 | `get_pixel_color` | `{x, y}` | `{x, y, argb, r, g, b}` | Rendered color at a screen pixel via `emu.getPixel`; ground truth on split-scroll frames (ADR-0010) |
 | `get_palette` | `{palette_id}` | `{palette_id, colors[], background_color}` | 4 NES color indices for a palette (0-7) |
 | `write_palette` | `{palette_id, color_index, nes_color}` | `{old_color, new_color, frozen}` | Frozen palette edit — persists across frames |
@@ -116,6 +137,15 @@ src/dsh/mesen-service.ts       — Starts the TCP server inside dsh, tracks conn
 ```
 
 ## Emulator Control (Pause/Step/Resume)
+
+**Paused and disconnected** (2026-10-05): `endFrame` does not run while
+paused, so the only place a reconnect can happen is the `codeBreak`
+callback. When it finds no connection it makes one bounded connect attempt
+per second (0.5 s connect timeout, a 0.2 s sleep between keep-alive steps)
+and steps one instruction so it is called again. A drop detected inside
+the blocking poll also issues the keep-alive step before returning; without
+it Mesen would sit paused with no callback ever firing, which is how a
+headless run that ended while paused used to leave the bridge unreachable.
 
 The bridge supports pausing, stepping, and resuming the emulator. This is critical for batch editing workflows — the agent can pause the game, make multiple edits, step forward to render the changes, take a screenshot to verify, and then resume.
 

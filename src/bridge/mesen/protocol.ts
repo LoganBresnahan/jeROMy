@@ -115,6 +115,12 @@ export interface TileAtPixelResult {
   attribute_addr: number;
 }
 
+/** Answer to wait_frames, the trivial two-phase request (ADR-0010). */
+export interface WaitFramesResult {
+  requested: number;
+  waited: number;
+}
+
 /** Rendered color at a screen pixel (ADR-0010). */
 export interface PixelColorResult {
   x: number;
