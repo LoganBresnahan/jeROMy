@@ -20,7 +20,7 @@ export interface EmulatorViewDeps {
   /** Where clicks wait for the next prompt (ADR-0015). */
   history: ClickHistory;
   log: (message: string) => void;
-  /** Frames per second pushed to /stream while the emulator runs (default 10, max 20). */
+  /** Frames per second pushed to /stream while the emulator runs (default 10, max 60; ADR-0007 measurements decide the default). */
   fps?: number;
   /** The bridge.lua path as Mesen needs it, shown while the bridge is not connected (ADR-0012). */
   luaScript?: string;
@@ -38,6 +38,8 @@ export interface StreamEvent {
   hint?: string;
   /** Click-history revision, so the page refetches the list only when it changed (ADR-0015). */
   clicks_rev: number;
+  /** The emulator's frame counter at the shot, so the page can show emulation fps beside view fps (ADR-0007). */
+  emu_frame?: number;
 }
 
 /**
@@ -110,7 +112,7 @@ export class FramePump {
             const paused = shot.paused ?? null;
             const changed = Boolean(shot.png_base64) && shot.png_base64 !== this.lastPng;
             if (changed) this.lastPng = shot.png_base64;
-            this.emit({ connected: true, paused, rom: this.romName(), seq: ++this.seq, clicks_rev: this.clicksRev(), ...(changed ? { png: shot.png_base64 } : {}) });
+            this.emit({ connected: true, paused, rom: this.romName(), seq: ++this.seq, clicks_rev: this.clicksRev(), ...(shot.frame !== undefined ? { emu_frame: shot.frame } : {}), ...(changed ? { png: shot.png_base64 } : {}) });
             if (paused) waitMs = 1000;
           } catch (error: unknown) {
             this.log(`emulator-view: frame pump: ${error instanceof Error ? error.message : String(error)}`);
@@ -301,7 +303,7 @@ const PAGE = /* html */ `<!doctype html>
 <div id="hist"></div>
 <script>
 const c=document.getElementById('c'),ctx=c.getContext('2d'),o=document.getElementById('o'),octx=o.getContext('2d');
-let zoom=2,live=true,paused=null,es=null,fps=0,frames=0,drawing=false,pending=null,mode='color';
+let zoom=2,live=true,paused=null,es=null,fps=0,frames=0,drawing=false,pending=null,mode='color',emuFrame=null,emuFrameAt=0,emuFps=0;
 for(const b of document.querySelectorAll('button.mode'))b.onclick=()=>{mode=b.dataset.mode;for(const o of document.querySelectorAll('button.mode'))o.className='mode'+(o===b?' on':'')};
 function setZoom(z){zoom=z;for(const el of [c,o]){el.style.width=(256*z)+'px';el.style.height=(240*z)+'px'}document.getElementById('zoom').textContent='Zoom '+z+'x'}
 setZoom(2);
@@ -310,7 +312,10 @@ function setStatus(ok,text){document.getElementById('dot').className='dot'+(ok?'
 // Decode off the main thread and never queue more than one frame: a slow
 // decode drops frames instead of building a backlog that looks like lag.
 async function draw(b64){if(drawing){pending=b64;return}drawing=true;try{const bytes=Uint8Array.from(atob(b64),ch=>ch.charCodeAt(0));const bmp=await createImageBitmap(new Blob([bytes],{type:'image/png'}));ctx.drawImage(bmp,0,0);bmp.close();frames++}catch(e){}finally{drawing=false;if(pending){const n=pending;pending=null;draw(n)}}}
-function onEvent(e){const d=JSON.parse(e.data);paused=d.paused;if(d.clicks_rev!==undefined&&d.clicks_rev!==clicksRev)loadClicks();setStatus(d.connected,d.connected?(d.rom||'connected')+(paused?' · PAUSED':' · running')+(fps?' · '+fps+' fps':''):'bridge not connected'+(d.hint?' — in Mesen2: Tools › Script Window › Open '+d.hint+' › Run (allow network and I/O, timeout 1 s)':''));if(d.png)draw(d.png)}
+function onEvent(e){const d=JSON.parse(e.data);paused=d.paused;if(d.clicks_rev!==undefined&&d.clicks_rev!==clicksRev)loadClicks();
+ // Emulation speed from the bridge's frame counter, independent of how many frames the view manages to show.
+ if(d.emu_frame!==undefined){const now=performance.now();if(emuFrame!==null&&now-emuFrameAt>=1000){emuFps=Math.round((d.emu_frame-emuFrame)*1000/(now-emuFrameAt));emuFrame=d.emu_frame;emuFrameAt=now}else if(emuFrame===null){emuFrame=d.emu_frame;emuFrameAt=now}}
+ setStatus(d.connected,d.connected?(d.rom||'connected')+(paused?' · PAUSED':' · running')+(fps?' · view '+fps+' fps':'')+(emuFps&&!paused?' · emu '+emuFps+' fps':''):'bridge not connected'+(d.hint?' — in Mesen2: Tools › Script Window › Open '+d.hint+' › Run (allow network and I/O, timeout 1 s)':''));if(d.png)draw(d.png)}
 function connect(){if(es)es.close();es=new EventSource('/stream');es.onmessage=onEvent;es.onerror=()=>{setStatus(false,'stream lost, retrying');}}
 setInterval(()=>{fps=frames;frames=0},1000);
 c.addEventListener('click',async e=>{const r=c.getBoundingClientRect();const x=Math.floor((e.clientX-r.left)/zoom),y=Math.floor((e.clientY-r.top)/zoom);
@@ -378,7 +383,7 @@ export interface EmulatorViewServer {
 }
 
 export function createEmulatorViewServer(deps: EmulatorViewDeps, romName: () => string | null, mappingName: (tileId: number) => string | undefined): EmulatorViewServer {
-  const fps = Math.min(20, Math.max(1, deps.fps ?? 10));
+  const fps = Math.min(60, Math.max(1, deps.fps ?? 10));
   const pump = new FramePump(deps.mesen, () => deps.luaScript, romName, deps.log, Math.round(1000 / fps), () => deps.history.rev);
   const streams = new Set<ServerResponse>();
   const server = createServer(async (req, res) => {

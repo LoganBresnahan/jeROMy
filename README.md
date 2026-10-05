@@ -89,7 +89,7 @@ Then, in the browser:
    Browser tab from the sidebar's guide and enter the URL by hand. The tab
    stays with the session. dsh has no setting to open a sidebar page at
    startup, so this is a once-per-session click.
-4. **Click.** The view shows the live frame with a pixel picker and
+4. **Click.** The view shows the live frame at 60 fps with a pixel picker and
    Pause / Step / Resume. A click pauses a running game on that frame and
    never advances it (ADR-0013, ADR-0015); untick **Pause on click** to
    have it pause only for the readout and resume. The **Select** row
@@ -113,6 +113,29 @@ Try: "Take a screenshot and describe what you see", "What did I just
 click?", "Make the pipes red", "Make that permanent and export a patch",
 "Find the lives counter in RAM".
 
+## References for a game (optional)
+
+A community disassembly or wiki map makes mapping a game fast, but a full
+disassembly is the ROM in another spelling, so jeROMy never ships or fetches
+one (ADR-0017). You bring it, beside your ROM, and import its symbols into
+the gitignored hack directory; the agent then looks names up with
+`lookup_symbol`, and still proves every fact in the emulator before it is
+recorded. For Super Mario Bros. (World):
+
+```bash
+git clone https://github.com/threecreepio/smb-disassembly ~/smb-disassembly
+cp "/path/to/Super Mario Bros. (World).nes" ~/smb-disassembly/   # the build extracts CHR from your copy
+(cd ~/smb-disassembly && make)                                   # needs cc65; produces main.nes.dbg
+npm run build
+scripts/import-reference.mjs import ~/smb-disassembly/main.nes.dbg --sha1 <your ROM's sha1> --source "smbdis (doppelganger), ca65 port by threecreepio"
+scripts/import-reference.mjs near 0x8EE9 --sha1 <sha1>          # nearest label to a PC from trace_writes
+```
+
+Without cc65, `import` also reads `Name = $075A` equates straight from the
+`.asm` (RAM names only), and a wiki table pasted as `address,name,notes`
+CSV (Data Crystal's RAM map is GFDL; credit it in `--source`). The ROM's
+sha1 is in the agent's prompt and in `get_rom_info`.
+
 Headless checks and session review:
 
 ```bash
@@ -125,7 +148,7 @@ scripts/dsh-log.mjs show latest       # what the agent saw, reasoned and called 
 ```
 mesen/bridge.lua        Lua client inside Mesen2: JSON over TCP, palette overrides, memory, PPU, OAM
 src/bridge/mesen/       connection, protocol, EmulatorAdapter (host-agnostic)
-src/agent/tools.ts      the 29 ROM-hacking tools against the adapter; prompts.ts; nes-palette.ts
+src/agent/tools.ts      the 30 ROM-hacking tools against the adapter; prompts.ts; nes-palette.ts
 src/agent/tile-lookup.ts  screen pixel → nametable tile + sprites, scroll-split aware
 src/agent/region.ts     region selection by palette slot: flood fill of the bridge's pixel map (ADR-0014)
 src/hacks/              edit ledger per ROM, IPS/BPS patch writers (ADR-0009)

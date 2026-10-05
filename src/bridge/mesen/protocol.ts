@@ -99,6 +99,8 @@ export type MemoryType =
 // -- Tool Result Types -----------------------------------------------------
 
 export interface ScreenshotResult {
+  /** The bridge's frame counter when the shot was taken (ADR-0007 measurement); absent from older scripts. */
+  frame?: number;
   png_base64: string;
   paused?: boolean;
 }

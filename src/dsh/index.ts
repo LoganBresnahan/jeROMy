@@ -44,6 +44,7 @@ export interface Config {
   mappingsDir?: string;
   hacksDir?: string;
   viewPort: number;
+  viewFps: number;
 }
 
 const PATHS = pluginPaths(import.meta.url);
@@ -55,6 +56,7 @@ export const Config: Schema<Config> = Schema.object({
   mappingsDir: Schema.string().description("Directory of sha1-*.json game mappings (default: the plugin's mappings/)"),
   hacksDir: Schema.string().description("Root for per-ROM hack directories: edit ledger, discoveries, patch exports (default: the plugin's hacks/, gitignored)"),
   viewPort: Schema.number().default(9002).description("Loopback port for the emulator view page (open it in the sidebar Browser)"),
+  viewFps: Schema.number().default(60).description("Frames per second the view streams while the game runs (1-60; measured 2026-10-05, ADR-0007)"),
 });
 
 export function apply(ctx: Context, config: Config): void {
@@ -114,7 +116,7 @@ export function apply(ctx: Context, config: Config): void {
       return { ...decision, messages: [...context, ...decision.messages] };
     });
     const view = createEmulatorViewServer(
-      { mesen: () => scope.mesen.adapter, history, log: (m) => scope.logger.warn(m), luaScript: LUA_FOR_MESEN },
+      { mesen: () => scope.mesen.adapter, history, log: (m) => scope.logger.warn(m), luaScript: LUA_FOR_MESEN, fps: config.viewFps },
       () => scope.mesen.romInfo?.name ?? null,
       (tileId) => scope.mesen.mappingNameFor(tileId),
     );

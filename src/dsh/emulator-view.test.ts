@@ -230,6 +230,16 @@ describe("emulator view (ADR-0004)", () => {
     } finally { await s.close(); }
   });
 
+  it("FramePump carries the emulator's frame counter when the bridge reports one (ADR-0007)", async () => {
+    const a = adapter({ screenshot: vi.fn().mockResolvedValue({ png_base64: Buffer.from("x").toString("base64"), paused: false, frame: 4242 }) });
+    const pump = new FramePump(() => a, () => undefined, () => "SMB", () => {}, 20, () => 7);
+    const events: any[] = [];
+    const stop = pump.subscribe((e) => events.push(e));
+    await new Promise((r) => setTimeout(r, 60));
+    stop();
+    expect(events[0]).toMatchObject({ connected: true, emu_frame: 4242, clicks_rev: 7 });
+  });
+
   it("FramePump pushes a PNG only when the frame changed and always carries pause state", async () => {
     const a = adapter();
     const pump = new FramePump(() => a, () => undefined, () => "SMB", () => {}, 20);

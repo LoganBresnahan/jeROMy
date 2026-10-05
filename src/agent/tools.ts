@@ -11,6 +11,7 @@ import type { GameMapping } from "../mappings/types.js";
 import { NES_MASTER_PALETTE_RGB, nearestNesColor, nesColorName } from "./nes-palette.js";
 import { lookupTileAtPixel } from "./tile-lookup.js";
 import { getRegionAt } from "./region.js";
+import { findSymbols, formatSymbol, loadReference, nearestSymbol, type ReferenceFile } from "./reference.js";
 import { describeLedger, isRomMemory, ledgeredRomWrite, ledgerDivergence, windowsPathToWsl, type EditLedger } from "./edit-ledger.js";
 import { applyEdits, applyIps, applyBps, crc32, encodeBps, encodeIps, inesLayout } from "../hacks/patch.js";
 import { createHash } from "node:crypto";
@@ -55,6 +56,20 @@ export const agentTools: ToolSpec[] = [
         mode: { type: "string", enum: ["color", "object"], description: "Default color" },
       },
       required: ["x", "y"],
+    },
+  },
+  {
+    name: "lookup_symbol",
+    description:
+      "Look up a name or an address in the reference the user imported for this ROM (a community disassembly's labels and equates, or a wiki RAM map; ADR-0017). By name: exact match, else substring, up to 20. By address: the nearest symbol at or below it with the distance, so a PC from trace_writes or disassemble gets a routine name and a RAM address gets a variable name. Everything returned is a lead, not a fact: record a mapping only after the emulator confirms it, and pass the reference as record_mapping's source. Says so when no reference is imported.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Symbol name or fragment (case-insensitive)" },
+        address: { type: "number", description: "CPU address (e.g. 0x8EE9) or RAM address (0x075A)" },
+        max_distance: { type: "number", description: "For address lookups: how far below the address to search (default 0x400)" },
+      },
+      required: [],
     },
   },
   {
@@ -581,6 +596,10 @@ export const agentTools: ToolSpec[] = [
           description:
             "How certain you are (0-1). 1 = confirmed, <1 = hypothesis. Defaults to 1.",
         },
+        source: {
+          type: "string",
+          description: "Where the lead came from when it was not your own discovery: a reference label (\"smbdis via threecreepio ca65 port\"), a wiki (\"Data Crystal RAM map, GFDL 1.2\"), or omit. The emulator observation is still required for confidence 1 (ADR-0017).",
+        },
         rom_origins: {
           type: "array",
           description: "Where the bytes live in the cartridge, once found (search_memory / trace_writes): [{mem: 'prgRom'|'chrRom', offset, length, notes?}]. Next time, a persistent edit goes straight there.",
@@ -833,6 +852,20 @@ export async function searchMemoryAll(
   return { ...first, start, searched, offsets, truncated: truncated || offsets.length >= maxResults && next + pattern.length <= end };
 }
 
+/** The imported reference for the loaded ROM, read from the hack directory on each use so a fresh import needs no restart (ADR-0017). */
+function referenceFor(ledger: EditLedger | null | undefined): ReferenceFile | null {
+  const dir = ledger?.dir;
+  if (!dir) return null;
+  try { return loadReference(dir); } catch { return null; }
+}
+
+/** `symbol` for a code address: the nearest reference label and the distance, always marked as a lead. */
+function symbolHint(ref: ReferenceFile, address: number): { symbol?: string } {
+  const near = nearestSymbol(ref.symbols, address, 0x400);
+  if (!near) return {};
+  return { symbol: `${near.symbol.name}${near.offset ? `+$${near.offset.toString(16).toUpperCase()}` : ""} (reference, unverified)` };
+}
+
 export async function executeTool(
   name: string,
   input: Record<string, unknown>,
@@ -877,6 +910,24 @@ export async function executeTool(
       const mode = input.mode === "object" ? "object" : "color";
       const { runs: _runs, ...region } = await getRegionAt(adapter, input.x as number, input.y as number, mode);
       return { type: "text", text: JSON.stringify(region) };
+    }
+
+    case "lookup_symbol": {
+      const ref = referenceFor(ledger);
+      if (!ref) return { type: "text", text: "No reference imported for this ROM. Import one with scripts/import-reference.mjs (a disassembly's .dbg or .asm, or a wiki table) into the hack directory; until then, discover addresses with search_memory, trace_writes and snapshot comparisons." };
+      const credit = `Reference: ${ref.source} (${ref.symbols.length} symbols; unverified leads, not mappings).`;
+      if (typeof input.name === "string" && input.name.trim()) {
+        const hits = findSymbols(ref.symbols, input.name.trim());
+        return { type: "text", text: hits.length ? `${credit}\n${hits.map(formatSymbol).join("\n")}` : `${credit}\nNo symbol matches "${input.name}".` };
+      }
+      if (typeof input.address === "number") {
+        const near = nearestSymbol(ref.symbols, input.address, (input.max_distance as number | undefined) ?? 0x400);
+        const hex = `$${input.address.toString(16).toUpperCase().padStart(4, "0")}`;
+        return { type: "text", text: near
+          ? `${credit}\n${hex} is ${near.offset === 0 ? "exactly" : `$${near.offset.toString(16).toUpperCase()} bytes after`} ${formatSymbol(near.symbol)}`
+          : `${credit}\nNo symbol within the search distance below ${hex}.` };
+      }
+      return { type: "text", text: "Error: give name or address" };
     }
 
     case "list_sprites": {
@@ -1007,7 +1058,9 @@ export async function executeTool(
         frames: input.frames as number | undefined,
         mode: input.mode as "write" | "read" | undefined,
       });
+      const ref = referenceFor(ledger);
       const writers = result.writers.map((w) => ({
+        ...(ref ? symbolHint(ref, w.pc) : {}),
         ...w,
         pc_hex: `0x${w.pc.toString(16).toUpperCase().padStart(4, "0")}`,
         ...(w.origin ? { origin_hex: `${w.origin.mem_type ?? w.origin.mem_type_id} 0x${w.origin.address.toString(16).toUpperCase()}` } : {}),
@@ -1363,6 +1416,7 @@ export async function executeTool(
         notes: input.notes ?? null,
         confidence,
         ...(origins.length ? { rom_origins: origins } : {}),
+        ...(typeof input.source === "string" && input.source.trim() ? { source: input.source.trim() } : {}),
         recorded: true,
         event_type: confidence >= 1 ? "mapping_discovered" : "mapping_hypothesis",
       };

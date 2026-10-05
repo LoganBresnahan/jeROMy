@@ -90,6 +90,15 @@ describe("saveMapping", () => {
 });
 
 describe("mergeMappings", () => {
+  it("keeps a discovery's source on the merged entry and never overwrites an existing one (ADR-0017)", () => {
+    const first = mergeMappings(null, [{ mapping_type: "address", id: "0x075A", name: "lives", source: "Data Crystal RAM map, GFDL 1.2" } as any], "abc", "SMB");
+    expect(first.addresses["0x075A"].source).toBe("Data Crystal RAM map, GFDL 1.2");
+    const again = mergeMappings(first, [{ mapping_type: "address", id: "0x075A", name: "lives", source: "someone else" } as any], "abc", "SMB");
+    expect(again.addresses["0x075A"].source).toBe("Data Crystal RAM map, GFDL 1.2");
+    const tile = mergeMappings(null, [{ mapping_type: "tile", id: "0x24", name: "sky", source: "smbdis" } as any], "abc", "SMB");
+    expect(tile.tiles["0x24"].source).toBe("smbdis");
+  });
+
   it("creates a new mapping when none exists", () => {
     const discoveries: DiscoveredEntry[] = [
       { mapping_type: "tile", id: "0x45", name: "question-block", category: "interactive", confidence: 1 },

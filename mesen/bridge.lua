@@ -345,6 +345,14 @@ local pending_steps = 0      -- step_frame count (decremented 1/turn in codeBrea
 local pending_resume = false  -- resume flag (checked each codeBreak turn)
 local frame_counter = 0       -- endFrame count since script start (two-phase requests, ADR-0010)
 local MAX_PENDING_FRAMES = 600  -- ~10 s: a parked request past this is an error
+-- Keep-alive while paused (ADR-0016): the only way to be called again after
+-- a codeBreak callback returns is to step, and a CPU-instruction step lets a
+-- "paused" game creep into its NMI (rendering off, RAM changing) at one or
+-- two instructions a second. A single PPU dot re-breaks without the CPU
+-- completing an instruction. Never step the CPU to stay alive.
+local KEEPALIVE_STEP = emu.stepType.ppuStep or emu.stepType.step
+local KEEPALIVE_COUNT = 1   -- measured 2026-10-05: see ADR-0016
+local function keepalive() emu.step(KEEPALIVE_COUNT, KEEPALIVE_STEP) end
 local POLL_TIMEOUT = 0.2     -- seconds per blocking receive (×3 = 600ms)
 local POLL_ROUNDS = 3        -- iterations per codeBreak invocation
 
@@ -361,7 +369,7 @@ local palette_originals = {}
 -- screenshot: Capture current frame as base64-encoded PNG
 function handlers.screenshot(params)
   local png = emu.takeScreenshot()
-  return { png_base64 = base64_encode(png), paused = is_paused }
+  return { png_base64 = base64_encode(png), paused = is_paused, frame = frame_counter }
 end
 
 -- get_tile_at_pixel: Given screen coordinates, return tile and palette info
@@ -1406,6 +1414,13 @@ function handlers.get_lua_logs(params)
   return { logs = entries, count = #entries, overflow = log_overflow }
 end
 
+-- debug_step_types: the emu.stepType names this Mesen build offers (ADR-0016).
+function handlers.debug_step_types(params)
+  local out = {}
+  for k, v in pairs(emu.stepType) do out[k] = v end
+  return { step_types = out, keepalive = KEEPALIVE_STEP }
+end
+
 -- debug_state: Dump the top-level keys of emu.getState() to discover structure
 function handlers.debug_state(params)
   local state = emu.getState()
@@ -1841,7 +1856,7 @@ local function on_code_break()
       -- after one instruction, which would otherwise spin at CPU speed.
       pcall(socket.sleep, 0.2)
       step_active = true
-      emu.step(1, emu.stepType.step)
+      keepalive()
       return
     end
   end
@@ -1867,14 +1882,14 @@ local function on_code_break()
     if os.clock() - entered > 0.6 and conn then
       conn:settimeout(0)
       step_active = true
-      emu.step(1, emu.stepType.step)
+      keepalive()
       return
     end
     if not conn then
       -- Dropped inside the poll. Keep the break alive so the next codeBreak
       -- can reconnect; without a step Mesen sits paused and nobody is called.
       step_active = true
-      emu.step(1, emu.stepType.step)
+      keepalive()
       return
     end
 
@@ -1908,7 +1923,7 @@ local function on_code_break()
   -- resume event.
   conn:settimeout(0)
   step_active = true
-  emu.step(1, emu.stepType.step)
+  keepalive()
 end
 emu.addEventCallback(guarded("codeBreak", on_code_break), emu.eventType.codeBreak)
 

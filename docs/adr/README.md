@@ -22,7 +22,7 @@ Template: `_template.md`.
 | [0004](0004-emulator-view-sidebar-page.md) | Emulator view is a loopback page in dsh's sidebar browser | Accepted | 2026-10-05 |
 | [0005](0005-core-plus-adapter-layering.md) | Host-agnostic `core/` plus a thin `dsh/` adapter | Accepted | 2026-10-05 |
 | [0006](0006-documentation-driven-workflow.md) | Documentation-driven workflow: ADRs, roadmap, issues inbox, skills | Accepted | 2026-10-05 |
-| [0007](0007-framebuffer-stream.md) | Push-based binary frame channel for the emulator view, if 10 fps stops being enough | Proposed | 2026-10-05 |
+| [0007](0007-framebuffer-stream.md) | Push-based binary frame channel for the emulator view, if 10 fps stops being enough | Not needed (60 fps measured on the existing channel) | 2026-10-05 |
 | [0008](0008-curated-rom-hacking-skills.md) | Ship curated ROM-hacking skills with the plugin, one per procedure | Accepted | 2026-10-05 |
 | [0009](0009-persistent-edits-ledger-and-patch-export.md) | Persistent edits: find the ROM origin, keep a ledger, export a patch | Accepted | 2026-10-05 |
 | [0010](0010-split-scroll-pixel-lookup.md) | Pixel lookups answer from the framebuffer and the scroll in effect at that scanline | Accepted | 2026-10-05 |
@@ -31,3 +31,5 @@ Template: `_template.md`.
 | [0013](0013-clicks-never-step-and-know-sprites.md) | A click never advances the emulator, and a pick knows which sprite it landed on | Accepted | 2026-10-05 |
 | [0014](0014-region-selection-by-palette-slot.md) | The picker selects regions by palette slot, and every selection names its two edit paths | Accepted | 2026-10-05 |
 | [0015](0015-clicks-pause-and-queue-behind-checkboxes.md) | A click pauses the game, and clicks reach the model only when the person checks them for the next prompt | Accepted | 2026-10-05 |
+| [0016](0016-pause-keepalive-steps-a-ppu-dot.md) | The paused keep-alive steps one PPU dot, never a CPU instruction | Accepted | 2026-10-05 |
+| [0017](0017-reference-material-imported-not-vendored.md) | Reference material is imported at the person's request, verified live, and promoted entry by entry; never vendored | Accepted | 2026-10-05 |

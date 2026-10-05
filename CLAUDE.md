@@ -11,7 +11,7 @@ before product-level decisions; keep it updated when scope changes.
 ## Where we are (2026-10-05, afternoon)
 
 The dsh plugin is the only stack. `scripts/up.sh` boots the `jeromy`
-profile with `src/dsh/index.ts` mounted from source: 28 of 29 core tools
+profile with `src/dsh/index.ts` mounted from source: 29 of 30 core tools
 registered through one mapper, `promote_mappings`, the full NES prompt
 section with live ROM/mapping/pause state, and the emulator view on :9002.
 Verified headless through dsh on `deepseek-flash` and by Logan's click
@@ -36,14 +36,20 @@ palette slot: four modes in the view, `read_region` + `src/agent/region.ts`,
 the `get_region` tool, and every selection stating its two edit paths; item
 17 (ADR-0015) made a click pause the game and queue in a per-mode history
 with checkboxes, the checked clicks entering the person's next prompt
-through `agent/pre-step`. The rest of the Later list still needs his call. Build order: `docs/roadmap.md`;
+through `agent/pre-step`. Then Logan set the release gate (`docs/DIRECTION.md`:
+SMB mapped end to end, a hack you can boot and iterate on; roadmap items 18
+and 19, not started), asked for 60 fps (item 20: measured, default raised,
+ADR-0007 closed) and the keep-alive fix (item 21, ADR-0016). The plan for the
+gate is `docs/plans/mapping-campaign.md`; its first step, reference import
+(ADR-0017: disassemblies imported into `hacks/`, never vendored or fetched;
+`lookup_symbol`), shipped the same evening. Build order: `docs/roadmap.md`;
 the overnight log: `docs/plans/overnight-2026-10-05.md`.
 
 ## Stack
 
 - **Keep:** `mesen/bridge.lua` (Lua in Mesen2, JSON over TCP, the only part
   on Windows), `src/bridge/mesen/*` (connection, protocol, adapter),
-  `src/agent/tools.ts` (29 tools), `src/agent/prompts.ts`, `src/mappings/*`
+  `src/agent/tools.ts` (30 tools), `src/agent/prompts.ts`, `src/mappings/*`
   and `mappings/*.json`, `src/agent/disassembler.ts` (Capstone WASM),
   `src/agent/nes-palette.ts`. These move under `src/core/` (ADR-0005).
 - **Target (shipping):** `src/dsh/` plugin: Mesen service, core tools
@@ -68,6 +74,9 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
 - **Never write CHR ROM or PRG ROM silently.** RAM edits are the default;
   persistent edits are explicit in the tool call and recorded as events.
 - **Never ship or fetch ROMs.** Users bring their own.
+- **The paused keep-alive never steps the CPU** (ADR-0016): `keepalive()` in
+  `mesen/bridge.lua` steps one PPU dot; a CPU step lets a paused game creep
+  into its NMI.
 - **No lookup, pick or read-only tool advances the emulator** (ADR-0013).
   Scroll comes from the standing ring in `bridge.lua`; only `step_frame`,
   `reset_emulator`, save states and the view's Step button run frames, and

@@ -155,6 +155,50 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       a running turn ever needs a click; history keyed by session if it
       should survive a restart.
 
+- [ ] **18. Map Super Mario Bros. end to end** (release gate 1,
+      `docs/DIRECTION.md`). A coverage checklist in
+      `docs/plans/smb-map-coverage.md`, one line per thing a person would
+      point at (title, HUD, each world's tile sets, player and enemies,
+      items and effects; every palette slot's job; the RAM a hacker reaches
+      for; the level data format and where each level lives; NMI, scroll
+      split, palette loads, level loader), each ticked with the session that
+      proved it and promoted into `mappings/sha1-<smb>.json`. Needs: a
+      `note` mapping type for facts that are not a tile, palette or address
+      (the model already tried to record the scanline-31 split as an
+      address); a `promote_mappings` pass per session; label-from-the-view
+      (item 16 carry-in) so clicking produces entries without a model turn.
+      Plan: `docs/plans/mapping-campaign.md` (five answer sheets, one
+      discovery skill each, the tools they still lack, SMB order). First
+      step shipped 2026-10-05: reference import (ADR-0017), `scripts/
+      import-reference.mjs` for cc65 `.dbg`, assembler equates and wiki
+      tables into the gitignored `hacks/sha1-<sha1>/reference.json`, the
+      `lookup_symbol` tool, symbol names beside `trace_writes` writers, and
+      `source` on `record_mapping`. Logan clones the ca65 port of
+      doppelganger's disassembly beside his ROM and builds it; the plugin
+      never fetches it.
+- [ ] **19. Iterate on a rewritten game** (release gate 2). The hack is
+      a thing you boot: `up.sh` (and the installed plugin on connect)
+      applies the ledger when the emulator's ROM is clean, with the prompt
+      saying so instead of waiting for `reapply_edits`; persistent paths
+      for nametable, CHR-tile and level edits proven on SMB the way the
+      palette table was (origin found, ledgered, survives reset, exported);
+      `hack status`/`diff` against the original; a session that reopens a
+      hack from last week and keeps going. ADR needed for the boot-time
+      apply (it writes PRG/CHR without a model call, which the bright line
+      forbids unless the person's ledger is the explicit instruction).
+- [x] **20. 60 fps view** (Logan's ask 2026-10-05; ADR-0007 closed as not
+      needed). Measured before building anything: the JSON/PNG channel at
+      `viewFps: 60` delivers 58 events and 38 distinct frames a second at
+      109 KB/s with emulation at 60.0 fps; 30 and 20 scale linearly. Default
+      raised to 60 (`viewFps` in the plugin config, cap 60); the status line
+      shows view fps and emulation fps separately from the bridge's frame
+      counter, so a slow view is never mistaken for a slow game.
+- [x] **21. Pause without creep** (ADR-0016). Done 2026-10-05: the paused
+      keep-alive steps one PPU dot instead of one CPU instruction; measured
+      195 dots and two PC bytes per idle minute against a hundred-plus
+      instructions before; a zero-count step was tried and does not
+      re-break. Watchdog entry in `docs/issues.md` stands.
+
 ## Next
 
 - [x] **12. Click correctness** (ADR-0010). Done 2026-10-05 in four
@@ -231,9 +275,6 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
   images, copy/paste between tiles and games.
 - Edit recipes: a replayable script of edits.
 - Second adapter (mGBA or an SNES emulator) to prove the platform layering.
-- Smooth emulator view: a one-way binary frame channel from Lua (ADR-0007,
-  proposed). Try the 20 fps setting first; adopt only when 10 fps is a
-  measured complaint or tool latency rises while the view is open.
 
 ## Shipped (pre-rethink, 2026-02 to 2026-03)
 

@@ -14,6 +14,7 @@ describe("agentTools", () => {
     expect(names).toContain("get_pixel_color");
     expect(names).toContain("list_sprites");
     expect(names).toContain("get_region");
+    expect(names).toContain("lookup_symbol");
     expect(names).toContain("search_memory");
     expect(names).toContain("reset_emulator");
     expect(names).toContain("trace_writes");
@@ -231,6 +232,38 @@ describe("executeTool", () => {
     expect(parsed.summary).toContain("slot 1 of background palette 0");
     const obj = await executeTool("get_region", { x: 128, y: 120, mode: "object" }, adapter);
     expect(JSON.parse((obj as { text: string }).text).mode).toBe("object");
+  });
+
+  it("lookup_symbol reads the ROM's imported reference by name and by nearest address, and says when there is none (ADR-0017)", async () => {
+    const adapter = mockAdapter();
+    const none = await executeTool("lookup_symbol", { name: "lives" }, adapter, null, null, null, { dir: mkdtempSync(join(tmpdir(), "jeromy-noref-")) } as any);
+    expect((none as { text: string }).text).toContain("No reference imported");
+    const dir = mkdtempSync(join(tmpdir(), "jeromy-ref-"));
+    writeFileSync(join(dir, "reference.json"), JSON.stringify({ source: "smbdis via threecreepio", imported_at: "2026-10-05", symbols: [
+      { name: "NumberOfLives", address: 0x75a, kind: "equ", size: 1 },
+      { name: "NonMaskableInterrupt", address: 0x8082, kind: "label" },
+      { name: "InitScroll", address: 0x8ee0, kind: "label" },
+      { name: "GameRoutines", address: 0x9080, kind: "label" },
+    ] }));
+    const ledger = { dir } as any;
+    const byName = (await executeTool("lookup_symbol", { name: "lives" }, adapter, null, null, null, ledger)) as { text: string };
+    expect(byName.text).toContain("Reference: smbdis via threecreepio (4 symbols; unverified leads, not mappings).");
+    expect(byName.text).toContain("NumberOfLives = $075A (equ, 1 bytes)");
+    const byAddr = (await executeTool("lookup_symbol", { address: 0x8ee9 }, adapter, null, null, null, ledger)) as { text: string };
+    expect(byAddr.text).toContain("$8EE9 is $9 bytes after InitScroll = $8EE0 (label)");
+    const far = (await executeTool("lookup_symbol", { address: 0xa000 }, adapter, null, null, null, ledger)) as { text: string };
+    expect(far.text).toContain("No symbol within the search distance");
+    // trace_writes writers carry the nearest label as a lead.
+    const trace = JSON.parse(((await executeTool("trace_writes", { address: 0x75a }, adapter, null, null, null, ledger)) as { text: string }).text);
+    expect(trace.writers[0].symbol).toBe("GameRoutines+$7 (reference, unverified)");
+  });
+
+  it("record_mapping passes source through for attribution (ADR-0017)", async () => {
+    const adapter = mockAdapter();
+    const r = JSON.parse(((await executeTool("record_mapping", { mapping_type: "address", id: "0x075A", name: "lives", source: "Data Crystal RAM map, GFDL 1.2" }, adapter)) as { text: string }).text);
+    expect(r.source).toBe("Data Crystal RAM map, GFDL 1.2");
+    const r2 = JSON.parse(((await executeTool("record_mapping", { mapping_type: "address", id: "0x075A", name: "lives" }, adapter)) as { text: string }).text);
+    expect(r2.source).toBeUndefined();
   });
 
   it("list_sprites decodes OAM through the bridge, filtered to a pixel when given one (ADR-0013)", async () => {

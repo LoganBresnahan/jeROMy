@@ -18,6 +18,7 @@ what it learned about the ROM so the next session starts smarter.
 ```
 describe change → inspect (screenshot / tiles / palette / memory)
   → edit live (palette, CHR tile, nametable, RAM) → verify (screenshot)
+  → persist (ledgered PRG/CHR write → hacks/sha1-*/edits.json → IPS/BPS/ROM)
   → record discovery (record_mapping) → promote to mappings/sha1-*.json
 ```
 
@@ -25,8 +26,9 @@ Three things fall out of the loop and are the actual assets:
 
 1. **The Mesen bridge**: Lua in the emulator, JSON over TCP, pause/step/
    resume under the 1-second Lua watchdog. The only part that runs on Windows.
-2. **The tools**: 24 emulator operations the model can call, with
-   model-readable renderings (ASCII tile art, palette tables, nametable grids).
+2. **The tools**: 30 emulator operations the model can call, with
+   model-readable renderings (ASCII tile art, palette tables, nametable
+   grids, slot-based region selections).
 3. **The mappings**: per-ROM JSON keyed by SHA1 that names tiles, palettes,
    sprites and memory addresses. Discovered in sessions, promoted to files,
    shared with other people.
@@ -47,6 +49,31 @@ in dsh's sidebar. See ADR-0001 through ADR-0005 and
 Default model is `deepseek-flash` (V4.1-Flash, native vision, roughly a
 hundredth of Claude's per-screenshot cost). Switching to Claude or anything
 else is a dsh settings change, never code here.
+
+## Release gate (Logan, 2026-10-05)
+
+jeROMy is not released, published or announced until two things are true
+on Super Mario Bros. (World), the reference game:
+
+1. **The game is mapped end to end.** `mappings/sha1-<smb>.json` names the
+   things a person would point at in every scene the game has (title, the
+   HUD, each world's tile sets, enemies and the player, item and effect
+   sprites), the palettes and what each slot paints, the RAM a hacker
+   reaches for (lives, coins, timer, score, world/level, player state,
+   enemy slots), the level data format and where each level lives in PRG,
+   and the routines that matter (NMI, scroll split, palette loads, level
+   loader). Coverage is measured, not felt: a checklist in
+   `docs/plans/` with one line per item and the session that proved it.
+2. **A rewritten game can be iterated on.** Edits are not experiments in
+   RAM that vanish on reset; a hack is a thing you boot. The ledger under
+   `hacks/sha1-<sha1>/` is the hack, every PRG/CHR change goes through it,
+   the loop brings the game up with the hack applied without the model
+   being asked, and a person can keep changing it across sessions, undo,
+   diff, and export a patch or a ROM at any point. Palette, tile,
+   nametable, level and code edits all have a persistent path, not only
+   the palette table proven on 2026-10-05.
+
+Everything else on the roadmap serves one of these two.
 
 ## Principles
 

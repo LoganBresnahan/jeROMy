@@ -1,6 +1,6 @@
 # ADR-0007: A push-based binary frame channel for the emulator view, if 10 fps stops being enough
 
-**Status:** Proposed (not scheduled; written 2026-10-05 so the design is ready when the need is measured)
+**Status:** Not needed (measured 2026-10-05). Logan asked for 60 fps; the existing request/response channel was measured first: with `viewFps: 60` the view receives 58 events/s and 38 distinct PNG frames/s at 109 KB/s (3 KB per PNG), emulation holds 60.0 fps, and tool latency is unchanged; 30 and 20 scale linearly (61 and 43 KB/s). The default is now 60 (`viewFps`, plugin config). Reopen only if a game's frames stop compressing to a few KB or the sidebar browser cannot decode 60 PNGs a second.
 **Date:** 2026-10-05
 
 ## Context

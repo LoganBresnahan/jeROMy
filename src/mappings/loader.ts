@@ -79,6 +79,9 @@ export function mergeMappings(
   // ROM origins are the one thing a later discovery may add to an existing
   // entry: knowing where a thing lives in the cartridge is new knowledge even
   // when its name is not (ADR-0009).
+  const addSource = (target: { source?: string }, source?: string) => {
+    if (source && !target.source) target.source = source;
+  };
   const addOrigins = (target: { rom_origins?: RomOrigin[] }, origins?: RomOrigin[]) => {
     if (!origins || origins.length === 0) return;
     const have = new Set((target.rom_origins ?? []).map((o) => `${o.mem}:${o.offset}:${o.length}`));
@@ -98,6 +101,7 @@ export function mergeMappings(
           };
         }
         addOrigins(base.tiles[entry.id], entry.rom_origins);
+        addSource(base.tiles[entry.id], entry.source);
         break;
       case "palette":
         if (!base.palettes[entry.id]) {
@@ -107,6 +111,7 @@ export function mergeMappings(
           };
         }
         addOrigins(base.palettes[entry.id], entry.rom_origins);
+        addSource(base.palettes[entry.id], entry.source);
         break;
       case "sprite":
         if (!base.sprites[entry.id]) {
@@ -116,6 +121,7 @@ export function mergeMappings(
             ...(entry.notes ? { notes: entry.notes } : {}),
           };
         }
+        addSource(base.sprites[entry.id], entry.source);
         break;
       case "address":
         if (!base.addresses[entry.id]) {
@@ -126,6 +132,7 @@ export function mergeMappings(
           };
         }
         addOrigins(base.addresses[entry.id], entry.rom_origins);
+        addSource(base.addresses[entry.id], entry.source);
         break;
     }
   }
@@ -144,6 +151,8 @@ export function formatOrigins(origins?: RomOrigin[]): string {
 /** A single discovery entry from the record_mapping tool. */
 export interface DiscoveredEntry {
   mapping_type: "tile" | "palette" | "sprite" | "address";
+  /** Reference credited for the lead (ADR-0017). */
+  source?: string;
   id: string;
   name: string;
   category?: string;

@@ -47,12 +47,16 @@ export interface TileMapping {
   group?: string;
   notes?: string;
   rom_origins?: RomOrigin[];
+  /** Where the lead came from when it was not a session's own discovery (ADR-0017); the emulator observation is still what made it an entry. */
+  source?: string;
 }
 
 export interface PaletteMapping {
   name: string;
   notes?: string;
   rom_origins?: RomOrigin[];
+  /** Where the lead came from when it was not a session's own discovery (ADR-0017); the emulator observation is still what made it an entry. */
+  source?: string;
 }
 
 export interface SpriteMapping {
@@ -60,6 +64,7 @@ export interface SpriteMapping {
   tiles: string[];
   palette_id: number;
   notes?: string;
+  source?: string;
 }
 
 export interface AddressMapping {
@@ -68,6 +73,8 @@ export interface AddressMapping {
   mem_type: string;
   description: string;
   rom_origins?: RomOrigin[];
+  /** Where the lead came from when it was not a session's own discovery (ADR-0017); the emulator observation is still what made it an entry. */
+  source?: string;
 }
 
 /** Current mapping file format (ADR-0009). */

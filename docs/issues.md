@@ -35,12 +35,15 @@ commit is the record; a file of ticked boxes stops being read.
   rendering off, and anything that reads the live PPU mask then says
   "nothing is drawn" (session `d8b747b1`, 2026-10-05: `get_region` a
   minute after the click). Fixed for the mask by sealing it with the ring's
-  frame (`frame_mask` in `bridge.lua`); still true for anything else that
-  reads live CPU or PPU state while paused (`get_cpu_state`, `read_memory`
-  of RAM the NMI touches, `debug_state`). The real fix is a keep-alive that
-  does not execute instructions, which is the same change the watchdog
-  entry above asks for; until then, treat a long pause as "paused at some
-  point inside the next frame", not at the frame boundary.
+  frame (`frame_mask` in `bridge.lua`) and, the same day, for the creep
+  itself by stepping one PPU dot instead of a CPU instruction (ADR-0016:
+  195 dots and two PC bytes per idle minute, against a hundred-plus
+  instructions). Residual: after about two minutes of idle pause the dot
+  steps reach the NMI line and the CPU walks through SMB's NMI at a cycle
+  a second; a tool that needs byte-exact RAM after a long pause should
+  snapshot RAM at the first `codeBreak` (ADR-0016 revisit trigger). Delete
+  this entry when that snapshot exists or when a week of sessions shows no
+  one noticing.
 
 - **The Lua client sometimes never notices that a headless dsh run ended.**
   Reproduced twice on 2026-10-05 (trio runs 220244 and 221242): after the

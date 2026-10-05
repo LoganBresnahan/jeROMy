@@ -18,7 +18,7 @@ export interface EditLedger {
   ensureDir(): void;
   /** Path of the ledger file, for tool text. */
   readonly editsFile: string;
-  /** The hack directory exports land in. */
+  /** The hack directory exports land in, and where an imported reference.json lives (ADR-0017). */
   readonly dir: string;
 }
 
