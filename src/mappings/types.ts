@@ -6,10 +6,22 @@
  * sprite compositions, and known memory addresses.
  */
 
+/** Where a visible thing comes from in the cartridge (ADR-0009): the bytes a persistent edit must change. */
+export interface RomOrigin {
+  mem: "prgRom" | "chrRom";
+  /** ROM offset within that memory, no iNES header. */
+  offset: number;
+  length: number;
+  notes?: string;
+}
+
 export interface GameMapping {
   rom_sha1: string;
   rom_name: string;
+  /** Revision counter: bumped on every merge. */
   version: number;
+  /** File format: absent or 1 = original; 2 = entries may carry rom_origins (ADR-0009). */
+  schema?: number;
   contributors: string[];
   description: string;
   tiles: Record<string, TileMapping>;
@@ -34,11 +46,13 @@ export interface TileMapping {
   /** Groups related tiles: "cloud", "pipe", "ground" */
   group?: string;
   notes?: string;
+  rom_origins?: RomOrigin[];
 }
 
 export interface PaletteMapping {
   name: string;
   notes?: string;
+  rom_origins?: RomOrigin[];
 }
 
 export interface SpriteMapping {
@@ -53,4 +67,8 @@ export interface AddressMapping {
   address: string;
   mem_type: string;
   description: string;
+  rom_origins?: RomOrigin[];
 }
+
+/** Current mapping file format (ADR-0009). */
+export const MAPPING_SCHEMA = 2;

@@ -182,3 +182,34 @@ describe("formatMappingForPrompt", () => {
     expect(text).not.toContain("Known Palettes");
   });
 });
+
+describe("mapping schema v2: rom_origins (ADR-0009)", () => {
+  const origin = { mem: "prgRom" as const, offset: 0xccc, length: 1, notes: "level palette table, slot 1" };
+
+  it("stamps schema 2 on a new mapping and carries rom_origins onto new entries", () => {
+    const m = mergeMappings(null, [{ mapping_type: "palette", id: "0", name: "pipe_bush_hill_green", confidence: 1, rom_origins: [origin] }], "abc", "SMB");
+    expect(m.schema).toBe(2);
+    expect(m.palettes["0"].rom_origins).toEqual([origin]);
+  });
+
+  it("adds origins to an existing entry without renaming it, and does not duplicate them", () => {
+    const existing = mergeMappings(null, [{ mapping_type: "palette", id: "0", name: "sky_ground", confidence: 1 }], "abc", "SMB");
+    delete existing.schema; // a v1 file on disk
+    const once = mergeMappings(existing, [{ mapping_type: "palette", id: "0", name: "renamed", confidence: 1, rom_origins: [origin] }], "abc", "SMB");
+    expect(once.palettes["0"].name).toBe("sky_ground");
+    expect(once.palettes["0"].rom_origins).toEqual([origin]);
+    expect(once.schema).toBe(2);
+    const twice = mergeMappings(once, [{ mapping_type: "palette", id: "0", name: "x", confidence: 1, rom_origins: [origin, { mem: "chrRom", offset: 16, length: 16 }] }], "abc", "SMB");
+    expect(twice.palettes["0"].rom_origins).toHaveLength(2);
+  });
+
+  it("prints ROM origins in the prompt text", () => {
+    const m = mergeMappings(null, [
+      { mapping_type: "palette", id: "0", name: "p", confidence: 1, rom_origins: [origin] },
+      { mapping_type: "tile", id: "0xB6", name: "ground", confidence: 1, rom_origins: [{ mem: "chrRom", offset: 0xb60, length: 16 }] },
+    ], "abc", "SMB");
+    const text = formatMappingForPrompt(m);
+    expect(text).toContain("Palette 0: p (ROM: prgRom 0xCCC (1 byte) level palette table, slot 1)");
+    expect(text).toContain("0xB6: ground (ROM: chrRom 0xB60 (16 bytes))");
+  });
+});

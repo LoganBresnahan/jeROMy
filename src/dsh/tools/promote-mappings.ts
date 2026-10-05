@@ -32,6 +32,7 @@ export function discoveryFromRecordResult(text: string): DiscoveredEntry | null 
     ...(parsed.group ? { group: String(parsed.group) } : {}),
     ...(parsed.notes ? { notes: String(parsed.notes) } : {}),
     confidence,
+    ...(Array.isArray(parsed.rom_origins) && parsed.rom_origins.length ? { rom_origins: parsed.rom_origins as DiscoveredEntry["rom_origins"] } : {}),
   };
 }
 

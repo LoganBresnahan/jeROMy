@@ -20,7 +20,9 @@ first, `emu.reset`), `convert_address` (adapter + handler). These are the
 plan's `search-memory-tool`, `reset-emulator-tool` and the address seam of
 `trace-writes-tool`.
 
-### 1. Foundations (Opus, no bridge) — `hack-dir-store`, `mapping-schema-v2-rom-origins`
+### 1. Foundations (Opus, no bridge) — `hack-dir-store`, `mapping-schema-v2-rom-origins` — DONE 2026-10-05
+
+`src/hacks/store.ts` (`HackStore`: edits with stable `seq`, discoveries, atomic writes), `hacksDir` config on the plugin and service, schema v2 (`schema: 2` separate from the `version` revision counter; `rom_origins` on tiles, palettes, addresses; merge adds origins to existing entries without renaming; prompt prints them; `record_mapping` takes and validates them).
 
 - `src/hacks/store.ts`: `hacksDir` config (default `<repo>/hacks`,
   threaded like `mappingsDir`), `hacks/sha1-<sha1>/` with `edits.json`,
@@ -52,7 +54,9 @@ plan's `search-memory-tool`, `reset-emulator-tool` and the address seam of
   second) must not drop frames visibly over 60 frames; a cold one (`$075A`
   lives) returns the writer at the right PRG offset.
 
-### 3. Ledgers and bridge tools (Opus) → /verify — `discoveries-ledger-on-disk`, `edit-ledger-auto-append`
+### 3. Ledgers and bridge tools (Opus) → /verify — `discoveries-ledger-on-disk`, `edit-ledger-auto-append` — DONE 2026-10-05
+
+`src/agent/edit-ledger.ts`: `ledgeredRomWrite` reads before, writes, reads back, appends; `executeTool` takes the ledger as its last dependency; `write_memory` (prgRom/chrRom), `write_tile` and `write_sprite` (chrRom) go through it and carry `reason`; a missing ledger or a failed append is said in the tool text, never hidden. `MesenService` creates the `HackStore` on connect from the ROM SHA1, loads `discoveries.json` into the existing array, appends on every `record_mapping`, clears after `promote_mappings`. The undo seam is a direct adapter write (the wrapper lives only inside the tool cases).
 
 - Discoveries: `MesenService` loads `discoveries.json` on connect for the
   ROM's SHA1 (replace array contents, not identity), appends on each

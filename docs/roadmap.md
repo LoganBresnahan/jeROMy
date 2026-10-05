@@ -125,14 +125,18 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
   span). `nearestNesColor` added for ADR-0010's `get_pixel_color`. Verified
   by asking the model to restate: it named `$22`/`$29`/`$1A`/`$36`
   correctly and wrote hex in code spans (session `b83a8ddc`).
-- **10. Persistent edits** (ADR-0009), in the order the procedure needs:
-  (a) `search_memory` + `trace_writes` (Lua memory callbacks,
-  `convertAddress`), useful on their own; (b) `hacks/sha1-<sha1>/` with
-  `edits.json` auto-filled by ROM-targeted writes and `discoveries.json`
-  taking over the in-memory ledger; (c) `export_patch` (IPS, BPS, verify by
-  dump-and-diff), `export_rom`, `undo_edit`, `reset_emulator`; (d) mapping
-  schema v2 with `rom_origins`; (e) the `persist-edit` skill from the first
-  real SMB recolor that survives a reset, with its `trio.sh` check.
+- **10. Persistent edits** (ADR-0009), per
+  `docs/plans/adr-0009-persistent-edits-build-plan.md`. Done 2026-10-05:
+  `search_memory` (chunked under the Lua watchdog), `reset_emulator`,
+  `convert_address`; `hacks/sha1-<sha1>/` with `edits.json` filled by every
+  prgRom/chrRom write (read-before/read-back, `reason`) and
+  `discoveries.json` replacing the in-memory ledger across restarts;
+  mapping schema v2 with `rom_origins` through `record_mapping`. Proven
+  live: SMB's level palette table found at PRG `0xCCB`, slot 1 patched to
+  `$16`, survives `reset_emulator`, restored. Remaining: `trace_writes`
+  (two-phase, per-PC writers), IPS/BPS writers with an independent applier,
+  `export_patch` / `export_rom` / `undo_edit`, and the `persist-edit` skill
+  with its `trio.sh persist` check from the first real SMB recolor.
 - [x] **11. A `jeromy` agent preset.** Done 2026-10-05 per Logan's call
   (read-only shell + `read_image`, no write/edit): the dev patch inserts
   `preset-jeromy` (persona, time context, bash without background jobs,

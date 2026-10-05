@@ -255,6 +255,66 @@ describe("executeTool", () => {
     expect(adapter.loadState).toHaveBeenCalledWith(3);
   });
 
+  describe("edit ledger (ADR-0009)", () => {
+    function ledgerMock() {
+      const entries: any[] = [];
+      return { entries, editsFile: "/hacks/sha1-x/edits.json", appendEdit: vi.fn((e: any) => { const entry = { seq: entries.length + 1, at: "t", ...e }; entries.push(entry); return entry; }) };
+    }
+    // readMemory answers with as many bytes as asked, counting up from the address, so before/after differ.
+    function romAdapter() {
+      let writes = 0;
+      return mockAdapter({
+        readMemory: vi.fn().mockImplementation(async (addr: number, len: number, mem: string) => ({ address: addr, mem_type: mem, bytes: Array.from({ length: len }, (_, i) => (addr + i + writes) & 0xff) })),
+        writeMemory: vi.fn().mockImplementation(async () => { writes++; return { bytes_written: 1 }; }),
+        writeChrTile: vi.fn().mockImplementation(async () => { writes++; return { rows_written: 8 }; }),
+      });
+    }
+
+    it("write_memory to prgRom reads before and after and ledgers the entry", async () => {
+      const adapter = romAdapter(); const ledger = ledgerMock();
+      const result = await executeTool("write_memory", { address: 0xccc, bytes: [0x16], mem_type: "prgRom", reason: "pipes red" }, adapter, null, null, null, ledger);
+      expect(adapter.readMemory).toHaveBeenCalledWith(0xccc, 1, "prgRom");
+      expect(ledger.appendEdit).toHaveBeenCalledWith({ tool: "write_memory", mem: "prgRom", offset: 0xccc, length: 1, old: [0xcc], new: [0xcd], reason: "pipes red" });
+      const parsed = JSON.parse((result as { text: string }).text);
+      expect(parsed).toMatchObject({ persistent: true, ledger: { seq: 1, file: "/hacks/sha1-x/edits.json" } });
+    });
+
+    it("write_memory to RAM is volatile and never touches the ledger", async () => {
+      const adapter = romAdapter(); const ledger = ledgerMock();
+      const result = await executeTool("write_memory", { address: 0x75a, bytes: [9], mem_type: "cpu" }, adapter, null, null, null, ledger);
+      expect(ledger.appendEdit).not.toHaveBeenCalled();
+      expect(adapter.readMemory).not.toHaveBeenCalled();
+      expect(JSON.parse((result as { text: string }).text).persistent).toBe(false);
+    });
+
+    it("write_tile to chrRom ledgers the 16 tile bytes; chrRam does not", async () => {
+      const adapter = romAdapter(); const ledger = ledgerMock();
+      const pixels = Array.from({ length: 8 }, () => Array(8).fill(1));
+      const text = ((await executeTool("write_tile", { tile_id: 0xb6, pixels, target: "chrRom" }, adapter, null, null, null, ledger)) as { text: string }).text;
+      expect(ledger.appendEdit).toHaveBeenCalledTimes(1);
+      expect(ledger.appendEdit.mock.calls[0][0]).toMatchObject({ tool: "write_tile", mem: "chrRom", offset: 0xb6 * 16, length: 16 });
+      expect(ledger.appendEdit.mock.calls[0][0].old).toHaveLength(16);
+      expect(text).toContain("Ledgered as edit #1");
+      await executeTool("write_tile", { tile_id: 1, pixels, target: "chrRam" }, adapter, null, null, null, ledger);
+      expect(ledger.appendEdit).toHaveBeenCalledTimes(1);
+    });
+
+    it("write_sprite to chrRom ledgers one entry per tile", async () => {
+      const adapter = romAdapter(); const ledger = ledgerMock();
+      const pixels = Array.from({ length: 16 }, () => Array(16).fill(2));
+      const text = ((await executeTool("write_sprite", { pixels, x: 0, y: 0, start_tile_id: 0x40, target: "chrRom" }, adapter, null, null, null, ledger)) as { text: string }).text;
+      expect(ledger.appendEdit).toHaveBeenCalledTimes(4);
+      expect(text).toContain("ledger entries #1, #2, #3, #4");
+    });
+
+    it("reports a missing ledger instead of pretending the edit is recorded", async () => {
+      const adapter = romAdapter();
+      const parsed = JSON.parse(((await executeTool("write_memory", { address: 1, bytes: [1], mem_type: "chrRom" }, adapter)) as { text: string }).text);
+      expect(parsed.ledger).toBeNull();
+      expect(parsed.ledger_warning).toMatch(/no hack directory/);
+    });
+  });
+
   it("write_memory passes bytes and default mem_type", async () => {
     const adapter = mockAdapter();
     await executeTool("write_memory", { address: 0x6000, bytes: [0xff, 0x00] }, adapter);
@@ -413,6 +473,14 @@ describe("executeTool", () => {
       expect(parsed.recorded).toBe(true);
       expect(parsed.event_type).toBe("mapping_discovered");
     }
+  });
+
+  it("record_mapping echoes validated rom_origins and rejects malformed ones (ADR-0009)", async () => {
+    const adapter = mockAdapter();
+    const ok = await executeTool("record_mapping", { mapping_type: "palette", id: "0", name: "p", rom_origins: [{ mem: "prgRom", offset: 0xccc, length: 1 }] }, adapter);
+    expect(JSON.parse((ok as { text: string }).text).rom_origins).toEqual([{ mem: "prgRom", offset: 0xccc, length: 1 }]);
+    const bad = await executeTool("record_mapping", { mapping_type: "palette", id: "0", name: "p", rom_origins: [{ mem: "cpu", offset: 1, length: 1 }] }, adapter);
+    expect((bad as { text: string }).text).toMatch(/^Error/);
   });
 
   it("record_mapping returns hypothesis for low confidence", async () => {

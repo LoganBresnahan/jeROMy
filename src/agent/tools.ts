@@ -10,6 +10,7 @@ import type { Disassembler, Arch } from "./disassembler.js";
 import type { GameMapping } from "../mappings/types.js";
 import { NES_MASTER_PALETTE_RGB, nearestNesColor, nesColorName } from "./nes-palette.js";
 import { lookupTileAtPixel } from "./tile-lookup.js";
+import { describeLedger, isRomMemory, ledgeredRomWrite, type EditLedger } from "./edit-ledger.js";
 
 // -- Tool Definitions (JSON Schema for the LLM) -----------------------------
 
@@ -200,6 +201,7 @@ export const agentTools: ToolSpec[] = [
             "saveRam",
           ],
         },
+        reason: { type: "string", description: "Why (for the edit ledger when the target is PRG/CHR ROM)" },
       },
       required: ["address", "bytes"],
     },
@@ -319,6 +321,7 @@ export const agentTools: ToolSpec[] = [
           description: "CHR target: chrRam (default) or chrRom",
           enum: ["chrRam", "chrRom"],
         },
+        reason: { type: "string", description: "Why (for the edit ledger when the target is PRG/CHR ROM)" },
       },
       required: ["tile_id", "pixels"],
     },
@@ -435,6 +438,7 @@ export const agentTools: ToolSpec[] = [
             "Tile size in pixels (default: 8). NES uses 8x8 tiles. " +
             "Override only if working with a platform that uses different tile dimensions.",
         },
+        reason: { type: "string", description: "Why (for the edit ledger when the target is PRG/CHR ROM)" },
       },
       required: ["pixels", "x", "y", "start_tile_id"],
     },
@@ -477,6 +481,20 @@ export const agentTools: ToolSpec[] = [
           type: "number",
           description:
             "How certain you are (0-1). 1 = confirmed, <1 = hypothesis. Defaults to 1.",
+        },
+        rom_origins: {
+          type: "array",
+          description: "Where the bytes live in the cartridge, once found (search_memory / trace_writes): [{mem: 'prgRom'|'chrRom', offset, length, notes?}]. Next time, a persistent edit goes straight there.",
+          items: {
+            type: "object",
+            properties: {
+              mem: { type: "string", enum: ["prgRom", "chrRom"] },
+              offset: { type: "number", description: "ROM offset within that memory, no iNES header" },
+              length: { type: "number" },
+              notes: { type: "string" },
+            },
+            required: ["mem", "offset", "length"],
+          },
         },
       },
       required: ["mapping_type", "id", "name"],
@@ -723,6 +741,7 @@ export async function executeTool(
   disassembler?: Disassembler | null,
   mapping?: GameMapping | null,
   imageStore?: Map<string, StoredImage> | null,
+  ledger?: EditLedger | null,
 ): Promise<ToolResult> {
   switch (name) {
     case "screenshot": {
@@ -834,12 +853,19 @@ export async function executeTool(
     }
 
     case "write_memory": {
-      const result = await adapter.writeMemory(
-        input.address as number,
-        input.bytes as number[],
-        (input.mem_type as any) ?? "cpu"
-      );
-      return { type: "text", text: JSON.stringify(result) };
+      const memType = ((input.mem_type as string) ?? "cpu") as MemoryType;
+      const address = input.address as number;
+      const bytes = input.bytes as number[];
+      if (isRomMemory(memType)) {
+        // Persistent edit: read-before / read-back around the write, then ledger (ADR-0009).
+        let result: unknown;
+        const outcome = await ledgeredRomWrite(adapter, ledger, "write_memory", memType, address, bytes.length, async () => {
+          result = await adapter.writeMemory(address, bytes, memType);
+        }, input.reason as string | undefined);
+        return { type: "text", text: JSON.stringify({ ...(result as object), persistent: true, ledger: outcome.entry ? { seq: outcome.entry.seq, file: ledger?.editsFile } : null, ...(outcome.ledgerError ? { ledger_warning: outcome.ledgerError } : {}) }) };
+      }
+      const result = await adapter.writeMemory(address, bytes, memType);
+      return { type: "text", text: JSON.stringify({ ...result, persistent: false }) };
     }
 
     case "get_cpu_state": {
@@ -910,10 +936,16 @@ export async function executeTool(
         return { type: "text", text: "Error: pixels must be an 8x8 array of values 0-3" };
       }
 
-      const result = await adapter.writeChrTile(tileId, pixels, target);
-      const warning = target === "chrRom"
-        ? " WARNING: Wrote to CHR ROM — this patches the ROM in memory."
-        : "";
+      let result!: Awaited<ReturnType<MesenAdapter["writeChrTile"]>>;
+      let warning = "";
+      if (target === "chrRom") {
+        const outcome = await ledgeredRomWrite(adapter, ledger, "write_tile", "chrRom", tileId * 16, 16, async () => {
+          result = await adapter.writeChrTile(tileId, pixels, target);
+        }, input.reason as string | undefined);
+        warning = ` Persistent: this patches CHR ROM in the emulator's copy.${describeLedger(outcome, ledger)}`;
+      } else {
+        result = await adapter.writeChrTile(tileId, pixels, target);
+      }
       const hexId = `$${tileId.toString(16).toUpperCase().padStart(2, "0")}`;
       const ascii = pixelGridToAscii(pixels);
       const text = `Wrote tile ${hexId} to ${target} (${result.rows_written} rows).${warning}\n\nPreview:\n${ascii}`;
@@ -1010,6 +1042,7 @@ export async function executeTool(
       const nt = (input.nametable as number) ?? 0;
       const tileSize = (input.tile_size as number) ?? 8;
       const ntBase = NES_NT_BASE + nt * NES_NT_SIZE;
+      const ledgerNotes: string[] = [];
 
       // Validate dimensions
       const height = pixels.length;
@@ -1045,7 +1078,14 @@ export async function executeTool(
             chunk.push(row);
           }
 
-          await adapter.writeChrTile(tileId, chunk, target);
+          if (target === "chrRom") {
+            const outcome = await ledgeredRomWrite(adapter, ledger, "write_sprite", "chrRom", tileId * 16, 16, async () => {
+              await adapter.writeChrTile(tileId, chunk, target);
+            }, input.reason as string | undefined);
+            ledgerNotes.push(outcome.entry ? `#${outcome.entry.seq}` : `tile ${tileId} not ledgered (${outcome.ledgerError})`);
+          } else {
+            await adapter.writeChrTile(tileId, chunk, target);
+          }
           rowTileIds.push(tileId);
           tileId++;
         }
@@ -1065,7 +1105,10 @@ export async function executeTool(
         }
       }
 
-      const warning = target === "chrRom" ? " WARNING: Wrote to CHR ROM." : "";
+      const unledgered = ledgerNotes.some((n) => n.includes("not ledgered"));
+      const warning = target === "chrRom"
+        ? ` Persistent: CHR ROM patched in the emulator's copy; ledger entries ${ledgerNotes.join(", ")}${ledger ? ` in ${ledger.editsFile}` : ""}.${unledgered ? " WARNING: not every tile is in the ledger; the edit cannot be exported or undone from it." : ""}`
+        : "";
       const hexStart = `$${startTileId.toString(16).toUpperCase().padStart(2, "0")}`;
       const hexEnd = `$${(startTileId + totalTiles - 1).toString(16).toUpperCase().padStart(2, "0")}`;
       const ascii = pixelGridToAscii(pixels);
@@ -1081,6 +1124,12 @@ export async function executeTool(
       // This tool returns a confirmation — the actual DB event recording
       // is handled by extractDomainEvents in index.ts.
       const confidence = (input.confidence as number) ?? 1;
+      const origins = Array.isArray(input.rom_origins) ? (input.rom_origins as Array<Record<string, unknown>>) : [];
+      for (const o of origins) {
+        if ((o.mem !== "prgRom" && o.mem !== "chrRom") || typeof o.offset !== "number" || typeof o.length !== "number" || o.length < 1) {
+          return { type: "text", text: "Error: each rom_origins entry needs mem (prgRom|chrRom), offset and length ≥ 1" };
+        }
+      }
       const result = {
         mapping_type: input.mapping_type,
         id: input.id,
@@ -1089,6 +1138,7 @@ export async function executeTool(
         group: input.group ?? null,
         notes: input.notes ?? null,
         confidence,
+        ...(origins.length ? { rom_origins: origins } : {}),
         recorded: true,
         event_type: confidence >= 1 ? "mapping_discovered" : "mapping_hypothesis",
       };

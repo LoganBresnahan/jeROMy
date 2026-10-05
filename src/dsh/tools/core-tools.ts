@@ -13,6 +13,7 @@ import type { ContentBlock } from "@deepseek-ai/dsh-llm";
 import { agentTools, executeTool, type ToolResult } from "../../agent/tools.js";
 import type { MesenAdapter } from "../../bridge/mesen/adapter.js";
 import type { Disassembler } from "../../agent/disassembler.js";
+import type { EditLedger } from "../../agent/edit-ledger.js";
 import type { GameMapping } from "../../mappings/types.js";
 
 export interface CoreToolDeps {
@@ -22,6 +23,8 @@ export interface CoreToolDeps {
   waitForConnection: (timeoutMs: number, signal?: AbortSignal) => Promise<boolean>;
   disassembler: () => Disassembler | null;
   mapping: () => GameMapping | null;
+  /** The loaded ROM's edit ledger, or null before the bridge has identified a ROM (ADR-0009). */
+  ledger?: () => EditLedger | null;
   /** Called after a successful call so the service can track emulator state. */
   onResult?: (name: string, result: ToolResult) => void;
 }
@@ -154,6 +157,7 @@ export function makeCoreTools(deps: CoreToolDeps): ToolDefinition[] {
           deps.disassembler(),
           deps.mapping(),
           null,
+          deps.ledger?.() ?? null,
         );
         deps.onResult?.(spec.name, result);
         return coreResultToValue(result, deps.attachments(), spec.name);

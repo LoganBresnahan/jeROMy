@@ -40,16 +40,19 @@ export interface Config {
   port: number;
   requestTimeout: number;
   mappingsDir?: string;
+  hacksDir?: string;
   viewPort: number;
 }
 
 const REPO_MAPPINGS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "mappings");
 const REPO_SKILLS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "skills");
+const REPO_HACKS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "hacks");
 
 export const Config: Schema<Config> = Schema.object({
   port: Schema.number().default(9001).description("TCP port mesen/bridge.lua connects to"),
   requestTimeout: Schema.number().default(15_000).description("Bridge request timeout (ms)"),
   mappingsDir: Schema.string().description("Directory of sha1-*.json game mappings (default: the plugin's mappings/)"),
+  hacksDir: Schema.string().description("Root for per-ROM hack directories: edit ledger, discoveries, patch exports (default: the plugin's hacks/, gitignored)"),
   viewPort: Schema.number().default(9002).description("Loopback port for the emulator view page (open it in the sidebar Browser)"),
 });
 
@@ -58,6 +61,7 @@ export function apply(ctx: Context, config: Config): void {
     port: config.port,
     requestTimeout: config.requestTimeout,
     mappingsDir: config.mappingsDir ?? REPO_MAPPINGS_DIR,
+    hacksDir: config.hacksDir ?? REPO_HACKS_DIR,
   });
 
   // Capstone is optional: without the WASM build `disassemble` says so.
@@ -74,6 +78,7 @@ export function apply(ctx: Context, config: Config): void {
       waitForConnection: (ms, signal) => scope.mesen.waitForConnection(ms, signal),
       disassembler: () => disassembler,
       mapping: () => scope.mesen.mapping,
+      ledger: () => scope.mesen.hackStore,
       onResult: (toolName, result) => scope.mesen.observeToolResult(toolName, result),
     });
     for (const tool of tools) scope.tools.register(tool);

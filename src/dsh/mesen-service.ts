@@ -12,6 +12,7 @@ import { loadMapping, type DiscoveredEntry } from "../mappings/loader.js";
 import type { GameMapping } from "../mappings/types.js";
 import type { ToolResult } from "../agent/tools.js";
 import { discoveryFromRecordResult } from "./tools/promote-mappings.js";
+import { HackStore } from "../hacks/store.js";
 
 declare module "@deepseek-ai/cordis" {
   interface Context {
@@ -26,6 +27,8 @@ export interface MesenServiceConfig {
   requestTimeout: number;
   /** Directory of sha1-*.json game mappings; undefined = the repo's mappings/. */
   mappingsDir?: string;
+  /** Root of per-ROM hack directories (ADR-0009): hacks/sha1-<sha1>/ with the edit ledger and discoveries. */
+  hacksDir: string;
 }
 
 export class MesenService extends Service {
@@ -34,13 +37,22 @@ export class MesenService extends Service {
   mapping: GameMapping | null = null;
   /** Last pause state observed through the bridge; null until first contact. */
   paused: boolean | null = null;
-  /** record_mapping outcomes this process has seen, promoted to the mapping file by `promote_mappings`. */
+  /**
+   * Unpromoted record_mapping outcomes for the loaded ROM. Mirrored to
+   * hacks/sha1-<sha1>/discoveries.json on every append so a restart does
+   * not lose them (ADR-0009); the array identity is stable because tools
+   * hold a closure over it.
+   */
   readonly discoveries: DiscoveredEntry[] = [];
+  /** Edit ledger and discoveries for the loaded ROM; null until the bridge has reported a SHA1. */
+  hackStore: HackStore | null = null;
   private readonly mappingsDir: string | undefined;
+  private readonly hacksDir: string;
 
   constructor(ctx: Context, config: MesenServiceConfig) {
     super(ctx, "mesen");
     this.mappingsDir = config.mappingsDir;
+    this.hacksDir = config.hacksDir;
     this.adapter = new MesenAdapter({ port: config.port, requestTimeout: config.requestTimeout });
 
     ctx.effect(() => {
@@ -73,7 +85,14 @@ export class MesenService extends Service {
     if (result.type !== "text") return;
     if (name === "record_mapping") {
       const entry = discoveryFromRecordResult(result.text);
-      if (entry) this.discoveries.push(entry);
+      if (entry) {
+        this.discoveries.push(entry);
+        try {
+          this.hackStore?.writeDiscoveries(this.discoveries);
+        } catch (error: unknown) {
+          this.ctx.logger.warn(`mesen: could not persist discoveries: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
       return;
     }
     if (name === "pause_emulator") this.paused = true;
@@ -127,6 +146,11 @@ export class MesenService extends Service {
   adoptMapping(merged: GameMapping): void {
     this.mapping = merged;
     this.discoveries.length = 0;
+    try {
+      this.hackStore?.clearDiscoveries();
+    } catch (error: unknown) {
+      this.ctx.logger.warn(`mesen: could not clear persisted discoveries: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
@@ -138,6 +162,19 @@ export class MesenService extends Service {
     this.romInfo = await this.adapter.getRomInfo();
     this.mapping = this.romInfo.sha1 ? loadMapping(this.romInfo.sha1.toLowerCase(), this.mappingsDir) : null;
     if (this.mapping) this.ctx.logger.info(`mesen: loaded mapping for ${this.romInfo.name}`);
+    // A different ROM may be loaded on reconnect: swap the hack store and
+    // replace the discoveries' contents (not the array) with that ROM's file.
+    this.hackStore = this.romInfo.sha1 ? new HackStore(this.hacksDir, this.romInfo.sha1) : null;
+    this.discoveries.length = 0;
+    if (this.hackStore) {
+      try {
+        this.discoveries.push(...this.hackStore.readDiscoveries());
+        const edits = this.hackStore.readEdits().length;
+        if (this.discoveries.length || edits) this.ctx.logger.info(`mesen: hack dir ${this.hackStore.dir}: ${edits} ledgered edits, ${this.discoveries.length} unpromoted discoveries`);
+      } catch (error: unknown) {
+        this.ctx.logger.warn(`mesen: could not read ${this.hackStore.dir}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
     const status = await this.adapter.getEmulatorStatus();
     this.paused = status.paused;
     if (status.paused) {

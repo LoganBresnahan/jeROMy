@@ -7,12 +7,14 @@
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import type {
-  GameMapping,
-  TileMapping,
-  PaletteMapping,
-  SpriteMapping,
-  AddressMapping,
+import {
+  MAPPING_SCHEMA,
+  type GameMapping,
+  type TileMapping,
+  type PaletteMapping,
+  type SpriteMapping,
+  type AddressMapping,
+  type RomOrigin,
 } from "./types.js";
 
 /** Default directory where mapping files live. */
@@ -64,6 +66,7 @@ export function mergeMappings(
     rom_sha1: romSha1,
     rom_name: romName,
     version: 1,
+    schema: MAPPING_SCHEMA,
     contributors: [],
     description: `Auto-discovered mappings for ${romName}`,
     tiles: {},
@@ -71,6 +74,16 @@ export function mergeMappings(
     sprites: {},
     addresses: {},
     notes: [],
+  };
+
+  // ROM origins are the one thing a later discovery may add to an existing
+  // entry: knowing where a thing lives in the cartridge is new knowledge even
+  // when its name is not (ADR-0009).
+  const addOrigins = (target: { rom_origins?: RomOrigin[] }, origins?: RomOrigin[]) => {
+    if (!origins || origins.length === 0) return;
+    const have = new Set((target.rom_origins ?? []).map((o) => `${o.mem}:${o.offset}:${o.length}`));
+    const fresh = origins.filter((o) => !have.has(`${o.mem}:${o.offset}:${o.length}`));
+    if (fresh.length > 0) target.rom_origins = [...(target.rom_origins ?? []), ...fresh];
   };
 
   for (const entry of discoveries) {
@@ -84,6 +97,7 @@ export function mergeMappings(
             ...(entry.notes ? { notes: entry.notes } : {}),
           };
         }
+        addOrigins(base.tiles[entry.id], entry.rom_origins);
         break;
       case "palette":
         if (!base.palettes[entry.id]) {
@@ -92,6 +106,7 @@ export function mergeMappings(
             ...(entry.notes ? { notes: entry.notes } : {}),
           };
         }
+        addOrigins(base.palettes[entry.id], entry.rom_origins);
         break;
       case "sprite":
         if (!base.sprites[entry.id]) {
@@ -110,12 +125,20 @@ export function mergeMappings(
             description: entry.name,
           };
         }
+        addOrigins(base.addresses[entry.id], entry.rom_origins);
         break;
     }
   }
 
   base.version += existing ? 1 : 0;
+  if (!base.schema || base.schema < MAPPING_SCHEMA) base.schema = MAPPING_SCHEMA;
   return base;
+}
+
+/** `prgRom 0xCCC (1 byte)` style, for prompts and tool text. */
+export function formatOrigins(origins?: RomOrigin[]): string {
+  if (!origins || origins.length === 0) return "";
+  return origins.map((o) => `${o.mem} 0x${o.offset.toString(16).toUpperCase()} (${o.length} byte${o.length === 1 ? "" : "s"})${o.notes ? ` ${o.notes}` : ""}`).join(", ");
 }
 
 /** A single discovery entry from the record_mapping tool. */
@@ -127,6 +150,8 @@ export interface DiscoveredEntry {
   group?: string;
   notes?: string;
   confidence: number;
+  /** Where the bytes live in the cartridge, when the agent found them (ADR-0009). */
+  rom_origins?: RomOrigin[];
 }
 
 /**
@@ -157,6 +182,7 @@ export function formatMappingForPrompt(mapping: GameMapping): string {
         let line = `- ${id}: ${tile.name}`;
         if (tile.group) line += ` [${tile.group}]`;
         if (tile.notes) line += ` — ${tile.notes}`;
+        if (tile.rom_origins?.length) line += ` (ROM: ${formatOrigins(tile.rom_origins)})`;
         lines.push(line);
       }
     }
@@ -170,6 +196,7 @@ export function formatMappingForPrompt(mapping: GameMapping): string {
     for (const [id, pal] of paletteEntries) {
       let line = `- Palette ${id}: ${pal.name}`;
       if (pal.notes) line += ` — ${pal.notes}`;
+      if (pal.rom_origins?.length) line += ` (ROM: ${formatOrigins(pal.rom_origins)})`;
       lines.push(line);
     }
     lines.push("");
@@ -193,7 +220,7 @@ export function formatMappingForPrompt(mapping: GameMapping): string {
     lines.push("### Known Addresses");
     for (const [key, addr] of addrEntries) {
       lines.push(
-        `- ${key}: ${addr.address} (${addr.mem_type}) — ${addr.description}`
+        `- ${key}: ${addr.address} (${addr.mem_type}) — ${addr.description}${addr.rom_origins?.length ? ` (ROM: ${formatOrigins(addr.rom_origins)})` : ""}`
       );
     }
     lines.push("");

@@ -55,6 +55,9 @@ tonight's plan: `docs/plans/overnight-2026-10-05.md`.
 - **Never ship or fetch ROMs.** Users bring their own.
 - **Mapping files are the artifact.** Keyed by ROM SHA1 in `mappings/`;
   discoveries promote there from session events, never the other way round.
+  Per-user state lives in `hacks/sha1-<sha1>/` (edit ledger, unpromoted
+  discoveries, exports; gitignored, ADR-0009); every PRG/CHR ROM write is
+  ledgered there with its old bytes, so it can be undone and exported.
 
 ## Conventions
 
