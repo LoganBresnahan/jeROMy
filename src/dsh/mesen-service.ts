@@ -25,8 +25,10 @@ export interface MesenServiceConfig {
   port: number;
   /** Per-request timeout in ms for bridge calls. */
   requestTimeout: number;
-  /** Directory of sha1-*.json game mappings; undefined = the repo's mappings/. */
+  /** Directory of sha1-*.json game mappings the user owns (promotion target); undefined = the repo's mappings/. */
   mappingsDir?: string;
+  /** Read-only mappings shipped with the package, consulted when the user directory has none for the ROM (ADR-0012). */
+  seedMappingsDir?: string;
   /** Root of per-ROM hack directories (ADR-0009): hacks/sha1-<sha1>/ with the edit ledger and discoveries. */
   hacksDir: string;
 }
@@ -47,11 +49,13 @@ export class MesenService extends Service {
   /** Edit ledger and discoveries for the loaded ROM; null until the bridge has reported a SHA1. */
   hackStore: HackStore | null = null;
   private readonly mappingsDir: string | undefined;
+  private readonly seedMappingsDir: string | undefined;
   private readonly hacksDir: string;
 
   constructor(ctx: Context, config: MesenServiceConfig) {
     super(ctx, "mesen");
     this.mappingsDir = config.mappingsDir;
+    this.seedMappingsDir = config.seedMappingsDir;
     this.hacksDir = config.hacksDir;
     this.adapter = new MesenAdapter({ port: config.port, requestTimeout: config.requestTimeout });
 
@@ -167,7 +171,8 @@ export class MesenService extends Service {
    */
   async refresh(): Promise<void> {
     this.romInfo = await this.adapter.getRomInfo();
-    this.mapping = this.romInfo.sha1 ? loadMapping(this.romInfo.sha1.toLowerCase(), this.mappingsDir) : null;
+    const sha1 = this.romInfo.sha1?.toLowerCase();
+    this.mapping = sha1 ? (loadMapping(sha1, this.mappingsDir) ?? (this.seedMappingsDir ? loadMapping(sha1, this.seedMappingsDir) : null)) : null;
     if (this.mapping) this.ctx.logger.info(`mesen: loaded mapping for ${this.romInfo.name}`);
     // A different ROM may be loaded on reconnect: swap the hack store and
     // replace the discoveries' contents (not the array) with that ROM's file.

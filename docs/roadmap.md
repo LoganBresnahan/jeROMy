@@ -81,12 +81,21 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       splits (SMB status bar), and in the web app the tool set is governed by
       the agent preset, not by the base-row disables in our patch.
 
-- [ ] **7. Bundle + profile.** `cordis.patch.yml` that inserts the jeROMy
-      plugins and removes the coding-agent tools; setup settings card that
-      shows the Lua script path for Mesen. `dsh plugin --profile jeromy add`
-      works from a clean machine. ADR-0001. Carry-in: the bundle patch
-      disables the session-log upload (`session-log-deepseek`
-      `enabled: false`) as the dev patch does (ADR-0011, Logan 2026-10-05).
+- [x] **7. Bundle + profile.** Done 2026-10-05 (ADR-0012): one npm package
+      `jeromy-dsh` that is both the plugin and a bundle; the root
+      `cordis.patch.yml` is the composition (plugin row by package name,
+      model, sidebar browser, session-log upload off, coding tools off,
+      `jeromy` preset as default, read-only sandbox default) and
+      `scripts/dsh-dev.sh` derives the dev overlay from it. Installed
+      copies keep user state in `~/.dsh/jeromy/` (mappings promotion
+      target with the package's `mappings/` as seed; `hacks/`). Setup help
+      is the Lua script path in the plugin log, `/status` and the view's
+      disconnected state (a settings card is deferred; ADR-0012).
+      `scripts/install-check.sh` proves it: fresh profile from the web
+      template, `dsh plugin --profile jeromy-pkg add <tarball>`, boot,
+      `/status` with `lua_script`, `/pick`, one headless look through the
+      installed copy, profile removed. Not yet published to npm; install
+      from the git URL or a packed tarball.
 - [x] **8. Delete the old stack.** Done 2026-10-05. Removed `src/web`,
       `src/db`, `src/index.ts`, `src/agent/agent.ts`, `src/agent/provider*`,
       `scripts/chat.mjs`, `scripts/dev-deepseek.sh`, the v0.1 architecture

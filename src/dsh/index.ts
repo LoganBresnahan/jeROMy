@@ -6,8 +6,8 @@
  * emulator-specific lives in src/bridge, src/agent and src/mappings (core);
  * this layer only adapts it to dsh.
  */
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+import { pluginPaths, luaScriptPathForMesen } from "./paths.js";
 import type { Context } from "@deepseek-ai/cordis";
 import Schema from "@deepseek-ai/schemastery";
 import { createUserMessage, type MessageSource } from "@deepseek-ai/dsh-llm";
@@ -44,9 +44,8 @@ export interface Config {
   viewPort: number;
 }
 
-const REPO_MAPPINGS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "mappings");
-const REPO_SKILLS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "skills");
-const REPO_HACKS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "hacks");
+const PATHS = pluginPaths(import.meta.url);
+const LUA_FOR_MESEN = luaScriptPathForMesen(PATHS.luaScript);
 
 export const Config: Schema<Config> = Schema.object({
   port: Schema.number().default(9001).description("TCP port mesen/bridge.lua connects to"),
@@ -60,9 +59,11 @@ export function apply(ctx: Context, config: Config): void {
   ctx.plugin(MesenService, {
     port: config.port,
     requestTimeout: config.requestTimeout,
-    mappingsDir: config.mappingsDir ?? REPO_MAPPINGS_DIR,
-    hacksDir: config.hacksDir ?? REPO_HACKS_DIR,
+    mappingsDir: config.mappingsDir ?? PATHS.mappingsDir,
+    seedMappingsDir: PATHS.seedMappingsDir,
+    hacksDir: config.hacksDir ?? PATHS.hacksDir,
   });
+  ctx.logger.info(`jeromy: load this in Mesen2 (Tools > Script Window): ${LUA_FOR_MESEN}${PATHS.installed ? ` · user data under ${PATHS.userRoot}` : ""}`);
 
   // Capstone is optional: without the WASM build `disassemble` says so.
   let disassembler: Disassembler | null = null;
@@ -86,7 +87,7 @@ export function apply(ctx: Context, config: Config): void {
       romInfo: () => scope.mesen.romInfo,
       discoveries: () => scope.mesen.discoveries,
       onPromoted: (merged) => scope.mesen.adoptMapping(merged),
-      mappingsDir: () => config.mappingsDir ?? REPO_MAPPINGS_DIR,
+      mappingsDir: () => config.mappingsDir ?? PATHS.mappingsDir,
     }));
 
     scope.systemPrompt.section({
@@ -105,7 +106,7 @@ export function apply(ctx: Context, config: Config): void {
       return true;
     };
     const view = createEmulatorViewServer(
-      { mesen: () => scope.mesen.adapter, inject, log: (m) => scope.logger.warn(m) },
+      { mesen: () => scope.mesen.adapter, inject, log: (m) => scope.logger.warn(m), luaScript: LUA_FOR_MESEN },
       () => scope.mesen.romInfo?.name ?? null,
       (tileId) => scope.mesen.mappingNameFor(tileId),
     );
@@ -129,7 +130,7 @@ export function apply(ctx: Context, config: Config): void {
   // see them. Separate inject: a profile without the skill registry still
   // gets the tools above.
   ctx.inject(["skills"], (scope) => {
-    const files = loadSkillFiles(REPO_SKILLS_DIR);
+    const files = loadSkillFiles(PATHS.skillsDir);
     for (const skill of files) {
       scope.effect(() => scope.skills.register({
         name: skill.name,

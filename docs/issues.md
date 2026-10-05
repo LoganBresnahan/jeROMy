@@ -60,6 +60,15 @@ commit is the record; a file of ticked boxes stops being read.
 
 ## Agent / tools
 
+- **A plugin row that names a package *directory* fails with "failed to
+  import".** dsh's loader imports an absolute `name:` as a file URL, and
+  Node cannot import a directory; mount by package name (`jeromy-dsh`) or
+  by the entry file (`.../dist/dsh/index.js`, `src/dsh/index.ts`). Found
+  2026-10-05 while writing `scripts/install-check.sh`; the same message
+  appeared once on a first web boot right after `dsh plugin add` and could
+  not be reproduced on later fresh installs. If it returns, the startup
+  diagnostics under `~/.dsh/logs/` have the cause.
+
 - **Ledger and emulator diverge after Mesen reloads the ROM.** The edit
   ledger survives (it is a file) but Mesen's in-memory PRG/CHR copy comes
   back clean after a restart, a reset-by-reload, or a ROM handoff, so

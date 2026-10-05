@@ -18,6 +18,8 @@ export interface EmulatorViewDeps {
   log: (message: string) => void;
   /** Frames per second pushed to /stream while the emulator runs (default 10, max 20). */
   fps?: number;
+  /** The bridge.lua path as Mesen needs it, shown while the bridge is not connected (ADR-0012). */
+  luaScript?: string;
 }
 
 /** One pushed frame: pause state always, PNG only when the frame changed. */
@@ -28,6 +30,8 @@ export interface StreamEvent {
   /** Base64 PNG; omitted when identical to the previous pushed frame. */
   png?: string;
   seq: number;
+  /** Setup hint (the Lua script path) while disconnected. */
+  hint?: string;
 }
 
 /**
@@ -44,6 +48,7 @@ export class FramePump {
   private seq = 0;
   constructor(
     private readonly mesen: () => MesenAdapter,
+    private readonly hint: () => string | undefined,
     private readonly romName: () => string | null,
     private readonly log: (message: string) => void,
     private readonly intervalMs: number,
@@ -90,7 +95,7 @@ export class FramePump {
         }
         if (!mesen.isConnected) {
           this.lastPng = "";
-          this.emit({ connected: false, paused: null, rom: this.romName(), seq: ++this.seq });
+          this.emit({ connected: false, paused: null, rom: this.romName(), seq: ++this.seq, ...(this.hint() ? { hint: this.hint() } : {}) });
           waitMs = 1000;
         } else {
           try {
@@ -193,7 +198,7 @@ function setStatus(ok,text){document.getElementById('dot').className='dot'+(ok?'
 // Decode off the main thread and never queue more than one frame: a slow
 // decode drops frames instead of building a backlog that looks like lag.
 async function draw(b64){if(drawing){pending=b64;return}drawing=true;try{const bytes=Uint8Array.from(atob(b64),ch=>ch.charCodeAt(0));const bmp=await createImageBitmap(new Blob([bytes],{type:'image/png'}));ctx.drawImage(bmp,0,0);bmp.close();frames++}catch(e){}finally{drawing=false;if(pending){const n=pending;pending=null;draw(n)}}}
-function onEvent(e){const d=JSON.parse(e.data);paused=d.paused;setStatus(d.connected,d.connected?(d.rom||'connected')+(paused?' · PAUSED':' · running')+(fps?' · '+fps+' fps':''):'bridge not connected');if(d.png)draw(d.png)}
+function onEvent(e){const d=JSON.parse(e.data);paused=d.paused;setStatus(d.connected,d.connected?(d.rom||'connected')+(paused?' · PAUSED':' · running')+(fps?' · '+fps+' fps':''):'bridge not connected'+(d.hint?' — in Mesen2: Tools › Script Window › Open '+d.hint+' › Run (allow network and I/O, timeout 1 s)':''));if(d.png)draw(d.png)}
 function connect(){if(es)es.close();es=new EventSource('/stream');es.onmessage=onEvent;es.onerror=()=>{setStatus(false,'stream lost, retrying');}}
 setInterval(()=>{fps=frames;frames=0},1000);
 c.addEventListener('click',async e=>{const r=c.getBoundingClientRect();const x=Math.floor((e.clientX-r.left)/zoom),y=Math.floor((e.clientY-r.top)/zoom);
@@ -231,7 +236,7 @@ export interface EmulatorViewServer {
 
 export function createEmulatorViewServer(deps: EmulatorViewDeps, romName: () => string | null, mappingName: (tileId: number) => string | undefined): EmulatorViewServer {
   const fps = Math.min(20, Math.max(1, deps.fps ?? 10));
-  const pump = new FramePump(deps.mesen, romName, deps.log, Math.round(1000 / fps));
+  const pump = new FramePump(deps.mesen, () => deps.luaScript, romName, deps.log, Math.round(1000 / fps));
   const streams = new Set<ServerResponse>();
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
@@ -258,7 +263,7 @@ export function createEmulatorViewServer(deps: EmulatorViewDeps, romName: () => 
       if (req.method === "GET" && url.pathname === "/status") {
         let paused: boolean | null = null;
         if (mesen.isConnected) paused = (await mesen.getEmulatorStatus()).paused;
-        json(res, 200, { connected: mesen.isConnected, paused, rom: romName() });
+        json(res, 200, { connected: mesen.isConnected, paused, rom: romName(), ...(deps.luaScript ? { lua_script: deps.luaScript } : {}) });
         return;
       }
       if (!mesen.isConnected) { json(res, 503, { error: "Mesen bridge not connected" }); return; }

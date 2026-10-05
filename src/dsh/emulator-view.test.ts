@@ -104,7 +104,7 @@ describe("emulator view (ADR-0004)", () => {
 
   it("FramePump pushes a PNG only when the frame changed and always carries pause state", async () => {
     const a = adapter();
-    const pump = new FramePump(() => a, () => "SMB", () => {}, 20);
+    const pump = new FramePump(() => a, () => undefined, () => "SMB", () => {}, 20);
     const events: any[] = [];
     const stop = pump.subscribe((e) => events.push(e));
     // Deadline, not a fixed sleep: under full-suite load a 20 ms tick can slip.
@@ -136,7 +136,7 @@ describe("emulator view (ADR-0004)", () => {
   });
 
   it("stop() ends the pump even with subscribers, and a mesen() that throws (inactive scope) stops it quietly", async () => {
-    const pump = new FramePump(() => adapter(), () => null, () => {}, 20);
+    const pump = new FramePump(() => adapter(), () => undefined, () => null, () => {}, 20);
     const stop = pump.subscribe(() => {});
     await new Promise((r) => setTimeout(r, 30));
     pump.stop();
@@ -145,7 +145,7 @@ describe("emulator view (ADR-0004)", () => {
     expect(() => pump.subscribe(() => {})).not.toThrow();
     expect(pump.subscriberCount).toBe(0);
 
-    const dead = new FramePump(() => { throw new Error("cannot get required service \"mesen\" in inactive context"); }, () => null, () => {}, 20);
+    const dead = new FramePump(() => { throw new Error("cannot get required service \"mesen\" in inactive context"); }, () => undefined, () => null, () => {}, 20);
     const events: unknown[] = [];
     dead.subscribe((e) => events.push(e));
     const deadline = Date.now() + 3000;

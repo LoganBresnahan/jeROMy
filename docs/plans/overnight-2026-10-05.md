@@ -142,3 +142,10 @@ candidate: say when one screenshot is enough.
 Open questions: none blocking. Next in the queue: item 7 (bundle +
 install from a clean machine), then `reapply_edits` and the save-state fix
 from the carry-ins.
+
+**Morning addendum (Logan back at 12:54).** Item 7 landed: `jeromy-dsh` is
+one package that is plugin and bundle (ADR-0012); `scripts/install-check.sh`
+installs a packed tarball into a fresh profile, boots it, checks the view
+and a pick, and runs a headless look through the installed copy. Every
+roadmap item in Now and Next is now ticked. Your "continue" acknowledgment
+on the web UI is dsh's own first-run notice, not ours.

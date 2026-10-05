@@ -23,8 +23,10 @@ ADR-0010: two-phase bridge requests, scroll capture, scanline-accurate
 `ctx.skills`), 11 (`jeromy` agent preset, read-only sandbox default) and
 10 (persistent edits, ADR-0009: ledgered ROM writes under `hacks/`,
 `search_memory`/`trace_writes`, patch export, `persist-edit` skill) shipped
-the same night. Open: item 7 (bundle + install from a clean machine), then
-the Later list. Build order: `docs/roadmap.md`; the overnight log:
+the same night, and item 7 (one installable package, ADR-0012, proven by
+`scripts/install-check.sh`) the next morning. Every item in "Now" and
+"Next" is done; what remains is the Later list and the carry-ins on items
+10 and 12. Build order: `docs/roadmap.md`; the overnight log:
 `docs/plans/overnight-2026-10-05.md`.
 
 ## Stack
@@ -34,10 +36,11 @@ the Later list. Build order: `docs/roadmap.md`; the overnight log:
   `src/agent/tools.ts` (27 tools), `src/agent/prompts.ts`, `src/mappings/*`
   and `mappings/*.json`, `src/agent/disassembler.ts` (Capstone WASM),
   `src/agent/nes-palette.ts`. These move under `src/core/` (ADR-0005).
-- **Target:** `src/dsh/` plugin: Mesen service, `defineTool` mappings,
-  prompt section, `SessionEventMap` events, loopback emulator-view page
-  (ADR-0004), bundle patch + settings card. TypeScript ESM, Node 22+, pnpm
-  inside dsh, npm here until the package is restructured.
+- **Target (shipping):** `src/dsh/` plugin: Mesen service, core tools
+  through one mapper, prompt section, skills registration, loopback
+  emulator-view page (ADR-0004); the root `cordis.patch.yml` bundle patch;
+  one npm package `jeromy-dsh` that is plugin and bundle (ADR-0012).
+  TypeScript ESM, Node 22+, pnpm inside dsh, npm here.
 - Runs in WSL2; Mesen2 runs on Windows; TCP on localhost between them.
 
 ## Non-negotiable rules
@@ -156,6 +159,13 @@ the Later list. Build order: `docs/roadmap.md`; the overnight log:
 - `scripts/mesen-up.sh --restart` — kill and relaunch Mesen so a changed
   `bridge.lua` loads. The single-instance handoff swaps the ROM but keeps
   the running script, so every Lua change needs this.
+- `scripts/install-check.sh [--keep]` — roadmap item 7 proof: build, fresh
+  profile from the web template, `dsh plugin --profile jeromy-pkg add
+  <repo>`, boot, view `/status` and `/pick`, one headless look through the
+  installed bundle patch, profile removed. Needs the dev dsh down.
+- `cordis.patch.yml` (repo root) is the bundle patch and the single source
+  of the composition (ADR-0012); `scripts/dsh-dev.sh` derives the dev
+  overlay from it. Edit the root file, never `.dsh-dev/cordis.yml`.
 - `scripts/budget.sh [floor]` — DeepSeek balance in USD; non-zero exit
   below the floor or when the account is unavailable. Check between items
   in an unattended run (`docs/plans/overnight-2026-10-05.md`).

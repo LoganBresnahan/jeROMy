@@ -32,20 +32,31 @@ dsh (web UI, model, sessions)  ──plugin──▶  jeROMy (src/dsh/)
 Mesen2 settings, once per machine: Tools → Script Window → allow network
 access, allow I/O, script timeout 1 s, auto-start on load.
 
-## Install (from source, until the bundle ships)
+## Install
+
+jeROMy is one npm package, `jeromy-dsh`, that is both the dsh plugin and a
+dsh bundle (ADR-0012): adding it to a profile mounts the plugin and applies
+its composition (`deepseek-flash`, the sidebar browser, session-log upload
+off, the coding toolbelt replaced by the `jeROMy` agent preset with a
+read-only sandbox default).
 
 ```bash
-git clone git@github.com:LoganBresnahan/jeROMy.git ~/jeROMy
-git clone https://github.com/deepseek-ai/deepseek-harness ~/deepseek-harness && (cd ~/deepseek-harness && pnpm install)
-cd ~/jeROMy && npm install
-cd ~/deepseek-harness && pnpm dsh jeromy --from-default-profile web   # creates ~/.dsh/profiles/jeromy once
+dsh jeromy --from-default-profile web          # a profile from the web template, once
+dsh plugin --profile jeromy add https://github.com/LoganBresnahan/jeROMy.git   # or a local path, or jeromy-dsh@<version> once published
+dsh --profile jeromy                           # boot; open the printed URL
 ```
 
-`scripts/dsh-dev.sh` writes a patch overlay that mounts `src/dsh/index.ts`
-into the `jeromy` profile, selects `deepseek-flash`, enables the sidebar
-browser, turns off dsh's session-log upload, and removes the coding
-toolbelt. A packaged bundle (`dsh plugin --profile jeromy add`) is roadmap
-item 7.
+A git or local install needs the package built (`npm install && npm run
+build` in the checkout; the Capstone WASM under `capstone/` is optional and
+only enables `disassemble`). On an installed copy, promoted mappings and
+hack directories go to `~/.dsh/jeromy/`; the package's `mappings/` is a
+read-only seed.
+
+To work on jeROMy itself, clone this repo next to a DeepSeek Harness
+checkout and use `scripts/up.sh`: it mounts `src/dsh/index.ts` from source
+through an overlay derived from the same `cordis.patch.yml`.
+`scripts/install-check.sh` proves the packaged install in a throwaway
+profile.
 
 ## Run
 
