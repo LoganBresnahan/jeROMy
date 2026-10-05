@@ -100,6 +100,14 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
 
 ## Next
 
+- **10. Persistent edits** (ADR-0009), in the order the procedure needs:
+  (a) `search_memory` + `trace_writes` (Lua memory callbacks,
+  `convertAddress`), useful on their own; (b) `hacks/sha1-<sha1>/` with
+  `edits.json` auto-filled by ROM-targeted writes and `discoveries.json`
+  taking over the in-memory ledger; (c) `export_patch` (IPS, BPS, verify by
+  dump-and-diff), `export_rom`, `undo_edit`, `reset_emulator`; (d) mapping
+  schema v2 with `rom_origins`; (e) the `persist-edit` skill from the first
+  real SMB recolor that survives a reset, with its `trio.sh` check.
 - **9. Curated ROM-hacking skills** (ADR-0008): a `skills/` directory in
   the plugin, registered through `ctx.skills`, one procedure per skill,
   model- and user-invocable. First set: `rom-orient`, `palette-swap`,

@@ -24,3 +24,4 @@ Template: `_template.md`.
 | [0006](0006-documentation-driven-workflow.md) | Documentation-driven workflow: ADRs, roadmap, issues inbox, skills | Accepted | 2026-10-05 |
 | [0007](0007-framebuffer-stream.md) | Push-based binary frame channel for the emulator view, if 10 fps stops being enough | Proposed | 2026-10-05 |
 | [0008](0008-curated-rom-hacking-skills.md) | Ship curated ROM-hacking skills with the plugin, one per procedure | Proposed | 2026-10-05 |
+| [0009](0009-persistent-edits-ledger-and-patch-export.md) | Persistent edits: find the ROM origin, keep a ledger, export a patch | Proposed | 2026-10-05 |
