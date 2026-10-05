@@ -1,102 +1,81 @@
-# jeROMy Roadmap
+# jeROMy roadmap
 
-## Completed
+Frontier = first unchecked item under **Now**. Check items off as they ship;
+pin deferred sub-tasks to items as carry-ins. Findings from real use live in
+`docs/issues.md` and are pinned here only when they block a slice or change
+build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
 
-### Phase 1: Bridge + Emulator Connection
-- TCP bridge between TypeScript (WSL2) and Mesen2 Lua script
-- MesenAdapter with full NES API: screenshots, palettes, tiles, memory, save states
-- Web UI with emulator view, chat panel, and sidebar
+## Now
 
-### Phase 2: Agent + LLM Tool Loop
-- Anthropic Claude integration with streaming
-- 13 agent tools: screenshot, tile inspection, palette read/write, memory read/write, save/load state, disassembly
-- System prompt with NES hardware reference
-- Capstone disassembler integration (optional)
+- [ ] **0. Model check.** Run the current stack against DeepSeek's
+      Anthropic-compatible endpoint (`ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`,
+      `DEEPSEEK_API_KEY` is already in the environment). Judge four things on
+      a real ROM: screenshot understanding, reading ASCII tile dumps, a
+      palette edit end to end, tool-call reliability over a multi-step turn.
+      Record cost per turn. If V4.1-Flash fails here, stop and rethink
+      ADR-0002 before anything below.
+- [ ] **1. Scaffold the plugin.** Install dsh (pin the version), create
+      profile `jeromy`, mount a hello plugin from this repo via `--patch`,
+      confirm it loads in the web UI. Decide the package name
+      (`dsh-jeromy`). ADR-0001.
+- [ ] **2. Extract `src/core/`.** Move bridge, adapter, protocol, tool specs,
+      prompt text, mapping loader, disassembler and palette table under
+      `src/core/` with zero dsh imports. Tests move with them. ADR-0005.
+- [ ] **3. Mesen service + screenshot tool.** `ctx.mesen` service wrapping
+      connection+adapter; port `screenshot` to `defineTool` returning an
+      image through `ctx.attachments`. This proves the image path on
+      `deepseek-flash` through dsh. Carry-in: if images inside tool results
+      fail on the OpenAI-compatible route, fall back to `agent.inject()` of a
+      user-turn image and record the finding in ADR-0002.
+- [ ] **4. Port the remaining tools** in groups: palette, memory, CHR tile,
+      nametable/sprite, emulator control, mapping, disassembly. Tool↔test
+      parity holds after each group (`/shipshape`).
+- [ ] **5. Prompt section + mappings + session events.** NES hardware
+      reference, emulator status and the loaded ROM's mapping as a system
+      prompt section. Palette/tile/memory writes and `record_mapping` as
+      `SessionEventMap` entries. Promote-to-file for mappings. ADR-0003.
+- [ ] **6. Emulator view page.** Loopback page served by the plugin: live
+      screenshot, zoom, pixel picker, pause/step/resume. Opened in dsh's
+      sidebar browser. Clicks POST to the plugin, which injects the pixel
+      result into the agent. ADR-0004.
+- [ ] **7. Bundle + profile.** `cordis.patch.yml` that inserts the jeROMy
+      plugins and removes the coding-agent tools; setup settings card that
+      shows the Lua script path for Mesen. `dsh plugin --profile jeromy add`
+      works from a clean machine. ADR-0001.
+- [ ] **8. Delete the old stack.** Remove `src/web`, `src/db`, `src/server`,
+      `src/index.ts`, `src/agent/agent.ts`, `src/agent/providers`. Rewrite
+      README as an install guide. Update `docs/README.md` and the
+      architecture docs that describe deleted code.
+      Carry-in: deleting `src/db` also clears the 9 `tsc` errors in
+      `docs/issues.md`; after this item the ship bar's typecheck has no
+      allowed residual, so remove that clause from `/shipshape`.
 
-### Phase 3: Event-Sourced Database
-- SQLCipher encrypted database with WAL mode
-- Append-only event store with 15 event types
-- Session management: CRUD, zero-copy forking via M:N join table
-- Snapshot manager for context compression
-- Lossless history rebuild from DB events
-- Server integration: auto-session creation, event recording, 8 new WS actions
-- 1155 tests across 46 files
+## Next
 
-## In Progress
+- **Sprite & animation editing** (old Phase 5): OAM inspection/editing,
+  multi-tile sprite composition, animation frame identification,
+  `extract_sprite` from reference images, `find_unused_tiles`.
+- **Disassembly intelligence** (old Phase 7): routine identification (NMI,
+  input polling, physics), memory variable discovery cross-referenced with
+  runtime reads, persistent disassembly results as mapping entries, ROM
+  patching, IPS/BPS export. Capstone WASM is already built for 6502,
+  65c02, W65816, ARM and Thumb.
 
-### Phase 3.5: Session UI + Bug Fixes
-- Browser UI for session list, switching, forking, deletion
-- Snapshot creation/listing in the UI
-- Pixel selector → agent integration (inject click results into chat context)
-- Save state fix (`createSavestate` API discovery)
+## Later / unscoped
 
-## Planned
+- User-assisted object identification: select regions in the emulator view
+  and label them ("this 2x3 tile region is the question block").
+- Batch edits ("all pipes green to red"), template edits from reference
+  images, copy/paste between tiles and games.
+- Edit recipes: a replayable script of edits.
+- Second adapter (mGBA or an SNES emulator) to prove the platform layering.
 
-### Phase 4: Tile & CHR Editing
+## Shipped (pre-rethink, 2026-02 to 2026-03)
 
-The agent can currently only change colors (palette edits). To change shapes — turning a cloud into a snake, editing sprite art, modifying level geometry — it needs CHR (Character ROM/RAM) editing.
-
-#### NES Graphics Primer
-- CHR data stores 8x8 pixel tile bitmaps. Each pixel is 2 bits (values 0-3), indexing into the assigned palette.
-- Each tile is 16 bytes: two 8-byte bitplanes interleaved.
-- The nametable maps tile IDs to screen positions. The attribute table assigns palettes to 16x16 blocks.
-- Many NES games use CHR RAM (writable) rather than CHR ROM (read-only). SMB1 uses CHR ROM, so tile edits require patching ROM data.
-
-#### New Tools
-- `read_tile(tile_id)` — Read a tile's 8x8 pixel grid (decoded from CHR data) as a 2D array of palette indices (0-3)
-- `write_tile(tile_id, pixels)` — Write an 8x8 pixel grid back to CHR RAM/ROM
-- `read_nametable(x, y, width, height)` — Read a rectangular region of the nametable (tile IDs + palette assignments)
-- `write_nametable(x, y, tile_ids)` — Place tiles at screen positions
-
-#### Visual Tile Editor (Future UI)
-- Zoom into a tile or group of tiles in the browser
-- Click individual pixels to edit them (2-bit values mapped to palette colors)
-- "Sprite sheet view" — browse all tiles in CHR ROM as a grid
-- The user labels regions: "these tiles are the cloud", "this is Mario's head"
-- These labels become `mapping_discovered` events in the DB, building a knowledge base the agent can reference
-
-#### LLM-Driven Tile Editing
-- The agent could eventually design 8x8 tile art by specifying pixel grids in JSON
-- For complex shapes: the agent proposes a design, renders a preview (via the tile editor), and the user approves
-- Vision-based feedback loop: agent writes tile, takes screenshot, evaluates result, iterates
-
-### Phase 5: Sprite & Animation Editing
-- OAM (Object Attribute Memory) inspection and editing
-- Sprite composition: many NES sprites are multi-tile (8x16 or assembled from multiple 8x8 tiles)
-- Animation frame identification and editing
-- Sprite sheet organization tools
-
-### Phase 6: Timeline UI
-- Visual event timeline with scrubbing
-- Fork visualization (tree view of session branches)
-- Event filtering by type (show only palette edits, only memory writes, etc.)
-- Diff view between sessions or between fork points
-- "Time travel" — rewind to any event and fork from there
-
-### Phase 7: Game Logic & Code Analysis
-- Disassembly-guided memory mapping (using Capstone)
-- Identify game routines: movement, collision, scoring
-- Suggest memory addresses for game variables (lives, score, position)
-- ROM patching: modify game logic (change physics, add behaviors)
-- Patch diffing and export (IPS/BPS patch generation)
-
-## Ideas (Unscoped)
-
-### User-Assisted Object Identification
-The user could zoom into the emulator view and select rectangular regions of pixels, tiles, or sprite chunks to label:
-- "This 2x3 tile region is the question block"
-- "These sprites are the Goomba"
-- Labels are stored as `mapping_discovered` events and inform future agent decisions
-- Reduces the need for the LLM to identify objects from screenshots alone
-- Could work as a "training" mode where the user teaches the agent about the game's visual layout
-
-### Multi-Tool Editing Workflows
-- Batch operations: "change all pipes from green to red" (requires finding all pipe tiles, checking their palettes, and editing accordingly)
-- Template-based edits: "make this tile look like [reference image]"
-- Copy/paste between tiles or between games
-
-### ROM Patching & Export
-- Generate IPS/BPS patches from accumulated edits
-- Export modified ROM
-- Track which edits are reversible vs permanent
-- "Recipe" system: save a sequence of edits as a replayable script
+Phases 1 through 4 of the original plan: TCP bridge + Mesen Lua client; agent
+tool loop on Claude with 13 then 24 tools; SQLCipher event store with
+zero-copy forking; session UI; game mapping files keyed by ROM SHA1; CHR tile
+read/write; nametable read/write; `record_mapping`; pause/step/resume under
+the Lua watchdog. Detail in `docs/architecture/phase4-plan.md` and the
+architecture docs. Phase 4.5 (extended thinking) was in progress and is
+superseded: thinking is a dsh config setting.

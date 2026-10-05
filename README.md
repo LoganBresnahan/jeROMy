@@ -1,5 +1,12 @@
 # jeROMy
 
+> **Status (2026-10-05): rethink in progress.** jeROMy is becoming a plugin
+> for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) on
+> `deepseek-flash`. The standalone server and web UI described below still
+> run and are being replaced; see [docs/DIRECTION.md](docs/DIRECTION.md),
+> [docs/roadmap.md](docs/roadmap.md) and the decision records in
+> [docs/adr/](docs/adr/README.md).
+
 AI-powered ROM hacking agent for retro game modding via natural language.
 
 jeROMy connects to a live NES emulator (Mesen2), lets an AI agent analyze the game via screenshots and memory inspection, and execute modifications — palette swaps, memory edits, and more — from natural language instructions in a chat interface.
