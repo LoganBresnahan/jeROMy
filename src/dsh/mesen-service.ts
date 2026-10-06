@@ -13,6 +13,7 @@ import type { GameMapping } from "../mappings/types.js";
 import type { ToolResult } from "../agent/tools.js";
 import { discoveryFromRecordResult } from "./tools/promote-mappings.js";
 import { HackStore } from "../hacks/store.js";
+import { applyOnBoot, type ApplyReport } from "../hacks/activate.js";
 import { ledgerDivergence, type LedgerDivergence } from "../agent/edit-ledger.js";
 
 declare module "@deepseek-ai/cordis" {
@@ -51,6 +52,8 @@ export class MesenService extends Service {
   hackStore: HackStore | null = null;
   /** Ledger vs emulator at connect time, for the prompt; null when there is no ledger. */
   ledgerStatus: LedgerDivergence | null = null;
+  /** What the boot-time apply of the active hack did on the last connect (ADR-0018); null when there was nothing to apply. */
+  bootApply: ApplyReport | null = null;
   private readonly mappingsDir: string | undefined;
   private readonly seedMappingsDir: string | undefined;
   private readonly hacksDir: string;
@@ -179,14 +182,22 @@ export class MesenService extends Service {
     if (this.mapping) this.ctx.logger.info(`mesen: loaded mapping for ${this.romInfo.name}`);
     // A different ROM may be loaded on reconnect: swap the hack store and
     // replace the discoveries' contents (not the array) with that ROM's file.
-    this.hackStore = this.romInfo.sha1 ? new HackStore(this.hacksDir, this.romInfo.sha1) : null;
+    this.hackStore = this.romInfo.sha1 ? HackStore.open(this.hacksDir, this.romInfo.sha1, (m) => this.ctx.logger.info(`mesen: ${m}`)) : null;
     this.discoveries.length = 0;
+    this.bootApply = null;
     if (this.hackStore) {
       try {
         this.discoveries.push(...this.hackStore.readDiscoveries());
         const edits = this.hackStore.readEdits().length;
+        // The active hack's ledger is the person's recorded instruction: write it
+        // into a clean ROM and say so (ADR-0018). Conflicting bytes are left alone.
+        if (edits) {
+          this.bootApply = await applyOnBoot(this.adapter, this.hackStore);
+          const r = this.bootApply;
+          this.ctx.logger.info(`mesen: hack "${r.hack}": ${r.applied.length} edits applied at boot, ${r.already.length} already present, ${r.conflicts.length} conflicting`);
+        }
         this.ledgerStatus = edits ? await ledgerDivergence(this.adapter, this.hackStore) : null;
-        if (this.discoveries.length || edits) this.ctx.logger.info(`mesen: hack dir ${this.hackStore.dir}: ${edits} ledgered edits (${this.ledgerStatus?.missing.length ?? 0} missing from the emulator), ${this.discoveries.length} unpromoted discoveries`);
+        if (this.discoveries.length || edits) this.ctx.logger.info(`mesen: hack "${this.hackStore.hackName}" in ${this.hackStore.gameDir}: ${edits} ledgered edits (${this.ledgerStatus?.missing.length ?? 0} missing from the emulator), ${this.discoveries.length} unpromoted discoveries`);
       } catch (error: unknown) {
         this.ctx.logger.warn(`mesen: could not read ${this.hackStore.dir}: ${error instanceof Error ? error.message : String(error)}`);
       }

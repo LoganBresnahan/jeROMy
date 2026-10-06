@@ -129,6 +129,17 @@ awk '/^local POLL_TIMEOUT/{t=$4} /^local POLL_ROUNDS/{r=$4} END{b=t*r; print "bu
 # expect: budget 0.6s
 ```
 
+**Every source file is tracked** — an ignore pattern can swallow a source
+directory without anyone noticing (`hacks/` matched `src/hacks/` for a day
+on 2026-10-05, so ADR-0009's code was never committed):
+
+```bash
+comm -23 <(find src scripts mesen skills docs -type f | sort) <(git ls-files src scripts mesen skills docs | sort)
+```
+
+Anything printed is either new work to add or a pattern in `.gitignore` to
+anchor with a leading `/`.
+
 **dsh import boundary** (ADR-0005) — no harness import outside the adapter
 layer:
 

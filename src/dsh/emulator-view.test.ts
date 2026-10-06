@@ -140,7 +140,7 @@ describe("emulator view (ADR-0004)", () => {
     const s = await serve();
     try {
       expect((await fetch(s.base + "/")).headers.get("content-type")).toMatch(/text\/html/);
-      expect(await (await fetch(s.base + "/status")).json()).toEqual({ connected: true, paused: false, rom: "SMB" });
+      expect(await (await fetch(s.base + "/status")).json()).toEqual({ connected: true, paused: false, rom: "SMB", hack: null });
       const png = await fetch(s.base + "/screenshot.png");
       expect(png.headers.get("content-type")).toBe("image/png");
       expect(Buffer.from(await png.arrayBuffer()).toString()).toBe("png");
@@ -225,7 +225,7 @@ describe("emulator view (ADR-0004)", () => {
   it("answers 503 for bridge calls while disconnected, but status still works", async () => {
     const s = await serve(adapter({ isConnected: false }));
     try {
-      expect(await (await fetch(s.base + "/status")).json()).toEqual({ connected: false, paused: null, rom: "SMB" });
+      expect(await (await fetch(s.base + "/status")).json()).toEqual({ connected: false, paused: null, rom: "SMB", hack: null });
       expect((await fetch(s.base + "/screenshot.png")).status).toBe(503);
     } finally { await s.close(); }
   });

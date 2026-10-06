@@ -176,16 +176,29 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       `source` on `record_mapping`. Logan clones the ca65 port of
       doppelganger's disassembly beside his ROM and builds it; the plugin
       never fetches it.
-- [ ] **19. Iterate on a rewritten game** (release gate 2). The hack is
+- [x] **19. Iterate on a rewritten game** (release gate 2, ADR-0018). Done
+      2026-10-05 night: named hacks per game (`sha1-<sha1>/<name>/` with
+      ledger, `hack.json`, versioned `<name>-v<N>.bps` never overwritten),
+      the hacks root as the person's own git repository (`.gitignore`
+      seeded), `game.json` naming the active hack, `list_hacks` /
+      `new_hack` / `use_hack` (revert the current ledger's bytes, write the
+      next one's, reset), boot-time apply of the active hack with conflicts
+      reported, the prompt and the view naming the active hack, and a
+      one-time migration of the ADR-0009 single ledger into `default/`.
+      Still to do under this item, as carry-ins: persistent paths for
+      nametable, CHR-tile and level edits proven on SMB; `hack diff`
+      against the original; the installed plugin's `hacksDir` default
+      prompting for a repo. Original scope: the hack is
       a thing you boot: `up.sh` (and the installed plugin on connect)
       applies the ledger when the emulator's ROM is clean, with the prompt
       saying so instead of waiting for `reapply_edits`; persistent paths
       for nametable, CHR-tile and level edits proven on SMB the way the
       palette table was (origin found, ledgered, survives reset, exported);
       `hack status`/`diff` against the original; a session that reopens a
-      hack from last week and keeps going. ADR needed for the boot-time
-      apply (it writes PRG/CHR without a model call, which the bright line
-      forbids unless the person's ledger is the explicit instruction).
+      hack from last week and keeps going. Shape proposed in ADR-0018
+      (named hacks per game, the hacks root as the person's own git repo,
+      one active hack, boot-time apply announced); the bright-line
+      rewording in it needs Logan's yes before any of it is built.
 - [x] **20. 60 fps view** (Logan's ask 2026-10-05; ADR-0007 closed as not
       needed). Measured before building anything: the JSON/PNG channel at
       `viewFps: 60` delivers 58 events and 38 distinct frames a second at

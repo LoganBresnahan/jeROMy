@@ -46,6 +46,15 @@ dsh plugin --profile jeromy add https://github.com/LoganBresnahan/jeROMy.git   #
 dsh --profile jeromy                           # boot; open the printed URL
 ```
 
+A game's hacks live under `hacksDir` (plugin config; default: the plugin's
+`hacks/` while developing, `~/.dsh/jeromy/hacks/` installed). Point it at a
+git repository of your own, one for all your games or one per game: it holds
+ledgers, manifests and patches and never a ROM (a `.gitignore` is seeded).
+Each game is a `sha1-<sha1>/` folder, each hack a named folder inside it
+(`list_hacks`, `new_hack`, `use_hack`); one hack is active in the emulator
+at a time and is applied when the bridge connects (ADR-0018). The tour of
+what a mapping, a hack and a patch are: [docs/guide/rom-hacking-with-jeromy.md](docs/guide/rom-hacking-with-jeromy.md).
+
 A git or local install needs the package built (`npm install && npm run
 build` in the checkout; the Capstone WASM under `capstone/` is optional and
 only enables `disassemble`). On an installed copy, promoted mappings and
@@ -148,7 +157,7 @@ scripts/dsh-log.mjs show latest       # what the agent saw, reasoned and called 
 ```
 mesen/bridge.lua        Lua client inside Mesen2: JSON over TCP, palette overrides, memory, PPU, OAM
 src/bridge/mesen/       connection, protocol, EmulatorAdapter (host-agnostic)
-src/agent/tools.ts      the 30 ROM-hacking tools against the adapter; prompts.ts; nes-palette.ts
+src/agent/tools.ts      the 33 ROM-hacking tools against the adapter; prompts.ts; nes-palette.ts
 src/agent/tile-lookup.ts  screen pixel → nametable tile + sprites, scroll-split aware
 src/agent/region.ts     region selection by palette slot: flood fill of the bridge's pixel map (ADR-0014)
 src/hacks/              edit ledger per ROM, IPS/BPS patch writers (ADR-0009)
@@ -159,6 +168,8 @@ scripts/                up.sh, trio.sh, dsh-dev.sh, mesen-up.sh, dsh-log.mjs, bu
 docs/                   DIRECTION, roadmap, issues inbox, ADRs, plans, bridge protocol
 ```
 
+New to ROM hacking, or to what a mapping, a hack and a patch are? Start
+with [docs/guide/rom-hacking-with-jeromy.md](docs/guide/rom-hacking-with-jeromy.md).
 Rules for working in the repo are in [CLAUDE.md](CLAUDE.md).
 
 ## Tools

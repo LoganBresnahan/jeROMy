@@ -10,7 +10,7 @@ user-invocable: true
 A `write_palette` or RAM write is volatile: the game rewrites it on the next
 level load, and a reset erases it. A persistent edit changes the bytes the
 game copies *from*, in PRG ROM or CHR ROM. Every such write is ledgered in
-`hacks/sha1-<sha1>/edits.json` with its old bytes, so it can be undone and
+`hacks/sha1-<sha1>/<hack>/edits.json` (the active hack, ADR-0018) with its old bytes, so it can be undone and
 exported. Procedure from the 2026-10-05 run on Super Mario Bros. (World)
 (ADR-0009): recoloring the pipe/bush green `$29` to red `$16`.
 
@@ -47,7 +47,8 @@ exported. Procedure from the 2026-10-05 run on Super Mario Bros. (World)
    `confidence: 1` only after the reset proved it. Next time the recolor is
    a direct write.
 7. **Export.** `export_patch` (`ips` by default; `bps` refuses the wrong
-   ROM) writes `patch.ips` beside the ledger and self-checks it with an
+   ROM) writes `<hack>-v<N>.ips` in the active hack's directory, never
+   overwriting an earlier version (ADR-0018), and self-checks it with an
    independent applier; `verify: true` also diffs the emulator against the
    ledger. `export_rom` writes `<name>.hacked.nes` for the user to load
    (`scripts/mesen-up.sh <path>`); the original is never touched.

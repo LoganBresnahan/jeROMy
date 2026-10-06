@@ -24,6 +24,8 @@ export interface EmulatorViewDeps {
   fps?: number;
   /** The bridge.lua path as Mesen needs it, shown while the bridge is not connected (ADR-0012). */
   luaScript?: string;
+  /** The active hack's name for the loaded ROM, or null (ADR-0018). */
+  hack?: () => string | null;
 }
 
 /** One pushed frame: pause state always, PNG only when the frame changed. */
@@ -40,6 +42,8 @@ export interface StreamEvent {
   clicks_rev: number;
   /** The emulator's frame counter at the shot, so the page can show emulation fps beside view fps (ADR-0007). */
   emu_frame?: number;
+  /** Active hack name (ADR-0018). */
+  hack?: string | null;
 }
 
 /**
@@ -61,6 +65,7 @@ export class FramePump {
     private readonly log: (message: string) => void,
     private readonly intervalMs: number,
     private readonly clicksRev: () => number = () => 0,
+    private readonly hack: () => string | null = () => null,
   ) {}
 
   private stopped = false;
@@ -112,7 +117,7 @@ export class FramePump {
             const paused = shot.paused ?? null;
             const changed = Boolean(shot.png_base64) && shot.png_base64 !== this.lastPng;
             if (changed) this.lastPng = shot.png_base64;
-            this.emit({ connected: true, paused, rom: this.romName(), seq: ++this.seq, clicks_rev: this.clicksRev(), ...(shot.frame !== undefined ? { emu_frame: shot.frame } : {}), ...(changed ? { png: shot.png_base64 } : {}) });
+            this.emit({ connected: true, paused, rom: this.romName(), seq: ++this.seq, clicks_rev: this.clicksRev(), hack: this.hack(), ...(shot.frame !== undefined ? { emu_frame: shot.frame } : {}), ...(changed ? { png: shot.png_base64 } : {}) });
             if (paused) waitMs = 1000;
           } catch (error: unknown) {
             this.log(`emulator-view: frame pump: ${error instanceof Error ? error.message : String(error)}`);
@@ -315,7 +320,7 @@ async function draw(b64){if(drawing){pending=b64;return}drawing=true;try{const b
 function onEvent(e){const d=JSON.parse(e.data);paused=d.paused;if(d.clicks_rev!==undefined&&d.clicks_rev!==clicksRev)loadClicks();
  // Emulation speed from the bridge's frame counter, independent of how many frames the view manages to show.
  if(d.emu_frame!==undefined){const now=performance.now();if(emuFrame!==null&&now-emuFrameAt>=1000){emuFps=Math.round((d.emu_frame-emuFrame)*1000/(now-emuFrameAt));emuFrame=d.emu_frame;emuFrameAt=now}else if(emuFrame===null){emuFrame=d.emu_frame;emuFrameAt=now}}
- setStatus(d.connected,d.connected?(d.rom||'connected')+(paused?' · PAUSED':' · running')+(fps?' · view '+fps+' fps':'')+(emuFps&&!paused?' · emu '+emuFps+' fps':''):'bridge not connected'+(d.hint?' — in Mesen2: Tools › Script Window › Open '+d.hint+' › Run (allow network and I/O, timeout 1 s)':''));if(d.png)draw(d.png)}
+ setStatus(d.connected,d.connected?(d.rom||'connected')+(d.hack?' · hack '+d.hack:'')+(paused?' · PAUSED':' · running')+(fps?' · view '+fps+' fps':'')+(emuFps&&!paused?' · emu '+emuFps+' fps':''):'bridge not connected'+(d.hint?' — in Mesen2: Tools › Script Window › Open '+d.hint+' › Run (allow network and I/O, timeout 1 s)':''));if(d.png)draw(d.png)}
 function connect(){if(es)es.close();es=new EventSource('/stream');es.onmessage=onEvent;es.onerror=()=>{setStatus(false,'stream lost, retrying');}}
 setInterval(()=>{fps=frames;frames=0},1000);
 c.addEventListener('click',async e=>{const r=c.getBoundingClientRect();const x=Math.floor((e.clientX-r.left)/zoom),y=Math.floor((e.clientY-r.top)/zoom);
@@ -384,7 +389,7 @@ export interface EmulatorViewServer {
 
 export function createEmulatorViewServer(deps: EmulatorViewDeps, romName: () => string | null, mappingName: (tileId: number) => string | undefined): EmulatorViewServer {
   const fps = Math.min(60, Math.max(1, deps.fps ?? 10));
-  const pump = new FramePump(deps.mesen, () => deps.luaScript, romName, deps.log, Math.round(1000 / fps), () => deps.history.rev);
+  const pump = new FramePump(deps.mesen, () => deps.luaScript, romName, deps.log, Math.round(1000 / fps), () => deps.history.rev, () => deps.hack?.() ?? null);
   const streams = new Set<ServerResponse>();
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
@@ -425,7 +430,7 @@ export function createEmulatorViewServer(deps: EmulatorViewDeps, romName: () => 
       if (req.method === "GET" && url.pathname === "/status") {
         let paused: boolean | null = null;
         if (mesen.isConnected) paused = (await mesen.getEmulatorStatus()).paused;
-        json(res, 200, { connected: mesen.isConnected, paused, rom: romName(), ...(deps.luaScript ? { lua_script: deps.luaScript } : {}) });
+        json(res, 200, { connected: mesen.isConnected, paused, rom: romName(), hack: deps.hack?.() ?? null, ...(deps.luaScript ? { lua_script: deps.luaScript } : {}) });
         return;
       }
       if (!mesen.isConnected) { json(res, 503, { error: "Mesen bridge not connected" }); return; }

@@ -15,6 +15,7 @@ describe("agentTools", () => {
     expect(names).toContain("list_sprites");
     expect(names).toContain("get_region");
     expect(names).toContain("lookup_symbol");
+    for (const n of ["list_hacks", "new_hack", "use_hack"]) expect(names).toContain(n);
     expect(names).toContain("search_memory");
     expect(names).toContain("reset_emulator");
     expect(names).toContain("trace_writes");
@@ -437,12 +438,34 @@ describe("executeTool", () => {
       await executeTool("write_memory", { address: 0xccc, bytes: [0x16], mem_type: "prgRom", reason: "pipes red" }, adapter, null, null, null, store);
       await executeTool("write_memory", { address: 0x10, bytes: [1, 2, 3], mem_type: "chrRom" }, adapter, null, null, null, store);
       const out = JSON.parse(((await executeTool("export_patch", {}, adapter, null, null, null, store)) as { text: string }).text);
-      expect(out.written).toBe(join(store.dir, "patch.ips"));
-      expect(out.edits).toBe(2);
+      // ADR-0018: exports are versioned per hack and recorded in its manifest.
+      expect(out.written).toBe(join(store.dir, "default-v1.ips"));
+      expect(out).toMatchObject({ hack: "default", version: 1, edits: 2 });
+      expect(store.readManifest()?.exports).toEqual([expect.objectContaining({ version: 1, file: "default-v1.ips", format: "ips", edits: 2 })]);
+      const again = JSON.parse(((await executeTool("export_patch", {}, adapter, null, null, null, store)) as { text: string }).text);
+      expect(again.written).toBe(join(store.dir, "default-v2.ips"));
+      expect(readFileSync(out.written).length).toBeGreaterThan(0);
       const patched = applyIps(rom, new Uint8Array(readFileSync(out.written)));
       expect(patched[16 + 0xccc]).toBe(0x16);
       expect(Array.from(patched.subarray(16 + 16384 + 0x10, 16 + 16384 + 0x13))).toEqual([1, 2, 3]);
       expect(patched.length).toBe(rom.length);
+    });
+
+    it("list_hacks, new_hack and use_hack manage named hacks and swap the emulator's bytes (ADR-0018)", async () => {
+      const { store, adapter, emu } = setup();
+      await executeTool("write_memory", { address: 0xccc, bytes: [0x16], mem_type: "prgRom", reason: "pipes red" }, adapter, null, null, null, store);
+      const listed = JSON.parse(((await executeTool("list_hacks", {}, adapter, null, null, null, store)) as { text: string }).text);
+      expect(listed).toMatchObject({ active: "default", hacks: [{ name: "default", edits: 1, active: true }] });
+      const made = JSON.parse(((await executeTool("new_hack", { name: "christmas", description: "red and green" }, adapter, null, null, null, store)) as { text: string }).text);
+      expect(made).toMatchObject({ created: { name: "christmas" }, active: "default" });
+      const sw = JSON.parse(((await executeTool("use_hack", { name: "christmas" }, adapter, null, null, null, store)) as { text: string }).text);
+      expect(sw).toMatchObject({ from: "default", to: "christmas", reverted: [1], applied: [], reset: true });
+      expect(emu[16 + 0xccc]).toBe(((16 + 0xccc) * 7) & 0xff);
+      expect(store.hackName).toBe("christmas");
+      const back = JSON.parse(((await executeTool("use_hack", { name: "default" }, adapter, null, null, null, store)) as { text: string }).text);
+      expect(back).toMatchObject({ from: "christmas", to: "default", applied: [1] });
+      expect(emu[16 + 0xccc]).toBe(0x16);
+      expect((await executeTool("new_hack", { name: "Nope!" }, adapter, null, null, null, store) as { text: string }).text).toMatch(/invalid hack name|Error/);
     });
 
     it("export_patch bps carries CRCs and verify mode compares the emulator against the ledger", async () => {
@@ -450,7 +473,7 @@ describe("executeTool", () => {
       await executeTool("write_memory", { address: 0xccc, bytes: [0x16], mem_type: "prgRom" }, adapter, null, null, null, store);
       emu[16 + 0x200] ^= 0xff; // an edit made behind the ledger's back
       const out = JSON.parse(((await executeTool("export_patch", { format: "bps", verify: true }, adapter, null, null, null, store)) as { text: string }).text);
-      expect(out.written.endsWith("patch.bps")).toBe(true);
+      expect(out.written.endsWith("default-v1.bps")).toBe(true);
       expect(applyBps(rom, new Uint8Array(readFileSync(out.written))).target[16 + 0xccc]).toBe(0x16);
       expect(out.verify.differences).toEqual([{ mem: "prgRom", offset: 0x200, emulator: emu[16 + 0x200], ledger: rom[16 + 0x200] }]);
     });
@@ -459,7 +482,7 @@ describe("executeTool", () => {
       const { rom, romPath, store, adapter } = setup();
       await executeTool("write_memory", { address: 0, bytes: [9], mem_type: "prgRom" }, adapter, null, null, null, store);
       const out = JSON.parse(((await executeTool("export_rom", {}, adapter, null, null, null, store)) as { text: string }).text);
-      expect(out.written).toBe(join(store.dir, "Game (World).hacked.nes"));
+      expect(out.written).toBe(join(store.dir, "default.hacked.nes"));
       const hacked = new Uint8Array(readFileSync(out.written));
       expect(hacked[16]).toBe(9);
       expect(Buffer.compare(readFileSync(romPath), Buffer.from(rom))).toBe(0);

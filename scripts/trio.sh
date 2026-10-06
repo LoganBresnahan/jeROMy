@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # The standing trio from /verify, run headlessly through dsh with the jeROMy
-# plugin: look, read, edit, click, region, persist. Each is one `dsh --profile headless --json` run;
+# plugin: look, read, edit, click, region, hacks, persist. Each is one `dsh --profile headless --json` run;
 # the JSON event streams and a summary land in .chat-out/trio-<stamp>/.
 # Only one dsh process can own the bridge port, so this stops a running web
 # instance first and brings it back afterwards.
 #
-# Usage: scripts/trio.sh [look|read|edit|click|region|persist ...]   (default: all six)
+# Usage: scripts/trio.sh [look|read|edit|click|region|hacks|persist ...]   (default: all seven)
 #        scripts/trio.sh --task "<instruction>" [min-tool-calls]
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -23,13 +23,14 @@ declare -A TASK=(
   [edit]="Take a screenshot. Then use write_palette to set background palette 1, color index 1 to NES color 0x12 (blue). Pause the emulator, step one frame, take another screenshot and tell me exactly what changed between the two images. Finally call clear_palette_overrides and resume_emulator. Report raw write_palette output."
   [click]="Call get_tile_at_pixel at (176, 182) and get_pixel_color at (176, 182), then get_palette for the palette the first result named. Report all three raw outputs verbatim and say whether the pixel's nes_color is one of that palette's entries or the shared backdrop."
   [region]="Call get_region at (176, 182) in color mode, then get_region at (176, 182) in object mode. Report both raw outputs verbatim and, in one sentence, say what a palette edit of the color-mode slot would also recolor according to the summary."
+  [hacks]="Do exactly these calls in order, report every raw output verbatim, and nothing else: (1) new_hack with name trio-test and description 'trio check'. (2) use_hack trio-test. (3) write_memory at address 3276 (decimal), bytes [22], mem_type prgRom, reason 'trio hacks check'. (4) export_patch with format bps. (5) list_hacks. (6) use_hack default."
   [persist]="Do exactly this, no extra tool calls, and report every raw tool output verbatim: (1) search_memory with hex \"0F 29 1A 0F\" in prgRom. (2) write_memory at the first offset plus 1, bytes [22] (decimal twenty-two, which is NES color 0x16 red; do not write 0x22), mem_type prgRom, reason \"trio persist check\". (3) reset_emulator. (4) get_palette 0. (5) export_patch with format ips. (6) undo_edit with the seq the write reported. (7) reset_emulator."
 )
-declare -A MIN_CALLS=([look]=1 [read]=2 [edit]=5 [click]=3 [region]=2 [persist]=7)
+declare -A MIN_CALLS=([look]=1 [read]=2 [edit]=5 [click]=3 [region]=2 [hacks]=6 [persist]=7)
 # --task "<text>": a one-off check named `custom` through the same machinery
 # (neutral cwd, bridge wait, replay line). Used by unattended runs.
 if [ "${1:-}" = "--task" ]; then TASK[custom]="$2"; MIN_CALLS[custom]="${3:-1}"; set -- custom; fi
-CHECKS=("$@"); [ ${#CHECKS[@]} -eq 0 ] && CHECKS=(look read edit click region persist)
+CHECKS=("$@"); [ ${#CHECKS[@]} -eq 0 ] && CHECKS=(look read edit click region hacks persist)
 
 owner_of() { ss -ltnp 2>/dev/null | grep -E ":$1 " | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2; }
 WEB_PID="$(owner_of 9001)"; RESTART=0
@@ -109,6 +110,31 @@ if sys.argv[3:] == ["region"]:
             if r.get("slot") == 0 and "backdrop" not in summary: problems.append("color region on slot 0 does not name the backdrop")
             if r.get("slot") not in (0, 1, 2, 3): problems.append(f"color region has no slot: {r.get('slot')}")
     if problems: ok = False; final = "REGION CHECK: " + "; ".join(problems) + " · " + final
+if sys.argv[3:] == ["hacks"]:
+    # ADR-0018: a throwaway hack is created, switched to, written into, exported as v1, and left; use_hack default swaps the byte back.
+    names = {}; res = []
+    for line in open(sys.argv[1]):
+        line = line.strip()
+        if not line.startswith("{"): continue
+        e = json.loads(line)
+        if e.get("type") == "tool_call": names[e["callId"]] = e.get("tool")
+        if e.get("type") == "tool_result" and isinstance(e.get("result"), str):
+            try: res.append((names.get(e["callId"], "?"), json.loads(e["result"])))
+            except Exception: res.append((names.get(e["callId"], "?"), e["result"]))
+    by = {}
+    for n, r in res: by.setdefault(n, []).append(r)
+    problems = []
+    made = next((r for r in by.get("new_hack", []) if isinstance(r, dict)), None)
+    if not made or made.get("created", {}).get("name") != "trio-test": problems.append("new_hack did not create trio-test")
+    uses = [r for r in by.get("use_hack", []) if isinstance(r, dict)]
+    if len(uses) < 2 or uses[0].get("to") != "trio-test" or uses[-1].get("to") != "default": problems.append("use_hack did not switch to trio-test and back to default")
+    if uses and not uses[-1].get("reset"): problems.append("switching back from a hack with one edit did not reset the emulator")
+    if uses and uses[-1].get("reverted") != [1]: problems.append(f"switching back did not revert edit #1 (got {uses[-1].get('reverted')})")
+    w = next((r for r in by.get("write_memory", []) if isinstance(r, dict) and r.get("persistent")), None)
+    if not w or "/trio-test/" not in str(w.get("ledger", {})) and "/trio-test/" not in json.dumps(w): problems.append("write_memory did not ledger into the trio-test hack")
+    ex = next((r for r in by.get("export_patch", []) if isinstance(r, dict)), None)
+    if not ex or not str(ex.get("written", "")).endswith("trio-test-v1.bps") or ex.get("hack") != "trio-test": problems.append(f"export_patch did not write trio-test-v1.bps for hack trio-test (got {ex and ex.get('written')})")
+    if problems: ok = False; final = "HACKS CHECK: " + "; ".join(problems) + " · " + final
 if sys.argv[3:] == ["persist"]:
     names = {}; res = []
     for line in open(sys.argv[1]):
@@ -177,6 +203,8 @@ for name in "${CHECKS[@]}"; do
     run_check "$name"
   fi
   [ $code -eq 0 ] && [ $sok -eq 0 ] || FAIL=1
+  # The hacks check leaves a throwaway hack behind; remove it so list_hacks stays the person's own.
+  if [ "$name" = "hacks" ]; then for d in "$REPO"/hacks/sha1-*/trio-test; do [ -d "$d" ] && rm -rf "$d" && echo "[trio] removed throwaway hack $d"; done; fi
 done
 
 if [ $RESTART -eq 1 ]; then

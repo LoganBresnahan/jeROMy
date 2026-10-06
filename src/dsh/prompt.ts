@@ -17,8 +17,15 @@ export function jeromySectionText(mesen: MesenService): string {
     mapping: mesen.mapping,
     emulatorPaused: mesen.paused ?? undefined,
   });
-  const ledger = mesen.ledgerStatus && mesen.ledgerStatus.total > 0
-    ? `\n\n## Edit ledger\n${mesen.ledgerStatus.total} ROM edit(s) are ledgered for this ROM; ${mesen.ledgerStatus.missing.length} of them are not present in the emulator's copy right now${mesen.ledgerStatus.missing.length ? " (Mesen reloaded the ROM). Call reapply_edits to put them back before judging what you see; it never runs on its own." : "."}`
+  const hackName = mesen.hackStore?.hackName;
+  const boot = mesen.bootApply;
+  const ledger = hackName
+    ? `\n\n## Active hack: ${hackName}\nROM writes ledger into this hack and exports version it (list_hacks, new_hack, use_hack switch; ADR-0018). `
+      + (mesen.ledgerStatus && mesen.ledgerStatus.total > 0
+        ? `${mesen.ledgerStatus.total} ROM edit(s) are ledgered; ${mesen.ledgerStatus.missing.length} of them are not present in the emulator's copy right now${mesen.ledgerStatus.missing.length ? " (Mesen reloaded the ROM, or the bytes conflicted at boot). Call reapply_edits to put them back before judging what you see." : "."}`
+          + (boot && boot.applied.length ? ` ${boot.applied.length} were applied automatically when the emulator connected${boot.reset ? " and the game was reset to show them" : ""}.` : "")
+          + (boot && boot.conflicts.length ? ` ${boot.conflicts.length} conflicted at boot (the emulator held neither the old nor the new bytes) and were left alone: edits #${boot.conflicts.join(", #")}.` : "")
+        : "Its ledger is empty: nothing has been written to ROM yet.")
     : "";
   const link = mesen.isConnected
     ? ""

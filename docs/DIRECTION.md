@@ -26,7 +26,7 @@ Three things fall out of the loop and are the actual assets:
 
 1. **The Mesen bridge**: Lua in the emulator, JSON over TCP, pause/step/
    resume under the 1-second Lua watchdog. The only part that runs on Windows.
-2. **The tools**: 30 emulator operations the model can call, with
+2. **The tools**: 33 emulator operations the model can call, with
    model-readable renderings (ASCII tile art, palette tables, nametable
    grids, slot-based region selections).
 3. **The mappings**: per-ROM JSON keyed by SHA1 that names tiles, palettes,
@@ -93,8 +93,10 @@ Everything else on the roadmap serves one of these two.
 
 - Never ship, download or link ROMs. Users bring their own. Output is
   edits, mappings and eventually IPS/BPS patches.
-- Never write CHR ROM or PRG ROM silently. Volatile RAM edits are the
-  default; persistent edits are explicit and recorded.
+- Never write CHR ROM or PRG ROM without a recorded instruction from the
+  person. Volatile RAM edits are the default; a persistent edit is an
+  explicit tool call recorded in the hack's ledger, and the active hack's
+  ledger is itself the instruction to apply it again at boot (ADR-0018).
 - No own chat UI, no own session database, no own provider adapters. If dsh
   lacks something, extend it through a documented seam or file an issue
   upstream.

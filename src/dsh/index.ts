@@ -54,7 +54,7 @@ export const Config: Schema<Config> = Schema.object({
   port: Schema.number().default(9001).description("TCP port mesen/bridge.lua connects to"),
   requestTimeout: Schema.number().default(15_000).description("Bridge request timeout (ms)"),
   mappingsDir: Schema.string().description("Directory of sha1-*.json game mappings (default: the plugin's mappings/)"),
-  hacksDir: Schema.string().description("Root for per-ROM hack directories: edit ledger, discoveries, patch exports (default: the plugin's hacks/, gitignored)"),
+  hacksDir: Schema.string().description("Root of your hacks: one sha1-<sha1>/ per game, one named hack directory per project (ledger, manifest, versioned patches); point it at a git repository of your own (ADR-0018). Default: the plugin's hacks/ (dev) or ~/.dsh/jeromy/hacks (installed)"),
   viewPort: Schema.number().default(9002).description("Loopback port for the emulator view page (open it in the sidebar Browser)"),
   viewFps: Schema.number().default(60).description("Frames per second the view streams while the game runs (1-60; measured 2026-10-05, ADR-0007)"),
 });
@@ -116,7 +116,7 @@ export function apply(ctx: Context, config: Config): void {
       return { ...decision, messages: [...context, ...decision.messages] };
     });
     const view = createEmulatorViewServer(
-      { mesen: () => scope.mesen.adapter, history, log: (m) => scope.logger.warn(m), luaScript: LUA_FOR_MESEN, fps: config.viewFps },
+      { mesen: () => scope.mesen.adapter, history, log: (m) => scope.logger.warn(m), luaScript: LUA_FOR_MESEN, fps: config.viewFps, hack: () => scope.mesen.hackStore?.hackName ?? null },
       () => scope.mesen.romInfo?.name ?? null,
       (tileId) => scope.mesen.mappingNameFor(tileId),
     );

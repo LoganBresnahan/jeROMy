@@ -11,7 +11,7 @@ before product-level decisions; keep it updated when scope changes.
 ## Where we are (2026-10-05, afternoon)
 
 The dsh plugin is the only stack. `scripts/up.sh` boots the `jeromy`
-profile with `src/dsh/index.ts` mounted from source: 29 of 30 core tools
+profile with `src/dsh/index.ts` mounted from source: 32 of 33 core tools
 registered through one mapper, `promote_mappings`, the full NES prompt
 section with live ROM/mapping/pause state, and the emulator view on :9002.
 Verified headless through dsh on `deepseek-flash` and by Logan's click
@@ -42,14 +42,16 @@ and 19, not started), asked for 60 fps (item 20: measured, default raised,
 ADR-0007 closed) and the keep-alive fix (item 21, ADR-0016). The plan for the
 gate is `docs/plans/mapping-campaign.md`; its first step, reference import
 (ADR-0017: disassemblies imported into `hacks/`, never vendored or fetched;
-`lookup_symbol`), shipped the same evening. Build order: `docs/roadmap.md`;
+`lookup_symbol`), shipped the same evening. The plain-language tour of ROM,
+disassembly, mapping, hack and patch is `docs/guide/rom-hacking-with-jeromy.md`;
+ADR-0018 (named hacks in the person's own repo, one active hack, boot-time apply) shipped as roadmap item 19 the same night: `HackStore.open` migrates the old single ledger into `default/`, `use_hack` swaps the emulator's bytes, exports are `<hack>-v<N>.bps`. Build order: `docs/roadmap.md`;
 the overnight log: `docs/plans/overnight-2026-10-05.md`.
 
 ## Stack
 
 - **Keep:** `mesen/bridge.lua` (Lua in Mesen2, JSON over TCP, the only part
   on Windows), `src/bridge/mesen/*` (connection, protocol, adapter),
-  `src/agent/tools.ts` (30 tools), `src/agent/prompts.ts`, `src/mappings/*`
+  `src/agent/tools.ts` (33 tools), `src/agent/prompts.ts`, `src/mappings/*`
   and `mappings/*.json`, `src/agent/disassembler.ts` (Capstone WASM),
   `src/agent/nes-palette.ts`. These move under `src/core/` (ADR-0005).
 - **Target (shipping):** `src/dsh/` plugin: Mesen service, core tools
@@ -71,8 +73,11 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
 - **Model-visible means logged** (ADR-0003). Anything that reaches the model
   request (tool results, pixel-picker clicks, mapping context) is a session
   event or an `agent.inject()`; no side channels.
-- **Never write CHR ROM or PRG ROM silently.** RAM edits are the default;
-  persistent edits are explicit in the tool call and recorded as events.
+- **Never write CHR ROM or PRG ROM without a recorded instruction from the
+  person.** RAM edits are the default; a persistent edit is explicit in the
+  tool call and ledgered; the active hack's ledger is the one recorded
+  instruction the plugin may replay on its own, and it announces it
+  (ADR-0018).
 - **Never ship or fetch ROMs.** Users bring their own.
 - **The paused keep-alive never steps the CPU** (ADR-0016): `keepalive()` in
   `mesen/bridge.lua` steps one PPU dot; a CPU step lets a paused game creep
@@ -133,7 +138,7 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
   parity, Lua handler↔adapter parity, watchdog budget, dsh import boundary).
   Proposes fixes, doesn't apply them.
 - `/verify` — runtime check against a live Mesen2: `scripts/up.sh` then
-  `scripts/trio.sh` (look, read, edit, click, region, persist headless through dsh) plus the human
+  `scripts/trio.sh` (look, read, edit, click, region, hacks, persist headless through dsh) plus the human
   pixel-picker check in the sidebar. A green `/shipshape` does not
   discharge it.
 - `/replay` — read what the DeepSeek agent did in a dsh session
@@ -157,7 +162,7 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
   WSL with the ROM and `mesen/bridge.lua` (single-instance handoff; default
   ROM is SMB (World) in `C:\Users\tarsier\Documents`)
 - `scripts/up.sh [rom]` / `scripts/up.sh --down` — the one-move bring-up
-  (dsh + Mesen + bridge wait); `scripts/trio.sh [look|read|edit|click|region|persist]`
+  (dsh + Mesen + bridge wait); `scripts/trio.sh [look|read|edit|click|region|hacks|persist]`
   or `scripts/trio.sh --task "<instruction>" [min-calls]` — the headless
   checks, raw-result criteria per check, streams saved under `.chat-out/`
 - `scripts/dsh-dev.sh` — boot the `jeromy` dsh profile with the plugin

@@ -33,3 +33,4 @@ Template: `_template.md`.
 | [0015](0015-clicks-pause-and-queue-behind-checkboxes.md) | A click pauses the game, and clicks reach the model only when the person checks them for the next prompt | Accepted | 2026-10-05 |
 | [0016](0016-pause-keepalive-steps-a-ppu-dot.md) | The paused keep-alive steps one PPU dot, never a CPU instruction | Accepted | 2026-10-05 |
 | [0017](0017-reference-material-imported-not-vendored.md) | Reference material is imported at the person's request, verified live, and promoted entry by entry; never vendored | Accepted | 2026-10-05 |
+| [0018](0018-named-hacks-in-the-persons-own-repo.md) | A game holds many named hacks, the hacks root is the person's own repository, and one hack is active in the emulator | Accepted | 2026-10-05 |

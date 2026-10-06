@@ -12,6 +12,7 @@ import { NES_MASTER_PALETTE_RGB, nearestNesColor, nesColorName } from "./nes-pal
 import { lookupTileAtPixel } from "./tile-lookup.js";
 import { getRegionAt } from "./region.js";
 import { findSymbols, formatSymbol, loadReference, nearestSymbol, type ReferenceFile } from "./reference.js";
+import { switchHack } from "../hacks/activate.js";
 import { describeLedger, isRomMemory, ledgeredRomWrite, ledgerDivergence, windowsPathToWsl, type EditLedger } from "./edit-ledger.js";
 import { applyEdits, applyIps, applyBps, crc32, encodeBps, encodeIps, inesLayout } from "../hacks/patch.js";
 import { createHash } from "node:crypto";
@@ -56,6 +57,35 @@ export const agentTools: ToolSpec[] = [
         mode: { type: "string", enum: ["color", "object"], description: "Default color" },
       },
       required: ["x", "y"],
+    },
+  },
+  {
+    name: "list_hacks",
+    description:
+      "List the named hacks of the loaded game (ADR-0018): each with its description, ledgered edit count, export count and last export, and which one is active. A hack is a directory under the game's hack directory with its own ledger and versioned patches; the mapping is shared by all of them.",
+    input_schema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "new_hack",
+    description:
+      "Create a named hack for the loaded game (ADR-0018): a fresh ledger and manifest beside the others. Does not switch to it; call use_hack to make it the one the emulator shows and the ledger writes go to. Names: a-z, 0-9, - and _.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Hack name, e.g. halloween" },
+        description: { type: "string", description: "What this hack is" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "use_hack",
+    description:
+      "Make a hack the active one (ADR-0018): the current hack's ledgered bytes are written back to their originals, the named hack's ledger is written into the emulator's ROM, and the emulator resets so the game re-reads its tables. From then on ROM writes ledger into that hack and exports version it. The emulator shows one hack at a time; every session shares the active one. Returns what was reverted and applied.",
+    input_schema: {
+      type: "object",
+      properties: { name: { type: "string", description: "Hack name from list_hacks" } },
+      required: ["name"],
     },
   },
   {
@@ -854,7 +884,7 @@ export async function searchMemoryAll(
 
 /** The imported reference for the loaded ROM, read from the hack directory on each use so a fresh import needs no restart (ADR-0017). */
 function referenceFor(ledger: EditLedger | null | undefined): ReferenceFile | null {
-  const dir = ledger?.dir;
+  const dir = ledger?.gameDir ?? ledger?.dir;
   if (!dir) return null;
   try { return loadReference(dir); } catch { return null; }
 }
@@ -910,6 +940,35 @@ export async function executeTool(
       const mode = input.mode === "object" ? "object" : "color";
       const { runs: _runs, ...region } = await getRegionAt(adapter, input.x as number, input.y as number, mode);
       return { type: "text", text: JSON.stringify(region) };
+    }
+
+    case "list_hacks": {
+      if (!ledger) return { type: "text", text: "Error: no hack directory for this ROM (bridge not connected or ROM unknown)" };
+      return { type: "text", text: JSON.stringify({ game_dir: ledger.gameDir, active: ledger.hackName, hacks: ledger.listHacks() }) };
+    }
+
+    case "new_hack": {
+      if (!ledger) return { type: "text", text: "Error: no hack directory for this ROM (bridge not connected or ROM unknown)" };
+      const hackName = String(input.name ?? "").trim();
+      try {
+        const created = ledger.createHack(hackName, typeof input.description === "string" ? input.description : "");
+        return { type: "text", text: JSON.stringify({ created, active: ledger.hackName, note: `Call use_hack ${hackName} to switch the emulator and the ledger to it.` }) };
+      } catch (err) {
+        return { type: "text", text: `Error: ${err instanceof Error ? err.message : String(err)}` };
+      }
+    }
+
+    case "use_hack": {
+      if (!ledger) return { type: "text", text: "Error: no hack directory for this ROM (bridge not connected or ROM unknown)" };
+      try {
+        const report = await switchHack(adapter, ledger as unknown as Parameters<typeof switchHack>[1], String(input.name ?? "").trim());
+        const note = report.from === report.to ? "Already the active hack."
+          : report.reset ? "Reverted the previous hack's bytes, wrote this one's, and reset; take a screenshot to see it."
+          : "Switched: both ledgers are empty, so the emulator's bytes are unchanged; ROM writes now ledger into this hack.";
+        return { type: "text", text: JSON.stringify({ ...report, note }) };
+      } catch (err) {
+        return { type: "text", text: `Error: ${err instanceof Error ? err.message : String(err)}` };
+      }
     }
 
     case "lookup_symbol": {
@@ -978,13 +1037,16 @@ export async function executeTool(
       const target = applyEdits(original, edits);
       ledger.ensureDir();
       if (name === "export_rom") {
-        const outName = (input.name as string | undefined) ?? basename(romPath).replace(/\.nes$/i, "") + ".hacked.nes";
+        // The hacked ROM is for the person's own emulator; it is gitignored by the root's .gitignore (ADR-0018).
+        const outName = (input.name as string | undefined) ?? `${ledger.hackName}.hacked.nes`;
         const outPath = join(ledger.dir, outName);
         writeFileSync(outPath, target);
-        return { type: "text", text: JSON.stringify({ written: outPath, bytes: target.length, edits_applied: edits.length, original_untouched: romPath, sha1: createHash("sha1").update(target).digest("hex").toUpperCase(), notes }) };
+        return { type: "text", text: JSON.stringify({ hack: ledger.hackName, written: outPath, bytes: target.length, edits_applied: edits.length, original_untouched: romPath, sha1: createHash("sha1").update(target).digest("hex").toUpperCase(), notes }) };
       }
       const format = ((input.format as string | undefined) ?? "ips").toLowerCase();
-      const outPath = join(ledger.dir, `${(input.name as string | undefined) ?? "patch"}.${format}`);
+      // Exports are versioned per hack and never overwritten (ADR-0018).
+      const version = ledger.nextVersion();
+      const outPath = join(ledger.dir, (input.name as string | undefined) ? `${input.name}.${format}` : `${ledger.hackName}-v${version}.${format}`);
       let patchBytes: Uint8Array;
       if (format === "bps") {
         patchBytes = encodeBps(original, target, JSON.stringify({ tool: "jeROMy", rom: info.name, edits: edits.length }));
@@ -998,6 +1060,7 @@ export async function executeTool(
         return { type: "text", text: `Error: unknown format ${format}; use ips or bps` };
       }
       writeFileSync(outPath, patchBytes);
+      const exportRecord = ledger.recordExport(outPath, format, edits.length);
       let verify: Record<string, unknown> | undefined;
       if (input.verify) {
         const layout = inesLayout(original);
@@ -1013,7 +1076,7 @@ export async function executeTool(
         }
         verify = { bytes_compared: layout.prgSize + layout.chrSize, differences, note: differences.length ? "the emulator holds edits the ledger does not; they are not in the patch" : "emulator matches the ledger" };
       }
-      return { type: "text", text: JSON.stringify({ written: outPath, format, bytes: patchBytes.length, edits: edits.length, target_crc32: crc32(target).toString(16).toUpperCase().padStart(8, "0"), original_untouched: romPath, ...(verify ? { verify } : {}), notes }) };
+      return { type: "text", text: JSON.stringify({ hack: ledger.hackName, version: exportRecord.version, written: outPath, format, bytes: patchBytes.length, edits: edits.length, target_crc32: crc32(target).toString(16).toUpperCase().padStart(8, "0"), original_untouched: romPath, ...(verify ? { verify } : {}), notes }) };
     }
 
     case "reapply_edits": {

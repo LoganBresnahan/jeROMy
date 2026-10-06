@@ -1,6 +1,6 @@
 /**
  * Ledgered ROM writes (ADR-0009). Every write to PRG ROM or CHR ROM goes
- * through here so `hacks/sha1-<sha1>/edits.json` records what changed,
+ * through here so the active hack's `hacks/sha1-<sha1>/<hack>/edits.json` records what changed,
  * reversibly: the bytes are read before the write and read back after it,
  * so the ledger holds what the emulator actually has (no second encoder for
  * CHR tiles in TypeScript). RAM, palette RAM, CHR RAM and OAM writes are
@@ -8,7 +8,7 @@
  */
 
 import type { MesenAdapter } from "../bridge/mesen/index.js";
-import type { EditEntry, NewEdit, RomMemory } from "../hacks/store.js";
+import type { EditEntry, HackExport, HackManifest, HackSummary, NewEdit, RomMemory } from "../hacks/store.js";
 
 /** What core needs from the hack store; the dsh layer supplies the instance for the loaded ROM. */
 export interface EditLedger {
@@ -18,8 +18,18 @@ export interface EditLedger {
   ensureDir(): void;
   /** Path of the ledger file, for tool text. */
   readonly editsFile: string;
-  /** The hack directory exports land in, and where an imported reference.json lives (ADR-0017). */
+  /** The active hack's directory: ledger and exports land here (ADR-0018). */
   readonly dir: string;
+  /** The game directory above the hacks: discoveries and an imported reference.json live here (ADR-0017). */
+  readonly gameDir: string;
+  /** The active hack's name (ADR-0018). */
+  readonly hackName: string;
+  listHacks(): HackSummary[];
+  createHack(name: string, description?: string): HackSummary;
+  useHack(name: string): void;
+  readManifest(): HackManifest | null;
+  nextVersion(): number;
+  recordExport(file: string, format: "ips" | "bps", edits: number): HackExport;
 }
 
 /** `C:\Users\x\rom.nes` → `/mnt/c/Users/x/rom.nes`; a path that is already POSIX is returned as is. */
