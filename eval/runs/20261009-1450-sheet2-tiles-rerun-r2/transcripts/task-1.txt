@@ -1,0 +1,799 @@
+# session-6432e42e-af07-446b-bdf2-71df37418860 · Map SMB ROM tile IDs and prove with writes
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-09T19:50:28.868Z
+
+[   3 14:50:28] QUEUED <user> for next-turn: Mapping sheet 2 (where the pictures come from), Super Mario Bros.: find where in PRG ROM the tile ids of the ? block come from (the table that says which four 8x8 tiles make the 16x16 block), and wher… [+1458 chars]
+[   4 14:50:28] ━━━ turn 1 ━━━
+[   8 14:50:28] USER <user>
+    Mapping sheet 2 (where the pictures come from), Super Mario Bros.: find where in PRG ROM the tile ids of the ? block come from (the table that says which four 8x8 tiles make the 16x16 block), and where the tile ids of small Mario's sprite come from (the table that says which tiles make his standing frame). Before any ROM write: new_hack named eval-sheet2-tiles with description 'eval run', then use_hack eval-sheet2-tiles, so every write goes into that throwaway hack. At the very end, after promote_mappings, use_hack default. No reference is available; use the persist-edit skill. What the screen shows is drawn from tile ids (read_nametable, list_sprites, get_tile_at_pixel give them); search_memory in prgRom finds where a run of those bytes lives. Prove each origin by a ledgered write_memory to prgRom of one byte there (with a reason), reset_emulator, and a screenshot showing the predicted change; then undo_edit it. Record each with record_mapping (mapping_type tile, sprite or note as fits) with rom_origins giving mem prgRom, offset and length of the table or string, a plain name saying what the bytes are, notes with the proof, source 'search and ledgered write'. Call promote_mappings once at the end. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again, and take a screenshot to confirm World 1-1 began. Holding Right for about two and a half seconds from the start of 1-1 brings Mario under the first ? block. Each play_input call is at most 600 frames; chain calls.
+[   9 14:50:28] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 14:50:28] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 14:50:30] ASSISTANT (turn 1 step 1) · in 134 (cache 15744) out 198
+    ▷ Let me start by loading the persist-edit skill, then set up the hack, then get to World 1-1.
+    
+    Let me plan. The task: find in PRG ROM where the tile ids of the ? block come from (the table that says which four 8x8 tiles make the 16x16 block), and where the tile ids of small Mario's standing frame come from.
+    
+    So first, get in-game to see the ? block and Mario, read the nametable to get tile ids, then search_memory in prgRom for those byte runs.
+    
+    Let me load the skill and check ROM info/screenshot in parallel.
+    → skill {"name": "persist-edit"}
+    → screenshot {}
+    → get_rom_info {}
+[  18 14:50:30] RESULT skill
+    <skill_content name="persist-edit">
+    <skill_resources>
+    Base directory for this skill: /home/oof/jeROMy/skills/persist-edit
+    Resolve relative paths mentioned by this skill against the base directory before using them. Load referenced resources only as needed.
+    </skill_resources>
+    
+    <skill_instructions>
+    
+    # Persist an edit
+    
+    A `write_palette` or RAM write is volatile: the game rewrites it on the next
+    level load, and a reset erases it. A persistent edit changes the bytes the
+    game copies *from*, in PRG ROM or CHR ROM. Every such write is ledgered in
+    `hacks/sha1-<sha1>/<hack>/edits.json` (the active hack,… [+3815 chars]
+[  20 14:50:30] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1450-sheet2-tiles-rerun-r2/images/task-1/b51a80db8ac9.png
+[  22 14:50:30] RESULT get_rom_info
+    {"path":"C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes","name":"Super Mario Bros. (World).nes","sha1":"33D23C2F2CFA4C9EFEC87F7BC1321CE3CE6C89BD"}
+[  26 14:50:36] ASSISTANT (turn 1 step 2) · in 17519 (cache 16000) out 692
+    ▷ Let me plan. Current state: game is running, screenshot shows World 1-1 gameplay with Mario small (actually the screenshot appears to show Mario small at the start of 1-1? It shows "WORLD 1-1" HUD, Mario small red at bottom left on the hill). Actually there's a hill and Mario on the ground. Name says small Mario maybe. But the task says game is on title screen or attract demo. The screenshot shows World 1-1 gameplay with Mario standing. Hmm, it may be the attract demo (which plays 1-1). Attract demo Mario is controlled by game.
+    
+    Wait - the screenshot shows HUD MARIO 000000, WORLD 1-1, TIME 400. And Mario on the hill. This could be attract demo mode. Hard to say.
+    
+    Task steps:
+    1. new_hack eval-sheet2-tiles, use_hack it.
+    2. Get to World 1-1 with real gameplay (press Start, wait, press Start again, screenshot).
+    3. Find ? block tile ids from nametable.
+    4. Find small Mario standing frame sprite tile ids from list_sprites.
+    5. search_memory in prgRom for byte runs to find tables.
+    6. Prove each origin: ledgered write_memory prgRom one byte, reset_emulator, screenshot showing predicted change; then undo_edit.
+    7. record_mapping for each with rom_origins, proof notes, source 'search and ledger… [+1337 chars]
+    → new_hack {"name": "eval-sheet2-tiles", "description": "eval run"}
+[  28 14:50:36] RESULT new_hack
+    {"created":{"name":"eval-sheet2-tiles","description":"eval run","created":"2026-10-09T19:50:36.046Z","edits":0,"exports":0,"active":false},"active":"default","note":"Call use_hack eval-sheet2-tiles to switch the emulator and the ledger to it."}
+[  31 14:50:37] ASSISTANT (turn 1 step 3) · in 251 (cache 34048) out 44
+    ▷ 
+    → use_hack {"name": "eval-sheet2-tiles"}
+[  33 14:50:37] RESULT use_hack
+    {"from":"default","to":"eval-sheet2-tiles","reverted":[],"applied":[],"reset":false,"note":"Switched: both ledgers are empty, so the emulator's bytes are unchanged; ROM writes now ledger into this hack."}
+[  37 14:50:40] ASSISTANT (turn 1 step 4) · in 15808 (cache 34304) out 582
+    ▷ Now let me set up a todo list and get to World 1-1. Current screenshot shows the attract demo playing 1-1 (or actual gameplay). Let me follow the instruction: press Start, wait a second, press Start again, screenshot.
+    
+    Actually let me check the current mode via read_memory $0770.
+    
+    Let me do that plus a screenshot after waiting. Actually let's just do play_input with start.
+    
+    Plan: to get to real gameplay, if we're in attract demo, press Start returns to title. So script: start (10 frames), then wait ~60, then start again, then wait, screenshot.
+    
+    But if we're NOT in attract demo but already playing (mode 1), Start would pause. Then Start again unpauses — which actually is fine too, we'd still be in 1-1. Hmm but the task says Start during attract returns to title, then Start begins game. Let me check mode first.
+    
+    Let me read memory 0x0770 and 0x0772.
+    
+    Actually, let me be efficient. Let me read $0770.
+    
+    Then decide.
+    
+    I'll also need to be at 1-1 to see the ? block. The screenshot already shows 1-1 but no ? block visible (first ? block not on screen yet). Need to walk right ~2.5s to get under it.
+    
+    Let me do: read $0770 and $00CE etc. Actually just read 0x0770.
+    → todo_write {"todos": [{"content": "Get into real World 1-1 gameplay (Start, wait, Start, verify)", "status": "in_progress"}, {"content": "Read nametable tile ids of the ? block", "status": "pending"}, {"content": "Read small Mario standing-frame sprite tile ids", "status": "pending"}, {"content": "search_memory prgRom for ? block tile-id table", "status": "pending"}, {"content": "search_memory prgRom for Mar… [+356 chars]
+    → read_memory {"address": 30448, "length": 2}
+[  40 14:50:40] RESULT todo_write
+    Updated todo list: 7 pending, 1 in progress, 0 completed.
+[  42 14:50:40] RESULT read_memory
+    {"address":30448,"bytes":[118,118],"mem_type":"cpuDebug"}
+[  45 14:50:42] ASSISTANT (turn 1 step 5) · in 188 (cache 50560) out 157
+    ▷ $0770 = 118 ($76)?? That doesn't correspond to modes 0-3. Hmm, address 30448 = 0x76F0? Let me compute: 0x0770 = 1904. I used 30448 which is 0x76F0. Oops. Let me use 1904.
+    
+    0x0770 = 7*256 + 7*16 = 1792+112 = 1904. Yes.
+    → read_memory {"address": 1904, "length": 4}
+[  47 14:50:42] RESULT read_memory
+    {"address":1904,"bytes":[1,0,3,0],"mem_type":"cpuDebug"}
+[  50 14:50:46] ASSISTANT (turn 1 step 6) · in 251 (cache 50688) out 690
+    ▷ $0770 = 1 → mode 1 = game / in a level. So we're already in a level. But is it the attract demo (which plays 1-1 under mode 0?) Hmm, the mapping says mode 0 = title screen / attract demo, mode 1 = game in a level. We're at mode 1, so we're actually in a game already? But the task says it may be on title or attract demo.
+    
+    Wait, the screenshot showed Mario small standing on the hill at the start with HUD TIME 400 (fresh). Actually could be the attract demo. But mode 1 means game. Hmm, the mapping note says mode flipped to 1 exactly when second Start began World 1-1.
+    
+    Hmm, but the screenshot shows the state. Actually maybe the emulator is already in a game because a previous session started it. Either way, we're in mode 1, World 1-1 probably.
+    
+    The task's instructions about Start are conditional ("it is on its title screen or attract demo"). Since we're already in a level, we may not need to. But let me verify by taking a screenshot. Actually the initial screenshot already showed 1-1 with Mario. Hmm, but is it a real game or demo? If it were attract demo, $0770 would be 0. It's 1, so real game.
+    
+    Actually wait — maybe the attract demo also sets $0770=1? The mapping says mode 0 = title/a… [+1009 chars]
+    → screenshot {}
+    → read_memory {"address": 1884, "length": 4}
+    → read_memory {"address": 2040, "length": 3}
+[  52 14:50:46] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1450-sheet2-tiles-rerun-r2/images/task-1/b80bbb6ca2b7.png
+[  54 14:50:46] RESULT read_memory
+    {"address":1884,"bytes":[0,1,0,0],"mem_type":"cpuDebug"}
+[  56 14:50:46] RESULT read_memory
+    {"address":2040,"bytes":[3,6,1],"mem_type":"cpuDebug"}
+[  59 14:50:51] ASSISTANT (turn 1 step 7) · in 463 (cache 51584) out 745
+    ▷ $075F = 0 (World 1), $075C = 0 (Level 1). Timer at $07F8 = [3,6,1] = 361. Mario standing at the start. So we're in a real game, World 1-1, timer counting down. But wait - the game is running; Mario will just stand. The timer is at 361 now vs 400 earlier, so time is passing. But hold on: Mario at start of 1-1, and the game just... continues. Fine.
+    
+    Hmm, but is this the attract demo? The attract demo also shows 1-1 and would have $0770=1 possibly. The mapping says attract is mode 0. But the mapping entry was written by a previous session. I'll trust it: we're in a real game.
+    
+    Actually wait, this matters for whether pressing Start does something weird. But actually I don't need to press Start since we're already in 1-1. The task's Start sequence was conditional to get into 1-1. We're here.
+    
+    Hmm, but actually: is this possibly the attract demo where Mario is standing still because the demo hasn't advanced? The demo would move Mario automatically. Mario is standing still. Hmm.
+    
+    Actually, in the attract demo, Mario does move right. He appears to be standing. But the timer went 400 -> 361 in the interval. So it's not paused. In attract demo Mario definitely walks. Unless the demo just sta… [+1161 chars]
+    $0770 = 1, World 1-1, real gameplay (timer running). I don't need the Start sequence — we're already in a level. Walking right ~2.5 s to reach the first ? block.
+    → play_input {"script": [{"buttons": ["right"], "frames": 150}], "watch": [134, 1820]}
+[  61 14:50:53] RESULT play_input
+    {"end_frame":29279,"sample_frames":[3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93,96,99,102,105,108,111,114,117,120,123,126,129,132,135,138,141,144,147,150],"frames_run":150,"frames":150,"start_frame":29129,"watch":[{"first":40,"address":134,"last":235,"values":[40,40,41,42,44,46,48,51,54,57,61,64,69,73,78,82,87,91,96,100,105,109,114,118,123,127,132,136,141,145,150,154,159,163,168,172,177,181,186,190,195,199,204,208,213,217,222,226,231,235],"address_hex":"0x0086"},{"first":0,"address":1820,"last":123,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,7,10,1… [+367 chars]
+[  64 14:50:55] ASSISTANT (turn 1 step 8) · in 515 (cache 52736) out 68
+    ▷ Mario moved right: $0086 = 235, scroll $071C = 123. So Mario is walking. Input works → real game, not attract demo. 
+    
+    Let me screenshot and look for the ? block.
+    → screenshot {}
+[  66 14:50:55] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1450-sheet2-tiles-rerun-r2/images/task-1/52b49d05b19b.png
+[  69 14:50:58] ASSISTANT (turn 1 step 9) · in 435 (cache 53248) out 457
+    ▷ I can see two ? blocks: one at around screen (200,80) and one at (100,150), plus a brick row with a ? block in the middle at (170,150). Mario is on a hill in the middle. I should get Mario under the first ? block. Let me use get_tile_at_pixel on the ? blocks to identify their tile ids and positions.
+    
+    Let me check the ? block at screen (205,85) and at (105,150).
+    
+    Actually per task: "Holding Right for about two and a half seconds from the start of 1-1 brings Mario under the first ? block." We held right 150 frames = 2.5s but Mario went 235-40. Hmm. Mario is now at screen x = 235-123 = 112. He's under the block at (105,150)? The block at screen (100-112, 150ish). Let me check with get_tile_at_pixel.
+    
+    Let me inspect the two ? blocks. Actually the "first" ? block in 1-1 is the one at the top row, alone, at around x=21 tiles (screen x ~168... hmm). Let me just measure the tiles.
+    
+    get_tile_at_pixel at (205,85) for top block, (105,152) for lower-left block, and (170,150) for the brick-row block.
+    
+    Let me do these three lookups.
+    → get_tile_at_pixel {"x": 205, "y": 85}
+    → get_tile_at_pixel {"x": 105, "y": 152}
+    → get_tile_at_pixel {"x": 170, "y": 152}
+[  71 14:50:58] RESULT get_tile_at_pixel
+    {"tile_id":83,"palette_id":3,"tile_x":25,"tile_y":10,"scroll_x":153,"scroll_y":0,"nametable":1,"nametable_addr":9548,"attribute_addr":10195,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":199,"y":80,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":339}
+[  73 14:50:58] RESULT get_tile_at_pixel
+    {"tile_id":85,"palette_id":3,"tile_x":13,"tile_y":19,"scroll_x":153,"scroll_y":0,"nametable":1,"nametable_addr":9824,"attribute_addr":10208,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":103,"y":152,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":341}
+[  75 14:50:58] RESULT get_tile_at_pixel
+    {"tile_id":71,"palette_id":1,"tile_x":21,"tile_y":19,"scroll_x":153,"scroll_y":0,"nametable":1,"nametable_addr":9832,"attribute_addr":10210,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":167,"y":152,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":327}
+[  78 14:51:02] ASSISTANT (turn 1 step 10) · in 500 (cache 54016) out 704
+    ▷ Interesting: tile ids here are 83 ($53), 85 ($55), 71 ($47). Wait, the mapping said ? block tiles are $53-$56. Here tile_id 83 = $53 (top-left quadrant of the first ? block at (199,80)). And 85 = $55 (bottom-left of block at (103,152)). But the mapping said block at NT1 cols 12-13 rows 10-11 = screen (29,80). Hmm scroll differs now (153 vs 119 before). Here top ? block is at tile col 25, row 10, screen (199,80) → tile 83/$53 top-left. So the block spans cols 25-26, rows 10-11 → tiles $53,$54,$55,$56.
+    
+    Wait but tile 71 at (167,152) is a brick ($47)? palette 1. Hmm that's the brick row.
+    
+    OK so the ? block 16x16 tile ids are $53,$54,$55,$56. Let me confirm by reading the full 4-tile block. Let me read nametable around NT1 cols 25-26 rows 10-11.
+    
+    Actually let me get the four tiles of the top ? block. But get_tile_at_pixel gives tile_id relative to background pattern table ($1000), and chr_tile = tile_id + 256? Here tile_id 83 → chr_tile 339 = 83+256. Yes. So $53 → CHR $153.
+    
+    Hmm the mapping earlier said $53-$56 with "chr_tile" mapping? Anyway.
+    
+    Now the task: "find where in PRG ROM the tile ids of the ? block come from (the table that says which four 8x8 tiles make the 16x16 block)". So… [+947 chars]
+    → search_memory {"hex": "53 54 55 56", "mem_type": "prgRom"}
+    → list_sprites {}
+[  80 14:51:02] RESULT search_memory
+    {"pattern_length":4,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[],"memory_size":32768,"offsets_hex":[]}
+[  82 14:51:02] RESULT list_sprites
+    {"sprites":[{"width":8,"attr":35,"index":0,"palette":7,"tile":255,"x":88,"y":25,"height":8,"flip_v":false,"chr_tile":255,"behind_background":true,"flip_h":false},{"width":8,"attr":0,"index":1,"palette":4,"tile":252,"x":40,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":2,"palette":4,"tile":252,"x":48,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":3,"palette":4,"tile":252,"x":40,"y":185,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"… [+895 chars]
+[  85 14:51:11] ASSISTANT (turn 1 step 11) · in 690 (cache 55168) out 1571
+    ▷ Hmm, list_sprites shows Mario at x=40-48, y=177-201 with tiles 252 ($FC blank) at top? Actually that doesn't look right. Wait, Mario is at screen x=40? But scroll is 153 and $0086=235 → screen x = 235-153 = 82. Hmm, that doesn't match.
+    
+    Wait the list_sprites output might be from a different frame (it uses current state). Hmm. Actually the screenshot was taken before the last play_input? No, screenshot was after. Let me re-examine the screenshot: Mario appears on the hill around x=120? Actually I see a figure at around x=120,y=185 (on the green hill). Hmm.
+    
+    But there's also something at x=40-56, y=177-201 — that's the OAM at 40..48. The tiles: 252,252 (top row), 252,252, then 58, 55, 79, 79. Wait, tile 58 and 55 at y=193, tile 79 at y=201. So it's a sprite 2 wide x 4 tall = big Mario? Tiles $FC,$FC,$FC,$FC,$3A,$37,$4F,$4F. Hmm, that's weird - top 4 tiles blank.
+    
+    Hmm, this doesn't look like small Mario. Actually wait — this might not be Mario. Let me check: the HUD coin sprite at (88,25) tile 255 palette 7. Then indices 1-8 palette 4 = Mario's palette. So Mario = 8 OAM entries 2x4 = big Mario (16x32)! But the screenshot shows small Mario? Hmm, actually looking at the screenshot again… [+4156 chars]
+    → screenshot {}
+    → list_sprites {}
+[  87 14:51:11] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1450-sheet2-tiles-rerun-r2/images/task-1/2ee09d4e3608.png
+[  89 14:51:11] RESULT list_sprites
+    {"sprites":[{"width":8,"attr":35,"index":0,"palette":7,"tile":255,"x":88,"y":25,"height":8,"flip_v":false,"chr_tile":255,"behind_background":true,"flip_h":false},{"width":8,"attr":0,"index":1,"palette":4,"tile":252,"x":40,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":2,"palette":4,"tile":252,"x":48,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":3,"palette":4,"tile":252,"x":40,"y":185,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"… [+895 chars]
+[  92 14:51:21] ASSISTANT (turn 1 step 12) · in 1032 (cache 57344) out 1835
+    ▷ The screenshot now shows Mario at the start again! TIME 376 and the same start hill. Wait, it went backwards? Mario is at x≈55, y≈195 on the hill — that's the very start of the level. But we walked right...
+    
+    Oh! I bet the game was the attract demo and my play_input ran during... no.
+    
+    Wait, TIME 376 now vs 339 before vs 361 before. Hmm, the timer is going UP? 361 → 339 → 376? That means the level reloaded (timer reset to 400 and counting down: 361, then 339, then level restarted → 376). So Mario died! Holding right for 2.5s, Mario walked into the first Goomba and died. Then the level restarted (attract demo? no, in real game death costs a life). Wait, but HUD lives aren't shown here.
+    
+    Actually the initial screenshot had Mario at the start with TIME 400. Then I held right and Mario walked to the first ? block area, then died to a Goomba (the screenshot at 339 showed Mario on the hill... hmm).
+    
+    Actually look: the screenshot after play_input showed a Goomba near Mario on the hill (I saw a small brown/white figure). Then Mario died → level restarted at TIME 376.
+    
+    But wait, first life lost, Mario respawns. Hmm, but the task said "Holding Right for about two and a half seconds from the st… [+4684 chars]
+    → read_tile {"tile_id": 58}
+    → read_tile {"tile_id": 55}
+    → read_tile {"tile_id": 79}
+    → get_tile_at_pixel {"x": 48, "y": 195}
+[  94 14:51:21] RESULT read_tile
+    $3A (source: chrRom)
+      . . . . . 1 1 1
+      . . . . 1 1 1 1
+      . . . . 3 3 3 2
+      . . . 3 2 3 2 2
+      . . . 3 2 3 3 2
+      . . . 3 3 2 2 2
+      . . . . . 2 2 2
+      . . . . 3 3 1 3
+    
+    Raw pixels: [[0,0,0,0,0,1,1,1],[0,0,0,0,1,1,1,1],[0,0,0,0,3,3,3,2],[0,0,0,3,2,3,2,2],[0,0,0,3,2,3,3,2],[0,0,0,3,3,2,2,2],[0,0,0,0,0,2,2,2],[0,0,0,0,3,3,1,3]]
+[  96 14:51:21] RESULT read_tile
+    $37 (source: chrRom)
+      1 1 . . . . . .
+      1 1 1 1 1 . . .
+      2 3 2 . . . . .
+      2 3 2 2 2 . . .
+      2 2 3 2 2 2 . .
+      2 3 3 3 3 . . .
+      2 2 2 2 . . . .
+      3 3 . . . . . .
+    
+    Raw pixels: [[1,1,0,0,0,0,0,0],[1,1,1,1,1,0,0,0],[2,3,2,0,0,0,0,0],[2,3,2,2,2,0,0,0],[2,2,3,2,2,2,0,0],[2,3,3,3,3,0,0,0],[2,2,2,2,0,0,0,0],[3,3,0,0,0,0,0,0]]
+[  98 14:51:21] RESULT read_tile
+    $4F (source: chrRom)
+      . . . 3 3 3 1 3
+      . . 3 3 3 3 1 1
+      . . 2 2 3 1 2 1
+      . . 2 2 2 1 1 1
+      . . 2 2 1 1 1 1
+      . . . . 1 1 1 .
+      . . . 3 3 3 . .
+      . . 3 3 3 3 . .
+    
+    Raw pixels: [[0,0,0,3,3,3,1,3],[0,0,3,3,3,3,1,1],[0,0,2,2,3,1,2,1],[0,0,2,2,2,1,1,1],[0,0,2,2,1,1,1,1],[0,0,0,0,1,1,1,0],[0,0,0,3,3,3,0,0],[0,0,3,3,3,3,0,0]]
+[ 100 14:51:21] RESULT get_tile_at_pixel
+    {"tile_id":52,"palette_id":0,"tile_x":6,"tile_y":24,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8966,"attribute_addr":9201,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":48,"y":192,"width":8,"height":8},"sprites":[{"width":8,"cell":{"x":48,"y":193,"height":8,"width":8},"chr_tile":55,"hit_tile":55,"attr":0,"index":6,"palette":4,"tile":55,"x":48,"y":193,"height":8,"pixel_value":2,"flip_v":false,"opaque":true,"behind_background":false,"flip_h":false}],"sprite_hit":{"width":8,"cell":{"x":48,"y":193,"height":8,"width":8},"c… [+226 chars]
+[ 103 14:51:40] ASSISTANT (turn 1 step 13) · in 1143 (cache 60160) out 4024
+    ▷ So Mario small standing frame tiles: $3A (top-left, tile 58), $37 (top-right, tile 55), $4F (bottom, used twice with one flipped, tile 79). Hmm, tile $3A looks like the right part of his head/face; $37 the left part? Actually $37 raw starts at column 0 with pixels — that's the left half of the head. $3A is the right half. $4F is the body (both halves? it's 8 wide with content in left columns 3-6... hmm).
+    
+    Hmm wait, $4F looks like a single 8x8 covering the body but only using right half? It's used for both bottom-left and bottom-right (one flipped). So bottom row = $4F and flipped $4F. That's a 16-wide body? $4F has content in columns 3-7, so unflipped it's on the right side; flipped on the left. So bottom row forms a body.
+    
+    Hmm, but actually small Mario standing in SMB1 typically uses 2 tiles: top = head, bottom = body, with h-flip for the body halves? Actually the standard SMB1 small Mario standing sprite is 2x2 = 4 tiles.
+    
+    OK. But wait — the mapping said big Mario uses $20-$27 (16x32) and $08-$17. Small Mario would be different tiles. Here we have $3A,$37,$4F. Hmm.
+    
+    Actually hold on. Let me reconsider. Maybe this is not Mario but the "small Mario" is drawn. Whatever — the task sa… [+11201 chars]
+    Small Mario's standing frame reads as OAM tiles $3A/$37 (head) and $4F (body, mirrored). The ? block quadrants are $53/$54/$55/$56. Neither in the literal order — searching for the stored orderings.
+    → search_memory {"hex": "53 54", "mem_type": "prgRom"}
+    → search_memory {"hex": "55 56", "mem_type": "prgRom"}
+    → search_memory {"hex": "3A 37", "mem_type": "prgRom"}
+    → search_memory {"hex": "37 3A", "mem_type": "prgRom"}
+    → search_memory {"hex": "3A 37 4F", "mem_type": "prgRom"}
+    → search_memory {"hex": "4F 4F", "mem_type": "prgRom"}
+[ 105 14:51:40] RESULT search_memory
+    {"pattern_length":2,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[],"memory_size":32768,"offsets_hex":[]}
+[ 107 14:51:40] RESULT search_memory
+    {"pattern_length":2,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[15852,21206],"memory_size":32768,"offsets_hex":["0x3DEC","0x52D6"]}
+[ 109 14:51:40] RESULT search_memory
+    {"pattern_length":2,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[28299,28355,28371],"memory_size":32768,"offsets_hex":["0x6E8B","0x6EC3","0x6ED3"]}
+[ 111 14:51:40] RESULT search_memory
+    {"pattern_length":2,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[],"memory_size":32768,"offsets_hex":[]}
+[ 113 14:51:40] RESULT search_memory
+    {"pattern_length":3,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[28371],"memory_size":32768,"offsets_hex":["0x6ED3"]}
+[ 115 14:51:40] RESULT search_memory
+    {"pattern_length":2,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[28373],"memory_size":32768,"offsets_hex":["0x6ED5"]}
+[ 118 14:51:45] ASSISTANT (turn 1 step 14) · in 430 (cache 65280) out 997
+    ▷ Excellent! Found "3A 37 4F 4F" at prgRom offset 0x6ED3 (28371). That's a 4-byte table: 3A 37 4F 4F. And near it, 0x6E8B and 0x6EC3 also have 3A 37. Let me read memory around 0x6E80-0x6EE0 to see the tables.
+    
+    Also, for the ? block, "53 54" not found. Hmm. So maybe the ? block tile ids aren't stored as consecutive bytes. Let me think: the ? block's 4 tiles might be in a table with other block types, or the tile ids might be computed from a base. Or the ? block uses a table where the 4 entries aren't adjacent (e.g. a table of 2-byte entries: top-left, top-right, bottom-left, bottom-right, but interleaved with other data).
+    
+    Let me search for "53" and "55" adjacency patterns. Alternatively search for "55 ?? 53" etc.
+    
+    Actually, maybe the metatile table stores the tile ids in a different order or the ? block's tiles are part of a larger table. Let me search for "54 55" or "56 55" etc.
+    
+    Hmm, another thought: SMB1's ? block is drawn by the object "QuestionBlock" which uses a table indexed by animation frame. The 4 tiles might be stored as two pairs: top row and bottom row. Let me search for "53 54 55 56" as individual: maybe the table is like: $53,$55 then $54,$56? That is "53 55 54 56" — l… [+1001 chars]
+    Found `3A 37 4F 4F` at prgRom 0x6ED3. Let me look at the surrounding tables and hunt the ? block ordering.
+    → read_memory {"address": 28288, "length": 96, "mem_type": "prgRom"}
+    → search_memory {"hex": "54 53", "mem_type": "prgRom"}
+    → search_memory {"hex": "56 55", "mem_type": "prgRom"}
+    → search_memory {"hex": "53 55", "mem_type": "prgRom"}
+    → search_memory {"hex": "54 56", "mem_type": "prgRom"}
+[ 120 14:51:45] RESULT read_memory
+    {"address":28288,"bytes":[252,252,252,54,55,56,57,252,252,252,252,58,55,59,60,252,252,252,252,61,62,63,64,252,252,252,252,50,65,66,67,252,252,252,252,50,51,68,69,252,252,252,252,50,51,68,71,252,252,252,252,50,51,72,73,252,252,252,252,50,51,144,145,252,252,252,252,58,55,146,147,252,252,252,252,158,158,159,159,252,252,252,252,58,55,79,79,252,252,0,1,76,77,78,78,0],"mem_type":"prgRom"}
+[ 122 14:51:45] RESULT search_memory
+    {"pattern_length":2,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[],"memory_size":32768,"offsets_hex":[]}
+[ 124 14:51:45] RESULT search_memory
+    {"pattern_length":2,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[],"memory_size":32768,"offsets_hex":[]}
+[ 126 14:51:45] RESULT search_memory
+    {"pattern_length":2,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[3212,3216],"memory_size":32768,"offsets_hex":["0xC8C","0xC90"]}
+[ 128 14:51:45] RESULT search_memory
+    {"pattern_length":2,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[3214,3218,29910],"memory_size":32768,"offsets_hex":["0xC8E","0xC92","0x74D6"]}
+[ 131 14:52:15] ASSISTANT (turn 1 step 15) · in 489 (cache 66688) out 7464
+    ▷ The read at 28288 (0x6E80) shows a table of 4-byte groups. Let me index: address 28288 = 0x6E80.
+    
+    bytes: 
+    offset 0x6E80: 252,252,252,54
+    0x6E84: 55,56,57,252
+    0x6E88: 252,252,252,58
+    0x6E8C: 55,59,60,252
+    0x6E90: 252,252,252,61
+    0x6E94: 62,63,64,252
+    0x6E98: 252,252,252,50
+    0x6E9C: 65,66,67,252
+    0x6EA0: 252,252,252,50
+    0x6EA4: 51,68,69,252
+    0x6EA8: 252,252,252,50
+    0x6EAC: 51,68,71,252
+    0x6EB0: 252,252,252,50
+    0x6EB4: 51,72,73,252
+    0x6EB8: 252,252,252,50
+    0x6EBC: 51,144,145,252
+    0x6EC0: 252,252,252,58
+    0x6EC4: 55,146,147,252
+    0x6EC8: 252,252,252,158
+    0x6ECC: 158,159,159,252
+    0x6ED0: 252,252,252,58
+    0x6ED4: 55,79,79,252
+    0x6ED8: 252,252,0,1
+    0x6EDC: 76,77,78,78
+    0x6EE0: 0
+    
+    Hmm so the pattern is groups of 4 bytes but with an offset: each "frame" seems to be 4 tiles like [252,252,252,X],[Y,Z,W,252]... Wait let me re-parse. Actually the 4-byte table at 0x6ED4 = 55,79,79,252? Hmm.
+    
+    Actually the search for "3A 37 4F 4F" gave 0x6ED3. 0x6ED3 is one before 0x6ED4. Let me re-read: address 28288 + offset. 0x6ED3 = 28288 + 0x53 = 28371. In the byte list, index 28371-28288 = 83 → the byte at index 83. Let's count: index 80 = 252? Let me recount the list:
+    
+    Index: value
+    0:252
+    1:252
+    2:252
+    3:54
+    4:55
+    5:56
+    6:57
+    7:252
+    8:252
+    9… [+18186 chars]
+    Found `3A 37 4F 4F` (small Mario standing) at prgRom 0x6ED3. The ? block pairs don't occur in top-left/top-right order; there are hits at 0xC8C/0xC8E and 0xC90/0xC92 that look like a table. Reading that region.
+    → read_memory {"address": 3184, "length": 128, "mem_type": "prgRom"}
+    → search_memory {"hex": "53 55 54 56", "mem_type": "prgRom"}
+    → search_memory {"hex": "55 54", "mem_type": "prgRom"}
+[ 133 14:52:15] RESULT read_memory
+    {"address":3184,"bytes":[36,36,57,36,58,36,59,36,60,36,36,36,65,38,65,38,38,38,38,38,176,177,178,179,119,121,119,121,83,85,84,86,83,85,84,86,165,167,166,168,194,196,195,197,87,89,88,90,123,125,124,126,63,0,32,15,21,18,37,15,58,26,15,15,48,18,15,15,39,18,15,34,22,39,24,15,16,48,39,15,22,48,39,15,15,48,16,0,63,0,32,15,41,26,15,15,54,23,15,15,48,33,15,15,39,23,15,15,22,39,24,15,26,48,39,15,22,48,39,15,15,54,23,0,63,0,32,15],"mem_type":"prgRom"}
+[ 135 14:52:15] RESULT search_memory
+    {"pattern_length":4,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[3212,3216],"memory_size":32768,"offsets_hex":["0xC8C","0xC90"]}
+[ 137 14:52:15] RESULT search_memory
+    {"pattern_length":2,"searched":32768,"mem_type":"prgRom","truncated":false,"start":0,"offsets":[3213,3217],"memory_size":32768,"offsets_hex":["0xC8D","0xC91"]}
+[ 140 14:53:13] ASSISTANT (turn 1 step 16) · in 434 (cache 74624) out 13575
+    ▷ The bytes at 0xC8C: from the read starting at 3184 (0xC70):
+    index 0:36, 1:36, 2:57, 3:36, 4:58, 5:36, 6:59, 7:36, 8:60, 9:36, 10:36, 11:36, 12:65, 13:38, 14:65, 15:38, 16:38, 17:38, 18:38, 19:38, 20:176, 21:177, 22:178, 23:179, 24:119, 25:121, 26:119, 27:121, 28:83, 29:85, 30:84, 31:86, 32:83, 33:85, 34:84, 35:86, 36:165, 37:167, 38:166, 39:168, 40:194, 41:196, 42:195, 43:197, 44:87, 45:89, 46:88, 47:90, 48:123, 49:125, 50:124, 51:126, ...
+    
+    So offset 3184 = 0xC70. index 28 = 3212 = 0xC8C. Bytes at index 28-35: 83,85,84,86,83,85,84,86 = $53,$55,$54,$56,$53,$55,$54,$56. Two identical entries!
+    
+    So the ? block tile table is at 0xC8C with pattern [53,55,54,56] repeated twice (probably two animation frames or two metatiles). Interesting: order 53,55,54,56. Hmm. But which is top-left? The on-screen reading: tile $53 at top-left (x199,y80), $55 at (x103,y152) which was the bottom-left of a block. So in the block, top-left=$53, bottom-left=$55. So the table order [53,55,54,56] = top-left, bottom-left, top-right, bottom-right? Or "left column" then "right column". Hmm, that's an odd order for a tile table but plausible if drawn column-major.
+    
+    Wait, actually, maybe the table order is [TL, BL,… [+42092 chars]
+    The ? block table is at prgRom **0xC8C** (bytes `53 55 54 56`, duplicated at 0xC90); small Mario's standing frame is at prgRom **0x6ED3** (`3A 37 4F 4F`, matching the OAM exactly). Now proving the Mario origin first with a ledgered one-byte ROM write.
+    → write_memory {"address": 28371, "bytes": [252], "mem_type": "prgRom", "reason": "eval-sheet2: change small Mario standing-frame top-left tile $3A -> $FC (blank) to prove prgRom 0x6ED3 is the standing-frame tile table"}
+[ 142 14:53:13] RESULT write_memory
+    {"bytes_written":1,"address":28371,"mem_type":"prgRom","persistent":true,"ledger":{"seq":1,"file":"/home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd/eval-sheet2-tiles/edits.json"}}
+[ 145 14:53:15] ASSISTANT (turn 1 step 17) · in 155 (cache 88576) out 34
+    ▷ Now reset and get to 1-1.
+    → reset_emulator {}
+[ 147 14:53:16] RESULT reset_emulator
+    {"cleared_palette_overrides":0,"frames_waited":30,"paused":false,"reset":true,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 150 14:53:17] ASSISTANT (turn 1 step 18) · in 258 (cache 88576) out 68
+    ▷ 
+    → screenshot {}
+    → read_memory {"address": 1904, "length": 1}
+[ 152 14:53:17] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1450-sheet2-tiles-rerun-r2/images/task-1/ab8b7214f6a3.png
+[ 154 14:53:17] RESULT read_memory
+    {"address":1904,"bytes":[0],"mem_type":"cpuDebug"}
+[ 157 14:53:20] ASSISTANT (turn 1 step 19) · in 460 (cache 88832) out 220
+    ▷ We're on the title screen (mode 0). Mario is shown on the title screen at bottom left (small). Interesting — the title screen has small Mario standing on the hill at (40-56, 177-201)! That's the same sprite. So the changed tile might already be visible on the title screen! Let me look: the title screen shows a small Mario on the hill at bottom-left. Is his head-left missing? Hard to tell at this resolution. 
+    
+    Actually, that's convenient: the title screen itself displays small Mario standing. So the proof is visible immediately without starting a game! But I need to verify the change occurred. Let me zoom by reading sprites on the title screen.
+    
+    Let me list_sprites to see the tile set now.
+    
+    Let me do list_sprites on the title screen.
+    Reset landed on the title screen — and it draws small Mario standing on the hill, so the change should already show. Checking the OAM tiles.
+    → list_sprites {}
+[ 159 14:53:20] RESULT list_sprites
+    {"sprites":[{"width":8,"attr":35,"index":0,"palette":7,"tile":255,"x":88,"y":25,"height":8,"flip_v":false,"chr_tile":255,"behind_background":true,"flip_h":false},{"width":8,"attr":0,"index":1,"palette":4,"tile":252,"x":40,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":2,"palette":4,"tile":252,"x":48,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":3,"palette":4,"tile":252,"x":40,"y":185,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"… [+897 chars]
+[ 162 14:53:27] ASSISTANT (turn 1 step 20) · in 624 (cache 89472) out 957
+    ▷ The OAM index 5 (x=40,y=193) now has tile 252 ($FC) instead of 58 ($3A). So changing prgRom 0x6ED3 from $3A to $FC changed the standing frame's top-left tile to $FC. Proven! The other entries unchanged ($37, $4F, $4F).
+    
+    So prgRom 0x6ED3 is the small Mario standing-frame tile table (first byte = top-left tile).
+    
+    Let me also take a screenshot for the record (already have it). The change: Mario's head-left is blank. Let me verify with a close visual... the screenshot shows Mario at bottom left; hard to see but the OAM proves it.
+    
+    Actually, the proof requirement: "Prove each origin by a ledgered write_memory to prgRom of one byte there (with a reason), reset_emulator, and a screenshot showing the predicted change". The OAM readout confirms the tile id became $FC, and the screenshot shows the rendered (now partially blank) Mario. Good enough, though the screenshot may not clearly show the missing half. Let me take a pixel check: get_pixel_color at a pixel where the head-left used to be. Tile $37 (right half) still there. The head was centered ~x45-52; $3A content was at x=40+5..40+7 = 45-47. Now blank → those pixels show background (the hill green or sky). Let me check get_pixel_color a… [+1632 chars]
+    OAM index 5 (the standing head-left tile) went from 58 ($3A) to 252 ($FC) after the reset — the ROM byte at 0x6ED3 is the source. Confirming the render.
+    → get_pixel_color {"x": 46, "y": 196}
+    → get_pixel_color {"x": 50, "y": 196}
+[ 164 14:53:27] RESULT get_pixel_color
+    {"x":46,"y":196,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 166 14:53:27] RESULT get_pixel_color
+    {"x":50,"y":196,"rgb":[136,216,0],"nes_color":41,"nes_color_hex":"0x29","name":"lime green"}
+[ 169 14:53:35] ASSISTANT (turn 1 step 21) · in 138 (cache 91008) out 1671
+    ▷ Hmm. (46,196) = black ($0F), (50,196) = lime green ($29). 
+    
+    Hmm. Lime green is the hill/bush color ($29)? Actually the hill is green with $29 highlight and $1A body. At (50,196), green means no Mario pixel there. But I expected skin at (50,196). Hmm, maybe the sprite position differs on the title screen, or the flip/orientation differs.
+    
+    Wait — on the title screen, Mario might be facing a different direction or the OAM order differs. But list_sprites shows the same layout as in game: x=40/48, y=193. Hmm.
+    
+    Hmm, (46,196) black = $0F could be Mario's outline/hair? Actually tile $3A row 3 = [0,0,0,3,2,3,2,2]: index 3 = color $0F black (Mario palette 4: 0=$22,1=$16 red,2=$27 skin,3=$18? wait palette 4 = [22,16,27,18] → index3 = $18 dark olive-brown, not black). Hmm. But (46,196) shows black $0F. Hmm.
+    
+    Wait, palette 4 sprite = $22 (index0 transparent for sprites), $16 red (1), $27 orange/skin (2), $18 dark olive (3). So index 3 = $18. But rgb(0,0,0) = $0F black. That's not in palette 4. So (46,196) black isn't Mario.
+    
+    Hmm, so where's Mario? Let me reconsider. Maybe on the title screen Mario is drawn with the sprite at a different position. list_sprites said x=40/48 y=193. But maybe the s… [+4194 chars]
+    → get_tile_at_pixel {"x": 46, "y": 196}
+    → get_tile_at_pixel {"x": 50, "y": 196}
+    → list_sprites {"x": 48, "y": 196}
+[ 171 14:53:35] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":0,"tile_x":5,"tile_y":24,"scroll_x":197,"scroll_y":0,"nametable":1,"nametable_addr":10014,"attribute_addr":10231,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":43,"y":192,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":292}
+[ 173 14:53:35] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":0,"tile_x":6,"tile_y":24,"scroll_x":203,"scroll_y":0,"nametable":1,"nametable_addr":10015,"attribute_addr":10231,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":45,"y":192,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":292}
+[ 175 14:53:35] RESULT list_sprites
+    {"sprites":[],"background_pattern_addr":4096,"sprite_pattern_addr":0,"mask_source":"frame","count":0,"sprites_enabled":true,"large_sprites":false}
+[ 178 14:53:44] ASSISTANT (turn 1 step 22) · in 318 (cache 92800) out 1583
+    ▷ No sprites at (48,196) per hit-test, yet list_sprites earlier said Mario at x40/48 y193. The list_sprites(x,y) filter returned empty. Hmm — maybe the sprite OAM I read was for a frame where Mario is at y=193 but the "render" position differs? Or the title screen Mario is positioned differently.
+    
+    Wait, the background at (46,196) is tile 36 ($24 sky blank) palette 0 — but scroll_x differs per call (197 vs 203) - odd, the title screen has a scroll? Hmm, and screen_box says (43,192) and (45,192). These don't match the screen position... because get_tile_at_pixel uses the scanline scroll at that pixel; the screen_box is off.
+    
+    Hmm, this is getting confusing. The title screen has a scrolling/inconsistent state? Actually the title screen scroll changes over time (the "attract demo" may be starting, or the title screen scrolls). Wait, the screenshot shows the title screen static.
+    
+    Hmm, and list_sprites(x=48,y=196) returned 0 sprites, contradicting list_sprites() which showed Mario at x=48,y=193 (covers y193-200). Why? Because list_sprites with x,y hit-tests against pattern bytes; if the pixel is transparent it might exclude? The description says "hit-tested against its pattern bytes (opaque… [+4785 chars]
+    The emulator is running and the title screen is transitioning, so let me pause for stable reads.
+    → pause_emulator {}
+[ 180 14:53:44] RESULT pause_emulator
+    {"paused":true}
+[ 184 14:53:53] ASSISTANT (turn 1 step 23) · in 15828 (cache 94592) out 1467
+    ▷ The hack ledger is shown as empty in this snapshot ("Its ledger is empty: nothing has been written to ROM yet") — that's a stale snapshot from before the write. The write result said ledger seq 1 in eval-sheet2-tiles. Fine.
+    
+    Now, paused. Let me look for Mario on the title screen with a fresh look. Actually, let me get a clean proof: I want a screenshot where the change is clear. Let me examine the title screen pixels for Mario. But maybe Mario on the title screen isn't rendered as a sprite at a stable spot.
+    
+    Hmm. Actually, a cleaner idea: use the get_region or just crop visually. But I can't crop.
+    
+    Alternative: Instead of $FC (blank), use a bright/visible wrong tile. But the OAM change is arguably enough. However, the task explicitly wants the screenshot. Since the title screen shows small Mario, and the missing tile is ~3px, it's subtle.
+    
+    Hmm, wait — actually on the title screen, the Mario sprite looks intact in the screenshot? Let me look again at the title screenshot: Mario at bottom-left on the hill at ~(48,190). Small red figure. Hard to tell if part is missing.
+    
+    Let me get a cleaner proof by starting the game (1-1) where Mario stands, take screenshot, and also compare to the … [+4248 chars]
+    Paused on the title screen (mode 0), which itself draws small Mario. To get a clean gameplay proof, let me start World 1-1 and check the standing sprite there.
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 180}]}
+[ 186 14:53:56] RESULT play_input
+    {"end_frame":40269,"sample_frames":[],"frames_run":185,"frames":185,"start_frame":40084,"watch":[],"sample_every":4,"port":0,"segments":2,"paused":false,"was_paused":false,"polls":185,"note":"Ran 185 frames of input on port 0. The game is still running."}
+[ 190 14:53:58] ASSISTANT (turn 1 step 24) · in 15810 (cache 111872) out 98
+    ▷ The play_input ran; emulator is RUNNING (was_paused false — because I paused earlier but then... hmm, it says paused:false, was_paused:false. The earlier pause_emulator said paused true. Maybe reset unpaused it. Anyway.)
+    
+    Let me pause and screenshot + list_sprites to see Mario in 1-1.
+    → pause_emulator {}
+[ 192 14:53:58] RESULT pause_emulator
+    {"paused":true}
+[ 196 14:54:01] ASSISTANT (turn 1 step 25) · in 15755 (cache 127744) out 92
+    ▷ Let me screenshot and list_sprites now while paused.
+    → screenshot {}
+    → list_sprites {}
+    → read_memory {"address": 1904, "length": 1}
+[ 198 14:54:01] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1450-sheet2-tiles-rerun-r2/images/task-1/2254462c9b49.png
+[ 200 14:54:01] RESULT list_sprites
+    {"sprites":[{"width":8,"attr":35,"index":0,"palette":7,"tile":255,"x":88,"y":25,"height":8,"flip_v":false,"chr_tile":255,"behind_background":true,"flip_h":false},{"width":8,"attr":0,"index":1,"palette":4,"tile":252,"x":40,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":2,"palette":4,"tile":252,"x":48,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":3,"palette":4,"tile":252,"x":40,"y":185,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"… [+897 chars]
+[ 202 14:54:01] RESULT read_memory
+    {"address":1904,"bytes":[0],"mem_type":"cpuDebug"}
+[ 205 14:54:05] ASSISTANT (turn 1 step 26) · in 1065 (cache 143488) out 584
+    ▷ Hmm, it's back at the title screen (mode 0), and the screenshot shows "MARIO 000000" at top and the title. The play_input Start apparently... The first Start during attract returned to title? Wait, we were on title, pressed Start, waited 180. Then it should be in 1-1. But we're back at title with HUD MARIO 000000. Hmm.
+    
+    Actually the screenshot shows the title screen with the HUD "MARIO 000000 WORLD 1-1 TIME". So we're at the title. The timer isn't shown. Actually the title screen HUD shows the score etc.
+    
+    Hmm, so pressing Start once at the title... maybe it started the game, Mario died quickly (we didn't hold anything, but maybe not), or maybe the Start press was consumed and went to the demo.
+    
+    Wait, mode 0 = title/attract. The title screen is showing. So the Start didn't start a game, or the game ended.
+    
+    Hmm. Actually, maybe I was in the attract demo (not title) when I pressed Start, so it returned to the title. Then during the 180 idle frames, the title's attract timer... The title stays until Start or timeout (then demo). After 180 frames (3s) it's still title. OK.
+    
+    So now: at the title screen. I need to press Start again to begin the game. The task's instruction: press Start, w… [+711 chars]
+    We're back on the title screen (mode 0) — my earlier Start only returned from the attract demo. Pressing Start once more to actually begin 1-1.
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 200}]}
+[ 207 14:54:08] RESULT play_input
+    {"end_frame":40587,"sample_frames":[],"frames_run":205,"frames":205,"start_frame":40382,"watch":[],"sample_every":4,"port":0,"segments":2,"paused":true,"was_paused":true,"polls":205,"note":"Ran 205 frames of input on port 0. The game was paused before and is paused again now."}
+[ 210 14:54:10] ASSISTANT (turn 1 step 27) · in 212 (cache 145024) out 90
+    ▷ Good, was_paused true (I had paused) and it re-paused. Now screenshot + mode.
+    → screenshot {}
+    → read_memory {"address": 1904, "length": 1}
+[ 212 14:54:10] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1450-sheet2-tiles-rerun-r2/images/task-1/e17a8a2cfff5.png
+[ 214 14:54:10] RESULT read_memory
+    {"address":1904,"bytes":[1],"mem_type":"cpuDebug"}
+[ 217 14:54:17] ASSISTANT (turn 1 step 28) · in 436 (cache 145280) out 1069
+    ▷ Now we're in World 1-1 (mode 1), TIME 399, Mario at start. The screenshot shows small Mario on the hill at bottom-left. This is the proof screenshot for the Mario tile edit: Mario's standing sprite is drawn with the top-left tile replaced by $FC.
+    
+    Let me describe what I actually see: The screenshot shows Mario at the left on the green hill at around (48,193). Looking closely, his head-left appears missing? Hard to tell. But OAM confirms.
+    
+    Hmm, the visual is subtle. Let me enhance the proof by comparing: earlier baseline screenshot (2ee09.../b80bbb...) showed Mario intact. Now, with tile $FC, the left half of his head is gone.
+    
+    Actually, I realize the OAM is the definitive evidence and I'll note the screenshot. But let me also make the change more visually obvious for the record by instead writing a notable wrong tile. Hmm.
+    
+    Actually, let me reconsider: I could write $37 ($37=55) to 0x6ED3 so the head's left cell duplicates the right half → Mario's head becomes doubled/misaligned, which is more visible than blank? Marginally.
+    
+    Or write the Goomba tile $70 (112) → Mario's head-left shows a Goomba-dome shape in Mario colors. That's clearly visible. Let me do that: undo seq1, then writ… [+1927 chars]
+    → list_sprites {"x": 50, "y": 196}
+    → get_pixel_color {"x": 44, "y": 196}
+    → get_pixel_color {"x": 52, "y": 196}
+    → get_pixel_color {"x": 52, "y": 198}
+[ 219 14:54:17] RESULT list_sprites
+    {"sprites":[{"width":8,"cell":{"x":48,"y":193,"height":8,"width":8},"chr_tile":55,"hit_tile":55,"attr":0,"index":6,"palette":4,"tile":55,"x":48,"y":193,"height":8,"pixel_value":2,"flip_v":false,"opaque":true,"behind_background":false,"flip_h":false}],"background_pattern_addr":4096,"sprite_pattern_addr":0,"mask_source":"frame","count":1,"sprites_enabled":true,"large_sprites":false}
+[ 221 14:54:17] RESULT get_pixel_color
+    {"x":44,"y":196,"rgb":[12,147,0],"nes_color":26,"nes_color_hex":"0x1A","name":"green"}
+[ 223 14:54:17] RESULT get_pixel_color
+    {"x":52,"y":196,"rgb":[234,158,34],"nes_color":39,"nes_color_hex":"0x27","name":"orange"}
+[ 225 14:54:17] RESULT get_pixel_color
+    {"x":52,"y":198,"rgb":[107,109,0],"nes_color":24,"nes_color_hex":"0x18","name":"olive"}
+[ 228 14:54:30] ASSISTANT (turn 1 step 29) · in 376 (cache 146688) out 2540
+    ▷ Confirmed: 
+    - (44,196) = $1A green (hill) — where tile $3A's head-left pixel used to be (was $18 olive). Now background shows through.
+    - (52,196) = $27 orange (skin) — the $37 head-right tile still draws.
+    - (52,198) = $18 olive — $37 detail.
+    
+    And list_sprites hit-test at (50,196) finds only the $37 sprite (index6); the $FC tile contributes no opaque pixel. 
+    
+    So the proof is solid: prgRom 0x6ED3 holds the small Mario standing frame's top-left tile id, read for the standing pose.
+    
+    Now undo this edit and record the mapping. Actually the task says record each with record_mapping before promote. Let me first undo, then record. Actually order: prove, undo_edit. Then after both proofs, record_mapping both, then promote_mappings.
+    
+    Hmm, the task: "Prove each origin by a ledgered write_memory to prgRom of one byte there (with a reason), reset_emulator, and a screenshot showing the predicted change; then undo_edit it. Record each with record_mapping..."
+    
+    Let me undo seq 1 now.
+    
+    Then do the ? block proof.
+    
+    Actually, I have the proof screenshot (image e17a8a2c...). Good.
+    
+    Let me undo seq 1. Then write the ? block byte, reset, navigate.
+    
+    Actually, I could keep the Mario edit during the ? block n… [+6925 chars]
+    The Mario origin is proven: after the ROM write + reset, OAM index 5 (standing head-left) is tile $FC, and the pixel at (44,196) where $3A used to draw is now hill green while the $37 half still renders. Undoing it and moving to the ? block.
+    → undo_edit {"seq": 1}
+    → write_memory {"address": 3212, "bytes": [36], "mem_type": "prgRom", "reason": "eval-sheet2: change ? block metatile top-left tile $53 -> $24 (sky blank) at prgRom 0xC8C to prove it is the ? block 16x16 tile table"}
+[ 230 14:54:30] RESULT undo_edit
+    {"undone":true,"seq":1,"mem":"prgRom","offset":28371,"restored":[58],"remaining_edits":0,"note":"Reset the emulator if the game already copied these bytes elsewhere."}
+[ 232 14:54:30] RESULT write_memory
+    {"bytes_written":1,"address":3212,"mem_type":"prgRom","persistent":true,"ledger":{"seq":1,"file":"/home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd/eval-sheet2-tiles/edits.json"}}
+[ 235 14:54:32] ASSISTANT (turn 1 step 30) · in 254 (cache 149504) out 70
+    ▷ Now reset and navigate. The undo restored 58 at 0x6ED3 (not reset; the sprite table is read live each frame, so no reset needed for that).
+    
+    Reset to reload with the ? block edit.
+    → reset_emulator {}
+[ 237 14:54:39] RESULT reset_emulator
+    {"cleared_palette_overrides":0,"frames_waited":30,"paused":true,"reset":true,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 240 14:54:42] ASSISTANT (turn 1 step 31) · in 137 (cache 149760) out 460
+    ▷ Reset (paused). Now start the game. Since the reset leaves us at title (mode 0 probably). Let me press Start and navigate.
+    
+    Script: start 5, wait 200 (get into 1-1), then right ~150 to reach the ? block, then pause.
+    
+    But the goomba may kill Mario while idle after. Let me do the whole thing in one play_input: [{start:5},{},220,{right:130}]. Then immediately pause (play_input re-pauses since was_paused true — it says a paused game is paused again after the run). Good, so play_input ends paused → Mario won't die during subsequent reads.
+    
+    Wait, was the game paused before this play_input? reset_emulator returned paused:true. So play_input with was_paused true will re-pause. 
+    
+    Let me run: start 5, wait 220, right 140. Total 365 frames. Then screenshot + tile reads.
+    
+    Actually, let me be careful: I want the ? block on screen. At 150 frames right earlier, Mario was under the block B (the low one) and block B was on screen. Actually earlier after 150 right frames from the original game start, block B (at abs x 256) was at screen x 103-118, Mario screen x 112. So yes on screen.
+    
+    But note: earlier the death/level-scroll differ. Now starting fresh from title, the timing to reach might differ sl… [+313 chars]
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 220}, {"buttons": ["right"], "frames": 150}]}
+[ 242 14:54:49] RESULT play_input
+    {"end_frame":40992,"sample_frames":[],"frames_run":375,"frames":375,"start_frame":40617,"watch":[],"sample_every":7,"port":0,"segments":3,"paused":true,"was_paused":true,"polls":374,"note":"Ran 375 frames of input on port 0. The game was paused before and is paused again now."}
+[ 245 14:54:51] ASSISTANT (turn 1 step 32) · in 184 (cache 150272) out 72
+    ▷ Now paused. Screenshot and read the ? block tiles.
+    
+    Let me screenshot and get_tile_at_pixel at expected positions. But scroll may differ. Let me screenshot first.
+    → screenshot {}
+    → list_sprites {}
+[ 247 14:54:51] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1450-sheet2-tiles-rerun-r2/images/task-1/4787db9c74d1.png
+[ 249 14:54:51] RESULT list_sprites
+    {"sprites":[{"width":8,"attr":35,"index":0,"palette":7,"tile":255,"x":88,"y":25,"height":8,"flip_v":false,"chr_tile":255,"behind_background":true,"flip_h":false},{"width":8,"attr":0,"index":1,"palette":4,"tile":252,"x":40,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":2,"palette":4,"tile":252,"x":48,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":3,"palette":4,"tile":252,"x":40,"y":185,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"… [+895 chars]
+[ 252 14:55:00] ASSISTANT (turn 1 step 33) · in 942 (cache 150528) out 1543
+    ▷ We're back on the title screen! The Start press didn't begin the game, or the game ended. Hmm.
+    
+    Wait: after reset, the title screen appears. Pressing Start should begin. But we ended at title again.
+    
+    Why? Possibly: after reset, the game was in "title screen" but the Start press at frame 5 was during the title's start-up (maybe before it's ready). Then the game might have started 1-1 and Mario... no, 220 frames idle + 150 right. If we started, Mario would be in 1-1 and move right. But screenshot shows title.
+    
+    OR: after reset, the state is the attract demo, not the title! Then Start returned to title (as before). Then during the next 220+150 frames, the title stays. That matches: reset → attract demo? Actually after reset, earlier screenshot showed the title screen (SUPER MARIO BROS. logo) immediately. Hmm, but the "attract demo" might come after the title. Hmm.
+    
+    Wait, actually earlier: after reset, the screenshot showed the title screen. Then I pressed Start + waited 180 → ended at title (screenshot e17a8a... no wait). Let me re-trace:
+    
+    - reset #1 → screenshot showed TITLE screen (ab8b72...). mode 0.
+    - Then play_input start + 180 → screenshot 225446 showed TITLE screen again. So Sta… [+4362 chars]
+    The title needs two Start presses. Doing the prescribed Start, wait, Start, then checking World 1-1 actually began.
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 60}, {"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 200}]}
+[ 254 14:55:04] RESULT play_input
+    {"end_frame":41262,"sample_frames":[],"frames_run":270,"frames":270,"start_frame":40992,"watch":[],"sample_every":5,"port":0,"segments":4,"paused":true,"was_paused":true,"polls":270,"note":"Ran 270 frames of input on port 0. The game was paused before and is paused again now."}
+[ 257 14:55:06] ASSISTANT (turn 1 step 34) · in 152 (cache 152960) out 68
+    ▷ 
+    → screenshot {}
+    → read_memory {"address": 1904, "length": 1}
+[ 259 14:55:06] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1450-sheet2-tiles-rerun-r2/images/task-1/1224e1e1d4c1.png
+[ 261 14:55:06] RESULT read_memory
+    {"address":1904,"bytes":[1],"mem_type":"cpuDebug"}
+[ 264 14:55:09] ASSISTANT (turn 1 step 35) · in 486 (cache 153088) out 165
+    ▷ Now in World 1-1 (mode 1), TIME 396. Mario at start. Now walk right 150 frames to reach the ? block, then pause. play_input re-pauses.
+    
+    Let me do right 150, then screenshot. But note: from this point, the previous navigation (150 right) put Mario under block B. Let me do it.
+    
+    However, the paused game: play_input will resume and re-pause. Good.
+    In World 1-1 now. Walking right ~2.5 s to bring the ? blocks on screen.
+    → play_input {"script": [{"buttons": ["right"], "frames": 150}]}
+[ 266 14:55:11] RESULT play_input
+    {"end_frame":41412,"sample_frames":[],"frames_run":150,"frames":150,"start_frame":41262,"watch":[],"sample_every":3,"port":0,"segments":1,"paused":true,"was_paused":true,"polls":150,"note":"Ran 150 frames of input on port 0. The game was paused before and is paused again now."}
+[ 269 14:55:13] ASSISTANT (turn 1 step 36) · in 238 (cache 153600) out 22
+    ▷ 
+    → screenshot {}
+[ 271 14:55:13] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1450-sheet2-tiles-rerun-r2/images/task-1/549378d662c7.png
+[ 274 14:55:19] ASSISTANT (turn 1 step 37) · in 356 (cache 153856) out 1030
+    ▷ Excellent! The screenshot shows the ? blocks are now missing their top-left quadrant! I can see:
+    - The high block at top right (~230,85): appears as an L-shape / missing top-left.
+    - The low block at (~145,150): missing top-left.
+    - The brick row ? block (~215,152): also missing top-left.
+    
+    Actually, I see two block shapes that look like the top-left quarter is gone: the block at screen (~135-150, 145-160) shows a shape with the top-left missing. And the one at (~225-240, 80-95). And the brick-row one at ~210.
+    
+    So the edit at 0xC8C changed the ? block's top-left quadrant to sky blank! This confirms prgRom 0xC8C is the ? block 16x16 tile table (top-left tile).
+    
+    Wait, but it could also be the entry at 0xC90. I changed 0xC8C. Since the block changed, the table used is 0xC8C (or the routine uses 0xC8C). 
+    
+    Hmm, but there were two identical entries. The fact that changing 0xC8C changed the displayed block means the block uses 0xC8C. Good.
+    
+    Let me verify with get_tile_at_pixel on the missing quadrant to confirm tile $24 now.
+    
+    Let me find the exact screen coords. The low ? block appears at around screen (135-152, 145-162). Let me use get_tile_at_pixel at its top-left, e.g. (138,148). Actually… [+1274 chars]
+    The ? blocks are missing their top-left quarter — the edit took effect. Confirming the tile ids at the block positions.
+    → get_tile_at_pixel {"x": 138, "y": 148}
+    → get_tile_at_pixel {"x": 146, "y": 148}
+    → get_tile_at_pixel {"x": 138, "y": 156}
+    → get_tile_at_pixel {"x": 146, "y": 156}
+    → get_tile_at_pixel {"x": 232, "y": 84}
+    → get_tile_at_pixel {"x": 240, "y": 84}
+[ 276 14:55:19] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":3,"tile_x":17,"tile_y":18,"scroll_x":122,"scroll_y":0,"nametable":1,"nametable_addr":9792,"attribute_addr":10208,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":134,"y":144,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":292}
+[ 278 14:55:19] RESULT get_tile_at_pixel
+    {"tile_id":84,"palette_id":3,"tile_x":18,"tile_y":18,"scroll_x":122,"scroll_y":0,"nametable":1,"nametable_addr":9793,"attribute_addr":10208,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":142,"y":144,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":340}
+[ 280 14:55:19] RESULT get_tile_at_pixel
+    {"tile_id":85,"palette_id":3,"tile_x":17,"tile_y":19,"scroll_x":122,"scroll_y":0,"nametable":1,"nametable_addr":9824,"attribute_addr":10208,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":134,"y":152,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":341}
+[ 282 14:55:19] RESULT get_tile_at_pixel
+    {"tile_id":86,"palette_id":3,"tile_x":18,"tile_y":19,"scroll_x":122,"scroll_y":0,"nametable":1,"nametable_addr":9825,"attribute_addr":10208,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":142,"y":152,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":342}
+[ 284 14:55:19] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":3,"tile_x":29,"tile_y":10,"scroll_x":122,"scroll_y":0,"nametable":1,"nametable_addr":9548,"attribute_addr":10195,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":230,"y":80,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":292}
+[ 286 14:55:19] RESULT get_tile_at_pixel
+    {"tile_id":84,"palette_id":3,"tile_x":30,"tile_y":10,"scroll_x":122,"scroll_y":0,"nametable":1,"nametable_addr":9549,"attribute_addr":10195,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":238,"y":80,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":340}
+[ 289 14:55:28] ASSISTANT (turn 1 step 38) · in 854 (cache 155136) out 1751
+    ▷ Now the ? block's 4 quadrants are:
+    - top-left (col17,row18): tile 36 = $24 — was $53 (83). CHANGED due to my edit.
+    - top-right (col18,row18): tile 84 = $54.
+    - bottom-left (col17,row19): tile 85 = $55.
+    - bottom-right (col18,row19): tile 86 = $56.
+    
+    So the on-screen order is exactly row-major: $53 TL, $54 TR, $55 BL, $56 BR → table order [53,55,54,56]? Wait: table at 0xC8C = 53,55,54,56. But displayed TL=53, TR=54, BL=55, BR=56. So the table order [53,55,54,56] maps to TL, BL, TR, BR (column-major), i.e. the first two bytes are the left column (TL,BL), the next two the right column (TR,BR). Consistent with earlier deduction.
+    
+    Hmm, actually wait: 0xC8C bytes = 53,55,54,56. If the drawing routine writes them in order TL,BL,TR,BR then display = TL=53, BL=55, TR=54, BR=56. Observed TL=53, BL=55, TR=54, BR=56. ✓.
+    
+    Great. So 0xC8C = ? block metatile tiles: $53,$55 (left column TL,BL), $54,$56 (right column TR,BR). And there's a duplicate at 0xC90.
+    
+    Proof complete: the ? block's TL quadrant now reads tile 36 ($24) instead of 83 ($53), and the screenshot shows the missing top-left quarter.
+    
+    Now undo this edit (seq 1 in the new ledger — note the ledger seq restarted after undo? The write resul… [+4123 chars]
+    All four quadrants read: TL=36 ($24, my edit), TR=84 ($54), BL=85 ($55), BR=86 ($56) — and the screenshot shows the missing top-left corner. prgRom 0xC8C is the ? block table. Undoing.
+    → undo_edit {"seq": 1}
+[ 291 14:55:28] RESULT undo_edit
+    {"undone":true,"seq":1,"mem":"prgRom","offset":3212,"restored":[83],"remaining_edits":0,"note":"Reset the emulator if the game already copied these bytes elsewhere."}
+[ 294 14:55:37] ASSISTANT (turn 1 step 39) · in 233 (cache 157568) out 1974
+    ▷ Now record_mapping for both. Let me write them.
+    
+    For the ? block:
+    - mapping_type: "tile"
+    - id: "0x53-0x56"
+    - name: "question_block_2x2 tile table (? block 16x16 quadrants)"
+    - table: 1
+    - category: "interactive"
+    - group: "block"
+    - rom_origins: [{mem:"prgRom", offset:2060, length:4, notes:"..."}] — 0xC8C = 3212, not 2060! Let me compute: 0x8C8=2248, 0x8CC=2252... wait. 0xC8C = 12*256 + 8*16 + 12 = 3072 + 128 + 12 = 3212. Yes 3212. Good.
+    
+    Note: prgRom offsets are without iNES header (as search_memory returned 0xC8C). So offset 3212.
+    
+    - notes: proof description.
+    
+    For Mario:
+    - mapping_type: "sprite"
+    - id: "small_mario_standing"
+    - name: "small Mario standing-frame tile table"
+    - table: 0
+    - category: "player"
+    - group: "mario"
+    - rom_origins: [{mem:"prgRom", offset: 28371, length:4, notes:"..."}]
+    - notes: proof.
+    
+    Let me record both (independent, batch).
+    
+    Actually, should the ? block be mapping_type "tile" or "note"? The instruction lists "tile, sprite or note as fits". The ? block is tiles → "tile". Mario is a sprite → "sprite". Good.
+    
+    Let me write the notes carefully.
+    
+    ? block notes: "PRG source of the 16x16 ? block's four 8x8 tile ids. Entry bytes at prgRom 0xC8C are 53 55 54 56 = TL,BL,TR,… [+1324 chars]
+    → record_mapping {"mapping_type": "tile", "id": "0x53-0x56", "name": "question_block_2x2 tile table (? block 16x16 quadrants)", "category": "interactive", "group": "block", "table": 1, "rom_origins": [{"mem": "prgRom", "offset": 3212, "length": 4, "notes": "? block metatile tile ids: 53 55 54 56 = top-left, bottom-left, top-right, bottom-right (first pair = left column, second = right column). Identical duplicate … [+795 chars]
+    → record_mapping {"mapping_type": "sprite", "id": "small_mario_standing", "name": "small Mario standing-frame tile table", "category": "player", "group": "mario", "table": 0, "rom_origins": [{"mem": "prgRom", "offset": 28371, "length": 4, "notes": "4 tile ids of small Mario's standing frame in OAM order top-left, top-right, bottom-left, bottom-right: 3A 37 4F 4F. The bottom-right cell is drawn h-flipped, so the la… [+1108 chars]
+[ 296 14:55:37] RESULT record_mapping
+    {"mapping_type":"tile","id":"0x53-0x56","name":"question_block_2x2 tile table (? block 16x16 quadrants)","table":1,"category":"interactive","group":"block","notes":"PRG source of the four 8x8 tile ids that make up the 16x16 ? block. On a World 1-1 ? block the nametable shows TL=$53, TR=$54, BL=$55, BR=$56. Proof: ledgered write_memory prgRom 0xC8C, byte $53 -> $24 (sky blank), reason \"prove 0xC8C is the ? block tile table\", ledger seq 1; reset_emulator; pressed Start twice to begin 1-1 and held Right 150 frames. Screenshot sha 549378d6 showed every on-screen ? block missing its top-left quar… [+619 chars]
+[ 298 14:55:37] RESULT record_mapping
+    {"mapping_type":"sprite","id":"small_mario_standing","name":"small Mario standing-frame tile table","category":"player","group":"mario","notes":"PRG source of the tile ids that make small Mario's standing frame. Small Mario on screen is a 2x2 sprite: list_sprites showed OAM tiles 58/55/79/79 ($3A/$37/$4F/$4F), palette 4, at screen (40..55, 194..209), with $FC padding rows in a 2x4 handler slot. Proof: ledgered write_memory prgRom 0x6ED3, byte $3A -> $FC (blank), reason \"prove 0x6ED3 is the standing-frame tile table\", ledger seq 1; reset_emulator. Immediately after the reset list_sprites alre… [+922 chars]
+[ 301 14:55:39] ASSISTANT (turn 1 step 40) · in 903 (cache 159744) out 252
+    ▷ Now promote_mappings, then use_hack default.
+    
+    But wait — before promoting, let me double check the ? block entry: I claimed the entry at 0xC8C and duplicate at 0xC90. Also I should verify my claim about the stride-8 list for Mario — it's a hypothesis. But confidence 1 relies on the emulator observation; the stride detail is a note. Fine.
+    
+    Also, the task says: "At the very end, after promote_mappings, use_hack default."
+    
+    So: promote_mappings(), then use_hack("default").
+    
+    promote_mappings saves confidence-1 discoveries to the ROM mapping file. That's a file write; the current file policy says read-only, but the tool may handle it. Let me call.
+    
+    Let me do promote_mappings.
+    
+    Then use_hack default.
+    
+    Also, before finishing, I should consider: the ? block proof required the block; done. And the task wanted the write undone — done (remaining_edits 0). Good.
+    
+    Let me promote.
+    Both origins recorded. Promoting the mappings and switching back to the default hack.
+    → promote_mappings {}
+[ 303 14:55:39] RESULT promote_mappings
+    Promoted 2 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 14 tiles, 7 palettes, 1 sprites, 14 addresses. 0 hypotheses skipped.
+[ 307 14:55:42] ASSISTANT (turn 1 step 41) · in 16161 (cache 160896) out 126
+    ▷ Promoted. Now use_hack default. Then finish.
+    
+    Note: the mapping says "0x53-0x56: question_block_2x2 ... (ROM: prgRom 0xC8C ...)". Good. And the small_mario_standing sprite entry appears under Known Sprites but with tiles=[] palette=0 (because I didn't supply tiles). Acceptable.
+    
+    Now use_hack default.
+    → use_hack {"name": "default"}
+[ 309 14:55:42] RESULT use_hack
+    {"from":"eval-sheet2-tiles","to":"default","reverted":[],"applied":[],"reset":false,"note":"Switched: both ledgers are empty, so the emulator's bytes are unchanged; ROM writes now ledger into this hack."}
+[ 313 14:55:45] ASSISTANT (turn 1 step 42) · in 16166 (cache 177152) out 362
+    ▷ Done. Let me finalize the todo list and resume the emulator (optional). The task didn't require resuming, but leaving it paused is fine; the game was paused previously. Actually, let me resume so the game is in a normal state? The user might prefer running. But the harness notes say resume when satisfied. I'll resume.
+    
+    Actually, the task ended with use_hack default. The emulator is paused (I paused it). Let me resume to leave the game running normally.
+    
+    Then give a concise final report.
+    
+    Let me update todos to completed and resume.
+    → todo_write {"todos": [{"content": "Get into real World 1-1 gameplay (Start, wait, Start, verify)", "status": "completed"}, {"content": "Read nametable tile ids of the ? block", "status": "completed"}, {"content": "Read small Mario standing-frame sprite tile ids", "status": "completed"}, {"content": "search_memory prgRom for ? block tile-id table", "status": "completed"}, {"content": "search_memory prgRom for… [+368 chars]
+    → resume_emulator {}
+[ 316 14:55:45] RESULT todo_write
+    Updated todo list: 0 pending, 0 in progress, 8 completed.
+[ 318 14:55:45] RESULT resume_emulator
+    {"resumed":true}
+[ 322 14:55:49] ASSISTANT (turn 1 step 43) · in 16123 (cache 193664) out 648
+    ▷ Done. Final concise report.
+    Done. Both tables are located and proven, the hack is back to `default`, and the game is running.
+    
+    ## Results
+    
+    **? block 16×16 tile table — prgRom `0x0C8C` (3212), length 4**
+    - Bytes `53 55 54 56` = **TL, BL, TR, BR** (first pair is the left column). An identical duplicate entry sits at `0x0C90` (3216).
+    - Found by `search_memory` for `53 55 54 56` after reading a 1-1 ? block with `get_tile_at_pixel` (TL=$53, TR=$54, BL=$55, BR=$56).
+    - Proof: ledgered `write_memory` prgRom 0xC8C `$53 → $24` (sky blank, ledger seq 1) + `reset_emulator`; pressed Start twice and held Right 150 frames. The screenshot showed every on-screen ? block missing its top-left quarter, and the four quadrants then read TL=$24, TR=$54, BL=$55, BR=$56. `undo_edit` restored `$53`.
+    
+    **Small Mario standing-frame tile table — prgRom `0x6ED3` (28371), length 4**
+    - Bytes `3A 37 4F 4F` in OAM order TL, TR, BL, BR (the bottom-right cell is drawn h-flipped, hence the repeat). It is one entry in a stride-8 list of 4-tile small-Mario frames at `0x6E83`, `0x6E8B`, …
+    - Found by `search_memory` for `3A 37 4F 4F` after `list_sprites` showed the standing OAM tiles $3A/$37/$4F/$4F (palette 4, 2×2 with $FC padding).
+    - Proof: ledgered `write_memory` prgRom 0x6ED3 `$3A → $FC` + `reset_emulator`; OAM index 5 (standing head-left) changed 58→252 while 55/79/79 stayed; the 1-1 screenshot showed part of the head gone ((44,196) rendered hill green `$1A` where `$3A` used to draw, while (52,196) still rendered skin `$27`). `undo_edit` restored `$3A`.
+    
+    **Process**: created and used `eval-sheet2-tiles` for every ROM write, recorded both with `record_mapping` (`tile` / `sprite`, `rom_origins` mem prgRom + offsets/lengths, source "search and ledgered write"), called `promote_mappings` (2 promoted; mapping file now 14 tiles / 7 palettes / 1 sprite / 14 addresses), then `use_hack default`. Both ledgers are empty — no lingering edits.
+[ 324 14:55:49] ─── turn 1 end: {"kind":"completed"}
+

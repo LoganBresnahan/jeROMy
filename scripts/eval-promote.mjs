@@ -33,10 +33,12 @@ export function decide(lines, runs) {
     const nWrong = outcomes.filter((o) => o.wrong).length;
     const need = Math.floor(runs.length / 2) + 1;
     if (nRight >= need) {
+      // A real entry beats a note: look in every repeat for a right claim whose entry the run promoted.
+      const entryOf = (o) => o.run.rows.filter((x) => x.line === line.id && RIGHT.has(x.final) && PROVEN.has(x.proof ?? "") && recordOf(x) !== "notes").find((x) => o.run.copy?.[recordOf(x)]?.[x.id]);
+      const o = outcomes.find((x) => x.right && entryOf(x));
+      if (o) { const x = entryOf(o); return { line, action: "replace", record: recordOf(x), key: x.id, entry: o.run.copy[recordOf(x)][x.id], from: o.run.id, votes: `${nRight}/${runs.length} right` }; }
       const noted = outcomes.find((x) => x.right && recordOf(x.right) === "notes");
-      if (noted) return { line, action: "note", from: noted.run.id, votes: `${nRight}/${runs.length} right` };
-      const o = outcomes.find((x) => x.right && x.run.copy?.[recordOf(x.right)]?.[x.right.id]);
-      return o ? { line, action: "replace", record: recordOf(o.right), key: o.right.id, entry: o.run.copy[recordOf(o.right)][o.right.id], from: o.run.id, votes: `${nRight}/${runs.length} right` }
+      return noted ? { line, action: "note", from: noted.run.id, votes: `${nRight}/${runs.length} right` }
         : { line, action: "none", why: "graded right, but no run promoted the entry into its copy", votes: `${nRight}/${runs.length} right` };
     }
     if (nWrong >= need) {
@@ -86,6 +88,9 @@ export function apply(mapping, spec, decisions, runs) {
         if (owned.has(key) || decisions.some((d) => d.action === "replace" && `${d.record}.${d.key}` === key)) continue;
         if (spec.lines.some((l) => inScope.has(l.id) && l.entry === key)) continue;
         if (wrongKeys.has(key)) { changes.push(`  skipped ${key} (graded wrong in ${r.id})`); continue; }
+        // A claim on a line that got a decision is that line's candidate; only the decision's entry goes in, never a twin.
+        const decided = new Set(decisions.filter((d) => d.action === "replace" || d.action === "note").map((d) => d.line.id));
+        if (r.rows.some((x) => x.line && decided.has(x.line) && `${recordOf(x)}.${x.id}` === key)) continue;
         mapping[rec] ??= {};
         if (!mapping[rec][k]) {
           mapping[rec][k] = v; changes.push(`+ ${key} (side discovery, from ${r.id})`);

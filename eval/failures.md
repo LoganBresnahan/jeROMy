@@ -188,6 +188,8 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Lines hit:** B2.metatiles, B3.player_sprites; any origin proof.
 - **Changed:** the adapter's reset timeout is `frames × 400 ms + 5 s`
   (17 s for 30 frames); a paused reset through dsh checked live.
-- **Status:** `changed`.
+- **Status:** `fixed` (`sheet2-tiles-rerun` r1-r3: no reset error, both lines
+  `write+reset+look` in all three). The `paused: false` after a paused reset
+  remains (cosmetic; no line lost to it).
 - **A re-run checks:** no `reset_emulator` error in the streams, and the
   origin lines reach `write+reset+look`.

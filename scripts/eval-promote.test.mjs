@@ -65,6 +65,20 @@ describe("eval-promote", () => {
     expect(mapping.tiles["chr:0x153"].name).toBe("? block");
   });
 
+  it("prefers a real entry over a note, and never adds an in-scope line's other candidates as side entries", () => {
+    const spec = { lines: [{ id: "frame" }] };
+    const runs = [
+      { id: "r1", rows: [{ line: "frame", kind: "origin", context: "note", id: "n", final: "agrees", proof: "write+reset+look" }], copy: { sprites: {}, notes: ["n"] } },
+      { id: "r2", rows: [{ line: "frame", kind: "origin", context: "sprite", id: "mario_a", final: "agrees", proof: "write+reset+look" }], copy: { sprites: { mario_a: { tiles: [] } }, notes: [] } },
+      { id: "r3", rows: [{ line: "frame", kind: "origin", context: "sprite", id: "mario_b", final: "agrees", proof: "write+reset+look" }], copy: { sprites: { mario_b: { tiles: [] } }, notes: [] } },
+    ];
+    const mapping = { sprites: {}, notes: [] };
+    const d = decide(spec.lines, runs);
+    expect(d[0]).toMatchObject({ action: "replace", record: "sprites", key: "mario_a", from: "r2" });
+    apply(mapping, spec, d, runs);
+    expect(Object.keys(mapping.sprites)).toEqual(["mario_a"]);
+  });
+
   it("never adds a side entry its own run graded wrong", () => {
     const spec = { lines: [{ id: "x" }] };
     const runs = [{ id: "r1", rows: [row("y", "0x03AD", "disagrees")], copy: copy({ "0x03AD": { description: "wrong" } }) }];

@@ -1,0 +1,10 @@
+# Grades: 20261009-1442-sheet2-tiles-rerun-r1
+
+Reference: smbdis (doppelganger), ca65 port by threecreepio. Spec: Super Mario Bros. (World) v6. One row per claim (eval/README.md); `final` is the reference verdict held to the proof step.
+
+| line | claim | at | evidence (proof) | reference | final | grader | image |
+|---|---|---|---|---|---|---|---|
+| (none) | ? block 2x2 tile-id table entry [TL,BL,TR,BR] (World 1-1 ? block source) — Origin of the World 1-1 ? block's four 8x8 tile ids. A run of those nametable ids lives in a table of 4-byte metatile en | question_block_tile_table | look, promoted | needs-judge | confirmed | claude | images/task-1/4162768b5de6.png: after $24 over the entry's first id and a reset, the floating ? block shows sky in its top-left quadrant |
+| B2.metatiles | ? block 2x2 tile-id table entry [TL,BL,TR,BR] (World 1-1 ? block source) — Origin of the World 1-1 ? block's four 8x8 tile ids. A run of those nametable ids lives in a table of 4-byte metatile en | $8C8C-$8C8F | write+reset+look, derived by diff, promoted | agrees (expected Palette0_MTiles $8B10+156 \| Palette1_MTiles $8BAC+184 \| Palette2_MTiles $8C64+40 \| Palette3_MTiles $8C8C+24; here: Palette3_MTiles) | agrees | reference | |
+| (none) | small Mario standing-frame tile ids (prgRom 0x6ECF pose entry) — Origin of small Mario's standing-frame tile ids. The player sprite handler reads an 8-byte-per-pose table (rows top->bot | small_mario_standing | look, promoted | needs-judge | confirmed | claude | images/task-1/cdafc97942f2.png: after $4F over the frame's first id and a reset, small Mario's top-left 8x8 shows a piece of his legs (red, olive) where the back of his cap was |
+| B3.player_sprites | small Mario standing-frame tile ids (prgRom 0x6ECF pose entry) — Origin of small Mario's standing-frame tile ids. The player sprite handler reads an 8-byte-per-pose table (rows top->bot | $EECF-$EED6 | write+reset+look, derived by diff, promoted | agrees (expected PlayerGraphicsTable $EE17+208; here: PlayerGraphicsTable) | agrees | reference | |
