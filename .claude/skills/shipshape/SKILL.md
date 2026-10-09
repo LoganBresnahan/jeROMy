@@ -146,7 +146,7 @@ directory without anyone noticing (`hacks/` matched `src/hacks/` for a day
 on 2026-10-05, so ADR-0009's code was never committed):
 
 ```bash
-comm -23 <(find src scripts mesen skills docs -type f | sort) <(git ls-files src scripts mesen skills docs | sort)
+comm -23 <(find src scripts mesen skills docs eval -type f | sort) <(git ls-files src scripts mesen skills docs eval | sort)
 ```
 
 Anything printed is either new work to add or a pattern in `.gitignore` to
