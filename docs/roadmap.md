@@ -242,7 +242,7 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       change, records it with `source: "differential search"`, and the
       score script confirms `$075A`.
 
-- [ ] **23. The eval loop** (ADR-0020; Logan's direction 2026-10-09: define
+- [x] **23. The eval loop** (ADR-0020; Logan's direction 2026-10-09: define
       "mapped", send DeepSeek, grade against the SMB answer key, let Claude
       judge pictures from images, run very autonomously on the whole
       balance). Documented first: `eval/README.md` (the operating manual),
@@ -266,7 +266,7 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       `eval/runs/20261009-1135-sheet3-hud-position` (4 of 8 lines right, 0
       wrong; HUD task lost to a provider error) and fixed `disassemble`;
       (f) the Zelda reference re-imported with PRG offsets per bank and its
-      sheet-3 spec written. Open: the HUD re-run and the first holdout run.
+      sheet-3 spec written. Then `20261009-1144-sheet3-hud-rerun` (3 of 4 right; spec v2, the `find-variable` extent step) and the first holdout, `20261009-1209-holdout-sheet3` (position and location carried, 3 of 3; HUD counters did not, 0 of 4). Open: item 18's other sheets through runs.
 
 ## Next
 
