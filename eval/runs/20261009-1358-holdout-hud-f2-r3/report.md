@@ -19,7 +19,7 @@ recall to lean on.
 A re-run of `20261009-1209-holdout-sheet3` task 1 (rupees, bombs, keys,
 hearts), same text, three repeats after the F2 route was added. Runs
 `20261009-1327-…-r1`, `20261009-1343-…-r2`, `20261009-1358-…-r3`; about
-$0.47 for the series (balance $7.99 → $7.52); 240, 199, 160 tool calls.
+$0.39 for the series (balance $7.91 → $7.52); 240, 199, 160 tool calls.
 
 | line | before | r1 | r2 | r3 |
 |---|---|---|---|---|
