@@ -76,6 +76,7 @@ export function lineFor(claim, lines) {
 
 /** A reference symbol's extent in bytes: the line's span, the symbol's size, or for a PRG label the gap to the next label (capped). */
 export function spanOf(sym, symbols, line) {
+  if (sym.refSpan) return sym.refSpan;
   if (line?.span) return line.span;
   if (sym.size) return sym.size;
   if (sym.kind === "label") {
@@ -107,6 +108,25 @@ function place(claim, symbols, spec) {
   return { lo: cpu, hi: cpu + len, syms: symbols, prg: false, fmt: hex };
 }
 
+/**
+ * A spec line's reference entries: a symbol name, or `Name+offset:span` for
+ * bytes the reference reaches only through a label (SMB's coin display
+ * digits are `DisplayDigits+0x16:2`, from `OutputNumbers` in the source).
+ */
+export function resolveRefs(line, symbols) {
+  const out = [];
+  for (const ref of line.ref ?? []) {
+    const m = /^(.+?)(?:\+(0x[0-9a-f]+|\d+))?(?::(\d+))?$/i.exec(ref);
+    if (!m) continue;
+    const off = m[2] ? Number(m[2]) : 0;
+    for (const s of symbols) {
+      if (s.name !== m[1]) continue;
+      out.push(off || m[3] ? { ...s, name: ref, address: s.address + off, ...(m[3] ? { refSpan: Number(m[3]) } : {}) } : s);
+    }
+  }
+  return out;
+}
+
 /** Loose name agreement for claims no spec line takes (the pre-spec scorer, kept for out-of-spec claims). */
 function looseAgrees(symbols, claim) {
   const cw = new Set(words(`${claim.name} ${claim.context ?? ""} ${claim.notes ?? ""}`).filter((w) => w.length >= 3));
@@ -133,7 +153,7 @@ export function gradeClaim(claim, reference, spec) {
   const exactAt = symbols.filter((s) => s.address === lo);
   const loc = fmt(lo) + (hi - lo > 1 ? `-${fmt(hi - 1)}` : "");
   if (line) {
-    const refs = symbols.filter((s) => (line.ref ?? []).includes(s.name));
+    const refs = resolveRefs(line, symbols);
     if (refs.length === 0) return { ...base, loc, verdict: "unknown-to-reference", grader: "reference", why: `spec names ${line.ref?.join(", ")} but the reference has none of them` };
     const hit = refs.find((s) => {
       const span = spanOf(s, symbols, line);

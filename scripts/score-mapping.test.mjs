@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { claimsFromRecord, claimsFromStream, gradeClaim, lineFor, spanOf, words } from "./score-mapping.mjs";
+import { claimsFromRecord, claimsFromStream, gradeClaim, lineFor, resolveRefs, spanOf, words } from "./score-mapping.mjs";
 
 const REF = {
   source: "synthetic",
@@ -66,6 +66,12 @@ describe("score-mapping lines", () => {
   it("takes an origin's parent entry type as vocabulary", () => {
     const c = claimsFromRecord({ mapping_type: "palette", id: "0", name: "green", rom_origins: [{ mem: "prgRom", offset: 0x102, length: 1 }] }, "t").find((k) => k.kind === "origin");
     expect(lineFor(c, SPEC.lines)?.id).toBe("grass_pal");
+  });
+  it("resolves Name+offset:span references for bytes reached only through a label", () => {
+    const line = { id: "x", type: "address", match: [["coin"]], ref: ["Lives+0x1:1", "Clock"] };
+    const refs = resolveRefs(line, REF.symbols);
+    expect(refs.map((r) => [r.name, r.address, r.refSpan])).toEqual([["Lives+0x1:1", 0x11, 1], ["Clock", 0x30, undefined]]);
+    expect(spanOf(refs[0], REF.symbols, { span: 3 })).toBe(1);
   });
   it("sizes a label by the gap to the next label, an equate by the line span", () => {
     expect(spanOf(REF.symbols[5], REF.symbols, null)).toBe(0x10);

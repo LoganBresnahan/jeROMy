@@ -1,7 +1,7 @@
 {
   "rom_sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
   "rom_name": "Super Mario Bros. (World).nes",
-  "version": 2,
+  "version": 4,
   "schema": 3,
   "contributors": [],
   "description": "Auto-discovered mappings for Super Mario Bros. (World).nes",
@@ -183,9 +183,41 @@
       "description": "player_screen_x (derived on-screen x of Mario): Derived copy: ROM routine at CPU $F171 does LDA $0086,X / SEC / SBC $071C / STA $03AD,Y, so $03AD = player_x ($0086) - scroll ($071C) = Mario's x on the visible screen. Written every frame (trace_writes on $03AD gave PC $F17F, prgRom 0x717F, 60 writes in 30 frames). Writing $03AD directly has no effect: after write_memory $03AD = 200 and stepping one frame it was back to 40. Do not use it to move Mario; write $0086 instead. Source: differential search plus disassembly.",
       "format": "binary, 0-255",
       "source": "differential search"
+    },
+    "0x07DE": {
+      "address": "0x07DE",
+      "mem_type": "cpu",
+      "description": "player_score: The player's score, six BCD digits, most significant first at $07DE (hundred-thousands) through $07E3 (ones). Encoding: each byte is one decimal digit 0-9. Found by differential search: from a fresh 1-1 (score 000000) a coin grab (play_input right 150 frames, A 30) increased 283 addresses; a following Goomba stomp (+100) narrowed to 36, and the 200->300 change showed $07E1 going 2->3, matching the HUD 000300. Proof (write): with the HUD at 000000, write_memory $07DE..$07E3 = [0,0,1,2,3,0] (001230), then collected a coin (+200): RAM became [0,0,1,4,3,0] and the screenshot/nametable HUD read MARIO 001430 - exactly the written value plus the coin's 200. Caveat observed: the HUD's redraw follows the digits the point award touches, so a manually written nonzero ones digit ($07E3) is not rendered (after GAME OVER with RAM 001234 the HUD still read 001230); the game's own awards are all multiples of 100, so the ones digit is 0 in normal play. Source: differential search.",
+      "length": 6,
+      "format": "bcd",
+      "source": "differential search"
+    },
+    "0x07ED": {
+      "address": "0x07ED",
+      "mem_type": "cpu",
+      "description": "coin_count: Coin count shown by the HUD as \"coin x NN\". Encoding: two BCD digits, $07ED = tens, $07EE = ones (0-99). Found by differential search (a coin grab increased 283 addresses, then narrowed) and confirmed by writing the two bytes. Proof (write): wrote $07ED..$07EE = [5,5] (55) and then collected a coin; the HUD redrew to \"x56\" and RAM read [5,6] - so tens=5 and ones advanced 5->6. A second proof wrote [0,7] and a coin gave HUD \"x08\" and RAM [0,8]. The increment lands on $07EE, so that is the low (ones) digit; $07ED is the tens digit. Source: differential search.",
+      "length": 2,
+      "format": "bcd",
+      "source": "differential search"
+    },
+    "0x07F8": {
+      "address": "0x07F8",
+      "mem_type": "cpu",
+      "description": "level_timer: The level countdown shown as TIME. Encoding: three BCD digits, one per byte, most significant first: $07F8 = hundreds, $07F9 = tens, $07FA = ones (displayed 400 at level start, counting down about 1 unit per 24 frames ~0.4 s). Found by differential search: with Mario idle, a 120-frame wait gave 32 addresses that decreased; $07F8 and $07FA were among them, and a paused read showed $07F8=2,$07F9=5,$07FA=7 exactly matching the HUD TIME 257. Proof (write): wrote $07F8..$07FA = [3,9,9] (399); after 30 frames the HUD read TIME 398 and RAM read [3,9,8]; after a further 180-frame run the HUD read TIME 390 and RAM [3,9,0]. Source: differential search.",
+      "length": 3,
+      "format": "bcd",
+      "source": "differential search"
+    },
+    "0x006D": {
+      "address": "0x006D",
+      "mem_type": "cpu",
+      "description": "player_x_page: Page byte (high byte) of Mario's horizontal position in the level. Encoding: Mario's absolute level x = 0x006D*256 + 0x0086, where 0x0086 is the low byte (the byte that wraps at 256); each unit of 0x006D is one 256-pixel screen. Found with no reference by differential search. Watching memory while holding Right: as 0x0086 ran 249,250,252,253,255,0,2,3 the byte 0x006D went 0,0,0,0,0,1,1,1 - it increments on exactly the frame 0x0086 wraps 255->0. Walking back left, 0x0086 went ...1,0,255,254... and 0x006D went 1->0 on the same wrap frame. snapshot_memory/diff_memory across one crossing (a->b) kept 54 'increased' survivors including 0x006D (old 0, new 1); the reverse crossing (d->e, filter 'decreased' from d1) narrowed to 24 survivors with 0x006D (old 1, new 0). Disassembly confirms it is not the scroll: the player-position update at CPU $BF40-$BF46 is STA $0086,X ; LDA $006D,X ; ADC $02 ; STA $006D,X (carry added into the page byte), and the left-edge clamp at CPU $B013-$B021 copies the camera's 16-bit position into $0086/$006D (camera high at $071A, low at $071C). Proof by write: with Mario mid-level (0x0086=205, camera $071C=93) I paused, wrote 0x006D=1 and 0x0086=5; after stepping frames RAM still held 0x006D=1 (not zeroed) with 0x0086=5 and camera 98, i.e. absolute x 261, and the screenshot showed Mario at on-screen x~163 (right-hand side, by the hill/Goomba) rather than the left edge, where a page-0 value (abs 5 - camera 98 = -93) would be clamped. Writing 0x006D alone while it leaves Mario off-screen makes the game's clamp rewrite 0x0086=scroll and 0x006D=0, so the low byte must be written to match. This corrects the older 0x0086 entry's claim that 'no separate player page byte was found': 0x006D is that byte. Companion low byte: 0x0086.",
+      "format": "binary, 0-255 (one unit = 256 px)",
+      "source": "differential search"
     }
   },
   "notes": [
-    "SMB splits the scroll at scanline 31: the HUD above is fixed, the playfield below scrolls (recorded 2026-10-05 as an address entry by mistake; moved here by hand)."
+    "SMB splits the scroll at scanline 31: the HUD above is fixed, the playfield below scrolls (recorded 2026-10-05 as an address entry by mistake; moved here by hand).",
+    "player_horizontal_position_pair: Mario's level x is 16-bit: page 0x006D + low 0x0086: Correction to the existing 0x0086 'player_x_position' entry, which says 'no separate player page byte was found'. There IS one: 0x006D is the page/high byte and 0x0086 is the low byte; absolute level x = 0x006D*256 + 0x0086. Evidence (differential search, no reference): 0x006D 0->1 on the exact frame 0x0086 wrapped 255->0 walking right, and 1->0 on the reverse crossing; the player update at CPU $BF40-$BF46 adds the carry into 0x006D; and writing 0x006D=1 with 0x0086=5 moved Mario to absolute x 261 (screenshot screen x~163). Also note the game clamps: if a page edit leaves Mario off the visible screen, CPU $B013-$B021 rewrites 0x0086 and 0x006D from the camera's 16-bit position ($071A high, $071C low)."
   ]
 }

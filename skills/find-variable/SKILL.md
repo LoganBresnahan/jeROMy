@@ -49,6 +49,14 @@ afterwards (`NumberofLives`).
    The display must follow your value; a `read_memory` afterwards shows the
    game's own next step from it. If the display did not change, the
    address is a mirror or a copy: try the other survivors.
+   **A number drawn as several digits needs its extent proven too.** Write
+   a different digit to every byte of the range you suspect and to one byte
+   past each end (`1,2,3,4,5,6,7,8`), make the display redraw, and claim
+   only the bytes whose digits appeared, in the order they appeared. A
+   digit that never changes may be a fixed tile and a zero may be blanked:
+   SMB's score is `$07DD`-`$07E2` (millions to tens), its ones place is a
+   fixed `0`, and a proof that wrote `0,0,1,2,3,0` could not tell it from
+   `$07DE`-`$07E3` (eval/runs/20261009-1144-sheet3-hud-rerun).
 8. **Record it.** `record_mapping` with `mapping_type: "address"`, `id` as
    the hex address, a plain name, `category`, notes giving the encoding and
    how it was proven, and `source: "differential search"`. Only then, if a
