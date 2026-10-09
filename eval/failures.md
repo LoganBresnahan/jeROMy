@@ -59,7 +59,8 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Lines hit:** C1.score; any multi-digit number (Zelda's rupees later).
 - **Changed:** `find-variable` step 7: write a distinct digit to every byte
   and one past each end, claim only the bytes that showed (commit `7ec93e5`).
-- **Status:** `changed`.
+- **Status:** `fixed` (`sheet3-hud-rerun2` r1-r3: score right 3/3, distinct
+  digits written across the range 3/3, one past each end 2/3).
 - **A re-run checks:** C1.score `agrees`, and the stream shows a write of
   distinct digits across the range before the record.
 
@@ -144,9 +145,12 @@ change bought; if the failure comes back, reopen it with the new run.
   in-scope lines' entries (each line's `entry`); `eval-run.sh` points the
   plugin's `mappingsDir` at that copy for the run, which also promotes
   there, not into `mappings/`.
-- **Status:** `changed`.
+- **Status:** `fixed` (`sheet3-hud-rerun2` r1-r3 list the held-back entries;
+  the per-run patch was checked live to keep them out of the prompt).
 - **A re-run checks:** `config.md` lists the entries held back, and the
-  session's prompt (`dsh-log.mjs show <id> --system`) does not contain them.
+  session's prompt (`dsh-log.mjs show <id> --system --full`) does not
+  contain them. A one-step session's prompt has no mapping at all (the
+  bridge connects after the first prompt is built): check a later step.
 
 ## F11. trace_writes refused while the game is paused
 

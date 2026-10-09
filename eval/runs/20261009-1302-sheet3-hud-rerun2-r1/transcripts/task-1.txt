@@ -1,0 +1,860 @@
+# session-f6e422eb-bc45-436a-805e-9693dae591c1 · Finding Super Mario Bros. HUD RAM addresses
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-09T18:02:59.353Z
+
+[   3 13:02:59] QUEUED <user> for next-turn: Mapping sheet 3 (the RAM a hacker reaches for), scene World 1-1 of Super Mario Bros.: find the RAM addresses of three HUD values without any reference: the coin count, the level timer (TIME) and the p… [+1332 chars]
+[   4 13:02:59] ━━━ turn 1 ━━━
+[   8 13:02:59] USER <user>
+    Mapping sheet 3 (the RAM a hacker reaches for), scene World 1-1 of Super Mario Bros.: find the RAM addresses of three HUD values without any reference: the coin count, the level timer (TIME) and the player's score. Use the find-variable skill. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again, and take a screenshot to confirm World 1-1 began. The HUD along the top shows MARIO with a six-digit score, a coin icon with a two-digit count, WORLD 1-1, and TIME counting down from 400 by one about every 0.4 seconds. Each play_input call is at most 600 frames; chain calls, and take a screenshot whenever you need to know where you are. In 1-1, holding Right for about two and a half seconds from the start brings Mario under the first ? block floating overhead; jumping (A) into it from below gives one coin and 200 points. Prove each address by write_memory and a screenshot in which the HUD shows the value you wrote (the HUD redraws a number when the game changes it, so make the game change it after your write if the display does not follow at once). Record each with record_mapping: mapping_type address, a plain name, notes with the encoding and the proof, length and format when the value spans several bytes, source 'differential search'. Call promote_mappings once at the end. Report each address, its encoding and what the proof screenshot showed.
+[   9 13:02:59] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 13:02:59] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 13:03:00] ASSISTANT (turn 1 step 1) · in 163 (cache 15616) out 71
+    ▷ We need to load the find-variable skill first.
+    
+    Let me start.
+    
+    Let me call skill.
+    → skill {"name": "find-variable"}
+    → screenshot {}
+[  18 13:03:00] RESULT skill
+    <skill_content name="find-variable">
+    <skill_resources>
+    Base directory for this skill: /home/oof/jeROMy/skills/find-variable
+    Resolve relative paths mentioned by this skill against the base directory before using them. Load referenced resources only as needed.
+    </skill_resources>
+    
+    <skill_instructions>
+    
+    # Find a variable by differential search
+    
+    Most games have no reference. This procedure needs only the running game:
+    `snapshot_memory`, `play_input`, `diff_memory`, then `write_memory` and a
+    screenshot for the proof (ADR-0019). Written from the blind session of
+    2026-10-06 on Super Mario Bros. (World… [+4397 chars]
+[  20 13:03:01] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/d425b7026e0d.png
+[  24 13:03:18] ASSISTANT (turn 1 step 2) · in 12271 (cache 15744) out 3142
+    ▷ We need to find RAM addresses for coin count, timer, and score in SMB World 1-1. Interesting: the mapping already contains a lot of info, including known addresses for coin_count_binary at 0x075E, and routines that reference coin digits $07ED/$07EE, timer digits $07F8-$07FA, and score digits $07E1, $07DD-$07E2, helper AddBCD $8F5F.
+    
+    But the task says "without any reference" and "Use the find-variable skill". However, the mapping is already loaded and contains these discoveries. Hmm. The task is likely an eval scenario; the pre-existing mapping may be considered part of the session (auto-discovered mappings). But the task explicitly says find the RAM addresses of three HUD values without any reference: coin count, level timer (TIME), and player's score.
+    
+    Wait — the existing mappings already document coin_count_binary $075E, timer digits $07F8-$07FA, score digits. But these are "known addresses" — should I treat them as reference? The task says "without any reference" meaning without lookup_symbol/disassembly initially, use differential search. But the mappings exist in context. Hmm, the eval is likely "sheet 3" rerun; the guidance note in skill mentions eval/runs/20261009-1144-sheet… [+11073 chars]
+    I'll start by getting from the title/attract screen into a real playable World 1-1, then run differential searches for each HUD value.
+    → play_input {"script": [{"buttons": ["start"], "frames": 8}, {"buttons": [], "frames": 90}, {"buttons": ["start"], "frames": 8}, {"buttons": [], "frames": 60}]}
+[  26 13:03:21] RESULT play_input
+    {"frames":166,"polls":166,"start_frame":95487,"paused":false,"port":0,"segments":4,"end_frame":95653,"was_paused":false,"sample_frames":[],"sample_every":3,"watch":[],"frames_run":166,"note":"Ran 166 frames of input on port 0. The game is still running."}
+[  29 13:03:22] ASSISTANT (turn 1 step 3) · in 147 (cache 31104) out 25
+    ▷ Now screenshot.
+    → screenshot {}
+[  31 13:03:22] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/ff3192e20d83.png
+[  34 13:03:26] ASSISTANT (turn 1 step 4) · in 406 (cache 31232) out 485
+    ▷ Hmm, TIME 004? That's odd — the timer is at 4. That means we're still in the attract demo which had counted down (was 054, now 004). The Start presses returned to title then started... but it shows 1-1 with time 004. Wait, maybe the first Start returned to title, then 90 frames later second Start began a game — but a new game starts at TIME 400. So TIME 004 means this is still the attract demo, not a new game.
+    
+    Hmm, actually the attract demo near its end. Let me think. The prior screenshot had TIME 054 and we waited 166 frames (~2.8s, ~7 ticks) so from 054 it would go to ~047, not 004. Unless the earlier screenshot was old.
+    
+    Wait maybe the demo ended and a new attract started? Actually the demo runs, then time runs out, Mario dies, attract loops. Hmm.
+    
+    Actually maybe the Start presses did return to title and start a game, but the very first screenshot was taken much earlier... no.
+    
+    Let me reconsider: This is the attract demo. Start during attract returns to title. My sequence: Start (returns to title), wait 90 frames (title screen), Start (begins game → 1-1 with TIME 400). But the screenshot shows TIME 004, which is not 400.
+    
+    Unless the game started and time already ran down? No, o… [+708 chars]
+    → screenshot {}
+[  36 13:03:26] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/84b3aa210700.png
+[  39 13:03:29] ASSISTANT (turn 1 step 5) · in 483 (cache 32000) out 220
+    ▷ TIME 000 now. This is the attract demo running out of time. So my Start presses didn't start a game. Hmm.
+    
+    Maybe the earlier screenshots were also attract. Now the demo has time out, Mario will die, then title screen appears. Perhaps I need to wait for the title screen then press Start.
+    
+    Let me wait for the title screen. The demo time-up → Mario dies → title. Let me play ~200 frames and screenshot.
+    
+    Actually, better: reset the emulator to get to the title screen quickly. reset_emulator → title screen. Then press Start. But the hint says Start on title begins a game. Let me reset.
+    
+    Actually reset may go through the title. Let me reset and screenshot.
+    TIME reached 000 — my Start presses hit the attract demo (Start during the demo returns to title, but timing was off). Let me reset to a clean title screen.
+    → reset_emulator {}
+    → screenshot {}
+[  41 13:03:29] RESULT reset_emulator
+    {"reset":true,"paused":false,"cleared_palette_overrides":0,"frames_waited":30,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[  43 13:03:29] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/1b44479edcde.png
+[  46 13:03:31] ASSISTANT (turn 1 step 6) · in 497 (cache 32640) out 97
+    ▷ Blank blue screen after reset. Probably just mid-init. Let me wait some frames and screenshot. Use play_input with empty buttons for 120 frames, then screenshot.
+    
+    Actually let me step or play. play_input [{[],120}] then screenshot.
+    → play_input {"script": [{"buttons": [], "frames": 180}]}
+[  48 13:03:34] RESULT play_input
+    {"frames":180,"polls":180,"start_frame":96239,"paused":false,"port":0,"segments":1,"end_frame":96419,"was_paused":false,"sample_frames":[],"sample_every":3,"watch":[],"frames_run":180,"note":"Ran 180 frames of input on port 0. The game is still running."}
+[  51 13:03:35] ASSISTANT (turn 1 step 7) · in 176 (cache 33152) out 22
+    ▷ 
+    → screenshot {}
+[  53 13:03:35] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/50b943cda049.png
+[  56 13:03:37] ASSISTANT (turn 1 step 8) · in 430 (cache 33280) out 101
+    ▷ Title screen. Now press Start to begin a game. Then wait through the "WORLD 1-1" curtain and screenshot. Let me press Start.
+    Title screen. Now Start begins a real game.
+    → play_input {"script": [{"buttons": ["start"], "frames": 8}, {"buttons": [], "frames": 240}]}
+[  58 13:03:41] RESULT play_input
+    {"frames":248,"polls":248,"start_frame":96622,"paused":false,"port":0,"segments":2,"end_frame":96870,"was_paused":false,"sample_frames":[],"sample_every":5,"watch":[],"frames_run":248,"note":"Ran 248 frames of input on port 0. The game is still running."}
+[  61 13:03:43] ASSISTANT (turn 1 step 9) · in 241 (cache 33664) out 22
+    ▷ 
+    → screenshot {}
+[  63 13:03:43] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/8edc648badee.png
+[  66 13:03:47] ASSISTANT (turn 1 step 10) · in 376 (cache 33920) out 549
+    ▷ Now a real game: TIME 395, score 000000, coins x00, World 1-1. Started from 400, now 395 after ~4 seconds of curtain.
+    
+    Now let's do the differential searches.
+    
+    Let me plan the three searches:
+    
+    **Timer**: Stand still. snapshot t0 now. play 48 frames. snapshot t1. diff decreased -> d_timer. Repeat. Very clean because nothing else changes while standing.
+    
+    Actually, careful: TIME 395 now. If I wait 48 frames (~0.8s) timer drops ~2. diff decreased. Also the score doesn't change, coins don't change. Position doesn't change. Good.
+    
+    But wait — if I just stand, eventually the timer runs out and Mario dies. But we have 395, plenty.
+    
+    **Coin + score**: Hold Right ~150 frames to get under first ? block, then jump. Let's do it and observe.
+    
+    But I want to be careful to isolate. Let me do the timer first since it's easiest and covers ~2 ticks.
+    
+    Plan for timer:
+    - snapshot t0
+    - play_input [{[], 150}]  (2.5s, ~6 ticks)
+    - snapshot t1
+    - diff_memory a=t0 b=t1 filter=decreased name=dt1
+    - play_input [{[], 150}]
+    - snapshot t2
+    - diff_memory a=t1 b=t2 filter=decreased from=dt1 name=dt2
+    - play_input [{[],150}]
+    - snapshot t3
+    - diff_memory a=t2 b=t3 filter=decreased from=dt2 name=dt3
+    
+    That should narrow to time… [+381 chars]
+    Real World 1-1 running (TIME 395). Now the differential searches. Timer first — while standing still, almost nothing but the timer changes.
+    → snapshot_memory {"name": "t0"}
+    → play_input {"script": [{"buttons": [], "frames": 150}]}
+[  68 13:03:47] RESULT snapshot_memory
+    {"name":"t0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T18:03:47.143Z","checksum":"28d2c868","snapshots":["t0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[  70 13:03:49] RESULT play_input
+    {"frames":150,"polls":150,"start_frame":97184,"paused":false,"port":0,"segments":1,"end_frame":97334,"was_paused":false,"sample_frames":[],"sample_every":3,"watch":[],"frames_run":150,"note":"Ran 150 frames of input on port 0. The game is still running."}
+[  73 13:03:51] ASSISTANT (turn 1 step 11) · in 213 (cache 34816) out 122
+    ▷ 
+    → snapshot_memory {"name": "t1"}
+    → diff_memory {"a": "t0", "b": "t1", "filter": "decreased", "name": "dt1"}
+[  75 13:03:51] RESULT snapshot_memory
+    {"name":"t1","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T18:03:51.502Z","checksum":"d3995a4b","snapshots":["t0","t1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[  77 13:03:51] RESULT diff_memory
+    {"a":"t0","b":"t1","filter":"decreased","considered":2048,"matched":21,"hits":[{"address":247,"old":22,"new":21,"address_hex":"0x00F7"},{"address":248,"old":42,"new":41,"address_hex":"0x00F8"},{"address":249,"old":68,"new":66,"address_hex":"0x00F9"},{"address":770,"old":122,"new":12,"address_hex":"0x0302"},{"address":1767,"old":184,"new":40,"address_hex":"0x06E7"},{"address":1768,"old":208,"new":64,"address_hex":"0x06E8"},{"address":1769,"old":232,"new":88,"address_hex":"0x06E9"},{"address":1779,"old":232,"new":88,"address_hex":"0x06F3"},{"address":1780,"old":240,"new":96,"address_hex":"0x06F4… [+807 chars]
+[  80 13:03:56] ASSISTANT (turn 1 step 12) · in 739 (cache 35072) out 832
+    ▷ 21 survivors. Notice 0x07F9 (old 8, new 7) and 0x07FA (old 4, new 3): the timer! TIME was 395 → 389. Hundreds digit 3 (0x07F8) unchanged, tens 9→8? wait old 8 new 7 at 0x07F9. Hmm. If TIME 395→389, tens goes 9→8 and ones 5→9 (with borrow). But we see 0x07F9 8→7 and 0x07FA 4→3. So 0x07F8=3, 0x07F9=8, 0x07FA=4 → 384? That doesn't match 395. Hmm.
+    
+    Wait diff shows old values at snapshot time. The screenshot showed 395 but that was ~1.5s earlier. During the 150 frames before t0, time decreased. t0 might have TIME 384, t1 TIME 383? 0x07FA 4→3 is ones 4→3, no borrow, and tens 0x07F9 8→7?? That'd be 384→373, inconsistent.
+    
+    Hmm, wait maybe $07F9 is tens and old 8 new 7 while ones 4→3? That would be 384→373, a drop of 11 in 2.5 seconds, impossible.
+    
+    Unless the encoding is BCD but paired differently. Let me reconsider: maybe $07F8=hundreds, $07F9=tens, $07FA=ones. t0: 3,8,4 = 384. t1: 3,7,3 = 373?? That's inconsistent as BCD digits.
+    
+    Hmm wait, maybe I misread: 0x07F9 old 8 new 7; 0x07FA old 4 new 3. Both decremented by 1. With BCD, decrementing a number 3 8 4 by 1 should give 3 8 3. So 0x07F9 shouldn't change. Unless... hmm.
+    
+    Oh wait! Maybe the timer is stored as binary bytes at 0x07F9 and 0x… [+865 chars]
+    Timer candidates $07F9/$07FA appear. Let me read the timer digit area directly and continue narrowing.
+    → read_memory {"address": ">0x07F5", "length": 8}
+[  82 13:03:56] RESULT read_memory ERROR
+    Error: Bridge error: bridge.lua:1256: attempt to add a 'string' with a 'number'
+[  85 13:03:57] ASSISTANT (turn 1 step 13) · in 326 (cache 36352) out 74
+    ▷ Oops, I passed a string ">0x07F5". Need numeric address.
+    → read_memory {"address": 2037, "length": 10}
+[  87 13:03:57] RESULT read_memory
+    {"bytes":[0,0,0,3,5,8,0,0,0,0],"address":2037,"mem_type":"cpuDebug"}
+[  90 13:04:04] ASSISTANT (turn 1 step 14) · in 190 (cache 36608) out 1307
+    ▷ Address 2037 = 0x07F5. Bytes: 0x07F5=0, 0x07F6=0, 0x07F7=0, 0x07F8=3, 0x07F9=5, 0x07FA=8, 0x07FB=0, 0x07FC=0, 0x07FD=0, 0x07FE=0.
+    
+    So timer digits currently = 3,5,8 = 358. So the HUD should show TIME 358. Earlier diff: 0x07F9 8→7 and 0x07FA 4→3. Hmm, now 0x07F9=5, 0x07FA=8. So over time: 8→7 (tens dropped), then 4→3 (ones dropped 4→3). Then from 373 → ... → 358? Let's see: 373, 372,...,364,363,362,...,358. In that span ones went 3→2→...→8 with borrows. So 0x07FA decreased 4→3 at t1, and later went down through 2,1,0 then 9,8 with a borrow. Currently 5,8 = 358. So t0=384? and t1=383? wait but 0x07F9 at t0 was 8 new 7 → tens 8→7 means a borrow. So t0=38x, t1=37y. And 0x07FA 4→3, so t0=384, t1=373? But that requires ones 4→3 AND tens 8→7, i.e. 384→373, a drop of 11 over 150 frames = 6 ticks. Impossible.
+    
+    Hold on. Unless I misread: maybe the old/new are swapped in my head. t0→t1: 0x07F9 old 8 new 7, 0x07FA old 4 new 3. Hmm, 384 → 373. That's weird. Unless the timer isn't ticking normally because... hmm.
+    
+    Actually wait, maybe the timer at t0 was 384 and at t1 was 383, and independently 0x07F9 went 8→7 due to a different reason? No.
+    
+    Let me reconsider: maybe the digits are stored most-si… [+2283 chars]
+    Timer digits read as bytes `$07F8=3, $07F9=5, $07FA=8` (BCD 358). Let me confirm against the HUD and narrow another round.
+    → play_input {"script": [{"buttons": [], "frames": 150}]}
+    → screenshot {}
+[  92 13:04:06] RESULT play_input
+    {"frames":150,"polls":150,"start_frame":98226,"paused":false,"port":0,"segments":1,"end_frame":98376,"was_paused":false,"sample_frames":[],"sample_every":3,"watch":[],"frames_run":150,"note":"Ran 150 frames of input on port 0. The game is still running."}
+[  94 13:04:07] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/4d5caafeaa50.png
+[  97 13:04:10] ASSISTANT (turn 1 step 15) · in 542 (cache 38016) out 374
+    ▷ HUD shows TIME 335. And earlier the bytes read 3,5,8 = 358 ~1.5s before, then 150 frames = 6 ticks → 352ish, but HUD shows 335. Hmm, 358-335=23 in ~2.5s ≈ 9-10 ticks? Timer ticks ~24 frames → 150 frames = 6.25 ticks. Not matching.
+    
+    Wait, the screenshot TIME 335. Let me read the bytes now to compare.
+    
+    Hmm, there may be a discrepancy: the screenshot was taken at some point; the play_input ran then screenshot. Let me read the digits.
+    
+    Actually, maybe the timer ticks faster than 0.4s. The task says "TIME counting down from 400 by one about every 0.4 seconds". 0.4s = 24 frames. Hmm.
+    
+    Let me read bytes now.
+    → read_memory {"address": 2040, "length": 4}
+    → snapshot_memory {"name": "t2"}
+    → diff_memory {"a": "t1", "b": "t2", "filter": "decreased", "from": "dt1", "name": "dt2"}
+[  99 13:04:10] RESULT read_memory
+    {"bytes":[3,2,7,0],"address":2040,"mem_type":"cpuDebug"}
+[ 101 13:04:10] RESULT snapshot_memory
+    {"name":"t2","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T18:04:10.221Z","checksum":"8788df7f","snapshots":["t0","t1","t2"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 103 13:04:10] RESULT diff_memory
+    {"a":"t1","b":"t2","filter":"decreased","considered":21,"matched":6,"hits":[{"address":247,"old":21,"new":6,"address_hex":"0x00F7"},{"address":248,"old":41,"new":14,"address_hex":"0x00F8"},{"address":249,"old":66,"new":22,"address_hex":"0x00F9"},{"address":1964,"old":20,"new":8,"address_hex":"0x07AC"},{"address":1968,"old":185,"new":33,"address_hex":"0x07B0"},{"address":2041,"old":7,"new":2,"address_hex":"0x07F9"}],"truncated":false,"note":"Few enough to test: write_memory each candidate and look at the screen; a change the HUD shows is the proof."}
+[ 106 13:04:14] ASSISTANT (turn 1 step 16) · in 360 (cache 38912) out 714
+    ▷ Now bytes at 2040 = 0x07F8 = 3, 0x07F9 = 2, 0x07FA = 7. HUD showed TIME 335 earlier? That read is after the screenshot, ~ some frames. Hmm 3,2,7 = 327. HUD screenshot showed 335. So there's a gap of 8 ticks between screenshot and read? That's 8*24=192 frames. Hmm no, the screenshot was taken right after play_input returned, and read immediately after. Actually the screenshot + read happen near-simultaneously. 335 vs 327 mismatch.
+    
+    Wait — maybe I misread the screenshot. Let me look again: "TIME 335"? The image shows "335". Hmm.
+    
+    Actually maybe the digits order is $07F8=hundreds=3, $07F9=tens, $07FA=ones. 3,2,7 = 327. The screenshot might show 335... Let me re-examine. The rendered text in the preview: "TIME 335". Hard to be sure.
+    
+    Hold on, let me reconsider the timer decrement logic. The diff dt2: 0x07F9 old 7 new 2 (tens went 7→2, a drop of 5 over 150 frames = ~6 ticks, plausible if a borrow happened: e.g., 373→368 would need tens unchanged... no).
+    
+    Hmm, this is confusing. Let me think about the BCD borrow. The AddBCD helper subtracts 1 from the number. Number as digits: e.g. $07F8..$07FA. If ones digit is 0 and you subtract 1, it becomes 9 and decrements tens. So a decrement of 1 … [+909 chars]
+    The HUD/byte timing is ambiguous while running. Let me freeze and read the timer bytes together with a screenshot.
+    → pause_emulator {}
+[ 108 13:04:14] RESULT pause_emulator
+    {"paused":true}
+[ 112 13:04:16] ASSISTANT (turn 1 step 17) · in 10511 (cache 39936) out 217
+    ▷ Now paused. Let me read timer bytes and screenshot together.
+    
+    Actually the read showed [3,2,7] at 0x07F8. Screenshot earlier showed 335. Discrepancy of 8. Hmm. But maybe the screenshot text was 327 and I misread as 335. Let me take a fresh paused screenshot and read.
+    
+    Actually at this point I realize the earlier diff old/new confusion: maybe the timer digits are stored as binary bytes? 0x07F8=3, 0x07F9=2, 0x07FA=7. If interpreted as BCD 327, and screenshot shows 327 then great.
+    
+    Let me pause-screenshot and read now.
+    → screenshot {}
+    → read_memory {"address": 2040, "length": 4}
+[ 114 13:04:17] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/4798381168e2.png
+[ 116 13:04:17] RESULT read_memory
+    {"bytes":[3,1,0,0],"address":2040,"mem_type":"cpuDebug"}
+[ 119 13:04:22] ASSISTANT (turn 1 step 18) · in 500 (cache 50560) out 771
+    ▷ Now HUD shows TIME 310 and bytes are 3,1,0 = 310. 
+    
+    So earlier screenshot "335"? I must have misread; likely it showed 327 or 330. Anyway now it matches: $07F8=3 (hundreds), $07F9=1 (tens), $07FA=0 (ones). BCD. Confirmed.
+    
+    So the earlier confusion was misreading the screenshot. Fine.
+    
+    Now the timer digits are $07F8-$07FA, BCD. dt2 narrowed to 6 survivors including 0x07F9. The timer digits $07F8/$07FA didn't appear in dt2 because they didn't decrease that round? Actually $07F8 unchanged (3), $07FA went ...0? From 327 to 310: hundreds 3 same, tens 2→1, ones 7→0. So $07F9 2→1 decreased, $07FA 7→0 decreased. Wait but dt2 hits only showed 0x07F9 (old 7 new 2). Hmm, t1→t2: t1 was at 0x07F9... 
+    
+    Ugh, the timeline: t1 snapshot ~TIME? Let me not worry. The current read is definitive and the HUD matches.
+    
+    Now proof: write timer digits to a distinct value and let the timer tick, screenshot shows it. I'll write $07F8=1,$07F9=2,$07FA=3 → should display 122 after next tick (since it'll decrement to 122). Actually if I write 123 and then the game decrements by 1, display 122. Let me write and step ~30 frames.
+    
+    But careful: the emulator is paused. Writes are live. Then step frames. Let me save_sta… [+879 chars]
+    Timer confirmed: paused HUD shows TIME 310 and `$07F8/$07F9/$07FA = 3,1,0` (BCD). Now prove it by writing a distinct value and letting the timer tick.
+    → save_state {"slot": 1}
+    → write_memory {"address": 2040, "bytes": [1, 2, 3]}
+[ 121 13:04:22] RESULT save_state
+    {"bytes":4653,"stepped_frames":0,"slot":1,"paused":false,"action":"saved"}
+[ 123 13:04:22] RESULT write_memory
+    {"bytes_written":3,"address":2040,"mem_type":"cpu","persistent":false}
+[ 126 13:04:24] ASSISTANT (turn 1 step 19) · in 187 (cache 51712) out 149
+    ▷ Hmm, save_state says paused:false? It says "paused":false maybe because while paused one frame runs. Now let me step frames. Actually after save_state a frame ran, so game may have advanced. But we were paused; the tool ran one frame. Then write. Now step 30 frames and screenshot.
+    
+    Wait, but is the game still paused? save_state while paused runs one frame but stays paused. write doesn't change. Let me step_frame 30.
+    → step_frame {"count": 30}
+    → screenshot {}
+[ 128 13:04:24] RESULT step_frame
+    {"stepped":30,"paused":true}
+[ 130 13:04:24] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/9f35b55b12df.png
+[ 133 13:04:32] ASSISTANT (turn 1 step 20) · in 459 (cache 51968) out 1302
+    ▷ HUD shows TIME 118. I wrote 1,2,3 = 123, then 30 frames = ~1 tick? 123→122, not 118. Hmm, 118 means 5 ticks in 30 frames? That's a tick every 6 frames. Hmm.
+    
+    Wait, maybe the game wasn't paused during step? Or save_state's "paused":false indicates something. Actually maybe when I wrote, the game ran some frames? No.
+    
+    Hmm, 123 → 118 is 5 decrements. Step 30 frames. Tick rate 24 frames → 1 tick. Not matching.
+    
+    Unless... stepping 30 frames while some frames were "catch up"? Or the write happened but then save_state had unpaused the game, and by the time I stepped, the game had been running. Actually the sequence: save_state (ran 1 frame), write_memory (live). Between tool calls, is the game paused? Status was PAUSED. save_state said paused:false — maybe that field means the game was running BEFORE the save? Confusing.
+    
+    Alternatively, maybe the timer tick divider $0787 was preloaded and rapid. Hmm.
+    
+    Regardless — the important thing: the HUD changed from 310 to 118, i.e. it followed my write (123) then counted down. The digits displayed 118, close to my 123 minus a few ticks. This demonstrates the HUD reads these bytes. But to be rigorous, better proof: write a value and screenshot immed… [+3402 chars]
+    HUD now shows TIME 118 — it followed my written 123. Let me make the proof cleaner by freezing, restoring, and writing an unmistakable value.
+    → pause_emulator {}
+    → read_memory {"address": 2040, "length": 3}
+[ 135 13:04:32] RESULT pause_emulator
+    {"paused":true}
+[ 137 13:04:32] RESULT read_memory
+    {"bytes":[0,9,9],"address":2040,"mem_type":"cpuDebug"}
+[ 140 13:04:37] ASSISTANT (turn 1 step 21) · in 142 (cache 53632) out 893
+    ▷ Hmm, bytes now 0,9,9? That's weird — I wrote [1,2,3] and now they're [0,9,9]. That doesn't look like a decrement of 123. 123 decrementing: 122,121,...  Wait it could be 099 if it went down 24 ticks: 123-24=99, displayed as 0,9,9. Yes! 123 minus 24 = 99. So 24 ticks elapsed, giving [0,9,9] = 099. HUD screenshot showed 118 at 5 ticks. Then more frames passed while the tools ran (game was running, not paused!).
+    
+    So the game WAS running during my step_frame/screenshot. That explains it. The pause_emulator call before was undone? Actually earlier pause_emulator returned paused:true, but then save_state said paused:false — likely save_state unpauses? Or the bridge's pause state got lost.
+    
+    Anyway, now it's paused and bytes are 099. HUD would show 099. Let me now do the clean proof: write [5,0,0] and step 24 frames → expect 499. Actually while paused, step_frame holds paused. Good.
+    
+    But wait: to make the HUD show exactly what I wrote, I could write the value and then step exactly enough for HUD redraw without a tick. Since HUD redraws on tick (decrement), stepping 1 frame won't redraw. Hmm. So the display will show value-1 after one tick.
+    
+    Alternative: exploit the redraw — the game redraws… [+1531 chars]
+    The game had been running between calls (123 → 099 over 24 ticks). Now it's paused. Clean proof: write 500 and step exactly one tick.
+    → write_memory {"address": 2040, "bytes": [5, 0, 0]}
+    → step_frame {"count": 24}
+    → screenshot {}
+[ 142 13:04:37] RESULT write_memory
+    {"bytes_written":3,"address":2040,"mem_type":"cpu","persistent":false}
+[ 144 13:04:37] RESULT step_frame
+    {"stepped":24,"paused":true}
+[ 146 13:04:37] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/f709b7af5bcc.png
+[ 149 13:04:43] ASSISTANT (turn 1 step 22) · in 422 (cache 54656) out 1029
+    ▷ HUD shows TIME 098, not 499! So my write of [5,0,0] did NOT reflect. Instead it shows 098 — continuing from 099. So the timer stopped being affected by $07F8-$07FA? 
+    
+    Hmm. Wait, maybe the timer ran out at 099→098 during the 24 frames? Actually before write, bytes were 099. I wrote 500. Then 24 frames. HUD shows 098.
+    
+    So writing $07F8-$07FA did nothing to the display! That means either:
+    - The game overwrote them back before the tick (the timer digits are recomputed?), or
+    - These bytes are not the display source.
+    
+    Hmm, but earlier when I wrote [1,2,3] the HUD showed 118 then 099... Let me reconsider. Earlier, before writing [1,2,3], the timer was 310. After write and 30 frames, HUD showed 118. That's weird: 118 is not 123-5 either... 123-5=118. Yes! So the write DID work then. Then it kept ticking down from 123 to 099.
+    
+    But now writing 500 gave 098, i.e. continued from 099. So the write was overwritten/ignored this time.
+    
+    Difference: earlier the game was RUNNING (not paused) when I wrote? I wrote while paused (or maybe running). Hmm. Actually earlier save_state then write, then step. The game may have been running, so the write was picked up by the running timer update? No...
+    
+    Wait, … [+2354 chars]
+    → read_memory {"address": 2040, "length": 3}
+[ 151 13:04:43] RESULT read_memory
+    {"bytes":[4,9,9],"address":2040,"mem_type":"cpuDebug"}
+[ 154 13:04:47] ASSISTANT (turn 1 step 23) · in 203 (cache 55936) out 586
+    ▷ Now bytes are [4,9,9] = 499! But the screenshot showed 098. So the RAM was updated to 499, but the HUD displayed 098. So the HUD did not redraw from $07F8 this frame — it was showing the old value (099 → 098? hmm 098).
+    
+    Wait, screenshot showed 098, but bytes are 499. So the HUD is stale. The display only redraws on the decrement event. My write to 499, then a tick happened (499→... no).
+    
+    Hmm, actually now bytes = 499 and HUD = 098. So the HUD hasn't redrawn since before the write.
+    
+    Actually let's reconstruct: before write, RAM=099, HUD=098 maybe (HUD lags one tick? no). Actually the screenshot before write wasn't taken. The pause screenshot earlier showed 310 when RAM was 310. So HUD tracks RAM closely.
+    
+    Now: I wrote 500, stepped 24 frames. During those 24 frames, did a tick occur? If no tick occurred, HUD stays 098 (old), and RAM stays 500? But RAM reads 499 now. So a tick occurred AFTER the screenshot? The read happened after the screenshot. Sequence: write 500 → step 24 → screenshot (RAM at that moment maybe 500, HUD 098 stale) → read 499.
+    
+    But if RAM was 500 and HUD 098, that means the HUD was displaying 098 while RAM was 500 — a mismatch that should have been fixed by the next… [+966 chars]
+    → screenshot {}
+[ 156 13:04:47] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/2319cd2df9a6.png
+[ 159 13:04:57] ASSISTANT (turn 1 step 24) · in 385 (cache 56704) out 1611
+    ▷ Now HUD shows TIME 499, matching RAM [4,9,9]. Timer proven: $07F8-$07FA BCD hundreds/tens/ones.
+    
+    Proof: wrote [5,0,0] (500), the tick decremented to 499, HUD displayed 499 (was ~099 naturally). Great.
+    
+    Now record timer mapping. But let's finish all three first, then record.
+    
+    Now restore state 1 (timer ~310) and do coin + score.
+    
+    Actually I don't need to restore; the timer is now 499, plenty. But the game state may have been altered. Let me just continue. Actually let me reload slot 1 to reset timer to ~310 and mario at start? State 1 was saved at start of 1-1 with Mario idle. Good. But loading state resets RAM, including timer. Let me load slot 1.
+    
+    Wait, slot 1 was saved when TIME was 310 (bytes 3,1,0). Good.
+    
+    Now for coin + score:
+    Plan: 
+    - Save a fresh state (slot 2) at the start.
+    - snapshot c0.
+    - Play: hold Right ~150 frames (2.5s) to reach under the first ? block, then Right+A to jump into it.
+    
+    Actually "holding Right for about two and a half seconds from the start brings Mario under the first ? block floating overhead; jumping (A) into it from below gives one coin and 200 points."
+    
+    So script: [{right,150},{right,a,25},{[],60}] maybe. Then screenshot to confirm coin x01 and scor… [+4510 chars]
+    Timer proven: wrote `$07F8-$07FA` = `[5,0,0]` (500) and the HUD redrew to **TIME 499** (it was naturally at 099). Now restore and go for coin + score.
+    → load_state {"slot": 1}
+    → screenshot {}
+[ 161 13:04:59] RESULT load_state
+    {"bytes":4653,"stepped_frames":1,"slot":1,"paused":true,"action":"loaded"}
+[ 163 13:04:59] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/fab7300ecede.png
+[ 166 13:05:01] ASSISTANT (turn 1 step 25) · in 464 (cache 58624) out 191
+    ▷ Hmm, state 1 shows TIME 296, not 310. The state was saved after some frames. Fine, Mario at start, coins 0, score 0.
+    
+    Now snapshot c0, then play to get the coin.
+    
+    Let me pause concern: the emulator is paused now (load_state says paused:true). play_input will resume and pause after. Good.
+    
+    snapshot c0 then play.
+    → snapshot_memory {"name": "c0"}
+    → play_input {"script": [{"buttons": ["right"], "frames": 150}, {"buttons": ["right", "a"], "frames": 30}, {"buttons": [], "frames": 60}]}
+[ 168 13:05:01] RESULT snapshot_memory
+    {"name":"c0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T18:05:01.426Z","checksum":"93359261","snapshots":["t0","t1","t2","c0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 170 13:05:05] RESULT play_input
+    {"frames":240,"polls":240,"start_frame":99927,"paused":true,"port":0,"segments":3,"end_frame":100167,"was_paused":true,"sample_frames":[],"sample_every":4,"watch":[],"frames_run":240,"note":"Ran 240 frames of input on port 0. The game was paused before and is paused again now."}
+[ 173 13:05:06] ASSISTANT (turn 1 step 26) · in 211 (cache 59264) out 22
+    ▷ 
+    → screenshot {}
+[ 175 13:05:06] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/56c43104be4a.png
+[ 178 13:05:11] ASSISTANT (turn 1 step 27) · in 469 (cache 59392) out 570
+    ▷ Hmm, the screenshot shows score 000200, coins x01, TIME 288. But wait, the game world scrolled; Mario is near blocks. Actually the screenshot shows Mario up in the air? There's a ? block above, and a row of blocks. Score 000200, coins x01 — so a coin was collected! Good.
+    
+    Wait, but I see Mario at around x=122, y=150ish (near the block row), and a Goomba? There's a brown square at x=76. Hmm. Let me look: score 000200, coins x01. Coin got collected. 
+    
+    But hold on: the score is 000200 and coins x01 — exactly as expected from one coin.
+    
+    But the coin may have come from the ? block I hit. Actually the screenshot shows Mario mid-air next to a ? block row. Anyway, one coin collected.
+    
+    Hmm, actually wait — is this the first ? block? The screen scrolled a lot (150 frames right ≈ 2.5s). The row of blocks is visible. The score 200 means coin collected. Good.
+    
+    Now snapshot c1 and diff increased from c0.
+    
+    But there's a concern: did Mario also perhaps bounce off a Goomba or get hit? Score only 200, so just the coin.
+    
+    Let me snapshot c1 and diff.
+    
+    Then narrow: get a second coin. Looking at the screenshot, there are ? blocks to the right (the row with ? at x~150, 190, 215). Actually the row shows b… [+378 chars]
+    Coin collected — HUD shows score 000200, coins x01. Snapshot and diff.
+    → snapshot_memory {"name": "c1"}
+    → diff_memory {"a": "c0", "b": "c1", "filter": "increased", "name": "dc1"}
+[ 180 13:05:11] RESULT snapshot_memory
+    {"name":"c1","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T18:05:11.315Z","checksum":"aadd1e07","snapshots":["t0","t1","t2","c0","c1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 182 13:05:11] RESULT diff_memory
+    {"a":"c0","b":"c1","filter":"increased","considered":2048,"matched":264,"hits":[{"address":1,"old":79,"new":159,"address_hex":"0x0001"},{"address":5,"old":40,"new":112,"address_hex":"0x0005"},{"address":14,"old":8,"new":11,"address_hex":"0x000E"},{"address":15,"old":0,"new":1,"address_hex":"0x000F"},{"address":22,"old":0,"new":6,"address_hex":"0x0016"},{"address":29,"old":0,"new":1,"address_hex":"0x001D"},{"address":69,"old":0,"new":1,"address_hex":"0x0045"},{"address":70,"old":0,"new":2,"address_hex":"0x0046"},{"address":88,"old":0,"new":248,"address_hex":"0x0058"},{"address":109,"old":0,"new… [+3212 chars]
+[ 185 13:05:26] ASSISTANT (turn 1 step 28) · in 1605 (cache 60416) out 2665
+    ▷ 264 survivors — too many. Need to narrow. Repeat action to get a second coin.
+    
+    Note $006D 0→1 (page byte, Mario crossed a screen). ~$0086 not in the list? It's below 0x0086... not shown because truncated likely. $075E coin binary should be 0→1, likely in the truncated part.
+    
+    Now get a second coin. Looking at the screenshot, after the movement, Mario is around x=122 near the block row. There are ? blocks in the row and one lone block above. Let me try jumping into the next ? block. But it's hard to control precisely.
+    
+    Alternative approach to narrow: do the SAME action again but from a fresh state? No, need the same addresses to increment again.
+    
+    Hmm. Let me think about a cleaner approach for coins and score that avoids needing a second coin:
+    
+    Since we already have dc1 (264 survivors, too many), we can narrow using a different action that changes a superset in the same direction but different pattern. E.g., collect a coin again. Or, use the timer to filter: between c1 and now, no change. 
+    
+    Idea: Take snapshot c1, then stand still for ~2 seconds (timer decreases), snapshot c2, diff decreased from c1? That would find timer, not help.
+    
+    Better idea: get a second coin. Let me try. The row… [+9145 chars]
+    264 survivors — need another coin. Let me push on and hit more ? blocks.
+    → play_input {"script": [{"buttons": ["right"], "frames": 12}, {"buttons": ["right", "a"], "frames": 28}, {"buttons": [], "frames": 50}]}
+    → screenshot {}
+[ 187 13:05:27] RESULT play_input
+    {"frames":90,"polls":90,"start_frame":100167,"paused":true,"port":0,"segments":3,"end_frame":100257,"was_paused":true,"sample_frames":[],"sample_every":2,"watch":[],"frames_run":90,"note":"Ran 90 frames of input on port 0. The game was paused before and is paused again now."}
+[ 189 13:05:27] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/1e7b206be5e7.png
+[ 192 13:05:35] ASSISTANT (turn 1 step 29) · in 510 (cache 64640) out 1196
+    ▷ The world scrolled further; coins still x01, score 200. Mario is now at around x=130, standing on the ground (y~200). There's a brown block at (76,150) — probably a used brick or the ? block I hit became used? And the row of blocks at (140-200, 150): I see [?][?][brick] etc. Also a ? block at top (164,80).
+    
+    Wait the brown solid block at (76,150) — that's the ? block I hit (now used, brown). Actually a used ? block is brown. Good.
+    
+    Hmm, but the row at x=140-200 at y=150 — the [?] tiles are at x~155 and x~185.
+    
+    Mario is at x~130 on the ground. Let me move right a bit and jump under the ? at 155. Actually the ? blocks are at y=150, Mario head at ~192 when standing? Mario is 16 tall, standing on ground y~200, so his head at ~168. To hit a block at y=150 bottom (~158), he needs to jump.
+    
+    Let me do: [{right,25},{a,25},{[],60}]. Hmm, timing. Better to jump while approaching.
+    
+    Actually maybe I'm past the row? The row appears to the right of Mario. Let me move right ~30 frames and jump.
+    
+    Let me just try [{right,30},{a,20},{[],60}] and screenshot.
+    
+    Alternatively I worry about the Goomba. There's a small brown thing at (128,205)? That might be a Goomba near Mario. Risky.
+    
+    Let me instead take … [+2917 chars]
+    → play_input {"script": [{"buttons": ["right"], "frames": 45}, {"buttons": ["a"], "frames": 30}, {"buttons": [], "frames": 70}]}
+    → screenshot {}
+[ 194 13:05:37] RESULT play_input
+    {"frames":145,"polls":145,"start_frame":100257,"paused":true,"port":0,"segments":3,"end_frame":100402,"was_paused":true,"sample_frames":[],"sample_every":3,"watch":[],"frames_run":145,"note":"Ran 145 frames of input on port 0. The game was paused before and is paused again now."}
+[ 196 13:05:37] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/70626023b573.png
+[ 199 13:05:41] ASSISTANT (turn 1 step 30) · in 503 (cache 66304) out 492
+    ▷ Oops — Mario died! The screen shows "WORLD 1-1" card and Mario x 2 lives (the death/restart card). So he got hit (Goomba) or fell. Coins x01 persists (good, coins persist across death), score 000200 persists.
+    
+    So now the game is at the "WORLD 1-1" restart card. Lives = 2 (was 3, now 2). Hmm, actually the card shows Mario x2, meaning 2 lives remaining after losing one.
+    
+    This death actually gives us a useful diff, but for coins it doesn't help (coins unchanged).
+    
+    But wait — this is an opportunity: after the card, 1-1 restarts with coins x01 (persisted) and score 200. Now I can get more coins from the level again! Since coins persist, collecting another coin will take it to 2. 
+    
+    So: wait for the level to start, then do the same first-? -block jump to get a second coin. That gives coin 1→2 and score 200→400.
+    
+    Let me wait for the level to load. play_input [{[],240}] then screenshot.
+    
+    Then snapshot c2 (after level start), do the coin jump, snapshot c3, diff increased from... I should diff c2→c3 with from dc1 to narrow (dc1 survivors are addresses that increased c0→c1). The coin addresses increased 1→2 → increased. Score hundreds 2→4 → increased. Position also increased. So dc1 & increase… [+277 chars]
+    Mario died — but coins persist (x01), and the "WORLD 1-1 x2" card is showing. When the level restarts I can grab a second coin to narrow the diff.
+    → play_input {"script": [{"buttons": [], "frames": 240}]}
+    → screenshot {}
+[ 201 13:05:45] RESULT play_input
+    {"frames":240,"polls":240,"start_frame":100402,"paused":true,"port":0,"segments":1,"end_frame":100642,"was_paused":true,"sample_frames":[],"sample_every":4,"watch":[],"frames_run":240,"note":"Ran 240 frames of input on port 0. The game was paused before and is paused again now."}
+[ 203 13:05:45] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/1fe43bc1eb80.png
+[ 206 13:05:48] ASSISTANT (turn 1 step 31) · in 559 (cache 67200) out 249
+    ▷ Now at start of 1-1 again: score 000200, coins x01, TIME 394, Mario at start. Now snapshot c2 and get a second coin with the same maneuver.
+    
+    Let me snapshot c2, then play [{right,145},{right+a,25},{[],60}] similar to before.
+    
+    Earlier successful coin: script [{right,150},{right+a,30},{[],60}] gave coin. Let me reuse that. But note Mario may have started slightly differently. Let me use the same.
+    
+    snapshot c2, play, snapshot c3, screenshot.
+    Level restarted with coins x01, score 000200. Now snapshot and grab a second coin the same way.
+    → snapshot_memory {"name": "c2"}
+    → play_input {"script": [{"buttons": ["right"], "frames": 150}, {"buttons": ["right", "a"], "frames": 28}, {"buttons": [], "frames": 60}]}
+[ 208 13:05:48] RESULT snapshot_memory
+    {"name":"c2","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T18:05:48.365Z","checksum":"2b123b6f","snapshots":["t0","t1","t2","c0","c1","c2"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 210 13:05:52] RESULT play_input
+    {"frames":238,"polls":238,"start_frame":100642,"paused":true,"port":0,"segments":3,"end_frame":100880,"was_paused":true,"sample_frames":[],"sample_every":4,"watch":[],"frames_run":238,"note":"Ran 238 frames of input on port 0. The game was paused before and is paused again now."}
+[ 213 13:05:53] ASSISTANT (turn 1 step 32) · in 245 (cache 67968) out 53
+    ▷ 
+    → screenshot {}
+    → snapshot_memory {"name": "c3"}
+[ 215 13:05:54] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/02150f8aad12.png
+[ 217 13:05:54] RESULT snapshot_memory
+    {"name":"c3","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T18:05:54.021Z","checksum":"8c8e4b21","snapshots":["t0","t1","t2","c0","c1","c2","c3"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 220 13:05:56] ASSISTANT (turn 1 step 33) · in 510 (cache 68224) out 260
+    ▷ Coin #2 collected: score 000400, coins x02. Now diff c2→c3 increased from dc1.
+    
+    Note: dc1 was the diff c0→c1 with all 264 survivors. The coin addresses should be in dc1 and increase again. Let me diff from dc1.
+    
+    Also note: the first coin was collected 0→1, so coin ones digit 0→1 was in dc1. Now 1→2 increases. Good. Score hundreds 0→2 in dc1, now 2→4. Good. Binary counter 0→1 now 1→2.
+    
+    Let me run diff.
+    Second coin: score 000400, coins x02. Narrow the first diff with this repeat.
+    → diff_memory {"a": "c2", "b": "c3", "filter": "increased", "from": "dc1", "name": "dc2"}
+[ 222 13:05:56] RESULT diff_memory
+    {"a":"c2","b":"c3","filter":"increased","considered":264,"matched":254,"hits":[{"address":1,"old":79,"new":159,"address_hex":"0x0001"},{"address":5,"old":40,"new":112,"address_hex":"0x0005"},{"address":14,"old":8,"new":11,"address_hex":"0x000E"},{"address":15,"old":0,"new":1,"address_hex":"0x000F"},{"address":22,"old":0,"new":6,"address_hex":"0x0016"},{"address":29,"old":0,"new":1,"address_hex":"0x001D"},{"address":69,"old":0,"new":1,"address_hex":"0x0045"},{"address":70,"old":0,"new":2,"address_hex":"0x0046"},{"address":88,"old":0,"new":248,"address_hex":"0x0058"},{"address":109,"old":0,"new"… [+3213 chars]
+[ 225 13:06:09] ASSISTANT (turn 1 step 34) · in 1489 (cache 68992) out 2597
+    ▷ Only narrowed from 264 to 254 — because the same maneuver from the same start reproduces nearly identical changes (position, animation, etc. all increase the same way). This is the "same action reproduces everything" problem. We need a different action to discriminate.
+    
+    The skill says: "Too many survive after three rounds: the action also changes a lot of state (a level reload). Make the change in place instead (a coin, a single enemy)".
+    
+    We need to discriminate coin/score from position bytes. Idea: change ONLY the coin/score without moving. How? Hmm.
+    
+    Alternative: use a snapshot pair where position decreases but coin increases? Getting a coin requires moving.
+    
+    Alternative approach: instead of narrowing by repetition, use a completely different filter to isolate the coin digits: The coin digits and score digits are BCD and their NEW values are known precisely (coin ones = 1 then 2; score hundreds = 2 then 4). Position bytes increase by ~78 (0x4E) etc.
+    
+    I can filter dc1 (or dc2) with filter 'equals' value=2 to find addresses that went 0→2 (score hundreds), and value 1 for coin.
+    
+    Actually, let's use diff with filter equals value=2 from dc1's a=c0 b=c1: that keeps addresses whose new … [+6886 chars]
+    Repetition reproduces position too, so it barely narrows. Let me use the known new values instead: the score's hundreds digit goes 0→2→4 and the coin ones digit 0→1→2.
+    → diff_memory {"a": "c0", "b": "c1", "filter": "equals", "value": 2, "from": "dc1", "name": "ds1"}
+    → diff_memory {"a": "c2", "b": "c3", "filter": "equals", "value": 4, "from": "dc1", "name": "ds2"}
+    → diff_memory {"a": "c0", "b": "c1", "filter": "equals", "value": 1, "from": "dc1", "name": "dq1"}
+    → diff_memory {"a": "c2", "b": "c3", "filter": "equals", "value": 2, "from": "dc1", "name": "dq2"}
+[ 227 13:06:09] RESULT diff_memory
+    {"a":"c0","b":"c1","filter":"equals","value":2,"considered":264,"matched":15,"hits":[{"address":70,"old":0,"new":2,"address_hex":"0x0046"},{"address":111,"old":1,"new":2,"address_hex":"0x006F"},{"address":112,"old":1,"new":2,"address_hex":"0x0070"},{"address":113,"old":1,"new":2,"address_hex":"0x0071"},{"address":114,"old":1,"new":2,"address_hex":"0x0072"},{"address":168,"old":0,"new":2,"address_hex":"0x00A8"},{"address":594,"old":0,"new":2,"address_hex":"0x0252"},{"address":598,"old":0,"new":2,"address_hex":"0x0256"},{"address":781,"old":0,"new":2,"address_hex":"0x030D"},{"address":791,"old":… [+433 chars]
+[ 229 13:06:09] RESULT diff_memory
+    {"a":"c2","b":"c3","filter":"equals","value":4,"considered":264,"matched":3,"hits":[{"address":771,"old":4,"new":4,"address_hex":"0x0303"},{"address":791,"old":0,"new":4,"address_hex":"0x0317"},{"address":2017,"old":2,"new":4,"address_hex":"0x07E1"}],"truncated":false,"note":"Few enough to test: write_memory each candidate and look at the screen; a change the HUD shows is the proof."}
+[ 231 13:06:09] RESULT diff_memory
+    {"a":"c0","b":"c1","filter":"equals","value":1,"considered":264,"matched":32,"hits":[{"address":15,"old":0,"new":1,"address_hex":"0x000F"},{"address":29,"old":0,"new":1,"address_hex":"0x001D"},{"address":69,"old":0,"new":1,"address_hex":"0x0045"},{"address":109,"old":0,"new":1,"address_hex":"0x006D"},{"address":118,"old":0,"new":1,"address_hex":"0x0076"},{"address":130,"old":0,"new":1,"address_hex":"0x0082"},{"address":159,"old":0,"new":1,"address_hex":"0x009F"},{"address":190,"old":0,"new":1,"address_hex":"0x00BE"},{"address":202,"old":0,"new":1,"address_hex":"0x00CA"},{"address":783,"old":0,… [+1376 chars]
+[ 233 13:06:09] RESULT diff_memory
+    {"a":"c2","b":"c3","filter":"equals","value":2,"considered":264,"matched":17,"hits":[{"address":70,"old":0,"new":2,"address_hex":"0x0046"},{"address":111,"old":1,"new":2,"address_hex":"0x006F"},{"address":112,"old":1,"new":2,"address_hex":"0x0070"},{"address":113,"old":1,"new":2,"address_hex":"0x0071"},{"address":114,"old":1,"new":2,"address_hex":"0x0072"},{"address":168,"old":0,"new":2,"address_hex":"0x00A8"},{"address":594,"old":0,"new":2,"address_hex":"0x0252"},{"address":598,"old":0,"new":2,"address_hex":"0x0256"},{"address":781,"old":0,"new":2,"address_hex":"0x030D"},{"address":783,"old":… [+545 chars]
+[ 236 13:06:25] ASSISTANT (turn 1 step 35) · in 1908 (cache 72960) out 3347
+    ▷ Excellent! This is very informative.
+    
+    Score: 
+    - ds1 (c0→c1 equals 2): 15 hits including $07E1 (old 0 new 2).
+    - ds2 (c2→c3 equals 4): 3 hits, including $07E1 (old 2 new 4).
+    Intersection: $07E1 is the score's hundreds digit. It went 0→2→4. 
+    
+    Note $0317 also appears in both (old 0 new 2; old 0 new 4 in ds2). And $0303 (old 4 new 4) in ds2 — but that's unchanged (equals 4 with old 4), not an increase; wait ds2 filter equals 4 doesn't require increase, just new=4. $0303 old 4 new 4 — it was in dc1 though? dc1 is 'increased' c0→c1, so $0303 increased in round 1 and its new value in c3 is 4. Hmm. $0303 could be a copy of something.
+    
+    The intersection of ds1 and ds2 = {$0317, $07E1}. $0317: ds1 old 0 new 2; ds2 old 0 new 4. So $0317 went 0→2 then 0→4? That's odd (not cumulative — it reset). Hmm, old 0 new 4 in ds2 means at c2 it was 0 and at c3 it's 4. So $0317 resets each level and gets set to the score's hundreds digit? Actually it's likely a derived copy. $07E1 is the score digit (BCD).
+    
+    Now, which is the actual score digit? $07E1 is in the $07xx HUD region. The score is 6 digits and the ones place is a fixed 0 tile. From the mapping, score = $07DD-$07E2. $07E1 would be the hundreds digi… [+8540 chars]
+    Strong intersections. Score: `$07E1` (0→2→4). Coin: `$075E` and `$07EE`. Let me read the score/coin digit regions to fix the byte ordering.
+    → read_memory {"address": 2013, "length": 14}
+    → read_memory {"address": 2029, "length": 4}
+[ 238 13:06:25] RESULT read_memory
+    {"bytes":[0,0,0,0,4,0,0,0,0,0,0,0,0,0],"address":2013,"mem_type":"cpuDebug"}
+[ 240 13:06:25] RESULT read_memory
+    {"bytes":[0,2,0,0],"address":2029,"mem_type":"cpuDebug"}
+[ 243 13:06:52] ASSISTANT (turn 1 step 36) · in 219 (cache 78080) out 5763
+    ▷ Read at 2013 = 0x07DD, length 14: bytes = 0,0,0,0,4,0,0,0,0,0,0,0,0,0.
+    So:
+    $07DD=0
+    $07DE=0
+    $07DF=0
+    $07E0=0
+    $07E1=4
+    $07E2=0
+    $07E3=0
+    $07E4=0
+    ...
+    
+    Read at 2029 = 0x07ED, length 4: [0,2,0,0]
+    $07ED=0, $07EE=2, $07EF=0, $07F0=0.
+    
+    So with score 000400, $07E1=4. With coins x02, $07ED=0 (tens), $07EE=2 (ones). Good. And the timer $07F8-$07FA.
+    
+    Wait, but earlier the mapping said coin digits at $07ED/$07EE. Now $07EE=2. Good.
+    
+    Now for the score display: score 000400 → 4 in the hundreds place. $07E1=4. The bytes $07DD-$07E2 are 0,0,0,0,4,0. The display "000400" has the 4 in position 5 from left (hundreds). $07E1 is position 5 of the range. So $07DD=leftmost digit = millions? But display leftmost is 0 (millions). Hmm, but the display has 6 digit positions and the range has 6 bytes. If $07DD..$07E2 map directly to the 6 displayed digit positions, then $07E1 is the 5th displayed digit = hundreds. And $07E2 is the 6th = tens. But then the ones digit is not in this range — it's the fixed tile after. So the displayed score is 7 digits? No: the display "000400" is 6 characters: 0 0 0 4 0 0. If $07DD..$07E2 are the first 6 of those... $07E1=4 would be the 5th character which is '0' in "000400"? "00040… [+17963 chars]
+    Coin digits are `$07ED` (tens) / `$07EE` (ones) = 0/2, and `$075E`=2 binary; score digit `$07E1`=4 with the score field starting at `$07DD`. Now a combined proof: reset to level start, write distinctive digits, then collect a coin to force the HUD to redraw.
+    → load_state {"slot": 1}
+    → screenshot {}
+[ 245 13:06:52] RESULT load_state
+    {"bytes":4653,"stepped_frames":1,"slot":1,"paused":true,"action":"loaded"}
+[ 247 13:06:52] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/fab7300ecede.png
+[ 250 13:06:54] ASSISTANT (turn 1 step 37) · in 482 (cache 83968) out 333
+    ▷ Now at level start, coins 0, score 000000. Write coin digits 5,5 and score digits 1,2,3,4,5,6.
+    
+    Score range $07DD-$07E2 = 2013-2018. Write [1,2,3,4,5,6].
+    Coin digits $07ED-$07EE = 2029-2030. Write [5,5].
+    
+    Then play the coin maneuver.
+    
+    Let me write both.
+    → write_memory {"address": 2013, "bytes": [1, 2, 3, 4, 5, 6], "reason": "prove score digit range"}
+    → write_memory {"address": 2029, "bytes": [5, 5], "reason": "prove coin digit range"}
+    → write_memory {"address": 1886, "bytes": [7], "reason": "prove binary coin counter"}
+[ 252 13:06:54] RESULT write_memory
+    {"bytes_written":6,"address":2013,"mem_type":"cpu","persistent":false}
+[ 254 13:06:54] RESULT write_memory
+    {"bytes_written":2,"address":2029,"mem_type":"cpu","persistent":false}
+[ 256 13:06:54] RESULT write_memory
+    {"bytes_written":1,"address":1886,"mem_type":"cpu","persistent":false}
+[ 259 13:06:57] ASSISTANT (turn 1 step 38) · in 138 (cache 84736) out 231
+    ▷ Now step a frame and screenshot to see what the HUD shows before the coin (probably unchanged, still x00 / 000000, proving the HUD redraws only on change). Then play the coin maneuver.
+    
+    Let me step 1 and screenshot.
+    
+    Actually let me just play the coin maneuver and screenshot. The coin +200 will redraw.
+    
+    But wait: writing $075E=7 and then getting a coin will INC it to 8. That helps prove $075E? It's not displayed. Hmm. I could later verify $075E via read: after the coin it should be 8. Not a HUD proof though. The task wants HUD proof for each; for the coin HUD value, the digits suffice.
+    
+    Let me play the maneuver.
+    
+    Actually, let me first step 1 frame and screenshot to document the "before redraw" state.
+    → step_frame {"count": 2}
+    → screenshot {}
+[ 261 13:06:57] RESULT step_frame
+    {"stepped":2,"paused":true}
+[ 263 13:06:57] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/fab7300ecede.png
+[ 266 13:06:59] ASSISTANT (turn 1 step 39) · in 485 (cache 84992) out 176
+    ▷ As expected, the HUD still shows 000000 / x00 — it hasn't redrawn despite the RAM change. This confirms the HUD only redraws on change. Now collect a coin to trigger the redraw.
+    
+    Play [{right,150},{right+a,28},{[],60}], then screenshot and read RAM.
+    HUD unchanged (it only redraws on change). Now collect a coin to force the redraw.
+    → play_input {"script": [{"buttons": ["right"], "frames": 150}, {"buttons": ["right", "a"], "frames": 28}, {"buttons": [], "frames": 60}]}
+    → screenshot {}
+[ 268 13:07:03] RESULT play_input
+    {"frames":238,"polls":238,"start_frame":100883,"paused":true,"port":0,"segments":3,"end_frame":101121,"was_paused":true,"sample_frames":[],"sample_every":4,"watch":[],"frames_run":238,"note":"Ran 238 frames of input on port 0. The game was paused before and is paused again now."}
+[ 270 13:07:03] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/5b5e423dd400.png
+[ 273 13:07:10] ASSISTANT (turn 1 step 40) · in 483 (cache 85632) out 1241
+    ▷ The HUD shows:
+    - MARIO 1234760 (score): I wrote [1,2,3,4,5,6] and the coin added 200 → 123456+20 in stored? Let me see: displayed 1234760. Hmm. My stored digits were 1,2,3,4,5,6 → displayed should be... if stored maps to display positions [100k,10k,1k,100,10,1] then 123456. But the game added 200 → hundreds +2 → 123656? Displayed 1234760.
+    
+    Wait displayed is 1234760 — 7 digits! Hmm, that's the display: "1234760". Let me count: 1 2 3 4 7 6 0 = 7 digits. The HUD score area is 6 tiles wide though. Hmm.
+    
+    Actually let me re-read the screenshot text: "1234760". Six or seven digits? The HUD shows MARIO and below it the score. In earlier screenshots it showed "000000" (6 digits). Now "1234760" would be 7 digits, which shouldn't fit. Let me look: maybe it's "1234760" or "123476" plus something.
+    
+    Hmm, from the image description I see "1234760". If it's 6 digits it'd be "123476" which is my 123456 + 20 = 123476. Yes! 123456+20 = 123476. So the display shows 123476, which is 6 digits. My reading of a trailing 0 might be the fixed ones digit? Wait no.
+    
+    Hmm: I wrote stored digits [1,2,3,4,5,6]. If the stored digits map to the display's first 6 positions and the ones is fixed 0 after, then display… [+2000 chars]
+    Now the HUD shows score **1234760** and coins **x56**. I wrote coins `[5,5]` (→ ticked to 56) and score digits `[1,2,3,4,5,6]`. Let me read RAM to fix the exact score byte layout.
+    → read_memory {"address": 2013, "length": 8}
+    → read_memory {"address": 2029, "length": 3}
+    → read_memory {"address": 1886, "length": 1}
+[ 275 13:07:10] RESULT read_memory
+    {"bytes":[1,2,3,4,7,6,0,0],"address":2013,"mem_type":"cpuDebug"}
+[ 277 13:07:10] RESULT read_memory
+    {"bytes":[5,6,0],"address":2029,"mem_type":"cpuDebug"}
+[ 279 13:07:10] RESULT read_memory
+    {"bytes":[8],"address":1886,"mem_type":"cpuDebug"}
+[ 282 13:07:19] ASSISTANT (turn 1 step 41) · in 154 (cache 87296) out 2111
+    ▷ Score RAM after coin: $07DD..$07E2 = [1,2,3,4,7,6] and $07E3=0.
+    I wrote [1,2,3,4,5,6] and the coin added 20 (stored) → [1,2,3,4,7,6]. So the stored 6 bytes are the score digits as displayed, EXCEPT the ones place? Let's see: displayed "1234760"? If stored is [1,2,3,4,7,6] and display shows "1234760", then the display has 7 digits: 1 2 3 4 7 6 0, where the last 0 is the fixed ones tile. So stored digits are the first 6 of a 7-digit display?? But score max 999,999 is 6 digits.
+    
+    Hmm, unless the display I'm reading is actually "123476" (6 digits). Let me look at the screenshot very carefully. The score line: "1234760". Compare with earlier "000200". That was 6 chars. Now if it's 6 chars it'd be "123476". 123456+20=123476. That matches exactly if the coin added 20 to the stored value and the display shows the stored value directly with no extra fixed digit.
+    
+    But the coin gives +200 points, and the display after write [1,2,3,4,5,6] would be "123456". +200 → "123656" (hundreds +2). But RAM shows [1,2,3,4,7,6] → "123476", which is +20. So the score HUD's displayed value equals the stored 6-digit number; the game's "+200" to the score added 20 to this 6-digit number, meaning the actual scor… [+4285 chars]
+    → read_nametable {"x": 0, "y": 3, "width": 18, "height": 1}
+[ 284 13:07:19] RESULT read_nametable
+    Nametable 0 region (0,3) 18x1:
+      Row 3: 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124) 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124) 01 02 03 04 07 06 00 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124) 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124) 2E:HUD coin icon (background) 29:HUD "x" of the coin counter 05 06 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124) 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124) 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124)
+    
+    [{"x":0,"y":3,"tile_id":36,"palette_id":2,"name":"sky_fill_blank … [+1214 chars]
+[ 287 13:07:49] ASSISTANT (turn 1 step 42) · in 881 (cache 89472) out 7331
+    ▷ Score digits at nametable row 3, cols 2-8: tile IDs 1,2,3,4,7,6,0 → digits "1234760". So the score display IS 7 digits? cols 2-8 = 7 tiles: 1,2,3,4,7,6,0 = "1234760". Interesting! So the HUD score is 7 digits in this "World" ROM? Hmm, well SMB displays 6 digits normally, but maybe it's 7 including the fixed ones. Actually the score area spans cols 2-8 (7 tiles), and my written [1,2,3,4,5,6] to $07DD-$07E2 appeared directly as "123456" in the first 6 of those 7, and the coin's +200 changed $07E1 5→7, giving "123476" and the last digit 0 unchanged.
+    
+    Wait, but if the score is "1234560" (from my write [1,2,3,4,5,6] + fixed 0), the coin +200 should change hundreds (position 5 of 7) from 5 to 7 → "1234760". YES! That's exactly what we see. So:
+    - $07DD = digit1 = millions? Let's map: cols 2-8 = 7 digits. $07DD..$07E2 = 6 bytes map to cols 2-7 (7 digits minus the fixed last). Hmm, but $07E1 went 5→7 (the 5th byte) and the changed displayed digit was the 5th of the 7 (position 5 = '5'→'7'). Display positions: 1:'1',$07DD; 2:'2',$07DE; 3:'3',$07DF; 4:'4',$07E0; 5:'5'→'7',$07E1; 6:'6',$07E2; 7:'0' fixed.
+    So $07DD..$07E2 map to display positions 1-6, and position 7 is a fixed '0' tile. 
+    
+    But t… [+14997 chars]
+    Both proofs land. The HUD shows score **1234760** (my written `123456` with the coin's +200 moving the hundreds digit 5→7) and coins **x56** (my written tens 5, ones 5→6). The score field is 6 BCD bytes `$07DD-$07E2` (millions…tens) with a fixed `0` ones tile — 7 displayed digits. Let me record everything.
+    → record_mapping {"mapping_type": "address", "id": "0x07F8", "name": "level_timer_digits", "length": 3, "format": "bcd", "category": "hud", "notes": "The TIME countdown, three BCD bytes, most-significant first: 0x07F8 = hundreds, 0x07F9 = tens, 0x07FA = ones. In World 1-1 the paused HUD read TIME 310 and RAM read [3,1,0]. Found with no reference by differential search while Mario stood still: snapshot t0, 150 idle… [+453 chars]
+    → record_mapping {"mapping_type": "address", "id": "0x07DD", "name": "score_digits", "length": 6, "format": "bcd", "category": "hud", "notes": "The displayed MARIO score, six BCD bytes most-significant first: 0x07DD = millions, 0x07DE = hundred-thousands, 0x07DF = ten-thousands, 0x07E0 = thousands, 0x07E1 = hundreds, 0x07E2 = tens. The ones digit is a fixed '0' tile, so the HUD shows seven digits. Found with no re… [+691 chars]
+    → record_mapping {"mapping_type": "address", "id": "0x07ED", "name": "coin_count_display", "length": 2, "format": "bcd", "category": "hud", "notes": "The two-digit coin counter shown after the coin icon ('x'), two BCD bytes: 0x07ED = tens, 0x07EE = ones. Found with no reference by differential search: a ? block coin increments only the ones digit, so a diff 'increased' (c0->c1, 264 survivors) filtered 'equals 1' l… [+517 chars]
+    → record_mapping {"mapping_type": "address", "id": "0x075E", "name": "coin_count_binary", "length": 1, "format": "binary", "category": "hud", "notes": "Binary coin counter (0-99; at 100 it resets to 0 and grants a 1-UP) kept alongside the displayed BCD digits at 0x07ED/0x07EE. Found with no reference by the same differential search: after one ? block coin, 'equals 1' over the increased set left it (old 0 new 1); a… [+273 chars]
+[ 289 13:07:49] RESULT record_mapping
+    {"mapping_type":"address","id":"0x07F8","name":"level_timer_digits","length":3,"format":"bcd","category":"hud","group":null,"notes":"The TIME countdown, three BCD bytes, most-significant first: 0x07F8 = hundreds, 0x07F9 = tens, 0x07FA = ones. In World 1-1 the paused HUD read TIME 310 and RAM read [3,1,0]. Found with no reference by differential search while Mario stood still: snapshot t0, 150 idle frames, snapshot t1, diff 'decreased' left 21 survivors including 0x07F9 (8->7) and 0x07FA (4->3); a second 150-frame round with from=dt1 narrowed to 6 including 0x07F9. Proof by write: wrote 0x07F8-… [+316 chars]
+[ 291 13:07:49] RESULT record_mapping
+    {"mapping_type":"address","id":"0x07DD","name":"score_digits","length":6,"format":"bcd","category":"hud","group":null,"notes":"The displayed MARIO score, six BCD bytes most-significant first: 0x07DD = millions, 0x07DE = hundred-thousands, 0x07DF = ten-thousands, 0x07E0 = thousands, 0x07E1 = hundreds, 0x07E2 = tens. The ones digit is a fixed '0' tile, so the HUD shows seven digits. Found with no reference by differential search: collecting a ? block coin adds exactly 200, and a diff 'increased' (c0->c1, 264 survivors) filtered 'equals 2' left 15 addresses including 0x07E1 (old 0 new 2); the rep… [+554 chars]
+[ 293 13:07:49] RESULT record_mapping
+    {"mapping_type":"address","id":"0x07ED","name":"coin_count_display","length":2,"format":"bcd","category":"hud","group":null,"notes":"The two-digit coin counter shown after the coin icon ('x'), two BCD bytes: 0x07ED = tens, 0x07EE = ones. Found with no reference by differential search: a ? block coin increments only the ones digit, so a diff 'increased' (c0->c1, 264 survivors) filtered 'equals 1' left 32 including 0x07EE (old 0 new 1); the repeat coin (1 -> 2, 'x01' -> 'x02') filtered 'equals 2' left 17 including 0x07EE (old 1 new 2). Proof by write: wrote 0x07ED/0x07EE = [5,5] (would display x… [+380 chars]
+[ 295 13:07:49] RESULT record_mapping
+    {"mapping_type":"address","id":"0x075E","name":"coin_count_binary","length":1,"format":"binary","category":"hud","group":null,"notes":"Binary coin counter (0-99; at 100 it resets to 0 and grants a 1-UP) kept alongside the displayed BCD digits at 0x07ED/0x07EE. Found with no reference by the same differential search: after one ? block coin, 'equals 1' over the increased set left it (old 0 new 1); after a second coin, 'equals 2' left it again (old 1 new 2), so it tracks coins one-for-one. Confirmed by write: set 0x075E = 7, collected one coin, read back 8. It is not shown on the HUD; use 0x07ED/… [+136 chars]
+[ 298 13:07:51] ASSISTANT (turn 1 step 43) · in 1251 (cache 97664) out 115
+    ▷ Now promote_mappings once at the end. Let me call it.
+    
+    Also, maybe I should save_state to restore the game to a sane state? The game currently has unnatural score/coins. Not required, but let me consider leaving the emulator in a reasonable state. The task doesn't require restoring. But the writes are RAM-only and will be overwritten eventually. I could resume. Let me promote first.
+    
+    Let me call promote_mappings.
+    → promote_mappings {}
+[ 300 13:07:51] RESULT promote_mappings
+    Promoted 4 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 14 tiles, 7 palettes, 0 sprites, 12 addresses. 0 hypotheses skipped.
+[ 304 13:08:08] ASSISTANT (turn 1 step 44) · in 11481 (cache 98944) out 3569
+    ▷ All recorded and promoted. Now write the final report. Let me also leave the emulator paused or resume? The task doesn't require it. I'll leave it paused (it's paused).
+    
+    Let me write the report concisely with addresses, encodings, proofs.
+    
+    Report:
+    - Coin count: $07ED (tens) / $07EE (ones), BCD. Proof: wrote [5,5], collected a coin, HUD showed x56.
+    - Timer: $07F8/$07F9/$07FA, BCD hundreds/tens/ones. Proof: wrote [5,0,0], next tick, HUD 499.
+    - Score: $07DD-$07E2, six BCD bytes millions..tens (ones fixed '0' tile, 7 displayed digits). Proof: wrote [1,2,3,4,5,6], coin +200, HUD 1234760.
+    - Also binary coin counter $075E.
+    
+    Report the survivor counts and raw diff.
+    
+    Let me give raw last-round diff hits for each.
+    
+    Timer dt2: 6 survivors: $00F7, $00F8, $00F9, $07AC, $07B0, $07F9. Then write proof.
+    
+    Coin dq2 (equals 2 from dc1): 17 survivors including $075E and $07EE; intersection with dq1 (32, incl $075E, $07EE) → $075E, $07EE.
+    
+    Score ds2: 3 survivors: $0303, $0317, $07E1; intersection with ds1 → $07E1 (and $0317).
+    
+    I'll present.
+    
+    Key ordering note about score: I claimed $07DD..$07E2 = millions..tens. Let me double check with the 1234760 result: wrote [1,2,3,4,5,6] → these are millions,hundr… [+9665 chars]
+    Recorded and promoted. The skill stresses proving a multi-digit value's **extent**, and the score has a suspicious fixed trailing `0`. Let me test one byte past each end of the score field.
+    → load_state {"slot": 1}
+    → write_memory {"address": 2012, "bytes": [9, 1, 2, 3, 4, 5, 6, 7, 8], "reason": "score extent probe: $07DC..$07E4"}
+[ 306 13:08:10] RESULT load_state
+    {"bytes":4653,"stepped_frames":1,"slot":1,"paused":true,"action":"loaded"}
+[ 308 13:08:10] RESULT write_memory
+    {"bytes_written":9,"address":2012,"mem_type":"cpu","persistent":false}
+[ 311 13:08:12] ASSISTANT (turn 1 step 45) · in 141 (cache 113920) out 216
+    ▷ Now collect a coin. Play the maneuver, then read nametable and RAM.
+    
+    Also write coin digits probe: $07EC..$07EF = [9,5,5,8] to test extent. Let me include that too.
+    
+    Let me write that before the coin.
+    → write_memory {"address": 2028, "bytes": [9, 5, 5, 8], "reason": "coin digit extent probe: $07EC..$07EF"}
+    → play_input {"script": [{"buttons": ["right"], "frames": 150}, {"buttons": ["right", "a"], "frames": 28}, {"buttons": [], "frames": 60}]}
+[ 313 13:08:13] RESULT write_memory
+    {"bytes_written":4,"address":2028,"mem_type":"cpu","persistent":false}
+[ 315 13:08:16] RESULT play_input
+    {"frames":238,"polls":238,"start_frame":101122,"paused":true,"port":0,"segments":3,"end_frame":101360,"was_paused":true,"sample_frames":[],"sample_every":4,"watch":[],"frames_run":238,"note":"Ran 238 frames of input on port 0. The game was paused before and is paused again now."}
+[ 318 13:08:19] ASSISTANT (turn 1 step 46) · in 229 (cache 114176) out 192
+    ▷ 
+    → screenshot {}
+    → read_nametable {"x": 0, "y": 3, "width": 18, "height": 1}
+    → read_memory {"address": 2012, "length": 9}
+    → read_memory {"address": 2028, "length": 4}
+[ 320 13:08:19] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1302-sheet3-hud-rerun2-r1/images/task-1/5b5e423dd400.png
+[ 322 13:08:19] RESULT read_nametable
+    Nametable 0 region (0,3) 18x1:
+      Row 3: 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124) 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124) 01 02 03 04 07 06 00 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124) 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124) 2E:HUD coin icon (background) 29:HUD "x" of the coin counter 05 06 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124) 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124) 24:sky_fill_blank (BG pattern table $1000, i.e. CHR $124)
+    
+    [{"x":0,"y":3,"tile_id":36,"palette_id":2,"name":"sky_fill_blank … [+1214 chars]
+[ 324 13:08:19] RESULT read_memory
+    {"bytes":[0,1,2,3,4,7,6,7,8],"address":2012,"mem_type":"cpuDebug"}
+[ 326 13:08:19] RESULT read_memory
+    {"bytes":[9,5,6,8],"address":2028,"mem_type":"cpuDebug"}
+[ 329 13:08:31] ASSISTANT (turn 1 step 47) · in 1262 (cache 114560) out 2520
+    ▷ Wait, the screenshot is the SAME as before (identical sha256 5b5e...). That means the screenshot was taken before the new run? No, the sha matches the earlier screenshot exactly, meaning the display still shows 1234760 / x56 — because load_state 1 restored a state where the HUD tiles were... no, load_state 1 was saved at TIME 310 with score 000000 and coins x00. But the screenshot shows 1234760/x56. That's odd.
+    
+    Hmm, actually the screenshot sha256 5b5e423d... is identical to the earlier one after the first coin proof. That means the screenshot tool returned a cached/identical image? Or the game state is identical.
+    
+    Wait, let me reconstruct:
+    - load_state 1 restored the state saved earlier. But importantly, when I saved slot 1 earlier, the HUD nametable in that state showed TIME 310 / score 000000 / x00. Loading it should restore that nametable too.
+    - Then I wrote $07DC-$07E4 and $07EC-$07EF.
+    - Then played the coin maneuver → coin collected.
+    - Screenshot shows 1234760 / x56 / TIME 288.
+    
+    But my writes this time were [9,1,2,3,4,5,6,7,8] to $07DC..$07E4 and [9,5,5,8] to $07EC-$07EF. The RAM now reads [0,1,2,3,4,7,6,7,8] at $07DC.. and [9,5,6,8] at $07EC...
+    
+    Hmm interesting: $07DC = 0 (I… [+5500 chars]
+    Extent probe confirms the boundaries. I wrote `$07DC=9 ... $07E3=7` and `$07EC=9, $07EF=8`: the HUD's 7th score digit stayed the fixed `0` (not `$07E3=7`), and the coin display showed only `x56` (not the `9`/`8` neighbours). So the score field is exactly `$07DD-$07E2` and the coin display exactly `$07ED-$07EE`. Let me record that evidence.
+    → record_mapping {"format": "bcd", "id": "hud_value_extents", "mapping_type": "note", "name": "HUD counter extents proven by one-byte-past probes", "notes": "Extent probes for the three World 1-1 HUD counters (differential search, no reference). Score: wrote 0x07DC..0x07E4 = [9,1,2,3,4,5,6,7,8] then collected a ? block coin. RAM read back [0,1,2,3,4,7,6,7,8] and the nametable score row showed tiles [1,2,3,4,7,6,0]… [+640 chars]
+[ 331 13:08:31] RESULT record_mapping
+    {"mapping_type":"note","id":"hud_value_extents","name":"HUD counter extents proven by one-byte-past probes","format":"bcd","category":null,"group":null,"notes":"Extent probes for the three World 1-1 HUD counters (differential search, no reference). Score: wrote 0x07DC..0x07E4 = [9,1,2,3,4,5,6,7,8] then collected a ? block coin. RAM read back [0,1,2,3,4,7,6,7,8] and the nametable score row showed tiles [1,2,3,4,7,6,0] - my 0x07DD..0x07E2 digits 1,2,3,4,6 displayed (5 -> 7 for the coin's +200) but 0x07E3 = 7 did NOT appear; the 7th displayed digit stayed the fixed '0' tile. So the stored score i… [+506 chars]
+[ 334 13:08:33] ASSISTANT (turn 1 step 48) · in 493 (cache 118272) out 24
+    ▷ 
+    → promote_mappings {}
+[ 336 13:08:33] RESULT promote_mappings
+    Promoted 1 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 14 tiles, 7 palettes, 0 sprites, 12 addresses. 0 hypotheses skipped.
+[ 340 13:08:41] ASSISTANT (turn 1 step 49) · in 11760 (cache 118784) out 1457
+    ▷ All done. Now write the final report. Keep concise but include required details: address, encoding, survivor counts per round, raw diff results for last round, what the proof screenshot showed.
+    
+    Let me compose.
+    
+    Note: everything was RAM-only (internal RAM $0000-$07FF), no ROM writes.
+    
+    Let me give the raw last-round diff hits:
+    
+    Timer:
+    - Round 1: diff t0→t1 'decreased' → 21 survivors incl $07F9, $07FA.
+    - Round 2: t1→t2 from dt1 'decreased' → 6 survivors: $00F7, $00F8, $00F9, $07AC, $07B0, $07F9.
+    - Proof: wrote [5,0,0] → HUD TIME 499.
+    
+    Coin:
+    - Raised 264 'increased' (c0→c1) [large because Mario moved].
+    - equals 1 from dc1 → 32 incl $075E, $07EE.
+    - Second coin: equals 2 from dc1 → 17 incl $075E, $07EE.
+    - Intersection: $075E, $07EE.
+    - Proof: wrote $07ED/$07EE = [5,5] → HUD x56; $075E = 7 → read 8.
+    
+    Score:
+    - equals 2 from dc1 → 15 incl $07E1.
+    - equals 4 → 3 incl $07E1.
+    - Proof: wrote $07DD-$07E2 = [1,2,3,4,5,6] → HUD 1234760.
+    
+    Extent: score $07DD-$07E2, coin $07ED-$07EE.
+    
+    Write final answer.
+    Found all three HUD variables in Super Mario Bros. (World) World 1-1 by differential search, no reference used (everything below is internal RAM, `$0000-$07FF`; no ROM was written). A real game was started via Start → wait → Start, confirmed by a screenshot showing TIME 395 / score 000000 / coins x00.
+    
+    ## 1. Coin count (displayed)
+    **`$07ED` = tens, `$07EE` = ones — 2 BCD bytes.**
+    
+    - Differential: collecting the 1-1 ? block coin raised 264 addresses (`increased`, `c0`→`c1`) — Mario also moved, so that round is wide. Filtering that set by `equals 1` left **32**, including `$07EE` (0→1) and `$075E` (0→1).
+    - Repeated the same coin after dying (coins persist): `equals 2` left **17**, including `$07EE` (1→2) and `$075E` (1→2). Intersection = `$07EE` and `$075E`.
+    - **Proof:** wrote `$07ED/$07EE = [5,5]`, then collected one coin; the HUD redrew to **x56** (the written tens 5 appeared, the ones ticked 5→6) and RAM read back `[5,6]`.
+    - Extent probe: wrote `$07EC..$07EF = [9,5,5,8]`, collected a coin; HUD showed only **x56** — the `9` and `8` neighbours are not displayed.
+    
+    ## 2. Level timer (TIME)
+    **`$07F8` = hundreds, `$07F9` = tens, `$07FA` = ones — 3 BCD bytes.**
+    
+    - Differential while Mario stood still (nothing but the timer and frame counters move): 150 idle frames, diff `decreased` left **21** survivors including `$07F9` (8→7) and `$07FA` (4→3). The second 150-frame round (`from: dt1`) left **6**: `$00F7`, `$00F8`, `$00F9`, `$07AC`, `$07B0`, `$07F9`.
+    - Paused check: HUD read TIME 310 and RAM read exactly `[3,1,0]`.
+    - **Proof:** wrote `$07F8-$07FA = [5,0,0]` (500); the game's own tick decremented it and the screenshot showed **TIME 499** (naturally it was at 099). The timer redraws its digits only on a tick.
+    
+    ## 3. Score (MARIO)
+    **`$07DD-$07E2` — 6 BCD bytes, most-significant first: `$07DD`=millions, `$07DE`=100k, `$07DF`=10k, `$07E0`=thousands, `$07E1`=hundreds, `$07E2`=tens; the HUD appends a fixed `0` ones tile (7 displayed digits).**
+    
+    - Differential: the ? block coin adds exactly 200. `equals 2` over the increased set left **15** including `$07E1` (0→2); the second coin (score 200→400) `equals 4` left **3** including `$07E1` (2→4) — the only address in both.
+    - **Proof:** wrote `$07DD-$07E2 = [1,2,3,4,5,6]`, then collected a coin; the HUD redrew to **1234760** — my written digits appear and only the hundreds place moved 5→7 for the +200, read back as `[1,2,3,4,7,6]`.
+    - Extent probe: wrote `$07DC..$07E4 = [9,1,2,3,4,5,6,7,8]` and collected a coin; the nametable showed tiles `[1,2,3,4,7,6,0]` — `$07E3`=7 did **not** appear (the 7th digit stayed the fixed `0`), so the field is exactly `$07DD-$07E2`.
+    
+    ## Also found
+    **`$075E` — binary coin counter** (1 byte). Tracked 0→1→2 one-for-one with the displayed coins; wrote 7, collected a coin, read back 8. It is not drawn on the HUD (it drives the 1-UP at 100), so the HUD coin value is `$07ED/$07EE`.
+    
+    All four were recorded with `record_mapping` (source "differential search") plus a note on the extent probes, and `promote_mappings` was called — the ROM's mapping file now has 12 addresses.
+[ 342 13:08:41] ─── turn 1 end: {"kind":"completed"}
+

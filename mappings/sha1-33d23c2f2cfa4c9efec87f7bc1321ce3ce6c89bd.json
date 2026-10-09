@@ -1,7 +1,7 @@
 {
   "rom_sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
   "rom_name": "Super Mario Bros. (World).nes",
-  "version": 5,
+  "version": 6,
   "schema": 3,
   "contributors": [],
   "description": "Auto-discovered mappings for Super Mario Bros. (World).nes",
@@ -184,18 +184,10 @@
       "format": "binary, 0-255",
       "source": "differential search"
     },
-    "0x07DE": {
-      "address": "0x07DE",
-      "mem_type": "cpu",
-      "description": "player_score: The player's score, six BCD digits, most significant first at $07DE (hundred-thousands) through $07E3 (ones). Encoding: each byte is one decimal digit 0-9. Found by differential search: from a fresh 1-1 (score 000000) a coin grab (play_input right 150 frames, A 30) increased 283 addresses; a following Goomba stomp (+100) narrowed to 36, and the 200->300 change showed $07E1 going 2->3, matching the HUD 000300. Proof (write): with the HUD at 000000, write_memory $07DE..$07E3 = [0,0,1,2,3,0] (001230), then collected a coin (+200): RAM became [0,0,1,4,3,0] and the screenshot/nametable HUD read MARIO 001430 - exactly the written value plus the coin's 200. Caveat observed: the HUD's redraw follows the digits the point award touches, so a manually written nonzero ones digit ($07E3) is not rendered (after GAME OVER with RAM 001234 the HUD still read 001230); the game's own awards are all multiples of 100, so the ones digit is 0 in normal play. Source: differential search.",
-      "length": 6,
-      "format": "bcd",
-      "source": "differential search"
-    },
     "0x07ED": {
       "address": "0x07ED",
       "mem_type": "cpu",
-      "description": "coin_count: Coin count shown by the HUD as \"coin x NN\". Encoding: two BCD digits, $07ED = tens, $07EE = ones (0-99). Found by differential search (a coin grab increased 283 addresses, then narrowed) and confirmed by writing the two bytes. Proof (write): wrote $07ED..$07EE = [5,5] (55) and then collected a coin; the HUD redrew to \"x56\" and RAM read [5,6] - so tens=5 and ones advanced 5->6. A second proof wrote [0,7] and a coin gave HUD \"x08\" and RAM [0,8]. The increment lands on $07EE, so that is the low (ones) digit; $07ED is the tens digit. Source: differential search.",
+      "description": "coin_count_display: The two-digit coin counter shown after the coin icon ('x'), two BCD bytes: 0x07ED = tens, 0x07EE = ones. Found with no reference by differential search: a ? block coin increments only the ones digit, so a diff 'increased' (c0->c1, 264 survivors) filtered 'equals 1' left 32 including 0x07EE (old 0 new 1); the repeat coin (1 -> 2, 'x01' -> 'x02') filtered 'equals 2' left 17 including 0x07EE (old 1 new 2). Proof by write: wrote 0x07ED/0x07EE = [5,5] (would display x55), then collected one coin; the HUD redrew to x56 - the tens 5 is exactly what was written and the ones ticked 5->6, and RAM read back [5,6]. The display only redraws on a change, so the coin had to be collected after the write. Companion binary counter (not displayed) at 0x075E.",
       "length": 2,
       "format": "bcd",
       "source": "differential search"
@@ -203,7 +195,7 @@
     "0x07F8": {
       "address": "0x07F8",
       "mem_type": "cpu",
-      "description": "level_timer: The level countdown shown as TIME. Encoding: three BCD digits, one per byte, most significant first: $07F8 = hundreds, $07F9 = tens, $07FA = ones (displayed 400 at level start, counting down about 1 unit per 24 frames ~0.4 s). Found by differential search: with Mario idle, a 120-frame wait gave 32 addresses that decreased; $07F8 and $07FA were among them, and a paused read showed $07F8=2,$07F9=5,$07FA=7 exactly matching the HUD TIME 257. Proof (write): wrote $07F8..$07FA = [3,9,9] (399); after 30 frames the HUD read TIME 398 and RAM read [3,9,8]; after a further 180-frame run the HUD read TIME 390 and RAM [3,9,0]. Source: differential search.",
+      "description": "level_timer_digits: The TIME countdown, three BCD bytes, most-significant first: 0x07F8 = hundreds, 0x07F9 = tens, 0x07FA = ones. In World 1-1 the paused HUD read TIME 310 and RAM read [3,1,0]. Found with no reference by differential search while Mario stood still: snapshot t0, 150 idle frames, snapshot t1, diff 'decreased' left 21 survivors including 0x07F9 (8->7) and 0x07FA (4->3); a second 150-frame round with from=dt1 narrowed to 6 including 0x07F9. Proof by write: wrote 0x07F8-0x07FA = [5,0,0] (500), the game's own tick decremented it once, and the screenshot HUD showed TIME 499 (naturally it was at 099). The timer only redraws its digits on a tick, so the write must be followed by one tick.",
       "length": 3,
       "format": "bcd",
       "source": "differential search"
@@ -222,11 +214,20 @@
       "length": 1,
       "format": "binary",
       "source": "trace and disassembly"
+    },
+    "0x07DD": {
+      "address": "0x07DD",
+      "mem_type": "cpu",
+      "description": "score_digits: The displayed MARIO score, six BCD bytes most-significant first: 0x07DD = millions, 0x07DE = hundred-thousands, 0x07DF = ten-thousands, 0x07E0 = thousands, 0x07E1 = hundreds, 0x07E2 = tens. The ones digit is a fixed '0' tile, so the HUD shows seven digits. Found with no reference by differential search: collecting a ? block coin adds exactly 200, and a diff 'increased' (c0->c1, 264 survivors) filtered 'equals 2' left 15 addresses including 0x07E1 (old 0 new 2); the repeat coin on the restarted level (1 coin -> 2, score 200->400) filtered 'equals 4' left 3 including 0x07E1 (old 2 new 4). Proof by write: wrote 0x07DD-0x07E2 = [1,2,3,4,5,6], then collected a coin; the HUD redrew to 1234760 - the written digits 1,2,3,4,6 appear and only the hundreds digit moved 5->7 for the coin's +200, read back as [1,2,3,4,7,6]. The HUD redraws the score only when it changes, so a write needs a score-changing event (a coin) to appear.",
+      "length": 6,
+      "format": "bcd",
+      "source": "differential search"
     }
   },
   "notes": [
     "SMB splits the scroll at scanline 31: the HUD above is fixed, the playfield below scrolls (recorded 2026-10-05 as an address entry by mistake; moved here by hand).",
-    "player_horizontal_position_pair: Mario's level x is 16-bit: page 0x006D + low 0x0086: Correction to the existing 0x0086 'player_x_position' entry, which says 'no separate player page byte was found'. There IS one: 0x006D is the page/high byte and 0x0086 is the low byte; absolute level x = 0x006D*256 + 0x0086. Evidence (differential search, no reference): 0x006D 0->1 on the exact frame 0x0086 wrapped 255->0 walking right, and 1->0 on the reverse crossing; the player update at CPU $BF40-$BF46 adds the carry into 0x006D; and writing 0x006D=1 with 0x0086=5 moved Mario to absolute x 261 (screenshot screen x~163). Also note the game clamps: if a page edit leaves Mario off the visible screen, CPU $B013-$B021 rewrites 0x0086 and 0x006D from the camera's 16-bit position ($071A high, $071C low)."
+    "player_horizontal_position_pair: Mario's level x is 16-bit: page 0x006D + low 0x0086: Correction to the existing 0x0086 'player_x_position' entry, which says 'no separate player page byte was found'. There IS one: 0x006D is the page/high byte and 0x0086 is the low byte; absolute level x = 0x006D*256 + 0x0086. Evidence (differential search, no reference): 0x006D 0->1 on the exact frame 0x0086 wrapped 255->0 walking right, and 1->0 on the reverse crossing; the player update at CPU $BF40-$BF46 adds the carry into 0x006D; and writing 0x006D=1 with 0x0086=5 moved Mario to absolute x 261 (screenshot screen x~163). Also note the game clamps: if a page edit leaves Mario off the visible screen, CPU $B013-$B021 rewrites 0x0086 and 0x006D from the camera's 16-bit position ($071A high, $071C low).",
+    "hud_value_extents: HUD counter extents proven by one-byte-past probes: Extent probes for the three World 1-1 HUD counters (differential search, no reference). Score: wrote 0x07DC..0x07E4 = [9,1,2,3,4,5,6,7,8] then collected a ? block coin. RAM read back [0,1,2,3,4,7,6,7,8] and the nametable score row showed tiles [1,2,3,4,7,6,0] - my 0x07DD..0x07E2 digits 1,2,3,4,6 displayed (5 -> 7 for the coin's +200) but 0x07E3 = 7 did NOT appear; the 7th displayed digit stayed the fixed '0' tile. So the stored score is exactly 0x07DD..0x07E2 (six BCD bytes, millions..tens) and the HUD draws a fixed 0 ones digit after it. Coin: wrote 0x07EC..0x07EF = [9,5,5,8] then collected a coin; RAM [9,5,6,8] and the HUD showed x56 - 0x07EC=9 and 0x07EF=8 were not displayed, so the coin display is exactly 0x07ED (tens) / 0x07EE (ones). Timer: wrote 0x07F8..0x07FA = [5,0,0] and the HUD followed to 499, the three visible TIME digits."
   ],
   "routines": {
     "0x91CD": {
