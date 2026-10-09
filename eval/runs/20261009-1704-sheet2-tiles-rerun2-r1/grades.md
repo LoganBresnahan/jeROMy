@@ -1,0 +1,10 @@
+# Grades: 20261009-1704-sheet2-tiles-rerun2-r1
+
+Reference: smbdis (doppelganger), ca65 port by threecreepio. Spec: Super Mario Bros. (World) v6. One row per claim (eval/README.md); `final` is the reference verdict held to the proof step.
+
+| line | claim | at | evidence (proof) | reference | final | grader | image |
+|---|---|---|---|---|---|---|---|
+| (none) | question_block 16x16 tile-id table (53 55 54 56, column-major) — PRG source of the four tile ids that make a 16x16 ? block. Entry at prgRom 0xC8C (CPU $8C8C), 4 bytes in column-major or | 0xC8C | look, promoted | needs-judge | confirmed | claude | images/task-1/0f0f4da08647.png: after the ledgered write over the entry's first id and a reset, the coin ? blocks' top-left quadrant shows another glyph; the power-up ? in the brick row is whole |
+| B2.metatiles | question_block 16x16 tile-id table (53 55 54 56, column-major) — PRG source of the four tile ids that make a 16x16 ? block. Entry at prgRom 0xC8C (CPU $8C8C), 4 bytes in column-major or | $8C8C-$8C8F | write+reset+look, derived by diff, promoted | agrees (expected Palette0_MTiles $8B10+156 \| Palette1_MTiles $8BAC+184 \| Palette2_MTiles $8C64+40 \| Palette3_MTiles $8C8C+24; here: Palette3_MTiles) | agrees | reference | |
+| (none) | small Mario standing-frame tile ids (3A 37 4F 4F) — PRG source of the sprite tile ids for small Mario's standing pose. The four tile ids 3A 37 4F 4F sit contiguously at prg | mario_small_standing | look, promoted | needs-judge | confirmed | claude | images/task-1/0ed3544eca03.png: after the blank $FC over the frame's first id and a reset, small Mario lacks his top-left 8x8; the hill shows there |
+| B3.player_sprites | small Mario standing-frame tile ids (3A 37 4F 4F) — PRG source of the sprite tile ids for small Mario's standing pose. The four tile ids 3A 37 4F 4F sit contiguously at prg | $EED3-$EED6 | write+reset+look, derived by diff, promoted | agrees (expected PlayerGraphicsTable $EE17+208; here: PlayerGraphicsTable) | agrees | reference | |

@@ -1,0 +1,10 @@
+# Grades: 20261009-1718-sheet2-tiles-rerun2-r3
+
+Reference: smbdis (doppelganger), ca65 port by threecreepio. Spec: Super Mario Bros. (World) v6. One row per claim (eval/README.md); `final` is the reference verdict held to the proof step.
+
+| line | claim | at | evidence (proof) | reference | final | grader | image |
+|---|---|---|---|---|---|---|---|
+| (none) | ? block 16x16 tile ids (level object-graphics block at prgRom 0x8C8C, entry 0) — What the bytes are: the four BG-pattern-table tile ids that make the 16x16 ? block. In World 1-1 (camera 93) the ? block | question_block_16x16_tiles | look, promoted | needs-judge | confirmed | claude | images/task-1/59f518025ed1.png: after $24 over the entry's first id and a reset, the coin ? blocks show sky in their top-left quadrant; the power-up ? is whole |
+| B2.metatiles | ? block 16x16 tile ids (level object-graphics block at prgRom 0x8C8C, entry 0) — What the bytes are: the four BG-pattern-table tile ids that make the 16x16 ? block. In World 1-1 (camera 93) the ? block | $8C8C-$8C93 | write+reset+look, derived by diff, promoted | agrees (expected Palette0_MTiles $8B10+156 \| Palette1_MTiles $8BAC+184 \| Palette2_MTiles $8C64+40 \| Palette3_MTiles $8C8C+24; here: Palette3_MTiles) | agrees | reference | |
+| (none) | small Mario standing-frame tile list (player pose table entry at prgRom 0x6ECF) — What the bytes are: the 8 sprite-pattern-table tile ids the standing small-Mario frame is built from (the top four $FC a | small_mario_standing | look, promoted | needs-judge | confirmed | claude | images/task-1/06dea1b244e5.png: after the blank $FC over the frame's first id and a reset, small Mario lacks his top-left 8x8; the hill shows there |
+| B3.player_sprites | small Mario standing-frame tile list (player pose table entry at prgRom 0x6ECF) — What the bytes are: the 8 sprite-pattern-table tile ids the standing small-Mario frame is built from (the top four $FC a | $EECF-$EED6 | write+reset+look, derived by diff, promoted | agrees (expected PlayerGraphicsTable $EE17+208; here: PlayerGraphicsTable) | agrees | reference | |

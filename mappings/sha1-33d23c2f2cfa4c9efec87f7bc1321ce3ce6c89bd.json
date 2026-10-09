@@ -1,7 +1,7 @@
 {
   "rom_sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
   "rom_name": "Super Mario Bros. (World).nes",
-  "version": 11,
+  "version": 12,
   "schema": 3,
   "contributors": [],
   "description": "Auto-discovered mappings for Super Mario Bros. (World).nes",
@@ -29,21 +29,6 @@
       "category": "decoration",
       "group": "cloud",
       "notes": "Nametable 1, 1-1 big cloud = rows 6-8, cols 23-30 (screen box (117,48)-(179,71)). $35 left edge, $36/$37 alternating top bumps (row 6), $25 body fill (row 7), $38 right edge, $39 bottom-left corner, $3A/$3B bottom scallops, $3C bottom-right corner. Body index 1 = $30 white, outline index 3 = $0F black."
-    },
-    "0x53-0x56": {
-      "name": "question_block_2x2 (palette 3)",
-      "category": "interactive",
-      "group": "block",
-      "notes": "16x16 ? block quadrants: $53 top-left, $54 top-right, $55 bottom-left, $56 bottom-right. Index 1 = $27 orange face, 2 = $17 brown dashes/glyph, 3 = $0F black border. The 1-1 block at NT1 cols 12-13 rows 10-11 (screen (29,80)-(44,95)) was clicked at (41,82) on $54.",
-      "rom_origins": [
-        {
-          "mem": "prgRom",
-          "offset": 3212,
-          "length": 4,
-          "notes": "? block metatile tile ids: 53 55 54 56 = top-left, bottom-left, top-right, bottom-right (first pair = left column, second = right column). Identical duplicate entry at 0xC90 (3216)."
-        }
-      ],
-      "source": "search and ledgered write"
     },
     "0x60-0x6A": {
       "name": "warp_pipe_tile_set (palette 0)",
@@ -98,6 +83,22 @@
       "category": "decoration",
       "group": "hud",
       "notes": "CHR $129 = an X shape in palette index 1. Sits at nametable 0 (12,3) next to the coin tile $2E, in an attribute block with BG palette 2, so it renders $30 white. The following tile $00 (CHR $100) is the digit 0."
+    },
+    "chr:0x153": {
+      "name": "question_block_16x16_metatile (tile ids 53 55 54 56, order TL/BL/TR/BR)",
+      "table": 1,
+      "category": "interactive",
+      "group": "block",
+      "notes": "The 16x16 ? block in World 1-1 is composed of four 8x8 BG tiles drawn from the BG pattern table ($1000): top row 0x53 (TL) / 0x54 (TR), bottom row 0x55 (BL) / 0x56 (BR), attribute palette 3. These ids come from a 4-byte metatile entry in PRG ROM at prgRom 0x6E8B... no: at prgRom 0xC8C = bytes 53 55 54 56 (column order TL, BL, TR, BR). Found by reading the live nametable (nametable 1 row 18 cols 10-11 = 0x53,0x54; row 19 = 0x55,0x56) then search_memory prgRom for '53 55', which hit 0xC8C and 0xC90 (two identical ?-block entries 4 bytes apart, part of a table of 4-byte metatiles at 0xC84-0xCA3: B0B1B2B3 / 77797779 / 53555456 / 53555456 / A5A7A6A8 / C2C4C3C5 / 5759585A / 7B7D7C7E). Proof (ledgered write, eval-sheet2-tiles seq 1): write_memory prgRom 0xC8C = 0x00 (was 0x53), reset_emulator, press Start twice, hold Right 150 frames -> PPU nametable 1 byte at (col 0,row 18) read 0x00 (was 0x53) and get_tile_at_pixel at screen (137,147) returned tile_id 0 / chr_tile 0x100, i.e. the first ? block (level x 256) now shows the HUD slashed-zero tile in its top-left cell; undo_edit restored 0x53. Note 0xC90 is an identical entry used by other ? blocks in 1-1 (the ones at level x 336), so the metatile table is the source for all of them.",
+      "rom_origins": [
+        {
+          "mem": "prgRom",
+          "offset": 3212,
+          "length": 4,
+          "notes": "? block 16x16 metatile entry [TL,BL,TR,BR] = 53 55 54 56; part of the 4-byte metatile table at 0xC84-0xCA3. 0xC90 is an identical entry for the other ? block variant."
+        }
+      ],
+      "source": "search and ledgered write"
     }
   },
   "palettes": {
@@ -144,10 +145,10 @@
     }
   },
   "sprites": {
-    "small_mario_standing": {
+    "mario_small_standing": {
       "tiles": [],
       "palette_id": 0,
-      "notes": "Origin of small Mario's standing-frame tile ids. The player sprite handler reads an 8-byte-per-pose table (rows top->bottom, two tiles per row); the standing pose entry at prgRom offset 0x6ECF (CPU $EECF) is FC FC FC FC 3A 37 4F 4F - the top two rows are the blank padding tile 0xFC (the player is drawn in the big-Mario 2x4 layout even when small), and the visible 2x2 is 0x3A (top-left) 0x37 (top-right) 0x4F (bottom-left) 0x4F (bottom-right, drawn h-flipped). Proof (search and ledgered write): search_memory prgRom '3A 37 4F 4F' returned only 0x6ED3, the head-left byte inside this pose entry; write_memory prgRom 0x6ED3 0x3A -> 0x4F, reset_emulator, pressed Start twice - at the 1-1 start list_sprites showed the OAM entry at (40,193) with chr_tile 0x4F instead of 0x3A (the standing frame's head-left tile), and the screenshot showed Mario's upper-left sprite changed; undo_edit restored 0x3A and the next start read 0x3A again. Neighbouring entries are other poses (e.g. 0x6EBF = FC FC FC FC 3A 37 92 93); the table runs from ~0x6E40 and ends at 0x6EE8, with code (LDA absolute) starting at 0x6EE9.",
+      "notes": "PRG source of the sprite tile ids for small Mario's standing pose. The four tile ids 3A 37 4F 4F sit contiguously at prgRom 0x6ED3 (CPU $EED3) in a player-graphics table; the game reads them as part of an 8-byte record [FC FC FC FC 3A 37 4F 4F] where the leading $FC blank tiles pad small Mario to the 2x4 big-Mario OAM box (2 wide, 4 tall), so OAM shows four blank entries then 3A,37 over 4F,4F(flipped). Neighbouring records are other poses (e.g. 0x6E8B = 3A 37 3B 3C, 0x6EC3 = 3A 37 92 93). PROOF: write_memory prgRom 0x6ED3 $3A -> $FC (ledger seq 1, reason 'change small Mario standing-frame top-left tile id'), reset_emulator; list_sprites then returned chr_tile 252 (blank, opaque:false) for the top-left cell at (40,193) that had read 58 ($3A), and get_pixel_color(45,196) read the hill green $1A where the old tile had content while (48,196) still read Mario skin $27. undo_edit restored $3A. Found by search_memory for the tile run in prgRom (no reference imported).",
       "source": "search and ledgered write"
     }
   },
@@ -268,7 +269,9 @@
     "question_block_tile_table: ? block 2x2 tile-id table entry [TL,BL,TR,BR] (World 1-1 ? block source): Origin of the World 1-1 ? block's four 8x8 tile ids. A run of those nametable ids lives in a table of 4-byte metatile entries [top-left, bottom-left, top-right, bottom-right] at prgRom offset 0x8C8C (CPU $8C8C): 53 55 54 56. An identical duplicate entry sits at 0x8C90 (a second ? block type). The renderer at CPU $88E7-$8906 reads it: LDA $06A1,X (block type) / ASL A / ASL A / ADC (($071F&1)<<1) / TAY ; LDX $00 ; LDA ($06),Y / STA $0344,X ; INY / LDA ($06),Y / STA $0345,X - it copies one 2-byte column (TL,BL or TR,BR) into the VRAM buffer. Proof (search and ledgered write): search_memory prgRom '53 55 54 56' returned 0xC8C and 0xC90 (row-major '53 54 55 56' matched nothing); write_memory prgRom 0x8C8C 0x53 -> 0x24 (blank sky), reset_emulator, pressed Start twice and walked right - the ? block's top-left 8x8 vanished: nametable 1 addr 0x2640 held 0x24 while 0x2641/0x2660/0x2661 stayed 0x54/0x55/0x56, and get_pixel_color on the missing quadrant read periwinkle $22; undo_edit restored 0x53.",
     "prgRom:0xC8C: ? block 16x16 tile-id entry (top-left/bottom-left/top-right/bottom-right = $53 $55 $54 $56): PRG ROM source of the ? block's four 8x8 quadrant tile ids. Bytes at prgRom 0xC8C..0xC8F are 53 55 54 56 (= nametable tiles $53 top-left, $55 bottom-left, $54 top-right, $56 bottom-right, i.e. column-major). A second identical 4-byte entry follows immediately at 0xC90 (a different block object reuses the same graphics). The blocks sit in the block/2x2-graphics table that runs roughly prgRom 0x6E7B-0xCA3 (4-byte 2x2 tile groups) and ends just before the area-palette block at 0xCA4. Proof (search and ledgered write): read_nametable showed the World 1-1 block quadrants as 83/85/84/86; write_memory prgRom 0xC8C = $24 (sky) with a reason (ledger seq 1), reset_emulator, pressed Start twice and walked right 150 frames; the screenshot showed the ? block(s) missing their top-left quadrant (rendered as an L/J-shaped corner) while the pixel passed through to the green hill, and one row block that uses the 0xC90 copy stayed intact; undo_edit restored 0x53.",
     "prgRom:0xC8C: ? block 16x16 tile-id entry (top-left/bottom-left/top-right/bottom-right = $53 $55 $54 $56): PRG ROM source of the ? block's four 8x8 quadrant tile ids. Bytes at prgRom 0xC8C..0xC8F are 53 55 54 56 (= nametable tiles $53 top-left, $55 bottom-left, $54 top-right, $56 bottom-right, i.e. column-major). A second identical 4-byte entry follows immediately at 0xC90 (a different block object reuses the same graphics). These sit in the 2x2 block-graphics table at roughly prgRom 0xC78-0xCA3 (4-byte tile groups $77/$79, $53/$55/$54/$56 x2, $A5/$A7/$A6/$A8, $C2/$C4/$C3/$C5, $57/$59/$58/$5A, $7B/$7D/$7C/$7E), which ends just before the area-palette block at 0xCA4. Proof (search and ledgered write): read_nametable showed the World 1-1 block quadrants as 83/85/84/86; write_memory prgRom 0xC8C = $24 (sky) with a reason (ledger seq 1), reset_emulator, pressed Start twice and walked right 150 frames; the screenshot showed the ? block missing its top-left quadrant (rendered as an L/J-shaped corner) with the hill showing through, while a row block that uses the 0xC90 copy stayed intact; undo_edit restored 0x53.",
-    "player_horizontal_position_encoding: Mario's horizontal position: absolute level x = $006D*256 + $0086: World 1-1. The player's level x is a 16-bit-ish pair: page at 0x006D and within-page byte at 0x0086 (absolute x = 0x006D*256 + 0x0086). On-screen sprite x = absolute x - camera, where the camera left edge low byte is 0x071C (0x071A = its page) and 0x073F/0x0740 are the scroll bytes the NMI writes to PPUSCROLL. Both bytes are canonical: a write to 0x0086 persists across frames and moves the sprite, and a one-page write to 0x006D moves it by 256. Caveat: if a hand-written page puts the computed screen x outside 0-255 (more than one page ahead of the camera), the engine snaps Mario back to the camera's left edge, which is why the page proof uses a one-page step. Found with no reference via differential search (walk-right increased/wrap + writes), session 2026-10-09."
+    "player_horizontal_position_encoding: Mario's horizontal position: absolute level x = $006D*256 + $0086: World 1-1. The player's level x is a 16-bit-ish pair: page at 0x006D and within-page byte at 0x0086 (absolute x = 0x006D*256 + 0x0086). On-screen sprite x = absolute x - camera, where the camera left edge low byte is 0x071C (0x071A = its page) and 0x073F/0x0740 are the scroll bytes the NMI writes to PPUSCROLL. Both bytes are canonical: a write to 0x0086 persists across frames and moves the sprite, and a one-page write to 0x006D moves it by 256. Caveat: if a hand-written page puts the computed screen x outside 0-255 (more than one page ahead of the camera), the engine snaps Mario back to the camera's left edge, which is why the page proof uses a one-page step. Found with no reference via differential search (walk-right increased/wrap + writes), session 2026-10-09.",
+    "0xC8C: question_block 16x16 tile-id table (53 55 54 56, column-major): PRG source of the four tile ids that make a 16x16 ? block. Entry at prgRom 0xC8C (CPU $8C8C), 4 bytes in column-major order [top-left, bottom-left, top-right, bottom-right] = 53 55 54 56; the nametable therefore gets $53/$54 on the top row and $55/$56 on the bottom row. It is one entry of a 4-byte-per-entry block table at prgRom 0xC84-0xCA3 (8 entries: B0 B1 B2 B3 / 77 79 77 79 / 53 55 54 56 / 53 55 54 56 / A5 A7 A6 A8 / C2 C4 C3 C5 / 57 59 58 5A / 7B 7D 7C 7E); the identical entry at 0xC90 is not the one World 1-1's ? blocks use. PROOF: write_memory prgRom 0xC8C $53 -> $00 (ledger seq 1, reason 'change ? block top-left tile id'), reset_emulator, replayed Start/Start to World 1-1; get_tile_at_pixel on the floating ? block's top-left quadrant then returned tile_id 0 (palette 3, chr_tile $100 = the HUD '0' glyph) while the other three quadrants stayed $54/$55/$56, and the screenshot showed a '0' glyph where every on-screen ? block's top-left corner had been. undo_edit restored $53. Found by search_memory for the tile run in prgRom (no reference imported).",
+    "question_block_16x16_tiles: ? block 16x16 tile ids (level object-graphics block at prgRom 0x8C8C, entry 0): What the bytes are: the four BG-pattern-table tile ids that make the 16x16 ? block. In World 1-1 (camera 93) the ? block reads nametable 1 tiles $53/$54 top row and $55/$56 bottom row, palette 3. Origin found with no reference: the level-graphics parser around CPU $88AE-$8958 computes a data pointer from a table at CPU $8B08/$8B0C (block pointers $8B10,$8BAC,$8C64,$8C8C) and then does LDA ($06),Y / STA $0344,X (PC $88FD) and LDA ($06),Y / STA $0345,X (PC $8903, prgRom 0x8FD/0x903), writing two tiles per call into the $0341+ VRAM buffer; each object type has a 4-byte entry, so the ? block graphic lives in the block at $8C8C (first entry, type byte $C0). Proof: write_memory prgRom 0x8C8C $53->$24 (ledger seq 1, reason: blank the ? block top-left), reset_emulator, then Start,Start,hold Right 150 frames to the ? block; get_tile_at_pixel at its top-left returned tile_id 36 ($24, renders $22 periwinkle) while the top-right still returned 84 ($54) - i.e. the block lost its upper-left quadrant exactly as predicted. undo_edit restored $53."
   ],
   "routines": {
     "0x91CD": {
