@@ -42,11 +42,11 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Lines hit:** SMB C1.world, C1.level (found, but not by the method),
   C2.power, C2.star (not yet run); Zelda C1.rupees, C1.bombs, C1.keys
   (holdout).
-- **Changed:** nothing. `find-variable` has no route for it; a candidate
-  route is "search by the displayed value (`equals`), then write each
-  survivor and look", or reach a state where the value changes (a save
-  state near a pickup).
-- **Status:** `open`.
+- **Changed:** `find-variable` "When play cannot change the value": narrow
+  by `equals` the shown value and `unchanged` across play until every
+  survivor is listed, then bisect with writes, a forced redraw and save
+  states (commit after `06957a4`).
+- **Status:** `changed`.
 - **A re-run checks:** the line's claim is `derived` (its address came out
   of the session's own search), not read from a guessed block.
 
