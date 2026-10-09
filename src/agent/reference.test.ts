@@ -33,6 +33,11 @@ describe("reference symbols (ADR-0017)", () => {
     const wiki = parseWikiTable("Address,Name,Notes\n0x075A,Lives,Number of lives minus one\n$075E\tCoins\tBCD, two digits\n75F,World,zero-based\n");
     expect(wiki.map((s) => [s.address, s.name, s.kind])).toEqual([[0x75a, "Lives", "wiki"], [0x75e, "Coins", "wiki"], [0x75f, "World", "wiki"]]);
     expect(wiki[1].notes).toBe("BCD, two digits");
+    // Data Crystal's Zelda RAM map writes ranges; the start is the symbol and the span its size (2026-10-09).
+    const ranges = parseWikiTable("0300-034F\tPPU update queue\tnametable writes\n$6000\u2013$6010\tPlayer names\t\n0070\tLink X\t0x00 left to 0xF0 right\n");
+    expect(ranges.map((s) => [s.address, s.name, s.size])).toEqual([[0x70, "Link X", undefined], [0x300, "PPU update queue", 0x50], [0x6000, "Player names", 0x11]]);
+    expect(ranges[1].notes).toBe("nametable writes");
+    expect(ranges[2].notes).toBeUndefined();
   });
 
   it("finds the nearest label at or below an address, within a bound, preferring labels on ties", () => {

@@ -87,9 +87,13 @@ export function parseWikiTable(text: string): ReferenceSymbol[] {
     const line = raw.trim();
     if (!line) continue;
     const cells = (line.includes("\t") ? line.split("\t") : line.split(",")).map((c) => c.trim());
-    const addr = /^(?:0x|\$)?([0-9A-Fa-f]{1,6})$/.exec(cells[0] ?? "");
+    // A wiki row may name a range ("0300-034F", "$6000–$6010"); the symbol sits at its start and keeps the span as size.
+    const addr = /^(?:0x|\$)?([0-9A-Fa-f]{1,6})(?:\s*[-\u2013]\s*(?:0x|\$)?([0-9A-Fa-f]{1,6}))?$/.exec(cells[0] ?? "");
     if (!addr || !cells[1]) continue;
-    out.push({ name: cells[1], address: parseInt(addr[1], 16), kind: "wiki", ...(cells[2] ? { notes: cells.slice(2).join(", ") } : {}) });
+    const address = parseInt(addr[1], 16);
+    const end = addr[2] ? parseInt(addr[2], 16) : undefined;
+    const notes = cells.slice(2).filter(Boolean).join(", ");
+    out.push({ name: cells[1], address, kind: "wiki", ...(end !== undefined && end >= address ? { size: end - address + 1 } : {}), ...(notes ? { notes } : {}) });
   }
   return dedupe(out);
 }
