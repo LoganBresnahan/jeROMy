@@ -58,7 +58,7 @@ describe("MesenAdapter", () => {
   it("resetEmulator sends reset_emulator (ADR-0009)", async () => {
     mockRequest.mockResolvedValue({ reset: true, cleared_palette_overrides: 0, frames_waited: 30, paused: false });
     await adapter.resetEmulator();
-    expect(mockRequest).toHaveBeenCalledWith("reset_emulator", { frames: 30 }, { timeoutMs: 6000 });
+    expect(mockRequest).toHaveBeenCalledWith("reset_emulator", { frames: 30 }, { timeoutMs: 17000 });
   });
 
   it("captureScrollWrites sends capture_scroll_writes with a timeout for the wait (ADR-0010)", async () => {

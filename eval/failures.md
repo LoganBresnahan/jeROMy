@@ -143,7 +143,9 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Lines hit:** C1.coins.
 - **Changed:** spec v2 accepts either; the scorer learned
   `Name+offset:span` references (commit `7ec93e5`).
-- **Status:** `fixed` (both SMB runs regraded under v2).
+- **Status:** `fixed` (both SMB runs regraded under v2). Seen again in
+  `20261009-1428-sheet2-text-tiles` (B4.game_text accepted only the first of
+  the text table's nine labelled strings; spec v6).
 - **A re-run checks:** when a proven claim grades `disagrees`, check the
   line against the source before calling the claim wrong, and record a
   spec change as a spec version, never silently.
@@ -175,3 +177,17 @@ change bought; if the failure comes back, reopen it with the new run.
   tools run frames) and its message says to resume first.
 - **Status:** `open` (minor). Revisit if a run loses a line to it.
 - **A re-run checks:** n/a.
+
+## F12. A paused reset answers after its timeout
+
+- **Seen:** `20261009-1428-sheet2-text-tiles` task 2: both `reset_emulator`
+  calls (game paused) failed "timed out after 6000ms"; the Lua log shows
+  each completing after exactly 6 s. The reset happened; the proof step
+  was lost, and two right origins graded `unproven`. A paused reset also
+  comes back `paused: false`, though bridge.lua says it stays paused.
+- **Lines hit:** B2.metatiles, B3.player_sprites; any origin proof.
+- **Changed:** the adapter's reset timeout is `frames × 400 ms + 5 s`
+  (17 s for 30 frames); a paused reset through dsh checked live.
+- **Status:** `changed`.
+- **A re-run checks:** no `reset_emulator` error in the streams, and the
+  origin lines reach `write+reset+look`.

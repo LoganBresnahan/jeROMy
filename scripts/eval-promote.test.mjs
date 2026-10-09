@@ -46,6 +46,17 @@ describe("eval-promote", () => {
     expect(mapping.addresses["0x075A"].description).toBe("lives");
   });
 
+  it("promotes an origin line by the parent entry that carries the origin", () => {
+    const spec = { lines: [{ id: "metatiles" }] };
+    const runs = [{ id: "r1", rows: [{ line: "metatiles", kind: "origin", context: "tile", id: "chr:0x153", final: "agrees", proof: "write+reset+look" }],
+      copy: { tiles: { "chr:0x153": { name: "? block", rom_origins: [{ mem: "prgRom", offset: 0xc8c, length: 4 }] } }, notes: [] } }];
+    const mapping = { tiles: {}, notes: [] };
+    const d = decide(spec.lines, runs);
+    expect(d[0]).toMatchObject({ action: "replace", record: "tiles", key: "chr:0x153" });
+    apply(mapping, spec, d, runs);
+    expect(mapping.tiles["chr:0x153"].name).toBe("? block");
+  });
+
   it("never adds a side entry its own run graded wrong", () => {
     const spec = { lines: [{ id: "x" }] };
     const runs = [{ id: "r1", rows: [row("y", "0x03AD", "disagrees")], copy: copy({ "0x03AD": { description: "wrong" } }) }];

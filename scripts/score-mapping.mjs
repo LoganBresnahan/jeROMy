@@ -230,7 +230,10 @@ export function claimsFromStream(text, label = "stream") {
   const out = [];
   calls.forEach((c, i) => {
     if (c.tool !== "record_mapping" || !c.ok) return;
-    for (const claim of claimsFromRecord(c.input, label)) {
+    // The tool's result carries the canonical key (a tile with a table is keyed chr:0x153, ADR-0021); the entry in
+    // the mapping file has that key, so the claim must too.
+    let resultId; try { resultId = JSON.parse(c.result ?? "").id; } catch { /* keep the input's id */ }
+    for (const claim of claimsFromRecord(resultId ? { ...c.input, id: resultId } : c.input, label)) {
       out.push({ ...claim, proof: proofFor(claim, calls.slice(0, i)), derived: derivedFor(claim, calls.slice(0, i)), promoted: promotedAt > i });
     }
   });

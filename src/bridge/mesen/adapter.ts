@@ -104,7 +104,9 @@ export class MesenAdapter {
 
   /** Soft-reset the console; clears palette overrides first and answers after `frames` have run (ADR-0009). */
   async resetEmulator(frames: number = 30): Promise<ResetEmulatorResult> {
-    return this.conn.request<ResetEmulatorResult>("reset_emulator", { frames }, { timeoutMs: Math.ceil(frames / 60) * 1000 + 5000 });
+    // Paused, bridge.lua steps those frames through the keep-alive, much slower than real time: a paused reset
+    // answered after exactly the old 6 s budget and timed out (eval/runs/20261009-1428-sheet2-text-tiles, ledger F12).
+    return this.conn.request<ResetEmulatorResult>("reset_emulator", { frames }, { timeoutMs: frames * 400 + 5000 });
   }
 
   /** Rendered color at a screen pixel; ground truth for what the user sees (ADR-0010). */

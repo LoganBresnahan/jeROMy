@@ -14,6 +14,9 @@ import { fileURLToPath } from "node:url";
 import { PROVEN } from "./eval-grade.mjs";
 
 const RECORD = { address: "addresses", routine: "routines", level: "levels", scene: "scenes" };
+// An origin claim lives on its parent entry (score-mapping.mjs `context`); promoting the line promotes that entry.
+const PARENT = { tile: "tiles", sprite: "sprites", palette: "palettes", address: "addresses", note: "notes" };
+const recordOf = (x) => (x.kind === "origin" ? PARENT[x.context] : RECORD[x.kind]);
 const RIGHT = new Set(["agrees", "confirmed"]);
 const WRONG = new Set(["disagrees", "rejected"]);
 
@@ -21,7 +24,7 @@ const WRONG = new Set(["disagrees", "rejected"]);
 export function decide(lines, runs) {
   return lines.map((line) => {
     const outcomes = runs.map((r) => {
-      const mine = r.rows.filter((x) => x.line === line.id && RECORD[x.kind]);
+      const mine = r.rows.filter((x) => x.line === line.id && recordOf(x));
       const right = mine.find((x) => RIGHT.has(x.final) && PROVEN.has(x.proof ?? ""));
       const wrong = !right && mine.find((x) => WRONG.has(x.final));
       return { run: r, right, wrong };
@@ -30,12 +33,14 @@ export function decide(lines, runs) {
     const nWrong = outcomes.filter((o) => o.wrong).length;
     const need = Math.floor(runs.length / 2) + 1;
     if (nRight >= need) {
-      const o = outcomes.find((x) => x.right && x.run.copy?.[RECORD[x.right.kind]]?.[x.right.id]);
-      return o ? { line, action: "replace", record: RECORD[o.right.kind], key: o.right.id, entry: o.run.copy[RECORD[o.right.kind]][o.right.id], from: o.run.id, votes: `${nRight}/${runs.length} right` }
+      const noted = outcomes.find((x) => x.right && recordOf(x.right) === "notes");
+      if (noted) return { line, action: "note", from: noted.run.id, votes: `${nRight}/${runs.length} right` };
+      const o = outcomes.find((x) => x.right && x.run.copy?.[recordOf(x.right)]?.[x.right.id]);
+      return o ? { line, action: "replace", record: recordOf(o.right), key: o.right.id, entry: o.run.copy[recordOf(o.right)][o.right.id], from: o.run.id, votes: `${nRight}/${runs.length} right` }
         : { line, action: "none", why: "graded right, but no run promoted the entry into its copy", votes: `${nRight}/${runs.length} right` };
     }
     if (nWrong >= need) {
-      const keys = outcomes.filter((o) => o.wrong).map((o) => `${RECORD[o.wrong.kind]}.${o.wrong.id}`);
+      const keys = outcomes.filter((o) => o.wrong).map((o) => `${recordOf(o.wrong)}.${o.wrong.id}`);
       return { line, action: "remove-if-same", keys, votes: `${nWrong}/${runs.length} wrong` };
     }
     return { line, action: "none", why: "no majority", votes: `${nRight} right, ${nWrong} wrong of ${runs.length}` };
@@ -58,6 +63,10 @@ export function apply(mapping, spec, decisions, runs) {
       mapping[d.record][d.key] = d.entry;
       changes.push(`+ ${d.record}.${d.key} (${line.id}, ${d.votes}, from ${d.from})`);
       Object.assign(line, { status: "promoted", run: d.from, verdict: "agrees", entry: `${d.record}.${d.key}` });
+    } else if (d.action === "note") {
+      // The note itself arrives with the run's notes below; the line points at the notes.
+      Object.assign(line, { status: "promoted", run: d.from, verdict: "agrees", entry: "notes" });
+      changes.push(`= ${line.id} (${d.votes}, a note from ${d.from})`);
     } else if (d.action === "remove-if-same") {
       if (line.entry && d.keys.includes(line.entry)) {
         const [rec, k] = [line.entry.slice(0, line.entry.indexOf(".")), line.entry.slice(line.entry.indexOf(".") + 1)];
@@ -70,8 +79,8 @@ export function apply(mapping, spec, decisions, runs) {
   // Side discoveries (ADR-0022 §3): entries a run promoted that no in-scope line owns fill gaps only.
   for (const r of runs) {
     // A claim this run graded wrong never enters as a side discovery (20261009-1414: a mis-assigned claim nearly did).
-    const wrongKeys = new Set(r.rows.filter((x) => WRONG.has(x.final) && RECORD[x.kind]).map((x) => `${RECORD[x.kind]}.${x.id}`));
-    for (const rec of ["addresses", "routines", "levels", "scenes"]) {
+    const wrongKeys = new Set(r.rows.filter((x) => WRONG.has(x.final) && recordOf(x)).map((x) => `${recordOf(x)}.${x.id}`));
+    for (const rec of ["addresses", "routines", "levels", "scenes", "tiles", "sprites", "palettes"]) {
       for (const [k, v] of Object.entries(r.copy?.[rec] ?? {})) {
         const key = `${rec}.${k}`;
         if (owned.has(key) || decisions.some((d) => d.action === "replace" && `${d.record}.${d.key}` === key)) continue;

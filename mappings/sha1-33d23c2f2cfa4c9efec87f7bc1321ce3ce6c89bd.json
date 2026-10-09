@@ -1,7 +1,7 @@
 {
   "rom_sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
   "rom_name": "Super Mario Bros. (World).nes",
-  "version": 7,
+  "version": 8,
   "schema": 3,
   "contributors": [],
   "description": "Auto-discovered mappings for Super Mario Bros. (World).nes",
@@ -89,6 +89,22 @@
       "category": "decoration",
       "group": "hud",
       "notes": "CHR $129 = an X shape in palette index 1. Sits at nametable 0 (12,3) next to the coin tile $2E, in an attribute block with BG palette 2, so it renders $30 white. The following tile $00 (CHR $100) is the digit 0."
+    },
+    "chr:0x153": {
+      "name": "? block 16x16 metatile tile-id table entry (TL/TR/BL/BR = $53/$54/$55/$56)",
+      "table": 1,
+      "category": "interactive",
+      "group": "block",
+      "notes": "PRG ROM source of the four 8x8 tile ids that make the 16x16 ? block. A table at prgRom 0xC80 (CPU $8C80), 4 bytes per 16x16 metatile (9 entries, 0xC80-0xCA3; followed by the palette blocks at 0xCA4); the ? block entry is 4 bytes at 0xC8C = 53 55 54 56 = $53,$55,$54,$56, stored in the order TL,BL,TR,BR. On screen in World 1-1 the ? block at NT1 col 25/26 row 10/11 sampled as TL=$53 (205,86), TR=$54 (211,86), BL=$55 (205,94), BR=$56 (211,94), all BG palette 3. There is a second identical entry at 0xC90. Proof (search and ledgered write): write_memory prgRom 0xC8C = $24 (sky) -> ledger seq 1 in hack eval-sheet2-tiles, reason '? block entry first tile $53 -> sky'; reset_emulator, Start + hold Right ~150 frames into 1-1, pause; screenshot showed every ? block on screen with its top-left quadrant replaced by sky; undo_edit restored $53 and a later level load showed the block whole again.",
+      "rom_origins": [
+        {
+          "mem": "prgRom",
+          "offset": 3212,
+          "length": 4,
+          "notes": "? block 4-tile entry in the 16x16 block metatile tile-id table; table base 0xC80, stride 4"
+        }
+      ],
+      "source": "search and ledgered write"
     }
   },
   "palettes": {
@@ -134,7 +150,14 @@
       "notes": "Sprite palette 4 = $22, $16 red, $27 orange (skin), $18 dark olive-brown (hair/shoes). Sampled at (75,182) = rgb(181,49,32) = $16 on Mario's body. Mario sprites are h-flipped when he faces left."
     }
   },
-  "sprites": {},
+  "sprites": {
+    "small_mario_standing": {
+      "tiles": [],
+      "palette_id": 0,
+      "notes": "PRG ROM source of the four 8x8 tile ids that make small Mario's standing frame (sprite pattern table $0000, sprite palette 4). The table holds 8 bytes per frame: 4 tile ids used by small Mario (row-major TL,TR,BL,BR) plus 4 bytes that are $FC blank padding in the small-Mario frames. Small Mario's standing frame is the 4-byte run at prgRom 0x6ED3 = 3A 37 4F 4F = $3A,$37,$4F,$4F; the next frame (walk/airborne $9E,$9E,$9F,$9F) is at 0x6ECB, so the frames are 8 bytes apart (0x6E83, 0x6E8B, ... 0x6ED3, 0x6EDB...). Emulator observation before the edit: small Mario standing at the start of 1-1 emitted OAM entries tile $3A at (40,193) TL, $37 at (48,193) TR, $4F at (40,201) BL, $4F h-flipped at (48,201) BR, with two $FC blank padding rows above; when he was mid-air the frame switched to $9E,$9E,$9F,$9F, matching the 0x6ECB entry. Proof (search and ledgered write): write_memory prgRom 0x6ED3 = $FC (blank) -> ledger seq 1 in hack eval-sheet2-tiles; reset_emulator, Start, wait ~3.5 s for 1-1 and Mario to stand; pause; list_sprites then showed OAM index 5 (Mario's top-left) as tile $FC while $37/$4F/$4F were unchanged, and the screenshot showed his upper-left tile missing. undo_edit restored $3A.",
+      "source": "search and ledgered write"
+    }
+  },
   "addresses": {
     "0x075A": {
       "address": "0x075A",
@@ -244,7 +267,9 @@
     "SMB splits the scroll at scanline 31: the HUD above is fixed, the playfield below scrolls (recorded 2026-10-05 as an address entry by mistake; moved here by hand).",
     "player_horizontal_position_pair: Mario's level x is 16-bit: page 0x006D + low 0x0086: Correction to the existing 0x0086 'player_x_position' entry, which says 'no separate player page byte was found'. There IS one: 0x006D is the page/high byte and 0x0086 is the low byte; absolute level x = 0x006D*256 + 0x0086. Evidence (differential search, no reference): 0x006D 0->1 on the exact frame 0x0086 wrapped 255->0 walking right, and 1->0 on the reverse crossing; the player update at CPU $BF40-$BF46 adds the carry into 0x006D; and writing 0x006D=1 with 0x0086=5 moved Mario to absolute x 261 (screenshot screen x~163). Also note the game clamps: if a page edit leaves Mario off the visible screen, CPU $B013-$B021 rewrites 0x0086 and 0x006D from the camera's 16-bit position ($071A high, $071C low).",
     "hud_value_extents: HUD counter extents proven by one-byte-past probes: Extent probes for the three World 1-1 HUD counters (differential search, no reference). Score: wrote 0x07DC..0x07E4 = [9,1,2,3,4,5,6,7,8] then collected a ? block coin. RAM read back [0,1,2,3,4,7,6,7,8] and the nametable score row showed tiles [1,2,3,4,7,6,0] - my 0x07DD..0x07E2 digits 1,2,3,4,6 displayed (5 -> 7 for the coin's +200) but 0x07E3 = 7 did NOT appear; the 7th displayed digit stayed the fixed '0' tile. So the stored score is exactly 0x07DD..0x07E2 (six BCD bytes, millions..tens) and the HUD draws a fixed 0 ones digit after it. Coin: wrote 0x07EC..0x07EF = [9,5,5,8] then collected a coin; RAM [9,5,6,8] and the HUD showed x56 - 0x07EC=9 and 0x07EF=8 were not displayed, so the coin display is exactly 0x07ED (tens) / 0x07EE (ones). Timer: wrote 0x07F8..0x07FA = [5,0,0] and the HUD followed to 499, the three visible TIME digits.",
-    "level_start_palette_chain: How a level's colours reach the PPU (World 1-1 example): Chain proven with no reference. Level-init state machine $8567 (LDA $073C / JSR $8E04, table $856D) step 9 -> $85BF (LoadAreaPalette): LDY $074E / LDX $85BB,Y / STX $0773. Table $85BB = $01,$02,$03,$04; 1-1 has $074E=1 so $0773=2. Next NMI ($80B6-$80C3): LDX $0773 / LDA $805A,X / STA $00 / LDA $806D,X / STA $01 / JSR $8EDD. The pointer tables $805A/$806D map selector 1..4 to the four PRG palette records $8CA4,$8CC8,$8CEC,$8D10, each [3F 00 20 <32 palette bytes> 00]. $8EDD/$8E92 writes the record: STA $2006 (=$3F) / STA $2006 (=$00) then loops LDA ($00),Y / STA $2007 for the 32 bytes, setting all 4 BG + 4 sprite hardware palettes. Evidence: trace read on $85BB during a 1-1 reload = PC $85C5 reading $85BC value 2; trace read over $8CA0-$8D27 during a reload = PC $8E96/$8E9C/$8EBB/$8EE2 reading $8CC8-$8CEB; manual write $0773=1 then step_frame changed the whole palette to $8CA4 (screenshot), $0773=2 restored it. The live PPU palette for 1-1 equals the $8CC8 block (with $3F00 backdrop $22 written by the record's first byte being $0F and the engine's own backdrop write)."
+    "level_start_palette_chain: How a level's colours reach the PPU (World 1-1 example): Chain proven with no reference. Level-init state machine $8567 (LDA $073C / JSR $8E04, table $856D) step 9 -> $85BF (LoadAreaPalette): LDY $074E / LDX $85BB,Y / STX $0773. Table $85BB = $01,$02,$03,$04; 1-1 has $074E=1 so $0773=2. Next NMI ($80B6-$80C3): LDX $0773 / LDA $805A,X / STA $00 / LDA $806D,X / STA $01 / JSR $8EDD. The pointer tables $805A/$806D map selector 1..4 to the four PRG palette records $8CA4,$8CC8,$8CEC,$8D10, each [3F 00 20 <32 palette bytes> 00]. $8EDD/$8E92 writes the record: STA $2006 (=$3F) / STA $2006 (=$00) then loops LDA ($00),Y / STA $2007 for the 32 bytes, setting all 4 BG + 4 sprite hardware palettes. Evidence: trace read on $85BB during a 1-1 reload = PC $85C5 reading $85BC value 2; trace read over $8CA0-$8D27 during a reload = PC $8E96/$8E9C/$8EBB/$8EE2 reading $8CC8-$8CEB; manual write $0773=1 then step_frame changed the whole palette to $8CA4 (screenshot), $0773=2 restored it. The live PPU palette for 1-1 equals the $8CC8 block (with $3F00 backdrop $22 written by the record's first byte being $0F and the engine's own backdrop write).",
+    "statusbar_text_table: Top status bar fixed-text VRAM-buffer table (MARIO, WORLD, TIME): PRG source of the fixed HUD words along the top of the screen. It is a WriteVRAMBuffer record stream: each record is [PPU addr hi, PPU addr lo, length, tiles...] and the buffer ends with a 0x00 first-byte terminator. Record 1 at prgRom 0x752: 20 43 05 then tiles 16 0A 1B 12 18 = 'MARIO' at nametable $2043 (row 2, col 3); record 2 at 0x75A: 20 52 0B then 20 18 1B 15 0D 24 24 1D 12 16 0E = 'WORLD  TIME' at $2052 (row 2, col 18); terminator 0x00 at 0x76B. Letter tiles: M=16 A=0A R=1B I=12 O=18 W=20 L=15 D=0D T=1D E=0E, blank=24. Proof: write_memory prgRom 0x755 (MARIO 'M' 16) -> 20 ('W'), ledger seq 1, reset_emulator, screenshot of the title screen HUD read 'WARIO'; undo_edit restored 16. The card's WORLD text is a different table (see world_card_text_table), so this edit did not touch it.",
+    "world_card_text_table: WORLD-card text record ('WORLD 1-1' intro/death card): PRG source of the black card that shows 'WORLD 1-1' after Start / on death. Record header at prgRom 0x783 is 21 4B 09: PPU address $214B = nametable 0 row 10, col 11, length 9. Data at 0x786: 20 18 1B 15 0D 24 24 28 24 = 'WORLD' + blank + a placeholder byte + '-' (28) + a placeholder byte; the world/level digits are patched into the two placeholder positions at runtime (observed card = WORLD 1-1 with 01 28 01). Confirmed the card position by reading nametable 0 while the card was up: row 10 cols 11-15 = 32 24 27 21 13 ('WORLD', same letter tiles as the HUD) and cols 17-19 = 01 28 01 ('1-1'). Proof: write_memory prgRom 0x786 (card 'W' 20) -> 16 ('M'), ledger seq 1, reset_emulator, pressed Start, screenshot showed the card read 'MORLD 1-1' while the top HUD still read 'WORLD 1-1'; undo_edit restored 20."
   ],
   "routines": {
     "0x91CD": {
