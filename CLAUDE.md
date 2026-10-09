@@ -45,7 +45,7 @@ gate is `docs/plans/mapping-campaign.md`; its first step, reference import
 (ADR-0017: disassemblies imported into `hacks/`, never vendored or fetched;
 `lookup_symbol`), shipped the same evening. The plain-language tour of ROM,
 disassembly, mapping, hack and patch is `docs/guide/rom-hacking-with-jeromy.md`;
-ADR-0018 (named hacks in the person's own repo, one active hack, boot-time apply) shipped as roadmap item 19 the same night: `HackStore.open` migrates the old single ledger into `default/`, `use_hack` swaps the emulator's bytes, exports are `<hack>-v<N>.bps`. Logan then set the direction that most games have no disassembly, so discovery must work blind (ADR-0019, roadmap item 22): `play_input` (a bounded button script from an `inputPolled` callback, the fourth thing that runs frames), `snapshot_memory`/`diff_memory` on the TypeScript side, the `find-variable` skill, and `scripts/score-mapping.mjs` to grade a blind SMB run against the imported reference. Proven 2026-10-06: a blind session found the lives counter at `$075A` in two diff rounds and the reference agreed; `scripts/trio.sh --blind variable` repeats it. Coverage for the gate is ticked in `docs/plans/smb-map-coverage.md`. On 2026-10-09 Logan changed the process (ADR-0020, roadmap item 23): jeROMy is now built by an eval loop. `eval/README.md` is the operating manual, `eval/spec/attributes.md` the draft of what "mapped" means; runs are recorded under `eval/runs/`; Claude runs it unattended, commits when verified, spends the balance, judges picture claims from images; a holdout game is never tuned against. Build order: `docs/roadmap.md`;
+ADR-0018 (named hacks in the person's own repo, one active hack, boot-time apply) shipped as roadmap item 19 the same night: `HackStore.open` migrates the old single ledger into `default/`, `use_hack` swaps the emulator's bytes, exports are `<hack>-v<N>.bps`. Logan then set the direction that most games have no disassembly, so discovery must work blind (ADR-0019, roadmap item 22): `play_input` (a bounded button script from an `inputPolled` callback, the fourth thing that runs frames), `snapshot_memory`/`diff_memory` on the TypeScript side, the `find-variable` skill, and `scripts/score-mapping.mjs` to grade a blind SMB run against the imported reference. Proven 2026-10-06: a blind session found the lives counter at `$075A` in two diff rounds and the reference agreed; `scripts/trio.sh --blind variable` repeats it. Coverage for the gate is `eval/spec/smb.json` (one line per thing, with its status and the run that proved it). On 2026-10-09 Logan changed the process (ADR-0020, roadmap item 23): jeROMy is now built by an eval loop. `eval/README.md` is the operating manual, `eval/spec/attributes.md` the draft of what "mapped" means; runs are recorded under `eval/runs/`; Claude runs it unattended, commits when verified, spends the balance, judges picture claims from images; a holdout game is never tuned against. Build order: `docs/roadmap.md`;
 the overnight log: `docs/plans/overnight-2026-10-05.md`.
 
 ## Stack
@@ -153,8 +153,8 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
   or loop iteration; judge the tool trace and the images, not the final
   text.
 - **The eval loop** (ADR-0020) — `eval/README.md`: pick lines from
-  `eval/spec/<game>.json`, write `config.md`, `scripts/trio.sh --blind
-  --task`, grade (`score-mapping.mjs` for what the reference answers,
+  `eval/spec/<game>.json`, `scripts/eval-run.sh` (config, blind
+  `trio.sh --task`, grade), judge (`score-mapping.mjs` for what the reference answers,
   Claude from the saved images for pictures), `report.md` with the
   distribution, one change, verify, commit, push; holdout at milestones.
 - `adr-plan` workflow (`.claude/workflows/adr-plan.js`) — decompose an
@@ -182,9 +182,17 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
   from a wiki's text rendering (aligned columns, continuation lines,
   `addr -> target` pointer rows) into the TSV `import-reference.mjs` reads;
   prints every dropped line for checking (first used for Zelda, 2026-10-09)
-- `scripts/score-mapping.mjs <sha1> [--discoveries]` — grade the mapping's
-  `address` entries against the imported reference (agrees / disagrees /
-  unknown); the calibration number for roadmap item 22
+- `scripts/score-mapping.mjs <sha1> [--spec eval/spec/<game>.json] [--stream <run.jsonl>] [--discoveries] [--no-mapping] [--json]`
+  — grade claims (addresses, PRG origins, level ranges, routine entries)
+  against the imported reference; with `--spec` each claim is assigned to a
+  spec line and graded against that line's symbols (ADR-0020 §3).
+  Falsified by `scripts/score-mapping.test.mjs` + `eval/spec/falsify/`
+- `scripts/eval-run.sh --spec <spec> --slug <s> --lines <ids> --task "<t>" [...]`
+  — one eval run: `config.md` first, `up.sh` on the spec's ROM, each task
+  blind through `trio.sh` under a cost cap (default $1), streams, images and
+  transcripts into `eval/runs/<id>/`, then `scripts/eval-grade.mjs <run>`
+  (grades.md with proof held, distribution.md); Claude judges and writes
+  `report.md`
 - `scripts/dsh-dev.sh` — boot the `jeromy` dsh profile with the plugin
   mounted from `src/dsh/index.ts` (web UI on :3080, bridge on :9001). Runs
   `scripts/link-dsh.sh` first, which symlinks the harness checkout's

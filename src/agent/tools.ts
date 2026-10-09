@@ -591,20 +591,35 @@ export const agentTools: ToolSpec[] = [
   {
     name: "record_mapping",
     description:
-      "Record a discovery about the ROM — what a tile is, what a palette is used for, what a memory address controls. These discoveries are saved to the session and can later be promoted to a shareable mapping file.",
+      "Record a discovery about the ROM — what a tile is, what a palette is used for, what a memory address controls, a scene, a level's data, a routine, or a note (ADR-0021). These discoveries are saved to the session and can later be promoted to a shareable mapping file. For a multi-byte variable give length and format (the timer as three BCD digits: length 3, format digits); for a per-slot array give stride and count; for a tile give table so the key names the picture, not just the id.",
     input_schema: {
       type: "object",
       properties: {
         mapping_type: {
           type: "string",
-          enum: ["tile", "palette", "sprite", "address"],
-          description: "What kind of thing you're mapping",
+          enum: ["tile", "palette", "sprite", "address", "scene", "level", "routine", "note"],
+          description: "What kind of thing you're mapping: scene (a distinct visual state), level (one level's data in PRG, ranges in rom_origins), routine (code, id = entry PC), note (anything else worth keeping)",
         },
         id: {
           type: "string",
           description:
-            "Identifier: tile ID (hex, e.g. '0xB4'), palette ID, sprite name, or address (hex)",
+            "Identifier: tile ID (hex, e.g. '0xB4'), palette ID, sprite name, address (hex), scene name ('title'), level name ('1-1'), routine entry PC (hex), or a note's topic",
         },
+        table: {
+          type: "number",
+          description: "Tiles: the pattern table the tile is drawn from, 0 ($0000) or 1 ($1000). The entry is then keyed chr:0x1B4, which names one picture.",
+        },
+        length: {
+          type: "number",
+          description: "Addresses: how many bytes from id are this one thing (the score's six digits: 6). Routines: bytes from the entry, when known.",
+        },
+        stride: { type: "number", description: "Addresses: a per-slot array's spacing in bytes (with count)" },
+        count: { type: "number", description: "Addresses: how many slots the array has (with stride)" },
+        format: {
+          type: "string",
+          description: "Addresses: how the value is stored: binary, bcd, digits (one decimal digit per byte), minus-one (shown value minus one), signed, flags, or a short phrase",
+        },
+        reach: { type: "string", description: "Scenes: how to get there (a play_input script, a save state, 'Start on the title')" },
         name: {
           type: "string",
           description: "Human-readable name (e.g. 'cloud-top-left', 'player_x')",
@@ -1541,10 +1556,18 @@ export async function executeTool(
           return { type: "text", text: "Error: each rom_origins entry needs mem (prgRom|chrRom), offset and length ≥ 1" };
         }
       }
+      const num = (k: string) => (typeof input[k] === "number" && Number.isFinite(input[k]) ? { [k]: input[k] as number } : {});
+      const table = input.table === 0 || input.table === 1 ? (input.table as number) : undefined;
       const result = {
         mapping_type: input.mapping_type,
-        id: input.id,
+        id: input.mapping_type === "tile" ? tileKey(String(input.id), table) : input.id,
         name: input.name,
+        ...(table !== undefined && input.mapping_type === "tile" ? { table } : {}),
+        ...num("length"),
+        ...num("stride"),
+        ...num("count"),
+        ...(typeof input.format === "string" && input.format.trim() ? { format: input.format.trim() } : {}),
+        ...(typeof input.reach === "string" && input.reach.trim() ? { reach: input.reach.trim() } : {}),
         category: input.category ?? null,
         group: input.group ?? null,
         notes: input.notes ?? null,
@@ -1725,4 +1748,17 @@ export async function executeTool(
     default:
       return { type: "text", text: `Unknown tool: ${name}` };
   }
+}
+
+/**
+ * A tile's mapping key (ADR-0021): `chr:0x124` when the pattern table is known
+ * (or the id is already above 0xFF), else the id as given. Never key a known
+ * table's tile by its bare id: `0x24` is sky in one table and a slope in the other.
+ */
+export function tileKey(id: string, table?: number): string {
+  const n = /^(0x|\$)?[0-9a-f]+$/i.test(id.trim()) ? parseInt(id.trim().replace(/^(0x|\$)/i, ""), 16) : NaN;
+  if (!Number.isFinite(n) || n > 0x1ff) return id;
+  if (n > 0xff) return `chr:0x${n.toString(16).toUpperCase().padStart(3, "0")}`;
+  if (table === undefined) return id;
+  return `chr:0x${(table * 256 + n).toString(16).toUpperCase().padStart(3, "0")}`;
 }

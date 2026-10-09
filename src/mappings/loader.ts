@@ -17,6 +17,16 @@ import {
   type RomOrigin,
 } from "./types.js";
 
+/** Optional numeric fields of an address claim, copied only when present (ADR-0021). */
+function extentOf(entry: DiscoveredEntry): Partial<AddressMapping> {
+  return {
+    ...(entry.length ? { length: entry.length } : {}),
+    ...(entry.stride ? { stride: entry.stride } : {}),
+    ...(entry.count ? { count: entry.count } : {}),
+    ...(entry.format ? { format: entry.format } : {}),
+  };
+}
+
 /** Default directory where mapping files live. */
 const DEFAULT_MAPPINGS_DIR = resolve(
   import.meta.dirname ?? ".",
@@ -95,6 +105,7 @@ export function mergeMappings(
         if (!base.tiles[entry.id]) {
           base.tiles[entry.id] = {
             name: entry.name,
+            ...(entry.table === 0 || entry.table === 1 ? { table: entry.table } : {}),
             category: (entry.category as TileMapping["category"]) ?? "other",
             ...(entry.group ? { group: entry.group } : {}),
             ...(entry.notes ? { notes: entry.notes } : {}),
@@ -131,11 +142,40 @@ export function mergeMappings(
             address: entry.id,
             mem_type: "cpu",
             description: entry.notes ? `${entry.name}: ${entry.notes}` : entry.name,
+            ...extentOf(entry),
           };
+        } else {
+          // Extent and encoding are new knowledge about a known address, like origins.
+          base.addresses[entry.id] = { ...extentOf(entry), ...base.addresses[entry.id] };
         }
         addOrigins(base.addresses[entry.id], entry.rom_origins);
         addSource(base.addresses[entry.id], entry.source);
         break;
+      case "scene":
+        base.scenes ??= {};
+        if (!base.scenes[entry.id]) {
+          base.scenes[entry.id] = { name: entry.name, ...(entry.notes ? { notes: entry.notes } : {}), ...(entry.reach ? { reach: entry.reach } : {}) };
+        }
+        addSource(base.scenes[entry.id], entry.source);
+        break;
+      case "level":
+        base.levels ??= {};
+        if (!base.levels[entry.id]) base.levels[entry.id] = { name: entry.name, ...(entry.notes ? { notes: entry.notes } : {}) };
+        addOrigins(base.levels[entry.id], entry.rom_origins);
+        addSource(base.levels[entry.id], entry.source);
+        break;
+      case "routine":
+        base.routines ??= {};
+        if (!base.routines[entry.id]) {
+          base.routines[entry.id] = { name: entry.name, ...(entry.notes ? { notes: entry.notes } : {}), ...(entry.length ? { length: entry.length } : {}) };
+        }
+        addSource(base.routines[entry.id], entry.source);
+        break;
+      case "note": {
+        const line = `${entry.id}: ${entry.name}${entry.notes ? `: ${entry.notes}` : ""}`;
+        if (!base.notes.includes(line)) base.notes.push(line);
+        break;
+      }
     }
   }
 
@@ -152,7 +192,7 @@ export function formatOrigins(origins?: RomOrigin[]): string {
 
 /** A single discovery entry from the record_mapping tool. */
 export interface DiscoveredEntry {
-  mapping_type: "tile" | "palette" | "sprite" | "address";
+  mapping_type: "tile" | "palette" | "sprite" | "address" | "scene" | "level" | "routine" | "note";
   /** Reference credited for the lead (ADR-0017). */
   source?: string;
   id: string;
@@ -163,6 +203,15 @@ export interface DiscoveredEntry {
   confidence: number;
   /** Where the bytes live in the cartridge, when the agent found them (ADR-0009). */
   rom_origins?: RomOrigin[];
+  /** Tile pattern table (ADR-0021). */
+  table?: number;
+  /** Address extent and encoding; routine length (ADR-0021). */
+  length?: number;
+  stride?: number;
+  count?: number;
+  format?: string;
+  /** How to reach a scene. */
+  reach?: string;
 }
 
 /**
@@ -230,10 +279,36 @@ export function formatMappingForPrompt(mapping: GameMapping): string {
   if (addrEntries.length > 0) {
     lines.push("### Known Addresses");
     for (const [key, addr] of addrEntries) {
+      const extent = [
+        addr.length ? `${addr.length} bytes` : "",
+        addr.stride && addr.count ? `${addr.count} slots × ${addr.stride}` : "",
+        addr.format ? `format ${addr.format}` : "",
+      ].filter(Boolean).join(", ");
       lines.push(
-        `- ${key}: ${addr.address} (${addr.mem_type}) — ${addr.description}${addr.rom_origins?.length ? ` (ROM: ${formatOrigins(addr.rom_origins)})` : ""}`
+        `- ${key}: ${addr.address} (${addr.mem_type}${extent ? `; ${extent}` : ""}) — ${addr.description}${addr.rom_origins?.length ? ` (ROM: ${formatOrigins(addr.rom_origins)})` : ""}`
       );
     }
+    lines.push("");
+  }
+
+  const scenes = Object.entries(mapping.scenes ?? {});
+  if (scenes.length > 0) {
+    lines.push("### Known Scenes");
+    for (const [id, sc] of scenes) lines.push(`- ${id}: ${sc.name}${sc.reach ? ` (reach: ${sc.reach})` : ""}${sc.notes ? ` — ${sc.notes}` : ""}`);
+    lines.push("");
+  }
+
+  const levels = Object.entries(mapping.levels ?? {});
+  if (levels.length > 0) {
+    lines.push("### Known Levels");
+    for (const [id, lv] of levels) lines.push(`- ${id}: ${lv.name}${lv.notes ? ` — ${lv.notes}` : ""}${lv.rom_origins?.length ? ` (ROM: ${formatOrigins(lv.rom_origins)})` : ""}`);
+    lines.push("");
+  }
+
+  const routines = Object.entries(mapping.routines ?? {});
+  if (routines.length > 0) {
+    lines.push("### Known Routines");
+    for (const [pc, r] of routines) lines.push(`- ${pc}: ${r.name}${r.length ? ` (${r.length} bytes)` : ""}${r.notes ? ` — ${r.notes}` : ""}`);
     lines.push("");
   }
 

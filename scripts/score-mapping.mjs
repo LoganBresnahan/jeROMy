@@ -1,86 +1,304 @@
 #!/usr/bin/env node
-// Grade a mapping against an imported reference (ADR-0019). The reference
-// is calibration: this script says how many of the `address` entries a
-// session found agree with the symbols a human assigned, so the blind
-// method can be trusted on games that have no reference at all.
+// Grade mapping claims against an imported reference (ADR-0019, ADR-0020 §3).
+// The reference is calibration: a verdict says whether what a blind session
+// found matches what a human assigned, so the method can be trusted on games
+// that have no reference at all.
 //
-// Usage: scripts/score-mapping.mjs <sha1> [--hacks <root>] [--discoveries] [--json]
-//   Reads mappings/sha1-<sha1>.json (the committed mapping) and, with
-//   --discoveries, the game's unpromoted hacks/sha1-<sha1>/discoveries.json.
+// Usage: scripts/score-mapping.mjs <sha1> [--spec <spec.json>] [--stream <run.jsonl> ...]
+//                                  [--discoveries] [--no-mapping] [--hacks <root>] [--json]
+//   Claims come from mappings/sha1-<sha1>.json (unless --no-mapping), the
+//   game's unpromoted discoveries (--discoveries), and the record_mapping
+//   calls of dsh JSON streams (--stream, repeatable: one run's own claims,
+//   with the proof each one rests on). With --spec every claim is assigned to
+//   a spec line by its words and graded against that line's reference
+//   symbols; without it, or for a claim no line takes, the old loose name
+//   match against whatever the reference has at the address.
 //   Reference: <root>/sha1-<sha1>/reference.json (scripts/import-reference.mjs).
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const args = process.argv.slice(2);
-const sha1 = args.find((a) => !a.startsWith("--"))?.toLowerCase();
-if (!sha1) {
-  console.error("usage: scripts/score-mapping.mjs <sha1> [--hacks <root>] [--discoveries] [--json]");
-  process.exit(2);
-}
-const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
-const root = resolve(flag("--hacks") ?? "hacks");
-const gameDir = join(root, `sha1-${sha1}`);
-const refFile = join(gameDir, "reference.json");
-const mapFile = resolve("mappings", `sha1-${sha1}.json`);
-if (!existsSync(refFile)) { console.error(`no reference at ${refFile}; import one first`); process.exit(2); }
-
-const ref = JSON.parse(readFileSync(refFile, "utf8"));
-const byAddress = new Map();
-for (const s of ref.symbols ?? []) {
-  if (!byAddress.has(s.address)) byAddress.set(s.address, []);
-  byAddress.get(s.address).push(s);
-}
-
-/** Every address claim we can find: promoted entries, and discoveries when asked. */
-const claims = [];
-if (existsSync(mapFile)) {
-  const m = JSON.parse(readFileSync(mapFile, "utf8"));
-  for (const [key, e] of Object.entries(m.addresses ?? {})) {
-    const address = Number(e.address);
-    if (Number.isFinite(address)) claims.push({ where: "mapping", key, address, description: e.description ?? "", source: e.source });
+/** Lowercased words of a claim or keyword: camelCase and punctuation split, `xpos` → `x pos`, a plural s dropped. */
+export function words(text) {
+  const raw = String(text ?? "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/(\d)-(\d)/g, "$1-$2")
+    .toLowerCase()
+    .split(/[^a-z0-9-]+/)
+    .flatMap((w) => (/^\d+-\d+$/.test(w) ? [w] : w.split("-")))
+    .filter(Boolean);
+  const out = [];
+  for (const w of raw) {
+    const m = /^([xy])(pos|position|speed|spd|vel|velocity|coord|coordinate)$/.exec(w);
+    if (m) { out.push(m[1], stem(m[2])); continue; }
+    out.push(stem(w));
   }
+  return out;
 }
-if (args.includes("--discoveries")) {
-  const dFile = join(gameDir, "discoveries.json");
-  if (existsSync(dFile)) {
-    for (const d of JSON.parse(readFileSync(dFile, "utf8")).discoveries ?? []) {
-      if (d.mapping_type !== "address") continue;
-      const address = Number(d.id);
-      if (Number.isFinite(address)) claims.push({ where: "discovery", key: d.name, address, description: d.notes ?? d.name, source: d.source, confidence: d.confidence });
+function stem(w) {
+  if (w === "pos") return "position";
+  if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") && !w.endsWith("us")) return w.slice(0, -1);
+  return w;
+}
+
+/** Does a keyword (already a word) occur in the claim's words? Prefixes of 5+ letters count (`invincib` ~ `invincibility`). */
+function has(claimWords, kw) {
+  const k = stem(kw.toLowerCase());
+  return claimWords.some((w) => w === k || (k.length >= 5 && w.startsWith(k)));
+}
+
+/** Which kinds of claim a line of a given type can grade. */
+const LINE_TAKES = { address: ["address"], origin: ["origin"], level: ["level", "origin"], routine: ["routine"], picture: ["tile", "palette", "sprite", "scene", "note"] };
+
+/** The spec line a claim belongs to, by vocabulary: the longest matching word group wins; null when no line takes it. */
+export function lineFor(claim, lines) {
+  const tryText = (text) => {
+    const cw = words(text);
+    let best = null;
+    for (const line of lines) {
+      if (!(LINE_TAKES[line.type] ?? []).includes(claim.kind)) continue;
+      if ((line.exclude ?? []).some((x) => has(cw, x))) continue;
+      for (const group of line.match ?? []) {
+        if (group.every((kw) => words(kw).every((k) => has(cw, k)))) {
+          const score = group.length;
+          if (!best || score > best.score) best = { line, score };
+        }
+      }
     }
-  }
+    return best?.line ?? null;
+  };
+  const ctx = claim.context ? ` ${claim.context}` : "";
+  return tryText(`${claim.name}${ctx}`) ?? tryText(`${claim.name}${ctx} ${claim.notes ?? ""}`);
 }
 
-/** Words in a claim that also appear in the reference symbol name, loosely (NumberofLives ~ "lives"). */
-function agrees(symbols, claim) {
-  const text = `${claim.key} ${claim.description}`.toLowerCase().replace(/[^a-z0-9]+/g, " ");
-  const words = new Set(text.split(" ").filter((w) => w.length >= 3));
-  for (const s of symbols) {
-    const parts = s.name.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/[_-]/g, " ").toLowerCase().split(" ").filter((w) => w.length >= 3);
-    if (parts.some((p) => words.has(p) || [...words].some((w) => w.includes(p) || p.includes(w)))) return s;
+/** A reference symbol's extent in bytes: the line's span, the symbol's size, or for a PRG label the gap to the next label (capped). */
+export function spanOf(sym, symbols, line) {
+  if (line?.span) return line.span;
+  if (sym.size) return sym.size;
+  if (sym.kind === "label") {
+    let next = Infinity;
+    for (const s of symbols) if (s.kind === "label" && s.address > sym.address && s.address < next) next = s.address;
+    return Number.isFinite(next) ? Math.min(next - sym.address, 0x800) : 1;
+  }
+  return 1;
+}
+
+/** CPU address of a PRG ROM offset for a fixed-bank game; banked games need the symbol's own rom_offset (not imported yet). */
+function prgToCpu(offset, spec) {
+  if ((spec?.mapper ?? "NROM") !== "NROM") return null;
+  return (spec?.prg_base ?? 0x8000) + offset;
+}
+
+/** [start, end) of what a claim points at, in CPU space, or null when it cannot be placed. */
+function claimRange(claim, spec) {
+  if (claim.kind === "address" || claim.kind === "routine") return [claim.address, claim.address + Math.max(1, claim.length ?? 1)];
+  if (claim.kind === "origin" || claim.kind === "level") {
+    if (claim.mem !== "prgRom") return null;
+    const cpu = prgToCpu(claim.offset, spec);
+    return cpu === null ? null : [cpu, cpu + Math.max(1, claim.length ?? 1)];
   }
   return null;
 }
 
-const rows = claims.map((c) => {
-  const symbols = byAddress.get(c.address) ?? [];
-  const hex = `$${c.address.toString(16).toUpperCase().padStart(4, "0")}`;
-  if (symbols.length === 0) return { ...c, hex, verdict: "unknown-to-reference", symbol: null };
-  const hit = agrees(symbols, c);
-  return { ...c, hex, verdict: hit ? "agrees" : "disagrees", symbol: (hit ?? symbols[0]).name, candidates: symbols.map((s) => s.name) };
-});
+const hex = (n) => `$${n.toString(16).toUpperCase().padStart(4, "0")}`;
 
-const tally = { agrees: 0, disagrees: 0, "unknown-to-reference": 0 };
-for (const r of rows) tally[r.verdict]++;
-
-if (args.includes("--json")) {
-  console.log(JSON.stringify({ sha1, reference: ref.source, claims: rows.length, tally, rows }, null, 2));
-} else {
-  console.log(`[score-mapping] ${rows.length} address claim(s) for sha1-${sha1} against "${ref.source}" (${ref.symbols?.length ?? 0} symbols)`);
-  for (const r of rows) {
-    const tag = r.verdict === "agrees" ? "OK " : r.verdict === "disagrees" ? "?? " : "-- ";
-    console.log(`${tag}${r.hex}  ${r.key} (${r.where}${r.source ? `, ${r.source}` : ""})${r.symbol ? `  reference: ${r.candidates.join(" | ")}` : "  reference: none"}`);
+/** Loose name agreement for claims no spec line takes (the pre-spec scorer, kept for out-of-spec claims). */
+function looseAgrees(symbols, claim) {
+  const cw = new Set(words(`${claim.name} ${claim.context ?? ""} ${claim.notes ?? ""}`).filter((w) => w.length >= 3));
+  for (const s of symbols) {
+    const parts = words(s.name).filter((w) => w.length >= 3);
+    if (parts.some((p) => cw.has(p) || [...cw].some((w) => w.includes(p) || p.includes(w)))) return s;
   }
-  console.log(`[score-mapping] agrees ${tally.agrees}, disagrees ${tally.disagrees}, unknown to reference ${tally["unknown-to-reference"]}`);
-  if (rows.length === 0) console.log("[score-mapping] nothing to score yet: record_mapping an address and promote_mappings, or pass --discoveries");
+  return null;
 }
+
+/**
+ * Grade one claim. Verdicts are ADR-0020's vocabulary: agrees, disagrees,
+ * unknown-to-reference, needs-judge (a picture claim for Claude), unplaced
+ * (an origin the scorer cannot put in CPU space).
+ */
+export function gradeClaim(claim, reference, spec) {
+  const symbols = reference.symbols ?? [];
+  const line = spec ? lineFor(claim, spec.lines ?? []) : null;
+  const base = { ...claim, line: line?.id ?? null };
+  if (["tile", "palette", "sprite", "scene", "note"].includes(claim.kind)) return { ...base, verdict: "needs-judge", grader: "claude" };
+  const range = claimRange(claim, spec);
+  if (!range) return { ...base, verdict: "unplaced", grader: "reference", why: "a PRG origin in a banked game needs symbol ROM offsets" };
+  const [lo, hi] = range;
+  const at = symbols.filter((s) => s.address <= lo && lo < s.address + spanOf(s, symbols, null) && (s.kind === "label") === (lo >= 0x8000));
+  const exactAt = symbols.filter((s) => s.address === lo);
+  const loc = hex(lo) + (hi - lo > 1 ? `-${hex(hi - 1)}` : "");
+  if (line) {
+    const refs = symbols.filter((s) => (line.ref ?? []).includes(s.name));
+    if (refs.length === 0) return { ...base, loc, verdict: "unknown-to-reference", grader: "reference", why: `spec names ${line.ref?.join(", ")} but the reference has none of them` };
+    const hit = refs.find((s) => {
+      const span = spanOf(s, symbols, line);
+      if (claim.kind === "routine") return lo === s.address || (hi - lo > 1 && lo <= s.address && s.address < hi);
+      return lo >= s.address && hi <= s.address + span;
+    });
+    const expected = refs.map((s) => `${s.name} ${hex(s.address)}${spanOf(s, symbols, line) > 1 ? `+${spanOf(s, symbols, line)}` : ""}`).join(" | ");
+    const found = (exactAt.length ? exactAt : at).map((s) => s.name).slice(0, 4).join(" | ") || "none";
+    return { ...base, loc, verdict: hit ? "agrees" : "disagrees", grader: "reference", symbol: hit?.name ?? null, expected, reference_at_claim: found };
+  }
+  const cands = exactAt.length ? exactAt : at;
+  if (cands.length === 0) return { ...base, loc, verdict: "unknown-to-reference", grader: "reference", symbol: null };
+  const ok = looseAgrees(cands, claim);
+  return { ...base, loc, verdict: ok ? "agrees" : "disagrees", grader: "reference", symbol: (ok ?? cands[0]).name, reference_at_claim: cands.map((s) => s.name).slice(0, 4).join(" | ") };
+}
+
+/** Claims of one record_mapping input (the tool's own fields), one per origin as well. */
+export function claimsFromRecord(rec, where, extra = {}) {
+  const out = [];
+  const kind = rec.mapping_type;
+  const name = String(rec.name ?? "");
+  const notes = rec.notes ?? "";
+  const common = { where, name, notes, source: rec.source, confidence: rec.confidence ?? 1, id: String(rec.id ?? ""), ...extra };
+  if (kind === "address" || kind === "routine") {
+    const address = parseAddr(rec.id);
+    if (Number.isFinite(address)) out.push({ ...common, kind, address, length: rec.length ?? (rec.stride && rec.count ? rec.stride * rec.count : undefined) });
+  } else if (["tile", "palette", "sprite", "scene", "note"].includes(kind)) {
+    out.push({ ...common, kind });
+  }
+  for (const o of rec.rom_origins ?? []) {
+    // The parent entry's type is vocabulary too: an origin recorded on a palette entry is a palette table.
+    out.push({ ...common, kind: kind === "level" ? "level" : "origin", context: kind, mem: o.mem, offset: o.offset, length: o.length, name: kind === "level" ? `${rec.id} ${name}` : name });
+  }
+  return out;
+}
+function parseAddr(v) {
+  if (typeof v === "number") return v;
+  const s = String(v ?? "").trim();
+  if (/^(0x|\$)[0-9a-f]+$/i.test(s)) return parseInt(s.replace(/^(0x|\$)/i, ""), 16);
+  if (/^[0-9]+$/.test(s)) return Number(s);
+  if (/^[0-9a-f]+$/i.test(s)) return parseInt(s, 16);
+  return NaN;
+}
+
+/**
+ * The record_mapping calls of a dsh `--json` stream, each with the proof it
+ * rests on (ADR-0020: a claim without its proof step is unproven): for RAM,
+ * a write_memory covering the address followed by a screenshot, or a
+ * play_input watch / trace_writes on it; for ROM, a ledgered write covering
+ * the bytes, a reset_emulator and a screenshot after it; for a routine, a
+ * disassemble or trace that reached it. Also says whether promote_mappings
+ * wrote anything after the record.
+ */
+export function claimsFromStream(text, label = "stream") {
+  const calls = [];
+  const byId = new Map();
+  for (const lineText of text.split("\n")) {
+    const l = lineText.trim();
+    if (!l.startsWith("{")) continue;
+    let e; try { e = JSON.parse(l); } catch { continue; }
+    if (e.type === "tool_call") { const c = { tool: e.tool, input: e.input ?? e.args ?? {}, result: null, ok: true }; calls.push(c); byId.set(e.callId, c); }
+    if (e.type === "tool_result" && byId.has(e.callId)) {
+      const c = byId.get(e.callId);
+      const txt = typeof e.result === "string" ? e.result : JSON.stringify(e.result);
+      c.result = txt; c.ok = (e.status ?? "completed") === "completed" && !String(txt).startsWith("Error");
+    }
+  }
+  const promotedAt = calls.findIndex((c) => c.tool === "promote_mappings" && c.ok && /"promoted":\s*[1-9]|Promoted [1-9]/.test(c.result ?? ""));
+  const out = [];
+  calls.forEach((c, i) => {
+    if (c.tool !== "record_mapping" || !c.ok) return;
+    for (const claim of claimsFromRecord(c.input, label)) {
+      out.push({ ...claim, proof: proofFor(claim, calls.slice(0, i)), promoted: promotedAt > i });
+    }
+  });
+  return { claims: out, calls: calls.length, tools: calls.map((c) => c.tool) };
+}
+
+function covers(input, lo, hi) {
+  const a = Number(input.address); const n = Array.isArray(input.bytes) ? input.bytes.length : 1;
+  return Number.isFinite(a) && a < hi && lo < a + n;
+}
+const RAM = (m) => !m || ["cpu", "cpuDebug", "nesInternalRam", "workRam", "saveRam", "nesWorkRam", "nesSaveRam"].includes(m);
+const LOOK = new Set(["screenshot", "get_tile_at_pixel", "get_region", "read_nametable", "list_sprites", "get_pixel_color"]);
+
+export function proofFor(claim, before) {
+  const last = (pred) => { for (let i = before.length - 1; i >= 0; i--) if (pred(before[i])) return i; return -1; };
+  const lookAfter = (i) => before.slice(i + 1).some((c) => LOOK.has(c.tool) && c.ok);
+  if (claim.kind === "address") {
+    const lo = claim.address, hi = lo + Math.max(1, claim.length ?? 1);
+    const w = last((c) => c.tool === "write_memory" && c.ok && RAM(c.input.mem_type) && covers(c.input, lo, hi));
+    if (w >= 0 && lookAfter(w)) return "write+look";
+    if (before.some((c) => c.tool === "play_input" && c.ok && (c.input.watch ?? []).some((a) => a >= lo && a < hi))) return "watch";
+    if (before.some((c) => c.tool === "trace_writes" && c.ok && Number(c.input.address) >= lo && Number(c.input.address) < hi)) return "trace";
+    return w >= 0 ? "write-no-look" : null;
+  }
+  if (claim.kind === "origin" || claim.kind === "level") {
+    const lo = claim.offset, hi = lo + Math.max(1, claim.length ?? 1);
+    const w = last((c) => c.tool === "write_memory" && c.ok && c.input.mem_type === claim.mem && covers(c.input, lo, hi));
+    if (w < 0) return null;
+    const r = before.findIndex((c, i) => i > w && c.tool === "reset_emulator" && c.ok);
+    return r >= 0 && lookAfter(r) ? "write+reset+look" : "write-no-reset";
+  }
+  if (claim.kind === "routine") {
+    if (before.some((c) => c.tool === "disassemble" && c.ok && Number(c.input.address) <= claim.address && claim.address < Number(c.input.address) + 0x200)) return "disassemble";
+    if (before.some((c) => c.tool === "trace_writes" && c.ok && String(c.result ?? "").includes(claim.address.toString(16).toUpperCase()))) return "trace";
+    return null;
+  }
+  return before.some((c) => LOOK.has(c.tool) && c.ok) ? "look" : null;
+}
+
+/** Claims from a mapping file (already promoted; the proof is not in the file). */
+export function claimsFromMapping(m) {
+  const out = [];
+  for (const [key, e] of Object.entries(m.addresses ?? {})) {
+    const [name, ...rest] = String(e.description ?? key).split(": ");
+    out.push(...claimsFromRecord({ mapping_type: "address", id: e.address ?? key, name, notes: rest.join(": "), source: e.source, rom_origins: e.rom_origins, length: e.length, stride: e.stride, count: e.count }, "mapping"));
+  }
+  for (const [key, e] of Object.entries(m.routines ?? {})) out.push(...claimsFromRecord({ mapping_type: "routine", id: key, name: e.name, notes: e.notes, length: e.length }, "mapping"));
+  for (const [key, e] of Object.entries(m.levels ?? {})) out.push(...claimsFromRecord({ mapping_type: "level", id: key, name: e.name ?? key, notes: e.notes, rom_origins: e.rom_origins }, "mapping"));
+  for (const [key, e] of Object.entries(m.palettes ?? {})) for (const o of e.rom_origins ?? []) out.push({ where: "mapping", kind: "origin", context: "palette", id: key, name: e.name, notes: e.notes ?? "", mem: o.mem, offset: o.offset, length: o.length });
+  for (const [key, e] of Object.entries(m.tiles ?? {})) for (const o of e.rom_origins ?? []) out.push({ where: "mapping", kind: "origin", context: "tile", id: key, name: e.name, notes: e.notes ?? "", mem: o.mem, offset: o.offset, length: o.length });
+  return out;
+}
+
+export function tally(rows) {
+  const t = {};
+  for (const r of rows) t[r.verdict] = (t[r.verdict] ?? 0) + 1;
+  return t;
+}
+
+function main(argv) {
+  const args = argv.slice(2);
+  const sha1 = args.find((a, i) => !a.startsWith("--") && !(i > 0 && ["--spec", "--stream", "--hacks"].includes(args[i - 1])))?.toLowerCase();
+  if (!sha1) {
+    console.error("usage: scripts/score-mapping.mjs <sha1> [--spec <spec.json>] [--stream <run.jsonl> ...] [--discoveries] [--no-mapping] [--hacks <root>] [--json]");
+    process.exit(2);
+  }
+  const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
+  const all = (name) => args.flatMap((a, i) => (a === name && args[i + 1] ? [args[i + 1]] : []));
+  const root = resolve(flag("--hacks") ?? "hacks");
+  const gameDir = join(root, `sha1-${sha1}`);
+  const refFile = join(gameDir, "reference.json");
+  if (!existsSync(refFile)) { console.error(`no reference at ${refFile}; import one first`); process.exit(2); }
+  const reference = JSON.parse(readFileSync(refFile, "utf8"));
+  const spec = flag("--spec") ? JSON.parse(readFileSync(resolve(flag("--spec")), "utf8")) : null;
+
+  const claims = [];
+  const mapFile = resolve("mappings", `sha1-${sha1}.json`);
+  if (!args.includes("--no-mapping") && existsSync(mapFile)) claims.push(...claimsFromMapping(JSON.parse(readFileSync(mapFile, "utf8"))));
+  if (args.includes("--discoveries")) {
+    const dFile = join(gameDir, "discoveries.json");
+    if (existsSync(dFile)) for (const d of JSON.parse(readFileSync(dFile, "utf8")).discoveries ?? []) claims.push(...claimsFromRecord(d, "discovery"));
+  }
+  for (const s of all("--stream")) claims.push(...claimsFromStream(readFileSync(resolve(s), "utf8"), s.split("/").pop()).claims);
+
+  const rows = claims.map((c) => gradeClaim(c, reference, spec));
+  const t = tally(rows);
+  if (args.includes("--json")) {
+    console.log(JSON.stringify({ sha1, reference: reference.source, spec: spec ? `${spec.game} v${spec.spec_version}` : null, claims: rows.length, tally: t, rows }, null, 2));
+    return;
+  }
+  console.log(`[score-mapping] ${rows.length} claim(s) for sha1-${sha1} against "${reference.source}" (${reference.symbols?.length ?? 0} symbols)${spec ? ` · spec ${spec.game} v${spec.spec_version}` : ""}`);
+  for (const r of rows) {
+    const tag = { agrees: "OK ", disagrees: "?? ", "needs-judge": "JJ " }[r.verdict] ?? "-- ";
+    const proof = r.proof !== undefined ? ` proof:${r.proof ?? "none"}` : "";
+    console.log(`${tag}${(r.loc ?? r.kind).padEnd(11)}  ${(r.line ?? "(no line)").padEnd(18)}  "${r.name}" (${r.kind}, ${r.where}${r.source ? `, ${r.source}` : ""})${proof}  ${r.verdict}${r.expected ? `  expected ${r.expected}` : ""}${r.reference_at_claim ? `  reference here: ${r.reference_at_claim}` : ""}`);
+  }
+  console.log(`[score-mapping] ${Object.entries(t).map(([k, v]) => `${k} ${v}`).join(", ") || "nothing to score yet"}`);
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main(process.argv);

@@ -34,15 +34,26 @@ eval/
 3. **Bring the loop up.** `scripts/up.sh`; confirm `connected:true` and no
    "unavailable" warning in `.dsh-dev/dsh.log`. Clear shared state: no
    overrides, no pause, no click history.
-4. **Run.** `scripts/trio.sh --blind --task "<task text>" <min-calls>`.
+4. **Run.** `scripts/eval-run.sh --spec eval/spec/<game>.json --slug <slug>
+   --lines <ids> --task "<task text>" [--task ...] --min-calls N` does steps
+   2 to 5's mechanics: `config.md` and `run.json` first, `up.sh --down &&
+   up.sh <rom>` when the loaded game differs (docs/issues.md), clicks and
+   pause cleared, each task through `scripts/trio.sh --blind --task` with the
+   balance polled against the cost cap, the stream, the replay transcript
+   and the screenshots kept, `sessions.md`, then `scripts/eval-grade.mjs`.
    The task names the sheet, the scene and the proof required ("find X, prove
    it by writing it and looking, record it with record_mapping, then
    promote_mappings"), never an address, a label or a table name. One run
    may be several `--task` calls; each goes in `sessions.md`.
 5. **Grade.**
-   - `scripts/score-mapping.mjs <sha1> --discoveries --json` for every claim
-     the reference can answer. Copy its rows into `grades.md` with
-     `grader: reference`.
+   - `scripts/eval-grade.mjs eval/runs/<run>` (run by `eval-run.sh`) reads
+     the `record_mapping` calls from the run's streams, assigns each to a
+     spec line by its words, grades it with `scripts/score-mapping.mjs`
+     against that line's reference symbols, and holds it to its proof step;
+     it writes `grades.md` (rows `grader: reference`, picture rows
+     `pending`), `grades.json` and `distribution.md`. The run's own claims,
+     never the merged mapping file: promotion clears discoveries and a file
+     entry is never overwritten.
    - For picture claims: `scripts/dsh-log.mjs show <id> --images
      eval/runs/<run>/images`, Read each image the claim rests on, decide,
      and write the row with `grader: claude` and the image filename. Say in
@@ -102,7 +113,7 @@ Falsification (ADR-0020 §7): a fixture mapping with known-wrong claims (an
 address one off, an origin in the neighbouring table, a level range that
 spans two levels, a tile named for a different picture) must come back wrong
 from `score-mapping.mjs`; the judge rows for the tile must come back
-`rejected` from a Claude read. Kept as `scripts/score-mapping.test.ts` plus
+`rejected` from a Claude read. Kept as `scripts/score-mapping.test.mjs` plus
 `eval/spec/falsify/` with its own README naming who checked each fixture.
 
 ## Stop conditions

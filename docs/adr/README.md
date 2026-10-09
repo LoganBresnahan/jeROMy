@@ -36,3 +36,4 @@ Template: `_template.md`.
 | [0018](0018-named-hacks-in-the-persons-own-repo.md) | A game holds many named hacks, the hacks root is the person's own repository, and one hack is active in the emulator | Accepted | 2026-10-05 |
 | [0019](0019-the-agent-plays-and-maps-blind.md) | The agent plays through a bounded controller tool, finds variables by differential search; a reference is calibration, never a prerequisite | Accepted | 2026-10-05 |
 | [0020](0020-built-by-an-eval-loop.md) | jeROMy is built by an eval loop: a spec of "mapped", blind DeepSeek runs graded against the reference and judged from replays, a holdout game, Claude unattended | Accepted | 2026-10-09 |
+| [0021](0021-mapping-schema-3-scenes-levels-routines.md) | Mapping schema 3: scenes, levels, routines and notes are entries; tiles keyed in pattern space; addresses carry format and extent | Accepted | 2026-10-09 |

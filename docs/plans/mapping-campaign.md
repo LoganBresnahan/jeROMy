@@ -6,8 +6,9 @@ of mapping SMB is to end up with the skills that let anyone map any game
 Mesen loads. This plan is the shape of that work. Each sheet below is a
 kind of knowledge, the skill that discovers it from the emulator alone, the
 tools the skill needs (existing or missing), and how SMB's run of it is
-accelerated by the reference import (ADR-0017). Coverage for SMB is ticked
-in `smb-map-coverage.md` as sessions prove items.
+accelerated by the reference import (ADR-0017). Coverage for SMB is the
+status of each line in `eval/spec/smb.json` (ADR-0020), set from the run
+that proved it.
 
 Rules that hold for every sheet:
 

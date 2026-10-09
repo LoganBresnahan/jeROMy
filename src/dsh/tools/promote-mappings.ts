@@ -35,6 +35,13 @@ export function discoveryFromRecordResult(text: string): DiscoveredEntry | null 
     ...(parsed.source ? { source: String(parsed.source) } : {}),
     confidence,
     ...(Array.isArray(parsed.rom_origins) && parsed.rom_origins.length ? { rom_origins: parsed.rom_origins as DiscoveredEntry["rom_origins"] } : {}),
+    // ADR-0021: extent, encoding, table and reach travel with the entry; dropping one here loses it from the file.
+    ...(typeof parsed.table === "number" ? { table: parsed.table } : {}),
+    ...(typeof parsed.length === "number" ? { length: parsed.length } : {}),
+    ...(typeof parsed.stride === "number" ? { stride: parsed.stride } : {}),
+    ...(typeof parsed.count === "number" ? { count: parsed.count } : {}),
+    ...(typeof parsed.format === "string" ? { format: parsed.format } : {}),
+    ...(typeof parsed.reach === "string" ? { reach: parsed.reach } : {}),
   };
 }
 

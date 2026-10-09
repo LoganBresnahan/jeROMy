@@ -204,6 +204,13 @@ if os.environ.get("BLIND") == "1":
         if e.get("type") == "tool_call" and e.get("tool") in ("lookup_symbol", "write_memory"): order.append(e["tool"])
     if "lookup_symbol" in order and ("write_memory" not in order or order.index("lookup_symbol") < order.index("write_memory")):
         ok = False; final = "BLIND CHECK: lookup_symbol was called before the first write_memory · " + final
+    # ADR-0020: the answer key is the imported reference, the eval spec and the mapping file; a call that names one voids the run.
+    for line in open(sys.argv[1]):
+        line = line.strip()
+        if not line.startswith("{"): continue
+        e = json.loads(line)
+        if e.get("type") == "tool_call" and any(k in json.dumps(e.get("input") or e.get("args") or {}) for k in ("reference.json", "eval/spec", "eval/runs", "mappings/sha1-", "discoveries.json")):
+            ok = False; final = f"BLIND CHECK: {e.get('tool')} touched the answer key · " + final; break
 if sys.argv[3:] == ["persist"]:
     names = {}; res = []
     for line in open(sys.argv[1]):

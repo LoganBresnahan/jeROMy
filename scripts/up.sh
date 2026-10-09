@@ -17,6 +17,9 @@ is_ours() { [ -n "${1:-}" ] && tr '\0' ' ' < "/proc/$1/cmdline" 2>/dev/null | gr
 
 if [ "${1:-}" = "--down" ]; then
   for port in "$PORT" 9001 9002; do pid="$(owner_of "$port")"; if is_ours "$pid"; then kill "$pid" && echo "[up] stopped dsh (pid $pid)"; fi; done
+  # Wait for the ports to free: an `up.sh` right after a `--down` that saw the dying dsh still on :9001 took it for
+  # a running one and waited on a bridge that never came (2026-10-09, the eval loop's game switch).
+  for _ in $(seq 1 20); do [ -z "$(owner_of 9001)$(owner_of 9002)$(owner_of "$PORT")" ] && break; sleep 0.5; done
   exit 0
 fi
 
@@ -41,10 +44,10 @@ fi
 # 3. wait for the bridge, then confirm through the view
 echo -n "[up] waiting for the Lua bridge"
 for _ in $(seq 1 30); do
-  if curl -sf http://127.0.0.1:9002/status 2>/dev/null | grep -q '"connected":true'; then echo " connected"; break; fi
+  if curl -sf --max-time 3 http://127.0.0.1:9002/status 2>/dev/null | grep -q '"connected":true'; then echo " connected"; break; fi
   echo -n "."; sleep 1
 done
-STATUS="$(curl -sf http://127.0.0.1:9002/status 2>/dev/null || echo '{"connected":false}')"
+STATUS="$(curl -sf --max-time 3 http://127.0.0.1:9002/status 2>/dev/null || echo '{"connected":false}')"
 echo "[up] view status: $STATUS"
 echo "$STATUS" | grep -q '"connected":true' || { echo "[up] bridge not connected: is bridge.lua running in Mesen's Script Window? (Tools > Script Window > Run)" >&2; exit 1; }
 

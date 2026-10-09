@@ -45,4 +45,13 @@ describe.skipIf(!linked)("promote_mappings", async () => {
     const d = discoveryFromRecordResult(JSON.stringify({ recorded: true, mapping_type: "address", id: "0x075A", name: "player_lives_counter", notes: "stores lives minus one", source: "differential search", confidence: 1 }));
     expect(d).toMatchObject({ id: "0x075A", notes: "stores lives minus one", source: "differential search", confidence: 1 });
   });
+
+  it("discoveryFromRecordResult keeps extent, format, table and reach (ADR-0021)", () => {
+    const d = discoveryFromRecordResult(JSON.stringify({ recorded: true, mapping_type: "address", id: "0x07F8", name: "timer", length: 3, format: "digits", confidence: 1 }));
+    expect(d).toMatchObject({ length: 3, format: "digits" });
+    const t = discoveryFromRecordResult(JSON.stringify({ recorded: true, mapping_type: "tile", id: "chr:0x124", name: "sky", table: 1, confidence: 1 }));
+    expect(t).toMatchObject({ id: "chr:0x124", table: 1 });
+    const s = discoveryFromRecordResult(JSON.stringify({ recorded: true, mapping_type: "scene", id: "title", name: "title screen", reach: "reset", confidence: 1 }));
+    expect(s).toMatchObject({ mapping_type: "scene", reach: "reset" });
+  });
 });

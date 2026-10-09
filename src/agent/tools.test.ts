@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HackStore } from "../hacks/store.js";
 import { applyBps, applyIps } from "../hacks/patch.js";
-import { agentTools, executeTool } from "./tools.js";
+import { agentTools, executeTool, tileKey } from "./tools.js";
 
 describe("agentTools", () => {
   it("defines the expected set of tools", () => {
@@ -690,6 +690,24 @@ describe("executeTool", () => {
     expect(JSON.parse((ok as { text: string }).text).rom_origins).toEqual([{ mem: "prgRom", offset: 0xccc, length: 1 }]);
     const bad = await executeTool("record_mapping", { mapping_type: "palette", id: "0", name: "p", rom_origins: [{ mem: "cpu", offset: 1, length: 1 }] }, adapter);
     expect((bad as { text: string }).text).toMatch(/^Error/);
+  });
+
+  it("record_mapping keys a tile in pattern space and echoes extent and format (ADR-0021)", async () => {
+    const adapter = mockAdapter();
+    const run = async (input: Record<string, unknown>) => JSON.parse(((await executeTool("record_mapping", input, adapter)) as { text: string }).text);
+    expect(await run({ mapping_type: "tile", id: "0x24", name: "sky", table: 1 })).toMatchObject({ id: "chr:0x124", table: 1 });
+    expect((await run({ mapping_type: "tile", id: "0x24", name: "slope" })).id).toBe("0x24");
+    expect(await run({ mapping_type: "address", id: "0x07F8", name: "timer", length: 3, format: "digits" })).toMatchObject({ id: "0x07F8", length: 3, format: "digits" });
+    expect(await run({ mapping_type: "address", id: "0x16", name: "enemy type", stride: 1, count: 6 })).toMatchObject({ stride: 1, count: 6 });
+    expect(await run({ mapping_type: "scene", id: "title", name: "title screen", reach: "reset" })).toMatchObject({ mapping_type: "scene", reach: "reset", recorded: true });
+  });
+
+  it("tileKey names one picture only when the table is known (ADR-0021)", () => {
+    expect(tileKey("0x24", 0)).toBe("chr:0x024");
+    expect(tileKey("0x24", 1)).toBe("chr:0x124");
+    expect(tileKey("0x124")).toBe("chr:0x124");
+    expect(tileKey("0x24")).toBe("0x24");
+    expect(tileKey("0x35-0x3C", 1)).toBe("0x35-0x3C");
   });
 
   it("record_mapping returns hypothesis for low confidence", async () => {

@@ -195,9 +195,9 @@ describe("formatMappingForPrompt", () => {
 describe("mapping schema v2: rom_origins (ADR-0009)", () => {
   const origin = { mem: "prgRom" as const, offset: 0xccc, length: 1, notes: "level palette table, slot 1" };
 
-  it("stamps schema 2 on a new mapping and carries rom_origins onto new entries", () => {
+  it("stamps the current schema on a new mapping and carries rom_origins onto new entries", () => {
     const m = mergeMappings(null, [{ mapping_type: "palette", id: "0", name: "pipe_bush_hill_green", confidence: 1, rom_origins: [origin] }], "abc", "SMB");
-    expect(m.schema).toBe(2);
+    expect(m.schema).toBe(3);
     expect(m.palettes["0"].rom_origins).toEqual([origin]);
   });
 
@@ -207,7 +207,7 @@ describe("mapping schema v2: rom_origins (ADR-0009)", () => {
     const once = mergeMappings(existing, [{ mapping_type: "palette", id: "0", name: "renamed", confidence: 1, rom_origins: [origin] }], "abc", "SMB");
     expect(once.palettes["0"].name).toBe("sky_ground");
     expect(once.palettes["0"].rom_origins).toEqual([origin]);
-    expect(once.schema).toBe(2);
+    expect(once.schema).toBe(3);
     const twice = mergeMappings(once, [{ mapping_type: "palette", id: "0", name: "x", confidence: 1, rom_origins: [origin, { mem: "chrRom", offset: 16, length: 16 }] }], "abc", "SMB");
     expect(twice.palettes["0"].rom_origins).toHaveLength(2);
   });
@@ -227,5 +227,44 @@ describe("mapping schema v2: rom_origins (ADR-0009)", () => {
       { mapping_type: "address", id: "0x075A", name: "player_lives_counter", notes: "stores lives minus one", source: "differential search", confidence: 1 },
     ], { sha1: "abc", name: "SMB" } as any);
     expect(result.addresses["0x075A"]).toMatchObject({ address: "0x075A", mem_type: "cpu", description: "player_lives_counter: stores lives minus one", source: "differential search" });
+  });
+});
+
+describe("mapping schema v3: scenes, levels, routines, notes, address extent (ADR-0021)", () => {
+  it("merges each new entry type into its own record and a note into notes", () => {
+    const m = mergeMappings(null, [
+      { mapping_type: "scene", id: "title", name: "title screen", reach: "reset, wait 30 frames", confidence: 1 },
+      { mapping_type: "level", id: "1-1", name: "World 1-1 area data", confidence: 1, rom_origins: [{ mem: "prgRom", offset: 0x268e, length: 16 }] },
+      { mapping_type: "routine", id: "0x8082", name: "NMI handler", length: 120, confidence: 1 },
+      { mapping_type: "note", id: "scroll", name: "status bar split", notes: "sprite 0 hit at scanline 31", confidence: 1 },
+    ], "abc", "SMB");
+    expect(m.scenes?.title).toEqual({ name: "title screen", reach: "reset, wait 30 frames" });
+    expect(m.levels?.["1-1"].rom_origins).toEqual([{ mem: "prgRom", offset: 0x268e, length: 16 }]);
+    expect(m.routines?.["0x8082"]).toEqual({ name: "NMI handler", length: 120 });
+    expect(m.notes).toEqual(["scroll: status bar split: sprite 0 hit at scanline 31"]);
+  });
+
+  it("keeps an address's extent and format, and fills them on an existing entry without renaming it", () => {
+    const first = mergeMappings(null, [{ mapping_type: "address", id: "0x07F8", name: "timer", confidence: 1 }], "abc", "SMB");
+    expect(first.addresses["0x07F8"].length).toBeUndefined();
+    const again = mergeMappings(first, [{ mapping_type: "address", id: "0x07F8", name: "renamed", length: 3, format: "digits", confidence: 1 }], "abc", "SMB");
+    expect(again.addresses["0x07F8"]).toMatchObject({ description: "timer", length: 3, format: "digits" });
+  });
+
+  it("loads a schema 2 file unchanged and prints the new records in the prompt", () => {
+    const old = mergeMappings(null, [{ mapping_type: "address", id: "0x075A", name: "lives", confidence: 1 }], "abc", "SMB");
+    old.schema = 2;
+    const m = mergeMappings(old, [
+      { mapping_type: "address", id: "0x07DD", name: "score", length: 6, format: "digits", confidence: 1 },
+      { mapping_type: "routine", id: "0x8082", name: "NMI handler", confidence: 1 },
+      { mapping_type: "level", id: "1-1", name: "area data", confidence: 1 },
+      { mapping_type: "scene", id: "title", name: "title screen", confidence: 1 },
+    ], "abc", "SMB");
+    expect(m.addresses["0x075A"].description).toBe("lives");
+    const text = formatMappingForPrompt(m);
+    expect(text).toContain("0x07DD (cpu; 6 bytes, format digits) — score");
+    expect(text).toContain("### Known Routines\n- 0x8082: NMI handler");
+    expect(text).toContain("### Known Levels\n- 1-1: area data");
+    expect(text).toContain("### Known Scenes\n- title: title screen");
   });
 });
