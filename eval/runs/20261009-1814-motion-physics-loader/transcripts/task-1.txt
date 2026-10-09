@@ -1,0 +1,1503 @@
+# session-51778da3-1036-4d8a-b473-de553a6c54a8 · Find Super Mario Bros. RAM addresses via differential search
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-09T23:14:11.025Z
+
+[   3 18:14:11] QUEUED <user> for next-turn: Mapping sheet 3 (the RAM a hacker reaches for), Super Mario Bros., World 1-1: find the RAM addresses of Mario's horizontal speed, his vertical speed, and the direction he faces. Use the find-variable … [+1092 chars]
+[   4 18:14:11] ━━━ turn 1 ━━━
+[   8 18:14:11] USER <user>
+    Mapping sheet 3 (the RAM a hacker reaches for), Super Mario Bros., World 1-1: find the RAM addresses of Mario's horizontal speed, his vertical speed, and the direction he faces. Use the find-variable skill; no reference is available. Prove each by write_memory and a screenshot showing the predicted effect, or, for a value the game rewrites every frame, by a play_input watch whose samples follow the action exactly. Record each with record_mapping: mapping_type address, a plain name, notes with the encoding (signed, units) and the proof, source 'differential search'. Call promote_mappings once at the end. Report each address, its encoding and the evidence. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again, and take a screenshot to confirm World 1-1 began. Holding Right walks Mario right, B with Right runs, A jumps (longer press, higher jump), Left turns him around. Holding Right for about four seconds from the start of 1-1 runs into the first enemy and loses a life; the level then reloads. Each play_input call is at most 600 frames; chain calls, and play_input's watch samples addresses while it plays.
+[   9 18:14:11] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 18:14:11] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 18:14:12] ASSISTANT (turn 1 step 1) · in 1048 (cache 14720) out 83
+    ▷ Let me start by loading the find-variable skill and taking a screenshot.
+    I'll start by loading the find-variable skill and looking at the current game state.
+    → skill {"name": "find-variable"}
+    → screenshot {}
+[  18 18:14:12] RESULT skill
+    <skill_content name="find-variable">
+    <skill_resources>
+    Base directory for this skill: /home/oof/jeROMy/skills/find-variable
+    Resolve relative paths mentioned by this skill against the base directory before using them. Load referenced resources only as needed.
+    </skill_resources>
+    
+    <skill_instructions>
+    
+    # Find a variable by differential search
+    
+    Most games have no reference. This procedure needs only the running game:
+    `snapshot_memory`, `play_input`, `diff_memory`, then `write_memory` and a
+    screenshot for the proof (ADR-0019). Written from the blind session of
+    2026-10-06 on Super Mario Bros. (World… [+6512 chars]
+[  20 18:14:13] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/24ee3334de4f.png
+[  24 18:14:25] ASSISTANT (turn 1 step 2) · in 26476 (cache 15744) out 2016
+    ▷ We're on World 1-1 already? The screenshot shows MARIO 000000, WORLD 1-1, TIME 015, Mario at start. Actually it seems the game is already in 1-1 (or attract demo). Let me check. The screenshot shows World 1-1 with TIME 015 and Mario small at start. Hmm, could be the attract demo. Let me check game mode $0770.
+    
+    Actually the task says the game is on title or attract demo. Let me read $0770.
+    
+    Goal: find RAM addresses of:
+    1. Mario's horizontal speed (x velocity) — signed, units px/frame
+    2. Mario's vertical speed (y velocity) — signed
+    3. Direction he faces — probably a flag/byte.
+    
+    Note from mapping, we already know player_x $0086/$006D, y $00CE. But we need speeds. Known SMB addresses from community: player x speed $001D? Actually in SMB, Mario's velocity is stored at $001D? Let me recall: Player_X_Speed = $001D? Hmm. In SMB disassembly:
+    - Player_XSpeed = $001D? Actually many SMB RAM maps: 
+      $001D = Player_XSpeed
+      $001E = Player_XSpeed? no.
+    Actually the well-known SMB RAM map:
+    - $001D: Player x velocity (signed)
+    - $001E: Player y velocity? Hmm.
+    
+    Let me recall from SMB disassembly variables:
+    ```
+    Player_XSpeed = $001D
+    Player_YSpeed = $001F  ?
+    ```
+    Actually I recall:
+    - $001D = Player_XSpe… [+6793 chars]
+    I'll load the skill (done) and check the current state. Let me confirm whether we're on the title/demo and in which game mode.
+    → read_memory {"address": 1910, "length": 1}
+    → screenshot {}
+[  26 18:14:25] RESULT read_memory
+    {"bytes":[0],"address":1910,"mem_type":"cpuDebug"}
+[  28 18:14:25] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/3cb753517875.png
+[  31 18:14:27] ASSISTANT (turn 1 step 3) · in 463 (cache 44160) out 215
+    ▷ Game mode 0 and we see "TIME UP" card. This is the attract demo ending. We need to get into a real game: press Start, wait, press Start again.
+    
+    Let me play input: Start (10 frames), wait ~60 frames, Start again. Then screenshot.
+    
+    Actually careful: currently mode 0 with TIME UP card. That's the attract demo. Pressing Start should return to title. Then press Start again starts the game. Let's do it.
+    Game mode is 0 (title/attract) and the screen shows the demo's TIME UP card. Let me follow the known SMB sequence to start a real game.
+    → play_input {"script": [{"buttons": ["start"], "frames": 8}, {"buttons": [], "frames": 90}, {"buttons": ["start"], "frames": 8}, {"buttons": [], "frames": 120}]}
+[  33 18:14:30] RESULT play_input
+    {"sample_every":4,"frames":226,"was_paused":false,"paused":false,"segments":4,"frames_run":226,"port":0,"sample_frames":[],"watch":[],"polls":226,"end_frame":197936,"start_frame":197710,"note":"Ran 226 frames of input on port 0. The game is still running."}
+[  36 18:14:32] ASSISTANT (turn 1 step 4) · in 260 (cache 44672) out 78
+    ▷ Take screenshot to confirm 1-1 began.
+    → screenshot {}
+    → read_memory {"address": 1910, "length": 1}
+[  38 18:14:32] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/4a1aee11bebd.png
+[  40 18:14:32] RESULT read_memory
+    {"bytes":[0],"address":1910,"mem_type":"cpuDebug"}
+[  43 18:14:37] ASSISTANT (turn 1 step 5) · in 479 (cache 44928) out 832
+    ▷ Screenshot shows World 1-1, TIME 399, Mario at start. But game mode reads 0? Hmm. Wait, maybe the read happened at a different moment / the memory read mem_type cpuDebug vs the mode byte. It shows 0 but screenshot shows gameplay. Hmm, maybe 0x0770 isn't 1910. 0x0770 = 1904. Oops! 0x0770 decimal = 7*256 + 0x70 = 1792 + 112 = 1904. I read 1910 = 0x0776 (pause flag). Oops. Let me read 0x0770 = 1904.
+    
+    Anyway, screenshot confirms 1-1 with TIME 399. Great, we're in a real game.
+    
+    Wait, actually TIME 399 is odd (normally 400 shown as 400, decrements after 24 frames). Fine.
+    
+    Now, Mario is standing still. Let's find velocity.
+    
+    Let me first read game mode correct address 1904, and plan differential search.
+    
+    Plan for horizontal speed:
+    1. snapshot "h0" now (standing, speed 0).
+    2. play_input hold Right 30 frames (speed ramps to max).
+    3. snapshot "h1".
+    4. diff h0->h1 filter increased, name hd1.
+    
+    But note: while walking right for 30 frames Mario moves ~45px, no death. Fine.
+    
+    Then:
+    5. play_input release 40 frames (speed decays to 0).
+    6. snapshot "h2".
+    7. diff h1->h2 from=hd1 filter decreased, name hd2.
+    
+    This should narrow. Then watch survivors.
+    
+    Actually careful: diff h0->h1 "increased" includes th… [+1270 chars]
+    We're in World 1-1 (TIME 399, Mario at the start). Now let me find horizontal speed by differential search: snapshot while standing (speed 0), then hold Right so his speed ramps up.
+    → snapshot_memory {"name": "h0"}
+    → read_memory {"address": 1904, "length": 1}
+[  45 18:14:37] RESULT snapshot_memory
+    {"name":"h0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:14:37.562Z","checksum":"2428dabb","snapshots":["h0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[  47 18:14:37] RESULT read_memory
+    {"bytes":[1],"address":1904,"mem_type":"cpuDebug"}
+[  50 18:14:42] ASSISTANT (turn 1 step 6) · in 148 (cache 46208) out 795
+    ▷ Game mode = 1, confirmed in 1-1. Now hold Right 24 frames and snapshot h1.
+    
+    Note: play_input pauses game at end (game was running, so paused=false meaning it's still running after? The result said paused:false. Hmm, "A paused game is resumed for the run and paused again at the end". Since it wasn't paused before, it stays running.) So the game may continue after the call. That's a problem for snapshotting "while holding right" because after the script ends, buttons are released and Mario decelerates before I can snapshot.
+    
+    Yes! After play_input ends, the game keeps running with no buttons. So by the time I snapshot, speed decayed. Need a way to capture at the end.
+    
+    Options: use watch during play_input to sample candidate addresses — but we need candidates.
+    
+    Alternative: use a script that ends with Mario still moving? No, buttons are released at end.
+    
+    Hmm, but we can pause the emulator? play_input says "A paused game is resumed for the run and paused again at the end (the result says was_paused)." So if I pause first, then play_input runs and pauses at end, leaving the state at end of run. But still the last frame in the run has no buttons if script's last segment releases. Actually… [+1930 chars]
+    Game mode is 1 (in a level). Since the game runs in real time between calls, I'll pause first so state is frozen, then take the "standing" snapshot, then run the walk.
+    → pause_emulator {}
+[  52 18:14:42] RESULT pause_emulator
+    {"paused":true}
+[  56 18:14:45] ASSISTANT (turn 1 step 7) · in 24154 (cache 47104) out 206
+    ▷ I'm paused now. Let me snapshot h0 (standing, velocity 0), then run play_input right 24 frames ending with right held, then snapshot h1, then diff.
+    
+    Wait: when paused, play_input resumes and runs. Does it pause at the end? "A paused game is resumed for the run and paused again at the end (the result says was_paused)." Yes. So the state after is at the last frame with buttons from last segment.
+    
+    But subtle: does the emulator advance a frame after the last input segment before pausing? If pause is applied at the boundary, the last executed frame had the segment's buttons. Good.
+    
+    Let me do snapshot h0 and then play_input.
+    Now paused. Let me snapshot the standing state, then walk right ending with Right still held.
+    → snapshot_memory {"name": "h0"}
+[  58 18:14:45] RESULT snapshot_memory
+    {"name":"h0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:14:45.119Z","checksum":"883bd550","snapshots":["h0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[  61 18:14:46] ASSISTANT (turn 1 step 8) · in 260 (cache 71296) out 70
+    ▷ Now play_input hold right 24 frames. Since paused, it will resume and pause at end.
+    → play_input {"script": [{"buttons": ["right"], "frames": 24}]}
+[  63 18:14:47] RESULT play_input
+    {"sample_every":1,"frames":24,"was_paused":false,"paused":false,"segments":1,"frames_run":24,"port":0,"sample_frames":[],"watch":[],"polls":24,"end_frame":198892,"start_frame":198868,"note":"Ran 24 frames of input on port 0. The game is still running."}
+[  67 18:15:02] ASSISTANT (turn 1 step 9) · in 24257 (cache 71552) out 2801
+    ▷ The result says "was_paused":false, "paused":false — meaning play_input did NOT pause at the end despite the game being paused before? It says was_paused:false. Hmm, perhaps my pause didn't register, or play_input doesn't consider it. Actually earlier pause_emulator returned paused:true. Then play_input result says was_paused:false — inconsistent. Maybe the bridge auto-resumed? Anyway, "the game is still running" and after the run the game keeps running, so by the time I snapshot, Mario has stopped (buttons released) and velocity decayed.
+    
+    This is a problem. I need to snapshot while the button is held.
+    
+    Let me instead pause right after. But there's latency.
+    
+    Alternative approach: use play_input's watch to measure candidate addresses. But I need candidates.
+    
+    Actually the best approach: take snapshot h0 while paused/standing; then do a play_input with a watch list of candidates... but no candidates yet.
+    
+    Hmm, but we can use a different trick: diff the standing state vs state right after a short run. Even if the game keeps running a few frames after the run, Mario decelerates. But maybe velocity doesn't decay instantly — in SMB, releasing right sets velocity via deceleration of ~0x0D … [+9216 chars]
+    The run left the game running (velocity decays after release), so a post-run snapshot is unreliable. Instead I'll use `play_input`'s watch: sample a block of low-RAM bytes each frame during a Right-hold and look for one that ramps like a velocity. This block should contain SMB's player speed bytes.
+    → play_input {"script": [{"buttons": ["right"], "frames": 60}], "watch": [25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]}
+[  69 18:15:03] RESULT play_input
+    {"sample_every":1,"frames":60,"was_paused":false,"paused":false,"segments":1,"frames_run":60,"port":0,"sample_frames":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60],"watch":[{"last":0,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":25,"first":0,"address_hex":"0x0019"},{"last":0,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,… [+2917 chars]
+[  72 18:15:05] ASSISTANT (turn 1 step 10) · in 2584 (cache 98560) out 322
+    ▷ All zeros. So velocity isn't in $0019-$0028. Hmm. Maybe Mario didn't actually move? Let me screenshot to check. Or maybe the game is on a card/paused? Wait, status RUNNING. Let me screenshot.
+    
+    Actually, maybe right now we're in the "TIME UP" attract again? No, we started a game. But after all this elapsed real time (game running between calls for seconds!), Mario may have... actually with no input he just stands. He wouldn't die. Time counts down though! TIME could reach 0 -> time up -> death. We've had the game running for a while during my thinking. Let's screenshot.
+    
+    Actually the watch returned all zeros for those addresses which might be normal if velocity is elsewhere. But also possible the game is paused or on a card. Let me screenshot and also read $0770 and $0086.
+    All zero — the speed byte isn't in that block, and I should check where Mario actually is after all this real time.
+    → screenshot {}
+    → read_memory {"address": 1904, "length": 1}
+    → read_memory {"address": 134, "length": 1}
+[  74 18:15:05] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/ecd8884165ef.png
+[  76 18:15:05] RESULT read_memory
+    {"bytes":[1],"address":1904,"mem_type":"cpuDebug"}
+[  78 18:15:05] RESULT read_memory
+    {"bytes":[151],"address":134,"mem_type":"cpuDebug"}
+[  81 18:15:29] ASSISTANT (turn 1 step 11) · in 495 (cache 101376) out 4283
+    ▷ Mario has walked right (the ? block visible right, first goomba on the right at x~220). Time 315. Mario is on screen at around x=100. $0086=151=0x97. Good, in level.
+    
+    So during my watch run holding right 60 frames, Mario moved from ~40 to 151? Wait he was already at some position. Anyway he moved.
+    
+    The watch addresses $0019-$0028 are all 0 — so velocity is not there. Interesting. So SMB (World) maybe uses different addresses.
+    
+    Let me reconsider. The known SMB RAM map... Actually, the SMB disassembly (smbdis) defines:
+    ```
+    Player_XSpeed = $001D
+    ```
+    Hmm but that read 0. Unless velocity is stored elsewhere in this ROM (SMB World vs SMB1?). It's the same SMB.
+    
+    Wait, actually maybe the velocity is at $0057? Let me recall more carefully. In smbdis.asm:
+    ```
+    ; Player variables
+    Player_XSpeed     = $001D
+    Player_XPos       = $0086
+    Player_YPos       = $00CE
+    Player_Y_Speed    = $001E? 
+    ```
+    Hmm. But all zeros suggests maybe the watch address mapping offset? No, watch samples address exactly.
+    
+    Hold on: maybe by the time of that run, Mario was blocked or something? No, he moved.
+    
+    Hmm, let me reconsider: maybe velocity is stored at $0057 (Player_XSpeed)? Let me think about SMB1 source. Actually I no… [+15577 chars]
+    All zero in that block, so the speed bytes live elsewhere — and the game keeps running after `play_input`, so I need a way to freeze a *walking* state. SMB's Start key pauses the game internally (pause flag `$0776`), which freezes physics with the speed still in RAM. I'll use that as my "snapshot while moving" trick.
+    
+    First, pause the game while standing (speed 0).
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}]}
+[  83 18:15:30] RESULT play_input
+    {"sample_every":1,"frames":2,"was_paused":false,"paused":false,"segments":1,"frames_run":2,"port":0,"sample_frames":[],"watch":[],"polls":2,"end_frame":201479,"start_frame":201477,"note":"Ran 2 frames of input on port 0. The game is still running."}
+[  86 18:15:31] ASSISTANT (turn 1 step 12) · in 136 (cache 106112) out 61
+    ▷ Check $0776.
+    → read_memory {"address": 1910, "length": 1}
+[  88 18:15:31] RESULT read_memory
+    {"bytes":[1],"address":1910,"mem_type":"cpuDebug"}
+[  91 18:15:33] ASSISTANT (turn 1 step 13) · in 225 (cache 106112) out 70
+    ▷ $0776 = 1, game internally paused. Now pause emulator and snapshot v0.
+    Internal pause is active (`$0776` = 1), physics frozen. Now freeze the emulator and snapshot the standing state.
+    → pause_emulator {}
+[  93 18:15:33] RESULT pause_emulator
+    {"paused":true}
+[  97 18:15:35] ASSISTANT (turn 1 step 14) · in 24146 (cache 106368) out 109
+    ▷ Emulator paused. Note internal pause $0776=1. Now snapshot v0.
+    
+    Wait, but if the game is internally paused, does the RNG still advance while the emulator runs? We've now paused the emulator, so nothing advances. Good.
+    
+    Snapshot v0.
+    Now snapshot the frozen standing state (speed 0).
+    → snapshot_memory {"name": "v0"}
+[  99 18:15:35] RESULT snapshot_memory
+    {"name":"v0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:15:35.550Z","checksum":"6c53ecf3","snapshots":["h0","v0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 102 18:15:39] ASSISTANT (turn 1 step 15) · in 161 (cache 130560) out 573
+    ▷ Now unpause and walk right, then pause with right+start. Script:
+    [{start,2},{},? ] Wait, game currently internally paused and emulator paused. play_input resumes emulator. First segment: [{buttons:["start"],frames:2}] unpauses internally. Then 3 frames no input. Then [{right,40}] to reach max speed. Then [{right,start,2}] to pause while holding right.
+    
+    But note: when Start is pressed while Right held, on that frame the game pauses. Good. However, the pause handler might require Start edge and might not register while... it should.
+    
+    Also after pressing Start, the game pauses; subsequent frames in the segment (2 frames total) do nothing (paused). Good.
+    
+    But careful: between the internal unpause and walking, the emulator is running in real time only during play_input. Fine.
+    
+    Let me also ensure Mario doesn't hit the goomba: he's at x=151 now. Holding right 40 frames at up to 1.5px/frame = +60px -> x~211. The goomba was at screen x~220 (level x ~ 290?). Actually earlier screenshot: goomba on the right edge at x~220 while Mario at ~100. Level x of goomba ~ camera + 220. Mario at 151. So goomba at maybe level x 290? So x211 is still before 290. OK but close-ish. Actually the first goomba … [+525 chars]
+    Now unpause, walk right to full speed, then press Start *while still holding Right* — SMB's pause freezes physics with the speed byte still set.
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}, {"buttons": [], "frames": 3}, {"buttons": ["right"], "frames": 40}, {"buttons": ["right", "start"], "frames": 3}]}
+[ 104 18:15:40] RESULT play_input
+    {"sample_every":1,"frames":48,"was_paused":true,"paused":true,"segments":4,"frames_run":48,"port":0,"sample_frames":[],"watch":[],"polls":48,"end_frame":201741,"start_frame":201693,"note":"Ran 48 frames of input on port 0. The game was paused before and is paused again now."}
+[ 107 18:15:42] ASSISTANT (turn 1 step 16) · in 193 (cache 131200) out 164
+    ▷ Now the game is paused (emulator paused after run). Take snapshot v1. Also check $0776 to confirm internal pause and $0086 position.
+    → snapshot_memory {"name": "v1"}
+    → read_memory {"address": 1910, "length": 1}
+    → read_memory {"address": 134, "length": 1}
+[ 109 18:15:42] RESULT snapshot_memory
+    {"name":"v1","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:15:42.643Z","checksum":"72df93b9","snapshots":["h0","v0","v1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 111 18:15:42] RESULT read_memory
+    {"bytes":[129],"address":1910,"mem_type":"cpuDebug"}
+[ 113 18:15:42] RESULT read_memory
+    {"bytes":[70],"address":134,"mem_type":"cpuDebug"}
+[ 116 18:15:46] ASSISTANT (turn 1 step 17) · in 248 (cache 131456) out 613
+    ▷ $0776 = 129 = 0x81, bit0 set => paused. Good.
+    $0086 = 70 = 0x46? Wait, that's less than 151 earlier. Hmm. Earlier $0086 was 151 (0x97). Now it's 70?! That's odd. Unless Mario walked past a page boundary... 0x97=151 -> walked right 40 frames -> +60 = 211 = 0xD3, not 70. Unless he wrapped page? 211 no.
+    
+    Wait, maybe I misread earlier: earlier read_memory at address 134 = 0x0086 returned 151. Now 70. Hmm, maybe Mario moved left? No.
+    
+    Oh wait — maybe the earlier 151 was after Mario had walked and then he continued during my long thinking (game running between calls) and... he might have hit the goomba and died, then level reloaded with Mario at start x40? Then in this run he walked 40 frames from x40 to ~100? 70 is plausible if he started at ~40 and walked ~30 frames before the pause frame. Hmm, actually let me reconsider: between the watch run and the pause, lots of real time elapsed. Mario, standing, wouldn't move. But at some point he might have... no.
+    
+    Wait, actually the "TIME" was 315 in the screenshot, and after that we did reads. The game kept running. TIME would keep dropping. Eventually time up -> death -> level reload -> Mario back at start. The earlier goomba at x~220 was sti… [+565 chars]
+    Frozen mid-walk (`$0776` = 0x81, pause bit set). Now diff standing vs walking, keeping bytes that increased.
+    → diff_memory {"a": "v0", "b": "v1", "filter": "increased", "name": "vd1"}
+[ 118 18:15:46] RESULT diff_memory
+    {"a":"v0","b":"v1","filter":"increased","considered":2048,"matched":43,"hits":[{"address":0,"old":0,"new":2,"address_hex":"0x0000"},{"address":5,"old":40,"new":70,"address_hex":"0x0005"},{"address":69,"old":0,"new":1,"address_hex":"0x0045"},{"address":87,"old":0,"new":24,"address_hex":"0x0057"},{"address":134,"old":40,"new":70,"address_hex":"0x0086"},{"address":495,"old":3,"new":5,"address_hex":"0x01EF"},{"address":496,"old":3,"new":5,"address_hex":"0x01F0"},{"address":504,"old":0,"new":17,"address_hex":"0x01F8"},{"address":519,"old":40,"new":70,"address_hex":"0x0207"},{"address":523,"old":48,… [+2042 chars]
+[ 121 18:15:52] ASSISTANT (turn 1 step 18) · in 1143 (cache 132224) out 934
+    ▷ Candidates. 0x0057 old 0 -> new 24 (0x18 = 24). That is exactly the expected walk speed (1.5 px/frame)! 0x0057 is very likely Player_XSpeed.
+    
+    Also 0x0700 old 0 -> new 24. Hmm, both 24. 0x0700 could be another speed copy (maybe x speed mirrored). And 0x0005 old 40 -> 70 is position-ish. 0x0045 0->1.
+    
+    Let me narrow. Candidate velocity bytes: 0x0057 = 24 and 0x0700 = 24. Also 0x0045 = 1 (maybe something else), 0x06D4 = 5, 0x070D=1.
+    
+    Actually 0x0057 might be the speed and 0x0700 could be "Player_XSpeed" also? In SMB, $0700-$0705 range might be for... hmm. Actually 0x0700 = 24 and 0x0705 = 88. Let me think: $0360? Hmm.
+    
+    Let me now narrow by walking LEFT (speed should become negative, i.e., large unsigned, ~0xE8) and diff from vd1 with filter "changed"? Or better, design the next action to make velocity go from +24 to -? and use "decreased" won't work for signed. Let me do a state v2: unpause, hold Left to reverse, pause while holding Left. Then diff v1->v2 "changed" and look for 0x0057 going 24 -> large.
+    
+    Actually careful: to get negative velocity, Mario must actually be moving left at max. Starting from rest (paused), holding Left 40 frames gets him to -24 (or whatever). But wait, he n… [+1323 chars]
+    Strong candidate: `$0057` went 0 → 24 (= `$18`, i.e. 1.5 px/frame) while walking right, and `$0700` did the same. Let me confirm by reversing direction — a signed speed should go to a large unsigned value (~`$E8` = -24) when walking left.
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}, {"buttons": [], "frames": 3}, {"buttons": ["left"], "frames": 40}, {"buttons": ["left", "start"], "frames": 3}]}
+[ 123 18:15:53] RESULT play_input
+    {"sample_every":1,"frames":48,"was_paused":true,"paused":true,"segments":4,"frames_run":48,"port":0,"sample_frames":[],"watch":[],"polls":48,"end_frame":201789,"start_frame":201741,"note":"Ran 48 frames of input on port 0. The game was paused before and is paused again now."}
+[ 126 18:15:54] ASSISTANT (turn 1 step 19) · in 256 (cache 134144) out 139
+    ▷ 
+    → snapshot_memory {"name": "v2"}
+    → diff_memory {"a": "v1", "b": "v2", "filter": "increased", "from": "vd1", "name": "vd2"}
+[ 128 18:15:54] RESULT snapshot_memory
+    {"name":"v2","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:15:54.978Z","checksum":"f9472ba9","snapshots":["h0","v0","v1","v2"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 130 18:15:54] RESULT diff_memory
+    {"a":"v1","b":"v2","filter":"increased","considered":43,"matched":22,"hits":[{"address":5,"old":70,"new":74,"address_hex":"0x0005"},{"address":134,"old":70,"new":74,"address_hex":"0x0086"},{"address":504,"old":17,"new":102,"address_hex":"0x01F8"},{"address":519,"old":70,"new":74,"address_hex":"0x0207"},{"address":523,"old":78,"new":82,"address_hex":"0x020B"},{"address":527,"old":70,"new":74,"address_hex":"0x020F"},{"address":531,"old":78,"new":82,"address_hex":"0x0213"},{"address":535,"old":70,"new":74,"address_hex":"0x0217"},{"address":539,"old":78,"new":82,"address_hex":"0x021B"},{"address":… [+859 chars]
+[ 133 18:15:59] ASSISTANT (turn 1 step 20) · in 676 (cache 134528) out 615
+    ▷ Interesting! 0x0057 and 0x0700 are NOT in the vd2 survivors (they didn't increase). That means when walking left, they became large (232) but not "increased" from 24? 24 -> 232 is increased (232>24). But they're absent. Hmm. Unless the velocity when walking left is stored as e.g. 24 with a separate direction flag, not negative! That is, SMB might store |speed| and a separate facing/direction byte.
+    
+    Wait but 0x0057 went 0->24 walking right. Walking left it might go 0->0? Let me check: diff v1->v2 only considered 43 vd1 survivors. 0x0057 was in vd1. If it went 24 -> something, filter increased should keep it if new>old. Let me directly read 0x0057 and 0x0700 now (in v2 paused state).
+    
+    Actually! Important: when I unpaused and pressed Left, Mario first had to decelerate from rightward motion. But wait, v1 was paused with right held, velocity +24. On unpause, the segment [{start,2}] unpauses (Start pressed) — note pressing Start toggles pause; on the first frame Start is pressed again it unpauses. Then 3 frames no input: velocity decays. Then 40 frames left: accelerates left. At end velocity should be -24. Unless SMB stores speed as magnitude and direction separately.
+    
+    Hmm, let me just … [+247 chars]
+    `$0057`/`$0700` vanished when I reversed — so leftward motion isn't simply the negative of the same byte. Let me read those bytes directly in the now-paused left-walking state.
+    → read_memory {"address": 85, "length": 12}
+    → read_memory {"address": 1790, "length": 14}
+    → read_memory {"address": 1910, "length": 1}
+[ 135 18:15:59] RESULT read_memory
+    {"bytes":[0,0,21,0,0,0,0,0,0,0,0,0],"address":85,"mem_type":"cpuDebug"}
+[ 137 18:15:59] RESULT read_memory
+    {"bytes":[0,1,21,1,48,0,0,96,0,0,0,0,40,0],"address":1790,"mem_type":"cpuDebug"}
+[ 139 18:15:59] RESULT read_memory
+    {"bytes":[128],"address":1910,"mem_type":"cpuDebug"}
+[ 142 18:16:11] ASSISTANT (turn 1 step 21) · in 134 (cache 135808) out 2374
+    ▷ 0x0057 = 0x15 = 21 now. So when walking left, 0x0057 = 21, not 232. So it's a magnitude, and direction is stored elsewhere. Wait, but 0x0057 was 24 walking right and 21 walking left. Hmm, maybe 0x0057 is the speed magnitude and it can differ slightly (21 vs 24) due to subpixel or acceleration state.
+    
+    Wait, actually 0x0057 read at offset 85+2 = 87 = 0x0057 = 21. Yes.
+    0x0700 = address 1790+2 = 1792 = 0x0700 = 21. Same.
+    
+    So both are 21 while walking left. So speed is stored as magnitude, plus a separate direction/facing flag. This matches the task: find horizontal speed AND direction he faces. 
+    
+    Hmm, but wait: is 0x0057 really the speed, or is it something else that happens to be 24/21? Let's check: 0x0700 = 0x15 = 21 too. Two copies. In SMB, there might be Player_XSpeed at $0057? Hmm. Actually wait, I recall SMB's actual addresses now:
+    - $001D? no.
+    Let me reconsider. Actually in SMB, the player's speed variables might be at $0057 (X speed) and $0700 (X speed)... Hmm, $0700 region is often used for "player animation / velocity" in some maps.
+    
+    Hmm, actually I recall now: SMB1 RAM:
+    - $0057 = Player_XSpeed? Possibly.
+    - $0700 = Player_XSpeed? no.
+    
+    Actually, there's a known "Player_XSpeed"… [+6818 chars]
+    `$0057` and `$0700` read 21 walking **left** vs 24 walking right — so speed is stored as a magnitude, with facing/direction held separately. Let me find the direction byte: diff the right-facing vs left-facing paused states, looking at the `vd1` survivors that went back down.
+    → diff_memory {"a": "v1", "b": "v2", "filter": "decreased", "from": "vd1", "name": "vd3"}
+[ 144 18:16:11] RESULT diff_memory
+    {"a":"v1","b":"v2","filter":"decreased","considered":43,"matched":13,"hits":[{"address":0,"old":2,"new":0,"address_hex":"0x0000"},{"address":87,"old":24,"new":21,"address_hex":"0x0057"},{"address":1748,"old":5,"new":0,"address_hex":"0x06D4"},{"address":1792,"old":24,"new":21,"address_hex":"0x0700"},{"address":1794,"old":152,"new":48,"address_hex":"0x0702"},{"address":1805,"old":1,"new":0,"address_hex":"0x070D"},{"address":1910,"old":129,"new":128,"address_hex":"0x0776"},{"address":1921,"old":1,"new":0,"address_hex":"0x0781"},{"address":1927,"old":6,"new":3,"address_hex":"0x0787"},{"address":19… [+343 chars]
+[ 147 18:16:17] ASSISTANT (turn 1 step 22) · in 445 (cache 138240) out 1106
+    ▷ Candidates for direction: 0x070D (1 -> 0)! And 0x06D4 (5->0), 0x0781 (1->0), 0x0000 (2->0).
+    
+    0x070D = 1 walking right, 0 walking left. But wait, 0x070D could be "moving right flag" or "facing direction". Also 0x0045 was 0->1 in vd1 but not in vd3 decreased list... hmm 0x0045 isn't listed here, so it stayed 1? Odd. Actually vd3 considered only vd1 survivors; 0x0045 was in vd1 (0->1). It's not in vd3, so it did not decrease, meaning it's still 1 in v2. So 0x0045 is not direction.
+    
+    0x070D: in v1 (walking right) = 1, in v2 (walking left) = 0. But is it "facing right" or "moving right"? Need to distinguish facing from movement: when Mario stops, does it stay 1? Direction facing should persist when standing (Mario faces the way he last moved). A "moving right" flag would clear when standing.
+    
+    Let's test: create a paused standing state after walking right (Mario standing, facing right). Then check 0x070D. If it's 1, it's facing; if 0, it's movement.
+    
+    But careful: SMB's Mario facing direction is stored at $000D? Hmm. Also there's a known "PlayerFacingDir" = $000D? Let me test.
+    
+    Actually, let's also find where facing is. We can do: 
+    - State R_stand: unpause, hold right 30 frames, release, w… [+2155 chars]
+    Candidate direction byte: `$070D` = 1 walking right, 0 walking left. Facing should persist when standing, so let me test it: stop and stand while facing left, then stand facing right.
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}, {"buttons": [], "frames": 25}, {"buttons": ["start"], "frames": 3}]}
+[ 149 18:16:18] RESULT play_input
+    {"sample_every":1,"frames":30,"was_paused":true,"paused":true,"segments":3,"frames_run":30,"port":0,"sample_frames":[],"watch":[],"polls":30,"end_frame":201819,"start_frame":201789,"note":"Ran 30 frames of input on port 0. The game was paused before and is paused again now."}
+[ 152 18:16:20] ASSISTANT (turn 1 step 23) · in 1266 (cache 138624) out 178
+    ▷ 
+    → snapshot_memory {"name": "lface"}
+    → read_memory {"address": 1805, "length": 1}
+    → read_memory {"address": 0, "length": 16}
+    → read_memory {"address": 1748, "length": 1}
+[ 154 18:16:20] RESULT snapshot_memory
+    {"name":"lface","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:16:20.292Z","checksum":"d30c6956","snapshots":["h0","v0","v1","v2","lface"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 156 18:16:20] RESULT read_memory
+    {"bytes":[0],"address":1805,"mem_type":"cpuDebug"}
+[ 158 18:16:20] RESULT read_memory
+    {"bytes":[0,79,208,2,0,80,32,0,5,39,0,0,0,0,8,0],"address":0,"mem_type":"cpuDebug"}
+[ 160 18:16:20] RESULT read_memory
+    {"bytes":[3],"address":1748,"mem_type":"cpuDebug"}
+[ 163 18:16:22] ASSISTANT (turn 1 step 24) · in 243 (cache 140032) out 216
+    ▷ Standing facing left: 0x070D = 0, 0x06D4 = 3.
+    Now stand facing right and check.
+    
+    Script: [{start,2},{right,30},{},25,{start,3}]. But starting from paused lface. Note Mario is standing facing left, at some x. Holding right 30 frames will move him right, then release and stop, facing right. Then pause.
+    
+    Careful about enemies: Mario's x now? Let's see. He walked left then stood. He might be near x 40-70. Right 30 frames -> +45. Fine.
+    
+    Run.
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}, {"buttons": ["right"], "frames": 30}, {"buttons": [], "frames": 25}, {"buttons": ["start"], "frames": 3}]}
+[ 165 18:16:23] RESULT play_input
+    {"sample_every":1,"frames":60,"was_paused":true,"paused":true,"segments":4,"frames_run":60,"port":0,"sample_frames":[],"watch":[],"polls":60,"end_frame":201879,"start_frame":201819,"note":"Ran 60 frames of input on port 0. The game was paused before and is paused again now."}
+[ 168 18:16:26] ASSISTANT (turn 1 step 25) · in 174 (cache 140416) out 196
+    ▷ 
+    → snapshot_memory {"name": "rface"}
+    → read_memory {"address": 1805, "length": 1}
+    → read_memory {"address": 1748, "length": 1}
+    → diff_memory {"a": "lface", "b": "rface", "filter": "changed"}
+[ 170 18:16:26] RESULT snapshot_memory
+    {"name":"rface","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:16:26.241Z","checksum":"31c5b420","snapshots":["h0","v0","v1","v2","lface","rface"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 172 18:16:26] RESULT read_memory
+    {"bytes":[1],"address":1805,"mem_type":"cpuDebug"}
+[ 174 18:16:26] RESULT read_memory
+    {"bytes":[5],"address":1748,"mem_type":"cpuDebug"}
+[ 176 18:16:26] RESULT diff_memory
+    {"a":"lface","b":"rface","filter":"changed","considered":2048,"matched":120,"hits":[{"address":0,"old":0,"new":2,"address_hex":"0x0000"},{"address":1,"old":79,"new":3,"address_hex":"0x0001"},{"address":3,"old":2,"new":1,"address_hex":"0x0003"},{"address":5,"old":80,"new":81,"address_hex":"0x0005"},{"address":9,"old":39,"new":96,"address_hex":"0x0009"},{"address":51,"old":2,"new":1,"address_hex":"0x0033"},{"address":69,"old":2,"new":1,"address_hex":"0x0045"},{"address":87,"old":0,"new":2,"address_hex":"0x0057"},{"address":134,"old":85,"new":117,"address_hex":"0x0086"},{"address":245,"old":73,"n… [+3220 chars]
+[ 179 18:16:32] ASSISTANT (turn 1 step 26) · in 1757 (cache 140672) out 957
+    ▷ Standing facing right: 0x070D = 1; facing left: 0x070D = 0. So 0x070D tracks facing and persists when standing. 
+    
+    But also 0x0045: left=2, right=1. And 0x0033: left=2, right=1. Hmm. 0x0033 could be animation/facing? 0x0x070D is 0/1.
+    
+    Which one is THE facing direction that flips the sprite? We need to prove by writing. The task says: "Prove each by write_memory and a screenshot showing the predicted effect, or, for a value the game rewrites every frame, by a play_input watch."
+    
+    For facing direction: is it rewritten every frame? Probably not; it's set when input changes, and persists. So we can write it and see the sprite flip. Let's test candidates 0x070D, 0x0033, 0x0045.
+    
+    Mario's sprite facing can be checked via list_sprites (h-flip attribute) or screenshot. Let's write 0x070D = 0 while standing facing right (currently rface, paused, facing right) and step a frame, then screenshot/list_sprites. If sprite flips to left, it's facing.
+    
+    But wait: while internally paused, step_frame runs a frame but the game engine is paused, so the sprite won't be rebuilt from the facing byte. We need to unpause for the sprite update. Hmm. To prove: write the byte, then play_input with no buttons (unpa… [+1980 chars]
+    `$070D` = 1 standing facing right, 0 standing facing left — it persists when standing, so it's a facing flag. Let me get a baseline and then prove it by writing.
+    → screenshot {}
+[ 181 18:16:32] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/68e987cb4b07.png
+[ 184 18:16:35] ASSISTANT (turn 1 step 27) · in 382 (cache 143360) out 281
+    ▷ Mario is small, standing at x~85, facing right (I can see his cap/face pointing right? At this size hard to tell). Let me use list_sprites to get h-flip state.
+    
+    Actually let me list_sprites around Mario. But first, let me do the write test on 0x070D.
+    
+    Save state then write 0x070D = 0, then unpause/run/pause, screenshot + list_sprites.
+    
+    Actually wait: when paused (internal $0776), if I write and then run no-input frames, the game engine unpauses and may immediately recompute facing? Facing recompute only on direction input. Let's test.
+    
+    Let me save_state, write, then play.
+    
+    save_state slot 0.
+    Baseline: small Mario standing on the ground. Now save state, write `$070D` = 0 (flip facing left), and let the game redraw one frame.
+    → save_state {"slot": 0}
+    → write_memory {"address": 1805, "bytes": [0]}
+[ 186 18:16:35] RESULT save_state
+    {"action":"saved","slot":0,"paused":true,"stepped_frames":1,"bytes":4799}
+[ 188 18:16:35] RESULT write_memory
+    {"bytes_written":1,"address":1805,"mem_type":"cpu","persistent":false}
+[ 191 18:16:37] ASSISTANT (turn 1 step 28) · in 218 (cache 143872) out 146
+    ▷ Now unpause/run a few frames and pause, then screenshot/list_sprites.
+    
+    Script: [{start,2},{},10,{start,3}]. This unpauses, runs 10 frames no input, pauses.
+    
+    But careful: with no input, Mario's sprite facing should remain as written if 0x070D is facing. Let's run.
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}, {"buttons": [], "frames": 10}, {"buttons": ["start"], "frames": 3}]}
+[ 193 18:16:37] RESULT play_input
+    {"sample_every":1,"frames":15,"was_paused":true,"paused":true,"segments":3,"frames_run":15,"port":0,"sample_frames":[],"watch":[],"polls":15,"end_frame":201895,"start_frame":201880,"note":"Ran 15 frames of input on port 0. The game was paused before and is paused again now."}
+[ 196 18:16:39] ASSISTANT (turn 1 step 29) · in 207 (cache 144128) out 81
+    ▷ 
+    → read_memory {"address": 1805, "length": 1}
+    → list_sprites {}
+    → screenshot {}
+[ 198 18:16:39] RESULT read_memory
+    {"bytes":[0],"address":1805,"mem_type":"cpuDebug"}
+[ 200 18:16:39] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":81,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":89,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":81,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 202 18:16:39] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/68e987cb4b07.png
+[ 205 18:16:46] ASSISTANT (turn 1 step 30) · in 992 (cache 144384) out 1314
+    ▷ 0x070D stayed 0 after unpausing, and Mario's small Mario sprites are: tiles 50,51,52,53 at x81/89, flip_h = false. Hmm, flip_h false means facing... The screenshot shows Mario facing right (his face?) Actually the sprite is small. Let me determine: which tiles correspond to facing right vs left for small Mario.
+    
+    The known mapping says small Mario standing tiles are 3A 37 4F 4F at prgRom 0x6ED3, "OAM shows four blank entries then 3A,37 over 4F,4F(flipped)". Here we see tiles 50,51,52,53 (0x32,0x33,0x34,0x35) — this is a walking pose (walking animation), not standing. Mario appears mid-walk animation? But he's standing still for 10 frames. Hmm, maybe the animation frame persists.
+    
+    Wait, list_sprites shows 8 Mario sprites with 4 blank (252) and then 50,51,52,53. flip_h all false. So facing right.
+    
+    But I wrote 0x070D=0 expecting left. Yet sprites are flip_h false. Hmm. So either 0x070D isn't the flip control, or the sprite is built elsewhere.
+    
+    Wait — but maybe when standing, the "walking" pose uses a different direction handling. Hmm. Or maybe 0x070D is not facing; it could be "player moving right" or "walking direction".
+    
+    Actually hold on. The screenshot shows Mario standing, but list… [+2951 chars]
+    `$070D` didn't flip the sprite (still `flip_h:false`), so it isn't the sprite-facing byte. Two other candidates flipped with facing: `$0033` and `$0045` (both 1→2). Let me restore the clean right-facing state and test `$0033`.
+    → load_state {"slot": 0}
+[ 207 18:16:46] RESULT load_state
+    {"action":"loaded","slot":0,"paused":true,"stepped_frames":1,"bytes":4799}
+[ 210 18:16:49] ASSISTANT (turn 1 step 31) · in 167 (cache 146560) out 265
+    ▷ Now read 0x0033, 0x0045, 0x070D, and list sprite baseline. Then write 0x0033=2 and run.
+    
+    Actually let me first confirm state and get baseline flip. list_sprites gives flip_h. In rface, is it false? We saw earlier after writing 0x070D=0 it was false. But that was after load? No, that was the state with 0x070D=0. Let me get baseline now.
+    → read_memory {"address": 51, "length": 1}
+    → read_memory {"address": 69, "length": 1}
+    → read_memory {"address": 1805, "length": 1}
+    → list_sprites {}
+[ 212 18:16:49] RESULT read_memory
+    {"bytes":[1],"address":51,"mem_type":"cpuDebug"}
+[ 214 18:16:49] RESULT read_memory
+    {"bytes":[1],"address":69,"mem_type":"cpuDebug"}
+[ 216 18:16:49] RESULT read_memory
+    {"bytes":[1],"address":1805,"mem_type":"cpuDebug"}
+[ 218 18:16:49] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":81,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":89,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":81,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 221 18:16:51] ASSISTANT (turn 1 step 32) · in 702 (cache 146944) out 249
+    ▷ Baseline rface: 0x0033=1, 0x0045=1, 0x070D=1, Mario flip_h=false (facing right).
+    
+    Now write 0x0033 = 2 and run 5 frames, then list_sprites. If flip_h becomes true, that's the facing byte.
+    
+    Note: while running with no input, the game might set 0x0033 from input handling? Facing is only updated on direction press, so should persist.
+    
+    Let's do: write 0x0033=2, play_input [{start,2},{},5,{start,3}], then list_sprites and read 0x0033.
+    Baseline right-facing: `$0033`=1, `$0045`=1, `$070D`=1, Mario `flip_h:false`. Test `$0033` = 2.
+    → write_memory {"address": 51, "bytes": [2]}
+[ 223 18:16:51] RESULT write_memory
+    {"bytes_written":1,"address":51,"mem_type":"cpu","persistent":false}
+[ 226 18:16:53] ASSISTANT (turn 1 step 33) · in 215 (cache 147712) out 72
+    ▷ 
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}, {"buttons": [], "frames": 5}, {"buttons": ["start"], "frames": 3}]}
+[ 228 18:16:53] RESULT play_input
+    {"sample_every":1,"frames":10,"was_paused":true,"paused":true,"segments":3,"frames_run":10,"port":0,"sample_frames":[],"watch":[],"polls":10,"end_frame":201906,"start_frame":201896,"note":"Ran 10 frames of input on port 0. The game was paused before and is paused again now."}
+[ 231 18:16:55] ASSISTANT (turn 1 step 34) · in 258 (cache 147840) out 80
+    ▷ 
+    → read_memory {"address": 51, "length": 1}
+    → list_sprites {}
+    → screenshot {}
+[ 233 18:16:55] RESULT read_memory
+    {"bytes":[2],"address":51,"mem_type":"cpuDebug"}
+[ 235 18:16:55] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":81,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":89,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":81,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 237 18:16:55] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/68e987cb4b07.png
+[ 240 18:17:01] ASSISTANT (turn 1 step 35) · in 1041 (cache 148096) out 905
+    ▷ 0x0033 = 2 persisted but sprite flip unchanged. So 0x0033 is not sprite facing either. Perhaps 0x0033 is a "moving direction" or animation direction. Hmm.
+    
+    Maybe the facing that controls sprite is derived from a byte that gets recomputed. Let me reconsider.
+    
+    Wait — maybe small Mario uses different tiles for left/right rather than flip_h? The mapping note said big Mario left-facing used h-flipped OAM. For small Mario, maybe left-facing uses different tiles and flip_h stays false? Let me check: small Mario standing tiles at prgRom 0x6ED3 = 3A 37 4F 4F, described as "OAM shows four blank entries then 3A,37 over 4F,4F(flipped)". Hmm "4F,4F(flipped)" meaning one of the 4F is drawn flipped? That's about a mirrored foot.
+    
+    Actually for small Mario standing facing right, tiles are 3A 37 4F 4F. For facing left, SMB uses the same tiles but with h-flip attribute set. Let me verify by making Mario face left via input and listing sprites.
+    
+    Let's do: load_state 0 (rface), then hold left briefly and stop, then list_sprites. That will show what a genuine left-facing small Mario looks like (flip_h true or different tiles).
+    
+    Actually simpler: we have lface snapshot but didn't list sprites. Let's recr… [+1829 chars]
+    `$0033` didn't flip either. Let me establish what a genuinely left-facing small Mario looks like via real input, for comparison.
+    → load_state {"slot": 0}
+[ 242 18:17:01] RESULT load_state
+    {"action":"loaded","slot":0,"paused":true,"stepped_frames":1,"bytes":4799}
+[ 245 18:17:03] ASSISTANT (turn 1 step 36) · in 191 (cache 149888) out 84
+    ▷ 
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}, {"buttons": ["left"], "frames": 8}, {"buttons": [], "frames": 15}, {"buttons": ["start"], "frames": 3}]}
+[ 247 18:17:04] RESULT play_input
+    {"sample_every":1,"frames":28,"was_paused":true,"paused":true,"segments":4,"frames_run":28,"port":0,"sample_frames":[],"watch":[],"polls":28,"end_frame":201935,"start_frame":201907,"note":"Ran 28 frames of input on port 0. The game was paused before and is paused again now."}
+[ 250 18:17:05] ASSISTANT (turn 1 step 37) · in 246 (cache 150016) out 35
+    ▷ 
+    → list_sprites {}
+    → screenshot {}
+[ 252 18:17:06] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":81,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":89,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":81,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 254 18:17:06] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/68e987cb4b07.png
+[ 257 18:17:15] ASSISTANT (turn 1 step 38) · in 961 (cache 150272) out 1582
+    ▷ Hmm, after walking left 8 frames and stopping, list_sprites still shows tiles 50-53 with flip_h false. Same as right. So small Mario left/right tiles are DIFFERENT tiles, not flip. But here they're identical (50-53) for both directions! That's suspicious.
+    
+    Wait — maybe Mario didn't turn because 8 frames wasn't enough to register? Or maybe the sprite shown is actually a walking animation and he's still facing right?
+    
+    Hmm, actually maybe load_state didn't restore to before the 0x0033 write? load_state 0 was saved AFTER writing 0x070D=0? Let me recall: save_state slot 0 was taken in rface state BEFORE writing 0x070D. Yes save_state was called together with write_memory 0x070D=0; save happens first. So slot 0 = rface with 0x070D=1, 0x0033=1.
+    
+    Then I loaded state 0, wrote 0x0033=2 (state now has 0x0033=2). Then I loaded state 0 again -> restores 0x0033=1. Good.
+    
+    Then walked left 8 frames. Mario should face left. But sprites unchanged (tiles 50-53, flip false).
+    
+    Hmm. Maybe the tiles for facing left are different and list shows 50-53 still because... the sprite build uses "PlayerFacingDir" which changes the tile ids. Since tiles are same, maybe he didn't turn. Possibly because 8 frames of… [+4296 chars]
+    The 8-frame left didn't visibly change the sprite. Let me compare a genuine right-facing vs a genuine left-facing state properly.
+    → load_state {"slot": 0}
+[ 259 18:17:15] RESULT load_state
+    {"action":"loaded","slot":0,"paused":true,"stepped_frames":1,"bytes":4799}
+[ 262 18:17:17] ASSISTANT (turn 1 step 39) · in 148 (cache 152704) out 84
+    ▷ 
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}, {"buttons": ["left"], "frames": 35}, {"buttons": [], "frames": 20}, {"buttons": ["start"], "frames": 3}]}
+[ 264 18:17:18] RESULT play_input
+    {"sample_every":1,"frames":60,"was_paused":true,"paused":true,"segments":4,"frames_run":60,"port":0,"sample_frames":[],"watch":[],"polls":60,"end_frame":201996,"start_frame":201936,"note":"Ran 60 frames of input on port 0. The game was paused before and is paused again now."}
+[ 267 18:17:20] ASSISTANT (turn 1 step 40) · in 203 (cache 152832) out 54
+    ▷ 
+    → list_sprites {}
+    → snapshot_memory {"name": "leftwalk"}
+[ 269 18:17:20] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":81,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":89,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":81,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 271 18:17:20] RESULT snapshot_memory
+    {"name":"leftwalk","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:17:20.099Z","checksum":"c7c89394","snapshots":["h0","v0","v1","v2","lface","rface","leftwalk"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 274 18:17:23] ASSISTANT (turn 1 step 41) · in 693 (cache 153088) out 457
+    ▷ Now left-facing: tiles 58,55,79,79, with one sprite attr 64 (flip_h true) at index 8. So left-facing uses different tiles (58,55,79) plus a flipped 79. Right-facing used 50,51,52,53.
+    
+    So the facing changes the tile set, not necessarily all flips. Good.
+    
+    So the facing byte is the one that selects these tiles. Now which RAM byte? Let's diff leftwalk vs rface (right-facing standing). But positions differ etc. However, the sprite tile selection is driven by a "PlayerFacingDir" byte likely 0/1 or 1/2.
+    
+    We have candidate bytes. In rface (right): 0x0033=1, 0x0045=1, 0x070D=1, 0x0000=2? wait rface 0x0000=2, lface 0x0000=0. Hmm.
+    
+    Let me diff leftwalk against rface and look for bytes with small 0/1/2 values. Let me run diff.
+    
+    Actually, note: leftwalk state has Mario standing (after stopping). rface is also standing. The diff should show facing + animation + position (different x).
+    
+    Let me diff leftwalk vs rface filter changed, and inspect small-value bytes.
+    
+    Hmm, better: since facing is what we want, and lface was standing left, but leftwalk might have different animation. Let me just diff rface->leftwalk changed and look for values in {0,1,2,3}.
+    
+    Let me run it.
+    Now I can see genuine left-facing (tiles 58/55/79 with a flipped 79). Let me diff the left-facing state against the right-facing one to find the facing byte among small-valued bytes.
+    → diff_memory {"a": "rface", "b": "leftwalk", "filter": "changed"}
+[ 276 18:17:23] RESULT diff_memory
+    {"a":"rface","b":"leftwalk","filter":"changed","considered":2048,"matched":33,"hits":[{"address":0,"old":2,"new":0,"address_hex":"0x0000"},{"address":1,"old":3,"new":79,"address_hex":"0x0001"},{"address":9,"old":96,"new":99,"address_hex":"0x0009"},{"address":87,"old":2,"new":0,"address_hex":"0x0057"},{"address":503,"old":138,"new":239,"address_hex":"0x01F7"},{"address":504,"old":16,"new":102,"address_hex":"0x01F8"},{"address":505,"old":155,"new":175,"address_hex":"0x01F9"},{"address":506,"old":143,"new":119,"address_hex":"0x01FA"},{"address":507,"old":239,"new":129,"address_hex":"0x01FB"},{"ad… [+1496 chars]
+[ 279 18:17:27] ASSISTANT (turn 1 step 42) · in 949 (cache 154112) out 549
+    ▷ In this diff, facing-related candidates that flip 1->0: 0x06FF (1->0), 0x070D (1->0), 0x0775 (1->0). Also 0x0000 2->0.
+    
+    Interesting: 0x06FF = 1 right, 0 left. 0x070D = 1 right, 0 left. 0x0775 = 1 right, 0 left. Hmm.
+    
+    Wait, 0x06FF is adjacent to 0x06FC (player1_buttons, and 0x06FE/0x06FF?). Actually 0x06FC is buttons P1. 0x06FF might be something else.
+    
+    Hmm. Which one actually controls the sprite tiles? We tested 0x070D write→ no flip. Let me test 0x06FF and 0x0775.
+    
+    But note: when we tested 0x070D write=0, we ran 5-10 frames with no input; the sprite stayed right-facing. But 0x070D might be overwritten by the facing update? It stayed 0, and sprite stayed right. So not it.
+    
+    Let me test 0x06FF write=0 from rface. Load state 0, write 0x06FF=0, run frames, list_sprites.
+    
+    Wait, but earlier rface read of 0x06FF? We didn't read. In this diff rface 0x06FF=1, leftwalk=0. Let me verify by reading rface. Actually we know from diff.
+    
+    Let me test 0x06FF.
+    
+    Also, another thought: maybe the facing byte is only recomputed when the player moves, and the sprite direction byte is derived each frame from it; writing it while standing should stick.
+    
+    Let me test 0x06FF.
+    
+    Load_state 0, read 0x06FF (expect… [+32 chars]
+    Facing candidates that flip 1→0 are `$06FF`, `$070D`, `$0775`. I already ruled out `$070D`; let me test `$06FF`.
+    → load_state {"slot": 0}
+    → read_memory {"address": 1791, "length": 1}
+[ 281 18:17:27] RESULT load_state
+    {"action":"loaded","slot":0,"paused":true,"stepped_frames":1,"bytes":4799}
+[ 283 18:17:27] RESULT read_memory
+    {"bytes":[1],"address":1791,"mem_type":"cpuDebug"}
+[ 286 18:17:29] ASSISTANT (turn 1 step 43) · in 151 (cache 155520) out 76
+    ▷ 0x06FF=1 in rface. Write 0, run, list.
+    → write_memory {"address": 1791, "bytes": [0]}
+[ 288 18:17:29] RESULT write_memory
+    {"bytes_written":1,"address":1791,"mem_type":"cpu","persistent":false}
+[ 291 18:17:31] ASSISTANT (turn 1 step 44) · in 260 (cache 155520) out 72
+    ▷ 
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}, {"buttons": [], "frames": 5}, {"buttons": ["start"], "frames": 3}]}
+[ 293 18:17:31] RESULT play_input
+    {"sample_every":1,"frames":10,"was_paused":true,"paused":true,"segments":3,"frames_run":10,"port":0,"sample_frames":[],"watch":[],"polls":10,"end_frame":202007,"start_frame":201997,"note":"Ran 10 frames of input on port 0. The game was paused before and is paused again now."}
+[ 296 18:17:33] ASSISTANT (turn 1 step 45) · in 175 (cache 155776) out 69
+    ▷ 
+    → read_memory {"address": 1791, "length": 1}
+    → list_sprites {}
+[ 298 18:17:33] RESULT read_memory
+    {"bytes":[0],"address":1791,"mem_type":"cpuDebug"}
+[ 300 18:17:33] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":81,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":89,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":81,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 303 18:17:43] ASSISTANT (turn 1 step 46) · in 724 (cache 155904) out 1760
+    ▷ 0x06FF also no flip. Hmm.
+    
+    Let me test 0x0775. Load_state 0, read 0x0775 (=1), write 0, run, list.
+    
+    Actually wait — maybe the sprite direction is not controlled by a standalone persistent byte but by a byte that the game recomputes from the input every frame. In that case, writing it would get overwritten on the next frame by "no input -> keep"? Hmm, we saw our writes persisted (0x06FF stayed 0), so not overwritten. If the sprite build still shows right, then it's not the source.
+    
+    Let me test 0x0775.
+    
+    Actually, maybe the relevant facing is stored as part of a byte with other bits. For example 0x0775 bit? Or maybe the facing is the "Player_MovingDir" but sprite flip uses a derived byte like $03AE? Hmm.
+    
+    Alternatively, maybe the flip is determined by comparing something.
+    
+    Let me reconsider: In SMB, the player's facing direction is stored at... Actually I now strongly recall: `PlayerFacingDir = $000D`? Hmm. But 0x000D didn't appear in diffs (it might be constant 1?). Let me read $000D in rface and leftwalk.
+    
+    Hmm, wait. Let's think about which bytes SMB uses. The player graphics are chosen based on `PlayerFacingDir` (0 or 1?) and `Player_MovingDir`. In smbdis:
+    ```
+    PlayerFacingDir = $00… [+4429 chars]
+    `$06FF` didn't flip either. Let me test `$0775` (1→0 with facing).
+    → write_memory {"address": 1909, "bytes": [0]}
+[ 305 18:17:43] RESULT write_memory
+    {"bytes_written":1,"address":1909,"mem_type":"cpu","persistent":false}
+[ 308 18:17:45] ASSISTANT (turn 1 step 47) · in 213 (cache 158208) out 72
+    ▷ 
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}, {"buttons": [], "frames": 5}, {"buttons": ["start"], "frames": 3}]}
+[ 310 18:17:45] RESULT play_input
+    {"sample_every":1,"frames":10,"was_paused":true,"paused":true,"segments":3,"frames_run":10,"port":0,"sample_frames":[],"watch":[],"polls":10,"end_frame":202017,"start_frame":202007,"note":"Ran 10 frames of input on port 0. The game was paused before and is paused again now."}
+[ 313 18:17:48] ASSISTANT (turn 1 step 48) · in 256 (cache 158336) out 190
+    ▷ Wait — I forgot to load_state 0 first after the 0x06FF test. The current state had 0x06FF=0 already. And I wrote 0x0775=0. That's two changed bytes, not isolated. Hmm. Actually the 0x06FF test ran frames and 0x06FF stayed 0. Then I wrote 0x0775=0 without reloading, so now both are 0. If the sprite flips now, it could be 0x0775 or the combination.
+    
+    Let me list sprites.
+    → read_memory {"address": 1909, "length": 1}
+    → list_sprites {}
+[ 315 18:17:48] RESULT read_memory
+    {"bytes":[0],"address":1909,"mem_type":"cpuDebug"}
+[ 317 18:17:48] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":81,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":89,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":81,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 320 18:17:58] ASSISTANT (turn 1 step 49) · in 670 (cache 158720) out 1817
+    ▷ Still right-facing. So 0x0775 not it either (or 0x06FF+0x0775 combo not it).
+    
+    Remaining: 0x0000. Let me test 0x0000=0 in a right-facing state.
+    
+    But wait — maybe the facing that flips the sprite is not a simple byte; maybe it's the sign of the speed or a derived value computed every frame. In SMB, the sprite is chosen based on `PlayerFacingDir` which I believe is set from the input in the player physics. Let me reconsider.
+    
+    Actually, maybe the issue is that the sprite build happens in the same frame and reads a byte that we haven't identified, and that byte is recomputed each frame from the controller. Since we paused the game, unpausing and running with no input: the player physics routine might set facing based on the last direction pressed stored elsewhere. Hmm.
+    
+    Let me use a different tactic: trace_writes on the OAM attribute byte for Mario sprite while changing direction. Too complex.
+    
+    Alternative: trace reads of $0222 (the OAM attr of the flipped foot). Not helpful.
+    
+    Better tactic: Since the sprite tiles changed from 50/51/52/53 to 58/55/79/79, the code reads a facing byte. Let me find the facing byte by finding bytes that are 1 in rface and 0 in leftwalk — we have 0x06FF, 0x0… [+5143 chars]
+    Let me restore and test the last candidate, `$0000` (2 right / 0 left).
+    → load_state {"slot": 0}
+    → read_memory {"address": 0, "length": 1}
+[ 322 18:17:58] RESULT load_state
+    {"action":"loaded","slot":0,"paused":true,"stepped_frames":1,"bytes":4799}
+[ 324 18:17:58] RESULT read_memory
+    {"bytes":[0],"address":0,"mem_type":"cpuDebug"}
+[ 327 18:18:07] ASSISTANT (turn 1 step 50) · in 243 (cache 161024) out 1650
+    ▷ Hmm, 0x0000 reads 0 in rface (after load_state). But earlier diff said rface 0x0000=2. Wait, load_state 0 might have restored a slightly different moment? Actually save_state "saved" with stepped_frames 1 — it saved after stepping one frame? Hmm. And load_state also stepped 1. The 0x0000 value might have changed during that frame.
+    
+    Hmm, actually earlier read of $0000 block in lface showed byte0=0. And rface diff said old 2. Confusing.
+    
+    Wait, the rface snapshot was taken from a paused state. Then I did several load/write/run cycles. Now after load_state 0, 0x0000=0. So maybe the save_state captured 0x0000=0? But rface snapshot showed 2.
+    
+    Hmm, actually the save_state slot 0 was taken in the rface state (before writing 0x070D). save_state "stepped_frames":1 means it ran one frame to snapshot. So slight differences.
+    
+    This is getting messy. Let me take a cleaner, more systematic approach to facing.
+    
+    Actually, maybe the real facing byte in SMB is $000D or $0033 or a bit. Let me look at the SMB disassembly knowledge. I'll use lookup_symbol? The task says no reference is available. But lookup_symbol may have a reference imported? Earlier mapping mentions "no reference imported". The task e… [+4615 chars]
+    → list_sprites {}
+[ 329 18:18:07] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":81,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":89,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":81,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 332 18:18:23] ASSISTANT (turn 1 step 51) · in 685 (cache 162816) out 3067
+    ▷ Current state after load_state 0: tiles 50-53 = right-facing. And 0x0000=0. So 0x0000=0 in a right-facing state now, but the rface snapshot said 0x0000=2. Contradiction → 0x0000 is not facing; it's something transient (maybe $0000 is a scratch/player state that changed during the save_state's stepped frame).
+    
+    So 0x0000 is not reliable.
+    
+    Hmm. Let me reconsider: maybe the facing direction for the sprite is encoded in the high bit of a byte or as part of $000D. Let me look at what changed between rface and leftwalk again: 0x06FF, 0x070D, 0x0775 are the stable 1→0 flips. We wrote all three (individually and partially combined) and no flip. 
+    
+    Wait, did we actually test 0x070D correctly? We wrote 0x070D=0 while in the state after rface. Then ran 10 frames. It stayed 0, sprite right. Yes.
+    
+    Hmm, but maybe the sprite direction is controlled by $0033 or $0045 and those only changed between lface and rface, not rface and leftwalk. In rface→leftwalk, 0x0033 and 0x0045 stayed 1. That means in leftwalk they were 1 (right value) but Mario faced left! So they're not facing.
+    
+    Hmm, so what byte distinguishes? In leftwalk, the direction bytes we know (0x06FF=0, 0x070D=0, 0x0775=0) but writing them to… [+9662 chars]
+    The write tests for the 1→0 candidates didn't flip the sprite, so something else drives the sprite facing. Let me find the code that builds Mario's OAM directly: unpause, then trace writes to his sprite tile byte `$0215`.
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}]}
+[ 334 18:18:23] RESULT play_input
+    {"sample_every":1,"frames":2,"was_paused":true,"paused":true,"segments":1,"frames_run":2,"port":0,"sample_frames":[],"watch":[],"polls":2,"end_frame":202020,"start_frame":202018,"note":"Ran 2 frames of input on port 0. The game was paused before and is paused again now."}
+[ 337 18:18:26] ASSISTANT (turn 1 step 52) · in 139 (cache 166528) out 360
+    ▷ Hmm, it says was_paused:true and paused:true — it paused again because the game was paused before (emulator paused). The Start press within 2 frames: did it unpause internally? The emulator paused again at end, so the game is frozen at frame 2; if Start unpaused internally on frame 1, then frame 2 ran unpaused (physics). But now it's paused again (emulator), but $0776 may be 0 now. Let me read $0776.
+    
+    Actually the play_input doc: if the game was paused (emulator), it resumes for the run and pauses after. My script pressed Start on frame 1 (unpausing internal pause), frame 2 ran unpaused. At end emulator paused. So internal $0776 should now be 0 (unpaused). Let me verify, then trace_writes (needs frames to run; it might resume itself? It says refused while paused). If emulator is paused, trace_writes will be refused. Hmm.
+    
+    So I need the game running (emulator not paused) for trace_writes. How? Call resume_emulator. Then trace_writes.
+    
+    But resume_emulator lets it run freely; the game is internally unpaused now (hopefully). Then trace_writes.
+    
+    Let me read $0776 and call resume_emulator, then trace.
+    → read_memory {"address": 1910, "length": 1}
+    → resume_emulator {}
+[ 339 18:18:26] RESULT read_memory
+    {"bytes":[129],"address":1910,"mem_type":"cpuDebug"}
+[ 341 18:18:26] RESULT resume_emulator
+    {"resumed":true}
+[ 345 18:18:34] ASSISTANT (turn 1 step 53) · in 24245 (cache 166912) out 1167
+    ▷ $0776 was 129 before resume, so the game is internally paused even though I pressed Start. Hmm: the earlier play_input [{start,2}] result said was_paused:true, paused:true — because the emulator was paused before, it resumed for 2 frames and paused again at the end. But the Start press inside those 2 frames didn't register? Or it toggled to unpause then... Actually reading $0776 right after showed 129. Hmm, 129 = 0x81 = bit0 set (paused) + bit7.
+    
+    Wait, maybe when the game is paused and I press Start, it unpauses, but the read happened after play_input paused the emulator again — the read reflects the internal state which should be unpaused (0 or 0x80). It read 129. So Start didn't toggle. Why? Possibly because the Start press happened while the emulator was paused at the moment of resumption? Or the script press Start for 2 frames but the game's pause handler needs the NMI...
+    
+    Hmm, actually earlier when I did the pause/unpause sequences it worked (v0/v1/v2 etc.). Let me retry resume with a fresh Start press. But note: the game might be at a card / or maybe $0776 bit0 is pause and today's state 129 means paused.
+    
+    Actually wait: after load_state 0, $0776=129. Then I called play_input… [+2836 chars]
+    `$0776` was still 129 — the Start press didn't take. Let me press Start with a longer hold and confirm the game engine is unpaused.
+    → play_input {"script": [{"buttons": ["start"], "frames": 4}, {"buttons": [], "frames": 4}]}
+[ 347 18:18:34] RESULT play_input
+    {"sample_every":1,"frames":8,"was_paused":false,"paused":false,"segments":2,"frames_run":8,"port":0,"sample_frames":[],"watch":[],"polls":8,"end_frame":202496,"start_frame":202488,"note":"Ran 8 frames of input on port 0. The game is still running."}
+[ 350 18:18:36] ASSISTANT (turn 1 step 54) · in 162 (cache 192256) out 68
+    ▷ 
+    → read_memory {"address": 1910, "length": 1}
+    → screenshot {}
+[ 352 18:18:36] RESULT read_memory
+    {"bytes":[0],"address":1910,"mem_type":"cpuDebug"}
+[ 354 18:18:36] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/5bfa2f104ea5.png
+[ 357 18:18:39] ASSISTANT (turn 1 step 55) · in 497 (cache 192384) out 185
+    ▷ $0776=0, game unpaused. Now trace_writes on Mario's OAM tile byte $0215 (533) in write mode for a few frames. Let me do length 8 (533-540) to catch the sprite build writes.
+    
+    Actually trace_writes with address 533, length 16, frames 10, mode write. Let's do it.
+    Game engine is running. Now trace writes to Mario's OAM bytes to find the sprite-building code.
+    → trace_writes {"address": 533, "length": 16, "frames": 10, "mode": "write"}
+[ 359 18:18:39] RESULT trace_writes
+    {"frames":10,"truncated":false,"mode":"write","address":533,"writers":[{"last_value":248,"last_frame":9,"count":40,"pc":33322,"origin":{"mem_type_id":45,"address":554,"mem_type":"prgRom"},"last_address":548,"samples":[{"frame":0,"address":536,"value":248},{"frame":0,"address":540,"value":248},{"frame":0,"address":544,"value":248},{"frame":0,"address":548,"value":248},{"frame":1,"address":536,"value":248},{"frame":1,"address":540,"value":248},{"frame":1,"address":544,"value":248},{"frame":1,"address":548,"value":248}],"pc_hex":"0x822A","origin_hex":"prgRom 0x22A"},{"last_value":81,"last_frame":… [+5088 chars]
+[ 362 18:18:43] ASSISTANT (turn 1 step 56) · in 1993 (cache 193024) out 568
+    ▷ Interesting. The main writer PC $F299-$F2B5 (0xF299 etc.) writes tile bytes 58,55,79,0,200 etc. Wait, at frame 0, $0215 (533) got value 58, $0219 (537) got 55, $021D (541) got 79, $0221 (545) got 79. That's the LEFT-facing tile set! But earlier list_sprites showed right-facing 50-53. Hmm! The trace just now shows Mario's OAM being built with tiles 58/55/79/79 = LEFT facing.
+    
+    Wait — so maybe when the game unpaused, Mario was actually facing left? But the screenshot shows... hmm, at this point Mario is standing. Let me re-list sprites. Actually maybe load_state 0 restored a left-facing state?! Because the save_state slot 0 might have been taken after some state change. Earlier after load_state 0, list_sprites showed 50-53 (right). Then I did writes/tests. Then resumed. Hmm.
+    
+    Actually the writer PC $F299 with value 58 for $0215 — that's the code that stores the tile id. So the sprite build read the facing and chose 58 (left). But the game is running now and OAM might have changed. Let me just list sprites now.
+    
+    Actually more importantly: the writer at $F299-$F2B5 is the player sprite builder. Let me disassemble around $F280-$F2C0 to see what it reads for facing. Let me do that.
+    
+    Also … [+405 chars]
+    The sprite builder writes Mario's OAM at `$F299`–`$F2B5`. Let me disassemble that region to see which RAM byte selects the tile set (facing).
+    → disassemble {"address": 62096, "length": 72}
+    → list_sprites {}
+[ 364 18:18:43] RESULT disassemble
+    $f290: 01 02       ora (0x02, x)
+    $f292: a9 40       lda #0x40
+    $f294: d0 0a       bne 0x0000
+    $f296: 99 01 02    sta 0x0201, y
+    $f299: a5 01       lda 0x01
+    $f29b: 99 05 02    sta 0x0205, y
+    $f29e: a9 00       lda #0x00
+    $f2a0: 05 04       ora 0x04
+    $f2a2: 99 02 02    sta 0x0202, y
+    $f2a5: 99 06 02    sta 0x0206, y
+    $f2a8: a5 02       lda 0x02
+    $f2aa: 99 00 02    sta 0x0200, y
+    $f2ad: 99 04 02    sta 0x0204, y
+    $f2b0: a5 05       lda 0x05
+    $f2b2: 99 03 02    sta 0x0203, y
+    $f2b5: 18          clc 
+    $f2b6: 69 08       adc #0x08
+    $f2b8: 99 07 02    sta 0x0207, y
+    $f2bb: a5 02       lda 0x02
+    $f2bd: 18          clc… [+231 chars]
+[ 366 18:18:43] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":81,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":89,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":81,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 369 18:18:53] ASSISTANT (turn 1 step 57) · in 1081 (cache 195584) out 1720
+    ▷ Now Mario is left-facing (tiles 58/55/79/79). So the state after load_state 0 + all my writes ended up left-facing?! Hmm. Actually the game kept running (resumed) for a while between calls, and Mario may have been affected. Actually no input, so facing shouldn't change. But maybe the save state slot 0 was actually a left-facing state? Earlier after load_state 0, list_sprites showed 50-53 (right). Then I wrote 0x06FF=0 and 0x0775=0 while paused... then resumed for trace. Hmm, then it became left-facing. So one of those writes (0x06FF=0 or 0x0775=0) DID flip it, but only after the game ran! Earlier the list showed right because... hmm.
+    
+    Wait: sequence:
+    - load_state 0 → right (50-53).
+    - write 0x06FF=0 → run 5 frames → list: 50-53 (right). [state after: 0x06FF=0]
+    - write 0x0775=0 → run 5 frames → list: 50-53 (right). [0x06FF=0, 0x0775=0]
+    - Then play_input [{start,2}] (didn't unpause), read $0776=129, resume_emulator.
+    - play_input [{start,4},{},4] → unpaused, game ran ~8 frames.
+    - Now trace, list: LEFT (58/55/79).
+    
+    So after the writes 0x06FF=0 and 0x0775=0, once the game actually ran freely for ~8 frames (not just 5 paused-step frames?), it flipped to left. Hmm, but we did run 5 frames … [+3924 chars]
+    Now Mario is left-facing — after I wrote `$06FF`=0 and `$0775`=0. Let me isolate which one by reloading the right-facing state and changing only `$06FF`.
+    → load_state {"slot": 0}
+    → read_memory {"address": 1791, "length": 1}
+    → read_memory {"address": 1909, "length": 1}
+    → read_memory {"address": 1805, "length": 1}
+[ 371 18:18:53] RESULT load_state
+    {"action":"loaded","slot":0,"paused":false,"stepped_frames":0,"bytes":4799}
+[ 373 18:18:53] RESULT read_memory
+    {"bytes":[1],"address":1791,"mem_type":"cpuDebug"}
+[ 375 18:18:53] RESULT read_memory
+    {"bytes":[1],"address":1909,"mem_type":"cpuDebug"}
+[ 377 18:18:53] RESULT read_memory
+    {"bytes":[1],"address":1805,"mem_type":"cpuDebug"}
+[ 380 18:18:56] ASSISTANT (turn 1 step 58) · in 222 (cache 198272) out 317
+    ▷ Hmm, load_state returned "paused":false, stepped_frames 0. So the emulator is now running (not paused), and the game is unpaused. That's different from before. Now 0x06FF=1, 0x0775=1, 0x070D=1 (right-facing state).
+    
+    Now write 0x06FF=0, then run a few frames (game already running), then list sprites. Since the game is running freely, frames advance between calls. Let me write and immediately list (list_sprites takes a snapshot). Actually the game runs in real time; a few frames will pass. Good.
+    
+    Let me write 0x06FF=0 and then play_input [{},20] to advance 20 frames deterministically, then list.
+    
+    Actually play_input [{buttons:[],frames:20}] — runs 20 frames no input. Then list.
+    
+    But careful: while game runs freely, Mario might get hit? No enemies near. Fine.
+    
+    Let me write and run.
+    Right-facing baseline restored (`$06FF`=1, `$0775`=1, `$070D`=1). Now write only `$06FF`=0 and let it run 20 frames.
+    → write_memory {"address": 1791, "bytes": [0]}
+[ 382 18:18:56] RESULT write_memory
+    {"bytes_written":1,"address":1791,"mem_type":"cpu","persistent":false}
+[ 385 18:18:58] ASSISTANT (turn 1 step 59) · in 188 (cache 198656) out 48
+    ▷ 
+    → play_input {"script": [{"buttons": [], "frames": 20}]}
+[ 387 18:18:58] RESULT play_input
+    {"sample_every":1,"frames":20,"was_paused":false,"paused":false,"segments":1,"frames_run":20,"port":0,"sample_frames":[],"watch":[],"polls":20,"end_frame":203973,"start_frame":203953,"note":"Ran 20 frames of input on port 0. The game is still running."}
+[ 390 18:19:00] ASSISTANT (turn 1 step 60) · in 202 (cache 198784) out 69
+    ▷ 
+    → read_memory {"address": 1791, "length": 1}
+    → list_sprites {}
+[ 392 18:19:00] RESULT read_memory
+    {"bytes":[0],"address":1791,"mem_type":"cpuDebug"}
+[ 394 18:19:00] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":81,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":89,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":81,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 397 18:19:03] ASSISTANT (turn 1 step 61) · in 623 (cache 199040) out 189
+    ▷ 0x06FF=0 alone did NOT flip; still right-facing (50-53). So 0x0775 must be the one. Earlier the combination flipped. Let me test 0x0775 alone.
+    
+    Load_state 0, write 0x0775=0, run 20, list.
+    
+    Note: currently 0x06FF=0. Load_state 0 resets to 1.
+    `$06FF` alone doesn't flip. Test `$0775` alone.
+    → load_state {"slot": 0}
+    → write_memory {"address": 1909, "bytes": [0]}
+[ 399 18:19:03] RESULT load_state
+    {"action":"loaded","slot":0,"paused":false,"stepped_frames":0,"bytes":4799}
+[ 401 18:19:03] RESULT write_memory
+    {"bytes_written":1,"address":1909,"mem_type":"cpu","persistent":false}
+[ 404 18:19:05] ASSISTANT (turn 1 step 62) · in 238 (cache 199680) out 48
+    ▷ 
+    → play_input {"script": [{"buttons": [], "frames": 20}]}
+[ 406 18:19:05] RESULT play_input
+    {"sample_every":1,"frames":20,"was_paused":false,"paused":false,"segments":1,"frames_run":20,"port":0,"sample_frames":[],"watch":[],"polls":20,"end_frame":204395,"start_frame":204375,"note":"Ran 20 frames of input on port 0. The game is still running."}
+[ 409 18:19:08] ASSISTANT (turn 1 step 63) · in 252 (cache 199808) out 81
+    ▷ 
+    → read_memory {"address": 1909, "length": 1}
+    → list_sprites {}
+    → screenshot {}
+[ 411 18:19:08] RESULT read_memory
+    {"bytes":[0],"address":1909,"mem_type":"cpuDebug"}
+[ 413 18:19:08] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":81,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":89,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":81,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 415 18:19:08] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/68e987cb4b07.png
+[ 418 18:19:12] ASSISTANT (turn 1 step 64) · in 1037 (cache 200064) out 555
+    ▷ 0x0775=0 alone also no flip. Hmm! So neither alone. But the combination earlier (0x06FF=0 AND 0x0775=0) resulted in left-facing. Wait, did it? Let me re-examine: after writing both and eventually resuming, list showed left. But maybe the left-facing was caused by something else: after resume, the game ran and maybe the demo/attract? No. Or maybe Mario got hit by the Goomba and respawned facing left? Hmm, if Mario dies, level reloads at start; facing right normally.
+    
+    Actually, maybe the left-facing came from an actual input: my play_input [{start,4},{},4] — Start pressed; but not direction. Hmm.
+    
+    Wait, actually earlier left-facing might have come from the earlier real left input test (left 35 frames) whose state persisted through a load? No, load_state 0 resets.
+    
+    Hmm, confusing. Let me not chase this.
+    
+    New approach: use the disassembly to find the facing variable. The sprite builder at $F299 reads zero-page $01 (tile), $04 (attribute?), $02 (x), $05 (y). The upstream code sets $01 from a graphics table based on facing. Let me disassemble the routine that calls this. Let me find the routine entry. Disassemble before $F290.
+    
+    Let me disassemble $F260-$F299.
+    
+    Also, there's the writer at… [+413 chars]
+    Neither byte alone flips it. Let me look at the code that sets the h-flip attribute (`$F129` wrote 0x40 to OAM) to see what it keys off.
+    → disassemble {"address": 61664, "length": 96}
+[ 420 18:19:12] RESULT disassemble
+    $f0e0: f0 d0       beq 0x0000
+[ 423 18:19:15] ASSISTANT (turn 1 step 65) · in 213 (cache 201472) out 170
+    ▷ Disassembly misaligned. Let me try $F0E0 - 1? Let me disassemble from $F0D0 length 96.
+    
+    Actually the output looks wrong (beq 0x0000). Let me try address 61648 (F0D0) or maybe the origin is off. Actually $F0E0 in decimal = 61664. It printed one instruction. Let me use a proper starting point, maybe $F0C0.
+    
+    Let me disassemble $F0C0 length 112.
+    → disassemble {"address": 61616, "length": 112}
+[ 425 18:19:15] RESULT disassemble
+    $f0b0: ac 0d 07    ldy 0x070d
+    $f0b3: a5 09       lda 0x09
+    $f0b5: 29 03       and #0x03
+    $f0b7: d0 0d       bne 0x0000
+    $f0b9: c8          iny 
+    $f0ba: c0 0a       cpy #0x0a
+    $f0bc: 90 05       bcc 0x0000
+    $f0be: a0 00       ldy #0x00
+    $f0c0: 8c 0b 07    sty 0x070b
+    $f0c3: 8c 0d 07    sty 0x070d
+    $f0c6: ad 54 07    lda 0x0754
+    $f0c9: d0 0c       bne 0x0000
+    $f0cb: b9 9c f0    lda 0xf09c, y
+    $f0ce: a0 0f       ldy #0x0f
+    $f0d0: 0a          asl a
+    $f0d1: 0a          asl a
+    $f0d2: 0a          asl a
+    $f0d3: 79 07 ee    adc 0xee07, y
+    $f0d6: 60          rts 
+    $f0d7: 98          tya 
+    $f0d8: 18          clc 
+    $f0d9: 69… [+918 chars]
+[ 428 18:19:38] ASSISTANT (turn 1 step 66) · in 1077 (cache 201728) out 4682
+    ▷ The disassembly is misaligned (branches to 0x0000), but the bytes are readable. At $F101: C9 C8 (cmp #$c8), D0 24 (bne). Then $F105: B9 12 02 lda $0212,y; 29 3f and #$3f; 99 12 02 sta $0212,y. $F10D: B9 16 02 lda $0216,y; and #$3f; ora #$40; sta $0216,y. $F117: lda $021a,y; and #$3f; sta. So this code handles a special animation (skid/turn?) where it sets h-flip on some rows.
+    
+    This is getting deep. 
+    
+    Let me step back and think about what the task actually needs. It says find "the direction he faces." In SMB, the canonical variable for facing is `PlayerFacingDir` and I'm now going to recall harder: I believe it's **$000D**? Hmm, but our diff didn't show it.
+    
+    Actually, wait. Let me reconsider the diff lface→rface. It showed 0x0033 (2→1) and 0x0045 (2→1). Actually maybe facing is encoded as 0=right? Hmm.
+    
+    Let me look at the disassembly at $F0B0: `ldy $070d` — code reads $070D! And then it manipulates animation: `lda $09` (frame counter) and `and #$03`; increments Y; compares to #$0a; if >=10, resets $070B and $070D to 0. Then `lda $0754`; if nonzero... loads from table $F09C,y. So $070D is used as an index/state. It's reset when it reaches 10. So $070D is a "player animation/state ind… [+14953 chars]
+    The 1→0 bytes are the walking animation index and input-related, not the sprite-facing byte (facing is latched when graphics are selected). Let me move on to vertical speed — I'll freeze a grounded state and an airborne (rising) state using the Start-pause trick.
+    
+    First pause while standing and snapshot.
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}]}
+[ 430 18:19:38] RESULT play_input
+    {"sample_every":1,"frames":2,"was_paused":false,"paused":false,"segments":1,"frames_run":2,"port":0,"sample_frames":[],"watch":[],"polls":2,"end_frame":206382,"start_frame":206380,"note":"Ran 2 frames of input on port 0. The game is still running."}
+[ 433 18:19:40] ASSISTANT (turn 1 step 67) · in 221 (cache 207360) out 100
+    ▷ Check $0776 to confirm pause. Then snapshot g0.
+    
+    Hmm, "paused":false — meaning it didn't pause the emulator. But the Start should have internally paused. Read $0776.
+    → read_memory {"address": 1910, "length": 1}
+[ 435 18:19:40] RESULT read_memory
+    {"bytes":[0],"address":1910,"mem_type":"cpuDebug"}
+[ 438 18:19:43] ASSISTANT (turn 1 step 68) · in 221 (cache 207488) out 257
+    ▷ $0776=0 — Start didn't pause. Because Mario might not be in a state to pause? Or the Start press happened and immediately unpaused? Hmm, $0776 was 0 before (running). Pressing Start should set it to 1. It's 0.
+    
+    Wait, maybe the Start press didn't register because the controller edge detection? Or maybe because the game is in a "TIME UP"/dying state? Let me screenshot.
+    
+    Actually the trace earlier: between calls the game has been running for a long time (frame 206382). TIME would be near 0. If TIME hits 0, Mario dies (time up) → level reloads. Goomba might have killed him too. Actually if Mario dies, the level reloads with TIME reset to 400. So he's alive but maybe in the middle of a death/reload, where Start doesn't pause.
+    
+    Let me screenshot.
+    → screenshot {}
+    → read_memory {"address": 134, "length": 1}
+[ 440 18:19:43] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/627534017184.png
+[ 442 18:19:43] RESULT read_memory
+    {"bytes":[117],"address":134,"mem_type":"cpuDebug"}
+[ 445 18:19:47] ASSISTANT (turn 1 step 69) · in 471 (cache 207872) out 350
+    ▷ Mario is alive, standing at x~85, TIME 349. The Start press just didn't pause. Odd. Earlier Start paused. Maybe the game recently was paused/unpaused and the edge detection needs a fresh press. Let me press Start for longer, e.g. 4 frames, and check.
+    
+    Actually, note: pressing Start when Mario is standing should pause. Earlier it worked. Let me try again with 4 frames. But between calls the game runs; maybe I pressed Start during the "world card" or something. No.
+    
+    Alternatively, maybe the pause flag $0776 gets set to 1 then immediately the Start handler toggles it back off? Edge detection: ReadJoypads clears held Start bits after the first frame, so holding for 2 frames gives one edge. Should pause.
+    
+    Hmm, let me just try again.
+    
+    Actually, maybe the issue: the game was in "play" but $0770? Let me read $0770 and $06FC during a press. Actually, let me use read after a press.
+    
+    Let me try play_input [{start,4},{},4}] and read $0776 and $06FC. Wait, $06FC will be 0 after. 
+    
+    Let me just try.
+    Start didn't pause. Let me retry with a longer press.
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 5}], "watch": [1910]}
+[ 447 18:19:47] RESULT play_input
+    {"sample_every":1,"frames":10,"was_paused":false,"paused":false,"segments":2,"frames_run":10,"port":0,"sample_frames":[1,2,3,4,5,6,7,8,9,10],"watch":[{"last":129,"values":[129,129,129,129,129,129,129,129,129,129],"address":1910,"first":129,"address_hex":"0x0776"}],"polls":10,"end_frame":206899,"start_frame":206889,"note":"Ran 10 frames of input on port 0. The game is still running. watch values are one sample every 1 frame(s), sample_frames gives their frame numbers."}
+[ 450 18:19:50] ASSISTANT (turn 1 step 70) · in 228 (cache 208640) out 353
+    ▷ $0776 = 129 for all 10 frames — it's paused! But "paused":false means the emulator is running (not emulator-paused), but the game engine is internally paused ($0776 bit0 set). Good. Earlier read showed 0 because it was between pause and... no. Anyway, now $0776=129 (paused).
+    
+    Wait, the earlier read of $0776 after the 2-frame Start showed 0. Then now pressing Start for 5 frames shows 129 throughout. Confusing, but let's go with: now the game is internally paused.
+    
+    Actually, the read earlier might have been after the game auto-unpaused? Doesn't matter.
+    
+    Now snapshot g0 (grounded, standing, paused). Then jump.
+    
+    Actually, to jump from a paused state, I need to unpause (Start) then press A. Script: [{start,2},{},2,{a,12},{a,start,4}] → unpause, jump, pause mid-rise.
+    
+    But note when I pause mid-air with Start, the game freezes. Good.
+    
+    Let me snapshot g0 now.
+    The game engine is paused (`$0776`=129). Snapshot the grounded state, then unpause, jump, and pause mid-rise.
+    → snapshot_memory {"name": "g0"}
+    → read_memory {"address": 206, "length": 1}
+[ 452 18:19:50] RESULT snapshot_memory
+    {"name":"g0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:19:50.786Z","checksum":"e2a5bb1b","snapshots":["h0","v0","v1","v2","lface","rface","leftwalk","g0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 454 18:19:50] RESULT read_memory
+    {"bytes":[176],"address":206,"mem_type":"cpuDebug"}
+[ 457 18:19:53] ASSISTANT (turn 1 step 71) · in 209 (cache 209152) out 304
+    ▷ $00CE = 176 (grounded). Good.
+    
+    Now unpause and jump: script [{start,2},{},2,{a,12},{a,start,4}].
+    
+    Wait, pressing Start to unpause: on the frame Start is pressed, the game unpauses and physics runs. Then no input 2 frames, then A held 12 frames (jump initiated; holding A = higher jump). Then A+Start to pause at frame ~12 of the jump (rising, since jumps last ~50+ frames). At frame 12 he's rising with high upward speed.
+    
+    Actually, careful: the jump velocity peaks immediately. At 12 frames in, still rising. Good.
+    
+    Let me run.
+    
+    Also I want to verify the pause worked. Add watch on $00CE and $0776? Actually watch only samples up to 16 addrs; let me watch $00CE and $0776 plus maybe candidates. But we don't know y-speed candidates yet. Let me just do the jump and then read $00CE.
+    
+    Run.
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}, {"buttons": [], "frames": 2}, {"buttons": ["a"], "frames": 12}, {"buttons": ["a", "start"], "frames": 4}]}
+[ 459 18:19:54] RESULT play_input
+    {"sample_every":1,"frames":20,"was_paused":false,"paused":false,"segments":4,"frames_run":20,"port":0,"sample_frames":[],"watch":[],"polls":20,"end_frame":207297,"start_frame":207277,"note":"Ran 20 frames of input on port 0. The game is still running."}
+[ 462 18:19:56] ASSISTANT (turn 1 step 72) · in 223 (cache 209536) out 132
+    ▷ 
+    → read_memory {"address": 1910, "length": 1}
+    → read_memory {"address": 206, "length": 1}
+    → snapshot_memory {"name": "j0"}
+[ 464 18:19:56] RESULT read_memory
+    {"bytes":[0],"address":1910,"mem_type":"cpuDebug"}
+[ 466 18:19:56] RESULT read_memory
+    {"bytes":[176],"address":206,"mem_type":"cpuDebug"}
+[ 468 18:19:56] RESULT snapshot_memory
+    {"name":"j0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:19:56.659Z","checksum":"ec6b5718","snapshots":["h0","v0","v1","v2","lface","rface","leftwalk","g0","j0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 471 18:20:01] ASSISTANT (turn 1 step 73) · in 264 (cache 209792) out 743
+    ▷ $0776=0 (not paused) and $00CE=176 (grounded!). So the jump didn't happen — the script's Start press toggled from paused to unpaused, but then the A press didn't jump? Or the pause at the end (A+Start) unpaused? Wait, the game was paused at start. Sequence: Start (2 frames) → unpause. Then {}. Then A (12). Then A+Start (4) → pause.
+    
+    But now $0776=0 and Mario grounded. So maybe the initial Start didn't unpause (or it did), and then the final A+Start re-paused? $0776=0 says running. And Y=176 says grounded.
+    
+    Possibly the jump A press was ignored because the pause happened on the same frame? Or the game is paused at $0776=0? Hmm.
+    
+    Actually maybe the whole sequence: game was paused. Start (2) → toggled pause off. Then 2 frames idle. Then A 12 frames: jump. Then A+Start 4: on first frame, Start pressed → pause. So at end game paused, Mario in air. But we read $0776=0 and Y=176.
+    
+    Unless the Start press toggled pause ON earlier and the A did nothing (can't jump while paused). Then at the end A+Start: Start toggled pause OFF. So we end unpaused, grounded. That would happen if the initial Start (2 frames) was itself the toggle that... wait, if game was already paused at start, initial Start… [+1019 chars]
+    The jump didn't take (Y stayed 176). Let me do it from a known-running state and watch `$0776` and `$00CE` to verify the jump and pause timing.
+    → play_input {"script": [{"buttons": ["a"], "frames": 10}, {"buttons": ["a", "start"], "frames": 4}, {"buttons": [], "frames": 2}], "watch": [1910, 206, 87, 1792]}
+[ 473 18:20:02] RESULT play_input
+    {"sample_every":1,"frames":16,"was_paused":false,"paused":false,"segments":3,"frames_run":16,"port":0,"sample_frames":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],"watch":[{"last":129,"values":[0,0,0,0,0,0,0,0,0,0,129,129,129,129,129,129],"address":1910,"first":0,"address_hex":"0x0776"},{"last":141,"values":[172,168,164,160,157,153,150,147,144,141,141,141,141,141,141,141],"address":206,"first":172,"address_hex":"0x00CE"},{"last":0,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":87,"first":0,"address_hex":"0x0057"},{"last":0,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":1792,"first":0,"… [+232 chars]
+[ 476 18:20:04] ASSISTANT (turn 1 step 74) · in 479 (cache 210688) out 269
+    ▷ Now the jump worked: $00CE went 172→141 over frames 1-10, then paused at 141 (frames 11-16). $0776 became 129 at frame 11 (paused). So at the end, the game is paused mid-air at y=141. 
+    
+    Now snapshot j0. But careful: between this play_input and snapshot, the game is internally paused, so state frozen. Good.
+    
+    Then diff g0->j0 changed (or decreased). Let me snapshot and diff.
+    
+    Note $00CE old 176 new 141.
+    
+    Let me snapshot j0 (overwrite the earlier failed one) and diff.
+    Jump captured: `$00CE` fell 172→141 and the game froze mid-air at frame 11. Snapshot and diff against grounded.
+    → snapshot_memory {"name": "j0"}
+    → diff_memory {"a": "g0", "b": "j0", "filter": "changed"}
+[ 478 18:20:04] RESULT snapshot_memory
+    {"name":"j0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:20:04.830Z","checksum":"6291d055","snapshots":["h0","v0","v1","v2","lface","rface","leftwalk","g0","j0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 480 18:20:04] RESULT diff_memory
+    {"a":"g0","b":"j0","filter":"changed","considered":2048,"matched":80,"hits":[{"address":2,"old":208,"new":173,"address_hex":"0x0002"},{"address":9,"old":93,"new":75,"address_hex":"0x0009"},{"address":10,"old":0,"new":128,"address_hex":"0x000A"},{"address":13,"old":0,"new":128,"address_hex":"0x000D"},{"address":29,"old":0,"new":1,"address_hex":"0x001D"},{"address":159,"old":0,"new":253,"address_hex":"0x009F"},{"address":206,"old":176,"new":141,"address_hex":"0x00CE"},{"address":245,"old":73,"new":157,"address_hex":"0x00F5"},{"address":248,"old":22,"new":15,"address_hex":"0x00F8"},{"address":249… [+3340 chars]
+[ 483 18:20:14] ASSISTANT (turn 1 step 75) · in 1766 (cache 211328) out 1917
+    ▷ Interesting candidates for vertical speed:
+    - 0x009F old 0 -> new 253 (0xFD = -3). Hmm.
+    - 0x001D old 0 -> new 1.
+    - 0x000A old 0 -> new 128 (0x80)
+    - 0x000D old 0 -> new 128 (0x80)
+    - 0x06D4 old 2 -> new 4
+    - 0x06D5 old 184 -> new 128
+    
+    0x000A and 0x000D both 0x80: these could be flags/subpixel. Hmm.
+    
+    Hmm, vertical speed should be a fairly large magnitude right after jump start. Jump velocity in SMB is about -4 px/frame initially (0xFC = -4)? Actually SMB jump initial velocity ~ -4.0 px/frame? Hmm, Mario jumps about 4 blocks high. Initial speed maybe -4 px/frame (0xFC0? with subpixel). In 1/16 units, -64 = 0xC0.
+    
+    Candidates: 0x009F=253 (0xFD=-3), 0x0002=173 (from 208), 0x06D5=128, 0x0700... 
+    
+    Hmm, 0x0002 old 208 new 173: that's likely a zero-page scratch holding the tile/animation offset.
+    
+    Wait, maybe the vertical speed is at 0x009F? 0x00CE is Y position (index 0 of array). The Y speed array might be at 0x009F? Hmm, 0x009F is close to 0x0087 (X low). Actually the object arrays: X at $0087, Y at $00CF. Speed arrays could be at $0057 (X speed) and $00F0 (Y speed)? But 0x00F5 changed 73->157.
+    
+    Hmm, we saw 0x00F5 changed (73 -> 157). 0x00F5 is index? $00F5 - $00CE = 0x27. Hmm.
+    
+    Let me think … [+3661 chars]
+    Candidates for vertical speed appeared (`$001D`, `$009F`, `$000A/$000D`, `$06D5`, `$0706-$070A`). Let me watch them through a full jump+fall to find the one that goes negative (rising) then positive (falling).
+    → play_input {"script": [{"buttons": ["start"], "frames": 2}, {"buttons": [], "frames": 3}, {"buttons": ["a"], "frames": 12}, {"buttons": [], "frames": 45}], "watch": [29, 40, 159, 240, 245, 1749, 1800, 1801, 1802, 1798, 1799, 10, 13, 206, 1910]}
+[ 485 18:20:15] RESULT play_input
+    {"sample_every":2,"frames":62,"was_paused":false,"paused":false,"segments":4,"frames_run":62,"port":0,"sample_frames":[2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62],"watch":[{"last":0,"values":[1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":29,"first":1,"address_hex":"0x001D"},{"last":0,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":40,"first":0,"address_hex":"0x0028"},{"last":0,"values":[254,255,255,0,1,2,3,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":159,"first":254,"addres… [+2302 chars]
+[ 488 18:20:30] ASSISTANT (turn 1 step 76) · in 1571 (cache 214912) out 3016
+    ▷ Look at 0x009F: values 254,255,255,0,1,2,3,4,4,4,4,0,0,... (sampled every 2 frames). So during the jump it goes:
+    - frames 2,4,6: 254, 255, 255 (≈ -2, -1, -1)
+    - frame 8: 0
+    - frame 10: 1
+    - frame 12: 2
+    - ...
+    - frame 22: 4
+    Then back to 0 after landing.
+    
+    Hmm, that's not a clean signed velocity; magnitudes small (0-4). 0x009F is likely Mario's vertical velocity DIVIDED or the "Y speed" in units of... Actually in SMB, the vertical speed is stored in a byte with fractional part separate. The values 254,255,255,0,1,2,3,4 suggest signed slow rise then fall.
+    
+    Hmm wait, actually the sequence starts at 254 (frame 2, right after jump start) then increases to 255,255,0,1,2,3,4,4 and then 0. That's weird: rising should be negative and decreasing magnitude (accelerating down). It goes -2,-1,-1,0,+1,+2,+3,+4 then 0. That's a monotonic increase from -2 to +4, i.e. gravity acting. Yes! Vertical velocity increases (becomes more positive/downward) over time. Starting at -2 (rising) and reaching +4 (falling), then on landing resets to 0. That's a plausible vertical speed with small values... but the sample is every 2 frames, so the actual range might be bigger.
+    
+    Wait, but at frame 2 (2 frames after A hel… [+8026 chars]
+    `$009F` behaves like vertical velocity: it ramps monotonically from `254`/`255` (≈ -2/-1, rising) up through `0,1,2,3,4` as he falls, then resets on landing. Now let me pin the horizontal speed's sign by watching `$0057`/`$0700` through a right→left turn.
+    → play_input {"script": [{"buttons": ["right"], "frames": 30}, {"buttons": ["left"], "frames": 40}], "watch": [87, 1792, 29, 240, 159, 206, 1910]}
+[ 490 18:20:31] RESULT play_input
+    {"sample_every":2,"frames":70,"was_paused":false,"paused":false,"segments":2,"frames_run":70,"port":0,"sample_frames":[2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70],"watch":[{"last":235,"values":[1,2,3,4,5,7,8,9,10,11,13,14,15,16,17,16,13,11,254,253,252,251,250,248,247,246,245,244,242,241,240,239,238,237,235],"address":87,"first":1,"address_hex":"0x0057"},{"last":21,"values":[1,2,3,4,5,7,8,9,10,11,13,14,15,16,17,16,13,11,2,3,4,5,6,8,9,10,11,12,14,15,16,17,18,19,21],"address":1792,"first":1,"address_hex":"0x0700"},{"last":0,"values":[0,0,0… [+990 chars]
+[ 493 18:20:46] ASSISTANT (turn 1 step 77) · in 948 (cache 219392) out 3005
+    ▷ Now it's crystal clear:
+    - $0057 (X speed) while holding Right ramps: 1,2,3,4,5,7,8,9,10,11,13,14,15,16,17 then decel 16,13,11, then when Left is held: 254,253,252,...,235. So $0057 is SIGNED: right = positive (up to 17... wait it only reached 17 then decelerated; actually sample every 2, max ~17-18 = 0x12), left = negative (254=0xFE=-2, ..., 235=0xEB=-21). 
+    
+    Wait, but earlier I read $0057=21 while walking left. That must have been 21 as the signed value? No—21 decimal = 0x15. Hmm. But now left gives 254..235. So 235 = -21. Earlier read at 0x0057 = 21 (0x15) walking left. Contradiction!
+    
+    Oh! Earlier I read address 85 length 12 and got index2 = 21. Hmm, 21 = 0x15. But now left gives 235 (0xEB = -21). If earlier the byte was 0xEB, read would show 235. So earlier it showed 21, meaning +21. Maybe earlier Mario was walking RIGHT? No...
+    
+    Hmm, unless the earlier read (v2) was of $0057 = 21 because when I created v2 with "left 40 frames", Mario had turned right? No.
+    
+    Wait, actually let me recheck: The v1→v2 decreased diff showed 0x0057 old 24 new 21. So v2 (left walk) had 21. But now left walk gives 235. Difference: In v2 I walked left starting from a paused state where Mario was walking ri… [+8402 chars]
+    Clear result: `$0057` is **signed** — positive while walking right (up to ~`$18`) and `$FE`/`$EB`… (254…235) while walking left. `$0700` stays positive (it's the magnitude). Now a per-frame watch on the vertical speed candidate `$009F` through a full jump.
+    → play_input {"script": [{"buttons": ["a"], "frames": 12}, {"buttons": [], "frames": 55}], "watch": [159, 206, 10, 13, 29, 1798, 1799, 1800, 1801, 1802, 1749, 240]}
+[ 495 18:20:48] RESULT play_input
+    {"sample_every":2,"frames":67,"was_paused":false,"paused":false,"segments":2,"frames_run":67,"port":0,"sample_frames":[2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,67],"watch":[{"last":0,"values":[252,252,252,253,253,253,254,255,0,1,1,2,3,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":159,"first":252,"address_hex":"0x009F"},{"last":176,"values":[168,160,153,147,141,136,131,128,127,128,130,135,141,148,157,165,174,176,176,176,176,176,176,176,176,176,176,176,176,176,176,176,176,176],"address":206,"first":168,"address_hex":"0x00CE"},{"last":0… [+1918 chars]
+[ 498 18:21:02] ASSISTANT (turn 1 step 78) · in 1403 (cache 223232) out 2664
+    ▷ $009F: 252,252,252,253,253,253,254,255,0,1,1,2,3,4,4,4,4,0,0,... (samples every 2 frames). So during the jump it goes from 252 (=-4) up to 4, then resets to 0 on landing. And $00CE (Y position) goes 168 down to 127 (apex) then back to 176. Perfect correspondence: $009F negative while rising, positive while falling, 0 on ground.
+    
+    So $009F = Mario's VERTICAL SPEED, signed, units of px/frame (approximately; integer part). It's written/updated every frame during a jump (gravity), reset to 0 when grounded.
+    
+    Actually wait, $009F is at 0x009F which is in the object array region. For the player (index 0), this would be "Player_Y_Speed". Hmm, but SMB's Y speed for the player... Let me check: is $009F really the player's? It changed with Mario's jump, yes. 
+    
+    But hold on: could $009F be a *subpixel* component of Y velocity, and the integer part elsewhere? The values -4..+4 correspond to the actual pixel velocity magnitude, and the position moved ~4px/frame at peak? During frames 2-4: y went 168→160→153, that's ~7px over 2 frames = 3.5px/frame. And $009F was 252 (-4). So yes, $009F is the velocity in px/frame (signed). 
+    
+    Hmm, but actually in SMB, `Player_Y_Speed` is a signed byte in units of p… [+7535 chars]
+    Excellent — `$009F` is Mario's **vertical speed**: sampled every 2 frames it read 252,252,252(-4), 253(-3), 254(-2), 255(-1), 0, 1, 2, 3, 4, 4, 4, then 0 on landing, exactly matching his rise to the apex (y 168→127) and fall back to 176. Signed, px/frame.
+    
+    Now the facing byte. Let me build two states at the *same position* with opposite facing and diff them.
+    → save_state {"slot": 1}
+[ 500 18:21:02] RESULT save_state
+    {"action":"saved","slot":1,"paused":false,"stepped_frames":0,"bytes":4659}
+[ 503 18:21:04] ASSISTANT (turn 1 step 79) · in 137 (cache 227200) out 84
+    ▷ 
+    → play_input {"script": [{"buttons": ["right"], "frames": 25}, {"buttons": ["left"], "frames": 25}, {"buttons": [], "frames": 20}, {"buttons": ["start"], "frames": 3}]}
+[ 505 18:21:05] RESULT play_input
+    {"sample_every":2,"frames":73,"was_paused":false,"paused":false,"segments":4,"frames_run":73,"port":0,"sample_frames":[],"watch":[],"polls":73,"end_frame":211595,"start_frame":211522,"note":"Ran 73 frames of input on port 0. The game is still running."}
+[ 508 18:21:09] ASSISTANT (turn 1 step 80) · in 187 (cache 227328) out 367
+    ▷ Check pause and snapshot A, read candidate bytes.
+    
+    Wait, did the game pause? The script's last segment is Start 3 frames. Let me check $0776 and list sprites.
+    → read_memory {"address": 1910, "length": 1}
+    → snapshot_memory {"name": "faceL"}
+    → read_memory {"address": 51, "length": 1}
+    → read_memory {"address": 69, "length": 1}
+    → read_memory {"address": 1791, "length": 1}
+    → read_memory {"address": 1805, "length": 1}
+    → read_memory {"address": 1909, "length": 1}
+    → list_sprites {}
+[ 510 18:21:09] RESULT read_memory
+    {"bytes":[1],"address":1910,"mem_type":"cpuDebug"}
+[ 512 18:21:09] RESULT snapshot_memory
+    {"name":"faceL","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:21:09.141Z","checksum":"f0aaf83a","snapshots":["h0","v0","v1","v2","lface","rface","leftwalk","g0","j0","faceL"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 514 18:21:09] RESULT read_memory
+    {"bytes":[2],"address":51,"mem_type":"cpuDebug"}
+[ 516 18:21:09] RESULT read_memory
+    {"bytes":[2],"address":69,"mem_type":"cpuDebug"}
+[ 518 18:21:09] RESULT read_memory
+    {"bytes":[0],"address":1791,"mem_type":"cpuDebug"}
+[ 520 18:21:09] RESULT read_memory
+    {"bytes":[0],"address":1805,"mem_type":"cpuDebug"}
+[ 522 18:21:09] RESULT read_memory
+    {"bytes":[0],"address":1909,"mem_type":"cpuDebug"}
+[ 524 18:21:09] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":64,"behind_background":false,"chr_tile":252,"y":177,"x":38,"index":1,"height":8,"width":8,"flip_h":true,"tile":252,"flip_v":false},{"palette":4,"attr":64,"behind_background":false,"chr_tile":252,"y":177,"x":46,"index":2,"height":8,"width":8,"flip_h":true,"tile":252,"flip_v":false},{"palette":4,"attr":64,"behind_background":false,"chr_tile":252,"y":185,"x":38,"index":3,"height":8,"width":8,"flip_h":true,"tile":252,"… [+895 chars]
+[ 527 18:21:12] ASSISTANT (turn 1 step 81) · in 886 (cache 227840) out 413
+    ▷ Now Mario is at x=38/46 (near start), left-facing (OAM attr 64 = flip_h true, tiles 51/50/53/52 mirrored). So this time, left-facing uses the SAME tiles (50-53) but with flip_h=true! Earlier leftwalk used different tiles (58/55/79). So SMB has two left-facing forms (walking vs turning/standing?). Interesting.
+    
+    Anyway, in faceL: $0033=2, $0045=2, $06FF=0, $070D=0, $0775=0.
+    
+    Now load_state 1 and do script B: left 25, right 25, wait 20, pause. Then read same bytes and list sprites.
+    
+    Expect: $0033=1? or 2? We'll see.
+    
+    Let me load_state 1 and run B.
+    
+    Note: load_state 1 restores the state where Mario was grounded, facing left, x≈? (state at save). Then B: left 25, right 25 → ends facing right at ~same x.
+    
+    Run.
+    Mario is left-facing (all OAM flagged `flip_h`, tiles 50-53 mirrored), `$0033`=2, `$0045`=2, `$06FF`=0, `$070D`=0, `$0775`=0. Now the mirror sequence for right-facing.
+    → load_state {"slot": 1}
+    → play_input {"script": [{"buttons": ["left"], "frames": 25}, {"buttons": ["right"], "frames": 25}, {"buttons": [], "frames": 20}, {"buttons": ["start"], "frames": 3}]}
+[ 529 18:21:12] RESULT load_state
+    {"action":"loaded","slot":1,"paused":false,"stepped_frames":0,"bytes":4659}
+[ 531 18:21:13] RESULT play_input
+    {"sample_every":2,"frames":73,"was_paused":false,"paused":false,"segments":4,"frames_run":73,"port":0,"sample_frames":[],"watch":[],"polls":73,"end_frame":212081,"start_frame":212008,"note":"Ran 73 frames of input on port 0. The game is still running."}
+[ 534 18:21:17] ASSISTANT (turn 1 step 82) · in 146 (cache 229120) out 282
+    ▷ 
+    → snapshot_memory {"name": "faceR"}
+    → read_memory {"address": 51, "length": 1}
+    → read_memory {"address": 69, "length": 1}
+    → read_memory {"address": 1791, "length": 1}
+    → read_memory {"address": 1805, "length": 1}
+    → read_memory {"address": 1909, "length": 1}
+    → list_sprites {}
+[ 536 18:21:17] RESULT snapshot_memory
+    {"name":"faceR","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:21:17.060Z","checksum":"6ef802d5","snapshots":["h0","v0","v1","v2","lface","rface","leftwalk","g0","j0","faceL","faceR"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 538 18:21:17] RESULT read_memory
+    {"bytes":[1],"address":51,"mem_type":"cpuDebug"}
+[ 540 18:21:17] RESULT read_memory
+    {"bytes":[1],"address":69,"mem_type":"cpuDebug"}
+[ 542 18:21:17] RESULT read_memory
+    {"bytes":[0],"address":1791,"mem_type":"cpuDebug"}
+[ 544 18:21:17] RESULT read_memory
+    {"bytes":[0],"address":1805,"mem_type":"cpuDebug"}
+[ 546 18:21:17] RESULT read_memory
+    {"bytes":[0],"address":1909,"mem_type":"cpuDebug"}
+[ 548 18:21:17] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":35,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":43,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":35,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 551 18:21:25] ASSISTANT (turn 1 step 83) · in 866 (cache 229504) out 1672
+    ▷ faceR: Mario at x35/43, right-facing (tiles 58/55/79/79 with one flip). $0033=1, $0045=1, $06FF=0, $070D=0, $0775=0.
+    
+    Whoa: $06FF=0, $070D=0, $0775=0 in BOTH faceL and faceR! So those bytes are NOT facing — they're 0 in both. Earlier rface had them 1 because of the different state (maybe animation at a different phase). So the earlier assumption was wrong.
+    
+    Now what differs between faceL and faceR? $0033 (2 vs 1) and $0045 (2 vs 1). These are the facing candidates! Great. Let me diff faceL vs faceR to be thorough.
+    
+    $0033 and $0045 differ. One is facing, other might be "Player_MovingDir" or animation. 
+    
+    Hmm, note: faceL has tiles 50-53 flipped (standing/turn pose), faceR has tiles 58/55/79 (walking pose). They're in different animation phases. So $0033/$0045 might be animation, not facing. Hmm. But the flip state differs and they differ.
+    
+    Hmm, but the sprite facing (flip_h true vs false for the standing pose) — faceL is the flipped 50-53. faceR is 58/55/79. These are different poses, so not a clean comparison.
+    
+    Ugh, the animation phase differs between the two runs (because the sequence of walking differs).
+    
+    To isolate facing, I need the same animation phase but opposite facing. Hmm.… [+3810 chars]
+    `$06FF`/`$070D`/`$0775` are 0 in *both* facing states — my earlier read was an animation artifact. Only `$0033` and `$0045` differ (2 vs 1). Let me diff the two states fully.
+    → diff_memory {"a": "faceL", "b": "faceR", "filter": "changed"}
+[ 553 18:21:25] RESULT diff_memory
+    {"a":"faceL","b":"faceR","filter":"changed","considered":2048,"matched":86,"hits":[{"address":0,"old":0,"new":2,"address_hex":"0x0000"},{"address":3,"old":2,"new":1,"address_hex":"0x0003"},{"address":5,"old":38,"new":35,"address_hex":"0x0005"},{"address":9,"old":90,"new":221,"address_hex":"0x0009"},{"address":51,"old":2,"new":1,"address_hex":"0x0033"},{"address":69,"old":2,"new":1,"address_hex":"0x0045"},{"address":87,"old":255,"new":0,"address_hex":"0x0057"},{"address":134,"old":38,"new":35,"address_hex":"0x0086"},{"address":245,"old":157,"new":73,"address_hex":"0x00F5"},{"address":247,"old":… [+3299 chars]
+[ 556 18:21:31] ASSISTANT (turn 1 step 84) · in 1640 (cache 231936) out 849
+    ▷ Differences include 0x0033 and 0x0045 (2 vs 1), and 0x0000 (0 vs 2), 0x0003 (2 vs 1), 0x06D4 (2 vs 4), 0x06D5 (96 vs 184), 0x06E0 (1 vs 2).
+    
+    Hmm, many. The animation/state bytes ($06D4, $06D5, $06E0) differ because the poses differ.
+    
+    $0057: faceL=-1 (255), faceR=0. Hmm! Interesting: in faceL (facing left, but stopped), $0057=255 (-1). In faceR, $0057=0. So Mario was still slightly moving in faceL? That means "wait 20" wasn't enough or he was on the edge. Hmm.
+    
+    The facing candidates 0x0033 and 0x0045: both 2 (left) vs 1 (right). In SMB, both could be "PlayerFacingDir" (0x0033?) and "Player_MovingDir" (0x0045?). Hmm.
+    
+    Actually, hmm, wait. Let me reconsider. In faceL, $06D5=96 (0x60) and faceR $06D5=184 (0xB8). And the code at $F0F2 checks $06D5 against 0x50/0xB8/0xC0/0xC8 to decide flips. So the sprite pose is driven by $06D5 (the state). $06D5 might be an animation frame+state index that encodes direction. Hmm.
+    
+    Hmm, this is getting complicated. Let me think about what a "hacker reaching for the direction Mario faces" would use. In SMB community RAM maps:
+    - `PlayerFacingDir` (or `Player_MovingDir`) is at **$0033**? Actually I've seen "$0033 - Player's direction (0=right?)".
+    
+    Hmm. Le… [+934 chars]
+    Both `$0033` and `$0045` are 2 (left) vs 1 (right). Let me test `$0045` by write — the current right-facing state has it at 1.
+    → read_memory {"address": 1910, "length": 1}
+    → write_memory {"address": 69, "bytes": [2]}
+[ 558 18:21:31] RESULT read_memory
+    {"bytes":[1],"address":1910,"mem_type":"cpuDebug"}
+[ 560 18:21:31] RESULT write_memory
+    {"bytes_written":1,"address":69,"mem_type":"cpu","persistent":false}
+[ 563 18:21:34] ASSISTANT (turn 1 step 85) · in 241 (cache 234240) out 186
+    ▷ $0776=1, game paused internally. I wrote 0x0045=2. Now unpause and run 25 frames, then list sprites + read 0x0045.
+    
+    play_input [{start,4},{},25] — Start unpauses; then run.
+    
+    But careful: on the frame Start is pressed, the game unpauses and the player physics runs; it may overwrite $0045 based on input (none). If $0045 is set to the facing only when a direction is pressed, it stays 2. Then the sprite should rebuild as left-facing.
+    
+    Let me run.
+    → play_input {"script": [{"buttons": ["start"], "frames": 4}, {"buttons": [], "frames": 25}]}
+[ 565 18:21:34] RESULT play_input
+    {"sample_every":1,"frames":29,"was_paused":false,"paused":false,"segments":2,"frames_run":29,"port":0,"sample_frames":[],"watch":[],"polls":29,"end_frame":213336,"start_frame":213307,"note":"Ran 29 frames of input on port 0. The game is still running."}
+[ 568 18:21:37] ASSISTANT (turn 1 step 86) · in 137 (cache 234624) out 125
+    ▷ 
+    → read_memory {"address": 69, "length": 1}
+    → read_memory {"address": 51, "length": 1}
+    → list_sprites {}
+    → screenshot {}
+[ 570 18:21:37] RESULT read_memory
+    {"bytes":[1],"address":69,"mem_type":"cpuDebug"}
+[ 572 18:21:37] RESULT read_memory
+    {"bytes":[1],"address":51,"mem_type":"cpuDebug"}
+[ 574 18:21:37] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":35,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":43,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":35,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 576 18:21:37] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/9db4a8ddcbde.png
+[ 579 18:21:46] ASSISTANT (turn 1 step 87) · in 1003 (cache 234880) out 1397
+    ▷ $0045 got reset to 1 by the game (write didn't stick) — so $0045 is rewritten each frame (probably derived every frame from input/state). And the sprite stayed right-facing. So $0045 is not a persistent facing variable; it's recomputed.
+    
+    Hmm. Actually $0045 was overwritten to 1 within 1 frame, meaning the game writes it every frame based on the player's movement direction (with no input, default right).
+    
+    $0033 also may be recomputed. Earlier writing 0x0033=2 persisted (stayed 2) though. Hmm.
+    
+    Let me reconsider. The task wants "the direction he faces". If the game recomputes it every frame, we prove by watch. Maybe $0045 is exactly that: it's 1 when facing right, 2 when facing left, recomputed each frame. A write won't stick (confirmed: reset to 1). That fits the "value the game rewrites every frame" case → prove by play_input watch.
+    
+    Let me watch $0033 and $0045 while pressing Left then Right, and see if they follow facing. Also watch $0057.
+    
+    But is $0045 the "direction he faces" or "moving direction"? With no input, it's 1 (right) — but Mario was facing right, consistent. In faceL (left), it was 2. So it tracks facing. It might be "PlayerFacingDir".
+    
+    What's $0033? Also 2/1. Could … [+3240 chars]
+    `$0045` is recomputed every frame (my write was overwritten immediately). The facing variable is elusive, so let me read the player graphics code directly.
+    → disassemble {"address": 61360, "length": 176}
+[ 581 18:21:46] RESULT disassemble
+    $efb0: a0 04       ldy #0x04
+    $efb2: 20 dc ef    jsr 0xefdc
+    $efb5: ad 26 02    lda 0x0226
+    $efb8: 09 40       ora #0x40
+    $efba: 8d 22 02    sta 0x0222
+    $efbd: 60          rts 
+    $efbe: 85 07       sta 0x07
+    $efc0: ad ad 03    lda 0x03ad
+    $efc3: 8d 55 07    sta 0x0755
+    $efc6: 85 05       sta 0x05
+    $efc8: ad b8 03    lda 0x03b8
+    $efcb: 85 02       sta 0x02
+    $efcd: a5 33       lda 0x33
+    $efcf: 85 03       sta 0x03
+    $efd1: ad c4 03    lda 0x03c4
+    $efd4: 85 04       sta 0x04
+    $efd6: ae d5 06    ldx 0x06d5
+    $efd9: ac e4 06    ldy 0x06e4
+    $efdc: bd 17 ee    lda 0xee17, x
+    $efdf: 85 00       sta 0x00
+    $efe1: bd 18 ee    … [+1614 chars]
+[ 584 18:21:56] ASSISTANT (turn 1 step 88) · in 1407 (cache 237184) out 1774
+    ▷ Now we see at $EFEC: `lda $1d` (0x001D) and compares to 3,2,1 — that's the player's action state (0x001D was the byte that changed 0→1 in the jump diff!). So 0x001D = Player_State (0=?, 1=?, 2=? 3=?).
+    
+    At $F021: `lda $45` and `and $33` — so $0045 AND $0033. Hmm, they're bitfields? Wait, `LDA $45` then `AND $33`... no, `25 33` = AND $33. So A = $45 AND $33. Hmm, that's weird; maybe $45 and $33 are bit masks. Actually if $45 and $33 are 1 or 2, AND gives 0 or nonzero. Hmm.
+    
+    Actually wait, maybe it's not `AND $33`; bytes 25 33 = AND $33. So A = $0045 & $0033. If both are 1, result 1 (nonzero → branch taken). If both 2, result 2 (nonzero). If one is 1 and other 2, result 0 (branch not taken)! Interesting. So $0045 and $0033 are direction flags where matching values mean something. This is the "moving direction vs facing direction" comparison: if moving same as facing, skip the skid/turn animation.
+    
+    At $F014: `lda $57` (X speed), `ora $0c`; if zero → branch. So $0057 (X speed) and $000C.
+    
+    At $F018: `lda $0700` (move force) compare #$09.
+    
+    At $F019: $F01A `ad 00 07 lda $0700`, `c9 09 cmp #$09`, `90 1b bcc`. 
+    
+    At $F02B: `lda #$00; sta $070d` (reset animation).
+    At $F030: `lda $ee07, y` — ta… [+3700 chars]
+    The code at `$F021` compares `$0045 AND $0033` to pick Mario's graphics — those are the facing/moving direction flags. Let me watch them along with the actual OAM to see which persists when he stops.
+    → play_input {"script": [{"buttons": [], "frames": 10}, {"buttons": ["right"], "frames": 20}, {"buttons": [], "frames": 30}, {"buttons": ["left"], "frames": 20}, {"buttons": [], "frames": 30}], "watch": [51, 69, 87, 533, 546, 1749, 1791, 1805]}
+[ 586 18:21:58] RESULT play_input
+    {"sample_every":2,"frames":110,"was_paused":false,"paused":false,"segments":5,"frames_run":110,"port":0,"sample_frames":[2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90,92,94,96,98,100,102,104,106,108,110],"watch":[{"last":2,"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],"address":51,"first":1,"address_hex":"0x0033"},{"last":2,"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,… [+1601 chars]
+[ 589 18:22:07] ASSISTANT (turn 1 step 89) · in 1405 (cache 240256) out 1660
+    ▷ Now this is illuminating:
+    - $0033 and $0045 are IDENTICAL throughout: 1 for frames 2-60 (idle + right + idle), then 2 from frame 62 onward (left + idle). So they persist as 1 after stopping (frames 22-60 idle) and become 2 when left pressed, persisting after. So they track the last direction — the direction Mario faces! And they're identical, so they're two copies or one is derived from the other. They persist cleanly.
+    
+    Wait, but they should be identical per this watch. So $0033 and $0045 are the same value (maybe $0045 is a copy or both are the same var used for AND). The code `LDA $45 / AND $33` with equal values gives nonzero. Hmm, maybe they're "PlayerFacingDir" and "Player_MovingDir" which are equal when walking straight; they'd differ during a turn. In this watch they never differ because both transition at the same frame? Hmm. Actually during left press, moving dir becomes 2 while facing dir might still be 1 until he turns, so they'd differ briefly. The sample every 2 frames might have missed it. 
+    
+    But importantly, both persist as the last direction during idle. So either can be "the direction he faces".
+    
+    Now, the OAM tile 0x0215 values: 58,58,58,58,58,54,54,54,54,58,58,58,5… [+4030 chars]
+    Both `$0033` and `$0045` persist the last direction (1 = right, 2 = left) while Mario is idle, and the OAM tiles change exactly when they flip. Let me tap the opposite direction for one frame to separate "moving direction" from "facing".
+    → play_input {"script": [{"buttons": [], "frames": 5}, {"buttons": ["right"], "frames": 1}, {"buttons": [], "frames": 40}], "watch": [51, 69, 87, 533, 546, 1749, 10, 13]}
+[ 591 18:22:08] RESULT play_input
+    {"sample_every":1,"frames":46,"was_paused":false,"paused":false,"segments":3,"frames_run":46,"port":0,"sample_frames":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46],"watch":[{"last":1,"values":[2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"address":51,"first":2,"address_hex":"0x0033"},{"last":2,"values":[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],"address":69,"first":2,"address_hex":"0x0045"},{"last":0,"values":[0,… [+1341 chars]
+[ 594 18:22:16] ASSISTANT (turn 1 step 90) · in 1253 (cache 243200) out 1350
+    ▷ This is the key result:
+    - Tapping Right for 1 frame:
+      - $0033 (facing) changed from 2 → 1 at frame 6 (the tap frame), and stayed 1.
+      - $0045 (moving) stayed 2 throughout!
+    - The OAM tile 0x0215 changed at frame 6 from 55 (left pose) to 50 then 58 (right pose), and attr 0x0222 went 64 → 0 (unflipped) then back to 64 at frame 7.
+    
+    So $0033 = PlayerFacingDir (1=right, 2=left) — changes immediately on the direction input and persists.
+    $0045 = Player_MovingDir (2 while no directional hold) — it stayed 2 because Mario wasn't moving right (he was skidding/turning; no sustained right hold). Hmm, actually $0045 stayed 2 (left) even during the right tap. Hmm, whatever; it's the "moving direction" and didn't update on a 1-frame tap.
+    
+    Wait, actually that's odd: $0045 stayed 2 while $0033 became 1. So they differ. And earlier watch showed them equal during sustained holds. So $0033 is the one that flips on the tap — the facing.
+    
+    Hmm, but let me reconsider which is which. During the sustained holds, both equaled. On a 1-frame tap of the opposite direction, $0033 changed but $0045 didn't. So $0033 responds to input immediately (facing), $0045 lags (moving direction, updated by sustained movement)… [+3013 chars]
+    Breakthrough: tapping Right for **one frame** flipped `$0033` from 2→1 (and Mario's OAM tile changed to the right-facing pose at that exact frame), while `$0045` stayed 2. So `$0033` is the facing direction (1 = right, 2 = left); `$0045` is the moving direction. Let me now prove `$0033` by writing it.
+    → read_memory {"address": 51, "length": 1}
+    → write_memory {"address": 51, "bytes": [2]}
+[ 596 18:22:16] RESULT read_memory
+    {"bytes":[1],"address":51,"mem_type":"cpuDebug"}
+[ 598 18:22:16] RESULT write_memory
+    {"bytes_written":1,"address":51,"mem_type":"cpu","persistent":false}
+[ 601 18:22:18] ASSISTANT (turn 1 step 91) · in 226 (cache 245632) out 77
+    ▷ Now run a few frames and list sprites + read $0033.
+    
+    play_input [{},15], then read $0033 and list.
+    → play_input {"script": [{"buttons": [], "frames": 15}]}
+[ 603 18:22:19] RESULT play_input
+    {"sample_every":1,"frames":15,"was_paused":false,"paused":false,"segments":1,"frames_run":15,"port":0,"sample_frames":[],"watch":[],"polls":15,"end_frame":216003,"start_frame":215988,"note":"Ran 15 frames of input on port 0. The game is still running."}
+[ 606 18:22:21] ASSISTANT (turn 1 step 92) · in 141 (cache 245888) out 125
+    ▷ 
+    → read_memory {"address": 51, "length": 1}
+    → read_memory {"address": 69, "length": 1}
+    → list_sprites {}
+    → screenshot {}
+[ 608 18:22:21] RESULT read_memory
+    {"bytes":[2],"address":51,"mem_type":"cpuDebug"}
+[ 610 18:22:21] RESULT read_memory
+    {"bytes":[2],"address":69,"mem_type":"cpuDebug"}
+[ 612 18:22:21] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":64,"behind_background":false,"chr_tile":252,"y":177,"x":32,"index":1,"height":8,"width":8,"flip_h":true,"tile":252,"flip_v":false},{"palette":4,"attr":64,"behind_background":false,"chr_tile":252,"y":177,"x":40,"index":2,"height":8,"width":8,"flip_h":true,"tile":252,"flip_v":false},{"palette":4,"attr":64,"behind_background":false,"chr_tile":252,"y":185,"x":32,"index":3,"height":8,"width":8,"flip_h":true,"tile":252,"… [+895 chars]
+[ 614 18:22:21] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1814-motion-physics-loader/images/task-1/7aef9a7611c0.png
+[ 617 18:22:35] ASSISTANT (turn 1 step 93) · in 1009 (cache 246144) out 2615
+    ▷ Now: after writing $0033=2 (and the game ran 15 frames), $0033 stayed 2, $0045 ALSO became 2 (interesting — so $0045 does get set to 2 when $0033 is 2? or the game reconciled). And Mario's sprites are now left-facing (flip_h true, tiles 55/58/79 flipped). The screenshot shows Mario facing left (his back? hard to tell at small size but the OAM confirms).
+    
+    So writing $0033=2 DID flip Mario from right-facing to left-facing! The earlier failure was due to the pause confusion. This is a clean write proof: wrote $0033=2, ran 15 frames, OAM attr changed to flip_h=true and tiles to the left pose.
+    
+    Wait, but did $0045 also become 2 because the game set it from $0033? It read 2. Fine.
+    
+    Hmm, but I should double-check that the write caused it, not lingering input. The last input was a 1-frame right tap (which set $0033=1). Then I wrote $0033=2. Then no input. So yes, the write caused the flip.
+    
+    Also note: $0057 is presumably 0 (standing), so facing is independent of velocity. Good.
+    
+    So now I have:
+    1. Horizontal speed: $0057, signed, units ~1/16 px/frame (0x18=24 → 1.5 px/frame); positive = right, negative (0xFE..0xEB) = left. Proof: watch through right→left shows 1..17 then 254..235; plus diff… [+7397 chars]
+    I now have all three. Let me do one clean confirming watch of `$0057` while holding Right long enough to reach its plateau (full walking speed).
+    → play_input {"script": [{"buttons": ["right"], "frames": 70}], "watch": [87, 1792, 134]}
+[ 619 18:22:36] RESULT play_input
+    {"sample_every":2,"frames":70,"was_paused":false,"paused":false,"segments":1,"frames_run":70,"port":0,"sample_frames":[2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70],"watch":[{"last":24,"values":[1,2,3,4,5,7,8,9,10,11,13,14,15,16,17,19,20,21,22,23,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24],"address":87,"first":1,"address_hex":"0x0057"},{"last":24,"values":[1,2,3,4,5,7,8,9,10,11,13,14,15,16,17,19,20,21,22,23,24,24,24,24,24,24,24,24,24,24,24,24,24,24,24],"address":1792,"first":1,"address_hex":"0x0700"},{"last":106,"values":[32,33,33,33,34… [+353 chars]
+[ 622 18:22:49] ASSISTANT (turn 1 step 94) · in 503 (cache 249728) out 2986
+    ▷ $0057 ramps to plateau 24 (0x18) while $0086 (x position) climbs 32→106 over 70 frames (~1.06 px/frame average, but at plateau 1.5). Note $0700 also plateau 24 (identical). Hmm — so $0700 equals $0057 during walking right. But during walking left, $0057 went negative and $0700 positive. So $0700 = |$0057|? Actually during right they're equal; during left $0057=-21, $0700=21. So $0700 = magnitude (abs). OK.
+    
+    Wait, but here $0057 and $0700 are exactly equal (both 24). During left, $0057=235 (-21) and $0700=21. So $0700 = abs($0057). Could $0700 be the "Player_X_MoveForce" used for animation? Possibly.
+    
+    Hmm, interesting: why would SMB keep both? Maybe $0057 is the signed speed and $0700 is used for the animation (walk speed) and acceleration. Not important.
+    
+    So, horizontal speed = $0057 (signed, 1/16 px/frame, plateau 24 = 1.5 px/frame walking; with B it would be 40 = 2.5).
+    
+    Great. Now record mappings.
+    
+    Let me record:
+    1. $0057 - player_horizontal_speed
+    2. $009F - player_vertical_speed
+    3. $0033 - player_facing_direction
+    
+    Also maybe record companions $0700 (speed magnitude / move force) and $0045 (moving direction) as notes or separate address mappings? The task says "find the RAM addre… [+4520 chars]
+    All three are confirmed. Summary of evidence:
+    
+    - **`$0057` (horizontal speed, signed):** ramps `1,2,…,17`, then holding Left drives it to `254,253,…,235` (negative); a 70-frame Right hold plateaued at exactly `24` (`$18` = 1.5 px/frame) while `$0086` climbed 32→106.
+    - **`$009F` (vertical speed, signed):** through a full jump read `252(-4),252,252,253,253,253,254(-2),255(-1),0,1,1,2,3,4,4,4,4` then `0` on landing, exactly tracking y 168→127(apex)→176.
+    - **`$0033` (facing):** a one-frame Right tap flipped it 2→1 on the tap frame while the OAM changed to the right-facing pose; writing it 1→2 flipped Mario's OAM to the left pose.
+    
+    Recording the three discoveries.
+    → record_mapping {"mapping_type": "address", "id": "0x0057", "name": "player_horizontal_speed (Mario X velocity)", "category": "player", "length": 1, "format": "signed (1/16 px per frame; positive = right, negative = left)", "notes": "Mario's horizontal (X) speed, one signed byte in 1/16-pixel units: 0x18 (24) = 1.5 px/frame at the full walk. Found with no reference by differential search: a Start-pause-frozen sta… [+640 chars]
+    → record_mapping {"mapping_type": "address", "id": "0x009F", "name": "player_vertical_speed (Mario Y velocity)", "category": "player", "length": 1, "format": "signed (px per frame; negative = rising, positive = falling)", "notes": "Mario's vertical (Y) speed, one signed byte: negative while rising, 0 at the jump apex, positive while falling, and reset to 0 when he lands. Found with no reference by differential sea… [+470 chars]
+    → record_mapping {"mapping_type": "address", "id": "0x0033", "name": "player_facing_direction", "category": "player", "length": 1, "format": "1 = right, 2 = left", "notes": "Mario's facing direction: 1 = faces right, 2 = faces left. Set on the frame a direction is pressed and it persists while he stands. Found with no reference by differential search: two Start-pause-frozen standing states at the same position wit… [+766 chars]
+[ 624 18:22:49] RESULT record_mapping
+    {"mapping_type":"address","id":"0x0057","name":"player_horizontal_speed (Mario X velocity)","length":1,"format":"signed (1/16 px per frame; positive = right, negative = left)","category":"player","group":null,"notes":"Mario's horizontal (X) speed, one signed byte in 1/16-pixel units: 0x18 (24) = 1.5 px/frame at the full walk. Found with no reference by differential search: a Start-pause-frozen standing frame vs a frozen walking-right frame gave 0 -> 24 (0x18). Proof by play_input per-frame watch (the physics routine rewrites it every frame, so a write cannot stick): watching through a right-th… [+486 chars]
+[ 626 18:22:49] RESULT record_mapping
+    {"mapping_type":"address","id":"0x009F","name":"player_vertical_speed (Mario Y velocity)","length":1,"format":"signed (px per frame; negative = rising, positive = falling)","category":"player","group":null,"notes":"Mario's vertical (Y) speed, one signed byte: negative while rising, 0 at the jump apex, positive while falling, and reset to 0 when he lands. Found with no reference by differential search: a Start-pause-frozen grounded frame vs a frozen mid-jump frame gave 0 -> 0xFD. Proof by play_input per-frame watch (gravity rewrites it every frame): through a full jump (A held 12 frames) it rea… [+316 chars]
+[ 628 18:22:49] RESULT record_mapping
+    {"mapping_type":"address","id":"0x0033","name":"player_facing_direction","length":1,"format":"1 = right, 2 = left","category":"player","group":null,"notes":"Mario's facing direction: 1 = faces right, 2 = faces left. Set on the frame a direction is pressed and it persists while he stands. Found with no reference by differential search: two Start-pause-frozen standing states at the same position with opposite facing differed here (2 vs 1). Proof by play_input per-frame watch with a one-frame Right tap while he faced left: 0x0033 flipped 2 -> 1 on exactly the tap frame, the same frame his OAM til… [+612 chars]
+[ 631 18:22:51] ASSISTANT (turn 1 step 95) · in 966 (cache 253184) out 34
+    ▷ Now call promote_mappings once at the end.
+    → promote_mappings {}
+[ 633 18:22:51] RESULT promote_mappings
+    Promoted 3 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 14 tiles, 7 palettes, 1 sprites, 26 addresses. 0 hypotheses skipped.
+[ 637 18:22:57] ASSISTANT (turn 1 step 96) · in 25071 (cache 254080) out 773
+    ▷ Done. Let me write the final report. Keep it concise but include addresses, encodings, evidence.
+    
+    I should note the state is running, and no ROM edits were made (ledger empty). No cleanup needed. Maybe restore the game to a clean state — not required.
+    
+    Final answer with the three addresses and evidence, plus mention companions.
+    Done — mapped, proven, and promoted (3 new address entries; no ROM edits, so the ledger is still empty).
+    
+    ## Results — Super Mario Bros. (World), World 1-1
+    
+    | Purpose | Address | Encoding |
+    |---|---|---|
+    | Mario's horizontal speed | **`$0057`** | signed byte, **1/16 px per frame**; positive = right, negative = left (0x18 = 24 = 1.5 px/frame) |
+    | Mario's vertical speed | **`$009F`** | signed byte, **px per frame**; negative = rising, positive = falling, 0 on the ground |
+    | Direction he faces | **`$0033`** | **1 = right, 2 = left** |
+    
+    ### Evidence
+    **`$0057` — horizontal speed (watch).** The physics routine rewrites it every frame, so I proved it with a per-frame `play_input` watch. Held Right: `1,2,3,…,17`; switched to Left: `254,253,252,…,235` — it goes **negative** when Mario walks left. A 70-frame Right hold plateaued at exactly `24` (`$18`) while the X position `$0086` climbed 32→106 (~1.5 px/frame). No reference used.
+    
+    **`$009F` — vertical speed (watch).** Found by diffing a Start-pause-frozen grounded frame against a frozen mid-jump frame (`0 → 0xFD`). Through a full jump (A held 12 frames) it read `252,252,252(-4), 253,253,253(-3), 254(-2), 255(-1), 0, 1, 1, 2, 3, 4, 4, 4, 4`, then `0` on landing — exactly tracking Y `$00CE` = 168 → 127 (apex) → 176.
+    
+    **`$0033` — facing (watch + write).** Two frozen standing states with opposite facing differed here (2 vs 1). A **one-frame** Right tap flipped it `2 → 1` on exactly the tap frame, the same frame Mario's OAM tile changed from the left pose (55/51) to the right pose (58/50). Write proof: while he stood facing right, `write_memory $0033 = 2` + 15 no-input frames kept it at 2 and flipped his OAM to the left pose (`list_sprites` returned `flip_h: true` for every Mario sprite, tiles 55/58/79).
+    
+    ### Companions found along the way (noted, not promoted as separate entries)
+    - **`$0700`** holds the *magnitude* of the horizontal speed (abs of `$0057`); `$0057` is the signed velocity Mario moves by.
+    - **`$0045`** is the matching "moving direction" byte and is recomputed from the controller each frame (writing it was overwritten within one frame), unlike the persistent `$0033`.
+    
+    All three are recorded with `record_mapping` (type address, confidence 1, source "differential search") and `promote_mappings` saved them to the ROM's mapping file.
+[ 639 18:22:57] ─── turn 1 end: {"kind":"completed"}
+

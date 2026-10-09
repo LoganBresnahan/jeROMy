@@ -150,7 +150,13 @@ change bought; if the failure comes back, reopen it with the new run.
   `20261009-1428-sheet2-text-tiles` (B4.game_text accepted only the first of
   the text table's nine labelled strings; spec v6) and in
   `20261009-1749-sheet3-engine-input-enemies` (the enemy slot lines read the
-  equates as one byte; SMB has six slots; spec v9).
+  equates as one byte; SMB has six slots; spec v9), in
+  `20261009-1729-sheet4-level-data` (v8) and
+  `20261009-1814-motion-physics-loader` (v11): two lines tying on
+  vocabulary. Each spec change is versioned and every run regraded; the
+  pattern says the matcher's tie-break (first line wins) deserves a rule,
+  e.g. prefer the line whose reference agrees only when both tied lines
+  are of the same class.
 - **A re-run checks:** when a proven claim grades `disagrees`, check the
   line against the source before calling the claim wrong, and record a
   spec change as a spec version, never silently.
