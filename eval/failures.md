@@ -51,9 +51,11 @@ change bought; if the failure comes back, reopen it with the new run.
   by `equals` the shown value and `unchanged` across play until every
   survivor is listed, then bisect with writes, a forced redraw and save
   states (commit after `06957a4`).
-- **Status:** `changed`; not measurable on SMB (`sheet3-worldlevel-rerun`:
+- **Status:** `changed`; not measured. On SMB (`sheet3-worldlevel-rerun`)
   the one completed repeat went to the remembered block and skipped the
-  route). Its test is the holdout's counters, three repeats.
+  route; on the holdout (`holdout-hud-f2` r1-r3) every repeat hit the time
+  cap first (F6), one of them mid-route. Question to Logan at the top of
+  `holdout-hud-f2-r3`'s report.
 - **A re-run checks:** the line's claim is `derived` (its address came out
   of the session's own search), not read from a guessed block.
 
@@ -102,7 +104,9 @@ change bought; if the failure comes back, reopen it with the new run.
   dozens of calls; Link died twice during idle waits.
 - **Lines hit:** Zelda C1.* (holdout).
 - **Changed:** nothing.
-- **Status:** `holdout-only`. SMB's setup is two Start presses.
+- **Status:** `holdout-only`, now blocking: `holdout-hud-f2` r1-r3 all hit
+  the 900 s cap (240, 199, 160 calls) with nothing recorded. SMB's setup is
+  two Start presses. Question to Logan in `holdout-hud-f2-r3`'s report.
 - **A re-run checks:** n/a until an SMB run shows it.
 
 ## F7. A broken tool

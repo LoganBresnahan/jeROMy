@@ -1,0 +1,1909 @@
+# session-beaafdf8-fc77-415f-8652-3efb270a9ad6 · Zelda NES HUD RAM addresses
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-09T18:58:19.132Z
+
+[   3 13:58:19] QUEUED <user> for next-turn: Mapping sheet 3 (the RAM a hacker reaches for), scene the first overworld screen of The Legend of Zelda: find the RAM addresses of the rupee count, the bomb count, the key count and Link's hearts (con… [+1326 chars]
+[   4 13:58:19] ━━━ turn 1 ━━━
+[   8 13:58:19] USER <user>
+    Mapping sheet 3 (the RAM a hacker reaches for), scene the first overworld screen of The Legend of Zelda: find the RAM addresses of the rupee count, the bomb count, the key count and Link's hearts (containers and how full they are), without any reference. Use the find-variable skill and your own judgement for values that do not change by playing. Facts about this game you may rely on: it starts on its title screen (a story scroll plays if you wait). Start on the title opens the file-select screen. To begin a new game there: press Select until the cursor is on REGISTER YOUR NAME and press Start; on the name screen press A once to enter a letter, then press Select until the cursor is on END and press Start; back on file select, press Select until the cursor is on the new file and press Start. Link then stands on the first overworld screen. The HUD along the top shows a minimap, a rupee count (X0), a key count, a bomb count, the B and A item boxes and the LIFE hearts (three at the start). Walking off an edge of the screen scrolls to the next screen. Each play_input call is at most 600 frames; chain calls, and take a screenshot whenever you need to know where you are. Prove each address by write_memory and a screenshot in which the HUD shows the value you wrote. Record each with record_mapping: mapping_type address, a plain name, notes with the encoding and the proof, source 'differential search'. Call promote_mappings once at the end. Report each address, its encoding and what the proof screenshot showed.
+[   9 13:58:19] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 13:58:19] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 13:58:20] ASSISTANT (turn 1 step 1) · in 150 (cache 15616) out 64
+    ▷ Let me start by loading the find-variable skill.
+    → skill {"name": "find-variable"}
+    → get_rom_info {}
+[  18 13:58:20] RESULT skill
+    <skill_content name="find-variable">
+    <skill_resources>
+    Base directory for this skill: /home/oof/jeROMy/skills/find-variable
+    Resolve relative paths mentioned by this skill against the base directory before using them. Load referenced resources only as needed.
+    </skill_resources>
+    
+    <skill_instructions>
+    
+    # Find a variable by differential search
+    
+    Most games have no reference. This procedure needs only the running game:
+    `snapshot_memory`, `play_input`, `diff_memory`, then `write_memory` and a
+    screenshot for the proof (ADR-0019). Written from the blind session of
+    2026-10-06 on Super Mario Bros. (World… [+6512 chars]
+[  20 13:58:21] RESULT get_rom_info
+    {"path":"C:\\Users\\tarsier\\Documents\\Legend of Zelda, The (USA)\\Legend of Zelda, The (USA).nes","name":"Legend of Zelda, The (USA).nes","sha1":"799459548F9636DD263200DA494F04058F5540E2"}
+[  24 13:58:32] ASSISTANT (turn 1 step 2) · in 6421 (cache 15744) out 2127
+    ▷ Let me start. Take a screenshot to see the current state.
+    
+    Facts: I have existing mappings: link_x at 0x70, y at 0x84, overworld screen at 0xEB. Start screen is 0x77.
+    
+    I need to find rupee count, bomb count, key count, hearts (containers and fill).
+    
+    Let me screenshot first.
+    
+    Known Zelda RAM map (from memory of community docs): 
+    - Rupees: 0x067D (2 bytes, BCD or binary?) In Zelda, rupee count at $067D (2 bytes). Bombs at $067C, keys at $067E, hearts containers... Actually the known Zelda RAM map: 
+      - $067C: number of bombs
+      - $067D-$067E: rupees (BCD? actually binary with hundreds)
+      - $067F: keys
+      - $066F: current hearts (health)
+      - $0670: max hearts? Hmm.
+    
+    But I must do differential search without a reference. Note the run sheet says no reference; I shouldn't use lookup_symbol until after proving. Fine — I can rely on my knowledge only as a hypothesis to test, but better to actually search.
+    
+    Important twist: the task says "without any reference". So don't use lookup_symbol. Use differential search.
+    
+    Key challenge: hearts (containers and how full they are) and counts that start at zero-ish. Rupees start at 0, bombs 0, keys 0. Hearts start full (3 hearts = 6 half-hearts? Zelda h… [+6384 chars]
+    → todo_write {"todos": [{"content": "Reach the first overworld screen (new file)", "status": "in_progress"}, {"content": "Find rupee count address by differential search", "status": "pending"}, {"content": "Find bomb count address", "status": "pending"}, {"content": "Find key count address", "status": "pending"}, {"content": "Find hearts (current health) address", "status": "pending"}, {"content": "Find heart … [+209 chars]
+    → screenshot {}
+[  27 13:58:32] RESULT todo_write
+    Updated todo list: 7 pending, 1 in progress, 0 completed.
+[  29 13:58:32] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1358-holdout-hud-f2-r3/images/task-1/5086b3b0c73b.png
+[  33 13:58:56] ASSISTANT (turn 1 step 3) · in 6245 (cache 22784) out 4304
+    ▷ Interesting — the game is already on the first overworld screen! HUD shows X11 rupees (11), X6 bombs? Let's read: "X11" with a rupee icon, "X6" with bomb icon, "X7" with key icon? Let me look at the screenshot description: top shows a minimap, then "X11" (rupee), "X6"?? Actually image shows "X11" next to rupee, then "X6" and "X7"? The description text in image: "X11" near rupee icon, "X6" near bomb?, "X7" near key? Hmm hard. It said "X11" then two more "X?" entries. Let me zoom—can't. Let's use get_tile_at_pixel? No. Let's just rely on differential search.
+    
+    Wait, actually the HUD in the screenshot shows "◆X11" (rupee), "●X6"? and "X7"? Hmm. It might be a game already in progress (bombs 6, keys 7?). Actually there are 4 HUD lines: rupee X11, bomb X?, key X? Actually the image shows: row1: "X11" with rupee; row2: B box, A box, LIFE; row3: "X6" and "X7"? Hmm.
+    
+    Let me get a bigger look. The screenshot is 256x240. Values: "X11" definitely. Then below "X6" and "X7"? Possibly bombs=6 and keys=7? Hmm but new game starts with 0 bombs, 0 keys. Unless the emulator was left in a prior state with a savestate. The prompt says starts on title screen, but actually it's in-game. Fine — the state ex… [+15472 chars]
+    The game is already on the first overworld screen. Let me inspect the HUD sprites (hearts are sprites) and save a rollback state.
+    → list_sprites {}
+    → save_state {"slot": 0}
+[  35 13:58:56] RESULT list_sprites
+    {"sprite_pattern_addr":0,"sprites_enabled":true,"large_sprites":true,"background_pattern_addr":4096,"sprites":[{"flip_v":false,"chr_tile":12,"height":16,"width":8,"chr_tile_bottom":13,"attr":0,"flip_h":false,"index":18,"x":112,"behind_background":false,"y":88,"tile":12,"palette":4},{"flip_v":false,"chr_tile":14,"height":16,"width":8,"chr_tile_bottom":15,"attr":0,"flip_h":false,"index":19,"x":120,"behind_background":false,"y":88,"tile":14,"palette":4},{"flip_v":false,"chr_tile":62,"height":16,"width":8,"chr_tile_bottom":63,"attr":0,"flip_h":false,"index":21,"x":45,"behind_background":false,"y":… [+1643 chars]
+[  37 13:58:56] RESULT save_state
+    {"stepped_frames":0,"action":"saved","slot":0,"paused":false,"bytes":17224}
+[  40 13:59:01] ASSISTANT (turn 1 step 4) · in 945 (cache 33280) out 891
+    ▷ Hmm, list_sprites shows sprites with large_sprites true (8x16). The HUD hearts: I don't see sprites at y~16 with x>200. Wait: index 39 at x=128,y=32 chr 54 palette 5 — that might be a HUD element? Hmm.
+    
+    Actually the hearts in Zelda's HUD are background tiles, not sprites? Hmm. The Zelda HUD is drawn in the nametable. Right — Zelda's HUD (counters, hearts) are background tiles, not sprites. Only Link and enemies are sprites. So the hearts are background tiles.
+    
+    Wait, but the "LIFE" label is background. Yes.
+    
+    OK so the sprites listed: index18/19 at (112,88),(120,88) chr12/14 — that's Link (2 sprites, 8x16 each). Others are enemies at (208,168),(197,190),(176,172),(112,134) etc. And index39 at (128,32) chr 54 palette 5 — hmm that's in the playfield top area, maybe a projectile.
+    
+    Whatever. Hearts are background tiles. Fine.
+    
+    So the HUD shows counters as background tiles. Let me now figure out the current HUD values by reading the nametable. Actually easier: zoom via repeated screenshot not possible. But I can read the nametable at HUD rows and map tile IDs. Alternatively, I can rely on diff.
+    
+    Let me now do the heart-finding differential: take damage.
+    
+    But wait — is the HUD updating liv… [+1686 chars]
+    Hearts are background tiles in Zelda's HUD, not sprites. Let me run a differential search for health: snapshot, take damage, snapshot again.
+    → snapshot_memory {"name": "s0"}
+    → play_input {"script": [{"buttons": [], "frames": 400}]}
+[  42 13:59:02] RESULT snapshot_memory
+    {"name":"s0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T18:59:02.040Z","checksum":"3295c7ab","snapshots":["s0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[  44 13:59:08] RESULT play_input
+    {"end_frame":112929,"port":0,"sample_frames":[],"frames":400,"watch":[],"sample_every":7,"paused":false,"polls":400,"frames_run":400,"was_paused":false,"segments":1,"start_frame":112529,"note":"Ran 400 frames of input on port 0. The game is still running."}
+[  47 13:59:09] ASSISTANT (turn 1 step 5) · in 228 (cache 35072) out 63
+    ▷ Now screenshot and snapshot s1, diff decreased.
+    → screenshot {}
+    → snapshot_memory {"name": "s1"}
+[  49 13:59:10] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1358-holdout-hud-f2-r3/images/task-1/a6677081b9f3.png
+[  51 13:59:10] RESULT snapshot_memory
+    {"name":"s1","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T18:59:10.073Z","checksum":"68ed61b8","snapshots":["s0","s1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[  54 13:59:12] ASSISTANT (turn 1 step 6) · in 494 (cache 35328) out 260
+    ▷ HUD still X11, X6? Actually text reads "X11", "X6", "X7"? Hmm image shows "X11" top, then "X6" and "X7"? Actually reading the description: "X11" then below it "X6" and "X7"? The rendered image: top row "X11 B A -LIFE-" then a red heart at ~col 27 row 4(?). Second row shows "X6"? Hmm hard.
+    
+    Still one red heart → no damage taken? Link moved a bit (he's at same spot roughly). The enemies moved. No damage apparently. Hmm, but maybe heart count changed at half-heart granularity (the heart sprite/tile could show empty). Hard to tell.
+    
+    Let me diff decreased.
+    → diff_memory {"a": "s0", "b": "s1", "filter": "decreased", "name": "d_heart1"}
+[  56 13:59:12] RESULT diff_memory
+    {"a":"s0","b":"s1","filter":"decreased","considered":2048,"matched":128,"hits":[{"address":1,"old":33,"new":31,"address_hex":"0x0001"},{"address":11,"old":13,"new":0,"address_hex":"0x000B"},{"address":12,"old":11,"new":0,"address_hex":"0x000C"},{"address":15,"old":193,"new":0,"address_hex":"0x000F"},{"address":21,"old":144,"new":115,"address_hex":"0x0015"},{"address":24,"old":184,"new":6,"address_hex":"0x0018"},{"address":26,"old":224,"new":211,"address_hex":"0x001A"},{"address":27,"old":195,"new":110,"address_hex":"0x001B"},{"address":29,"old":132,"new":21,"address_hex":"0x001D"},{"address":3… [+3298 chars]
+[  59 13:59:17] ASSISTANT (turn 1 step 7) · in 1598 (cache 35968) out 692
+    ▷ 128 survivors, truncated. Too many because lots of state changed. I need a controlled action. Death would be clearer.
+    
+    Instead of waiting randomly, let me deliberately take damage. But maybe Link has full health and the single heart I saw is one heart... wait the screenshot shows only one red heart in LIFE area? Actually looking at image: "-LIFE-" text and below a red heart at right side. Hmm possibly the HUD shows "❤" singular? Zelda shows hearts as pairs. Hmm.
+    
+    Let me actually decode the HUD nametable to read exact counts. I'll read nametable region and identify digit tiles by reading tile pixels. Let's do read_nametable x=0,y=0,w=32,h=5. Then map. That's a lot of output but fine.
+    
+    Actually simpler: get_tile_at_pixel at specific pixels of HUD to identify the tiles for the LIFE area. But to read the count I need to know what each tile is. I can read_tile for the digit tiles and compare to a digit font? Hmm.
+    
+    Alternative: The Zelda HUD uses tiles where digits are at specific CHR ids. I could read_tile of a tile and visually recognize the digit from the ASCII art. That's doable for a few tiles.
+    
+    Let me read the nametable for the HUD.
+    
+    Rows 0-4, x 0-31.
+    
+    Then I'll pick the tiles unde… [+1123 chars]
+    Let me decode the HUD directly from the nametable to read exact current values.
+    → read_nametable {"x": 8, "y": 0, "width": 24, "height": 5}
+[  61 13:59:21] RESULT read_nametable
+    Nametable 0 region (8,0) 24x5:
+      Row 0: 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24
+      Row 1: 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24
+      Row 2: 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24 24
+      Row 3: F5 F5 24 F7 21 01 01 69 0B 6B 69 0A 6B 24 24 62 15 12 0F 0E 62 24 24 24
+      Row 4: F5 F5 24 24 24 24 24 6C 24 6C 6C 24 6C 24 24 24 24 24 24 24 24 24 24 24
+    
+    [{"x":8,"y":0,"tile_id":36,"palette_id":0},{"x":9,"y":0,"tile_id":36,"palette_id":0},{"x":10,"y":0,"tile_id":36,"palette_id":0},{"x":11,"y":0,"tile_id":36,"palette… [+4999 chars]
+[  64 13:59:39] ASSISTANT (turn 1 step 8) · in 2823 (cache 38144) out 4178
+    ▷ Interesting! Row 3 (y=3) at x=12..20: tile 33, 1, 1, 105, 11, 107, 105, 10, 107. These are HUD tiles. But wait, the region I read is y=0..4; the HUD appears at row 3 (y=24..31). Hmm, but the screenshot showed HUD at the very top. Oh — the scroll! The nametable is scrolled; the HUD is at the top of the screen but maps to nametable rows... The screen shows HUD rows 0-4 of the screen. Nametable row 3 here? Hmm, maybe the background scroll offset makes nametable row 3 appear at screen row 0. Anyway.
+    
+    Also note x=8,y=3 tile 245, x=9 tile 245 — those are "F5"? weird. And x=23..28 row3: 98,21,18,15,14,98 = "LIFE" (L=21,I=18,F=15,E=14). So tile 98 is space-ish? Actually 98 could be blank/cursor.
+    
+    Row 3 x=12..20 (9 tiles): 33, 1, 1, 105, 11, 107, 105, 10, 107.
+    Row 4 x=15,17,18,20: 108,108,108,108 with others blank.
+    
+    So the HUD layout: 
+    - x=12: tile 33 (maybe "X"?) 
+    - x=13,14: tile 1 = digit? "1","1"? → rupee count 11!
+    - x=15: tile 105 (maybe rupee icon? no...) 
+    Hmm wait. Let me map: The screenshot: "X11" is rupee. Then below "X6" bombs, "X7" keys. But in the nametable, row 3 has 9 tiles at x=12..20 and row 4 has tiles at x=15,17,18,20.
+    
+    Hmm, that doesn't look like three counters. Let me rec… [+10632 chars]
+    Let me probe the HUD pixels directly to read the displayed values.
+    → get_tile_at_pixel {"x": 90, "y": 12}
+    → get_tile_at_pixel {"x": 90, "y": 28}
+    → get_tile_at_pixel {"x": 90, "y": 44}
+    → get_tile_at_pixel {"x": 204, "y": 12}
+[  66 13:59:40] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":0,"tile_x":11,"tile_y":1,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8235,"attribute_addr":9154,"scroll_source":"vblank","scroll_scanline":-1,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":88,"y":8,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":292}
+[  68 13:59:40] RESULT get_tile_at_pixel
+    {"tile_id":247,"palette_id":1,"tile_x":11,"tile_y":3,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8299,"attribute_addr":9154,"scroll_source":"vblank","scroll_scanline":-1,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":88,"y":24,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":503}
+[  70 13:59:40] RESULT get_tile_at_pixel
+    {"tile_id":249,"palette_id":1,"tile_x":11,"tile_y":5,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8363,"attribute_addr":9162,"scroll_source":"vblank","scroll_scanline":-1,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":88,"y":40,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":505}
+[  72 13:59:40] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":1,"tile_x":25,"tile_y":1,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8249,"attribute_addr":9158,"scroll_source":"vblank","scroll_scanline":-1,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":200,"y":8,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":292}
+[  75 13:59:50] ASSISTANT (turn 1 step 9) · in 593 (cache 45056) out 1999
+    ▷ Interesting: at (90,12) tile_id 36 (blank) but the nametable shows col 11 row 1 = 36 blank. Yet the screenshot shows content there? Hmm, maybe my coordinate estimate is off. At (90,28) tile 0xF7 at col 11 row 3. At (90,44) tile 0xF9 at col 11 row 5. So there IS content at rows 3 and 5, not 1.
+    
+    So the HUD is at rows 3,4,5,... Let me read rows 3-6 across x=8..31.
+    
+    Wait, earlier read of rows 0-4 showed row 3 content and row 4 sparse. Now row 5 has 0xF9. So HUD continues to row 5. My earlier read only went to row 4.
+    
+    Let me re-read nametable rows 3-7, x=0..31, to see the full HUD. Note: tile_id printed in JSON but the row hex string earlier. Fine.
+    
+    Actually the important realization: the HUD (minimap, counters, LIFE) occupies rows 3-? Hmm, but the screenshot shows HUD at the very top. Contradiction... unless the screenshot's minimap is at y=0 and "X11" at y=8? Let me re-examine: get_tile_at_pixel at (90,28) gave screen_box y=24. And at (90,12) blank. So according to the emulator, screen row 1 at that x is blank. But the screenshot image showed "X11" near the top. Maybe I misjudged the vertical position in the image; the HUD might indeed start at y~24. The screenshot preview I saw: top-… [+5237 chars]
+    → read_nametable {"x": 0, "y": 3, "width": 32, "height": 4}
+[  77 13:59:55] RESULT read_nametable
+    Nametable 0 region (0,3) 32x4:
+      Row 3: 24 24 F5 F5 F5 F5 F5 F5 F5 F5 24 F7 21 01 01 69 0B 6B 69 0A 6B 24 24 62 15 12 0F 0E 62 24 24 24
+      Row 4: 24 24 F5 F5 F5 F5 F5 F5 F5 F5 24 24 24 24 24 6C 24 6C 6C 24 6C 24 24 24 24 24 24 24 24 24 24 24
+      Row 5: 24 24 F5 F5 F5 F5 F5 F5 F5 F5 24 F9 21 0A 24 6C 24 6C 6C 24 6C 24 24 24 24 24 24 24 24 24 24 24
+      Row 6: 24 24 F5 F5 F5 F5 F5 F5 F5 F5 24 61 21 07 24 6E 6A 6D 6E 6A 6D 24 24 24 24 24 24 24 24 24 24 24
+    
+    [{"x":0,"y":3,"tile_id":36,"palette_id":0},{"x":1,"y":3,"tile_id":36,"palette_id":0},{"x":2,"y":3,"tile_id":245,"palette_id":0},{"x":3,"y":3,"tile_i… [+5366 chars]
+[  80 14:00:08] ASSISTANT (turn 1 step 10) · in 2922 (cache 47616) out 3049
+    ▷ Now I can decode the HUD. Columns 2-9 rows 3-6 are 0xF5 = minimap (gray). Column 10 blank, 11 = border.
+    
+    Row 3 (first counter line): x=12: 0x21, x=13: 0x01, x=14: 0x01 → I bet 0x21 = "X", 0x01 = digit "1". So "X11" = rupee count 11. Then x=15..20: 0x69, 0x0B, 0x6B, 0x69, 0x0A, 0x6B, and row 4 x=15,17,18,20 = 0x6C. So x=15..20 is a 2×? region: it's actually the B item box? Wait 0x69/0x6B corners and 0x6C edges? Hmm.
+    
+    Actually the Zelda HUD has, right of the minimap: three rows of counters, each formatted "[icon][X][tens][ones]"? Row 3: X11 (rupees). Row 5: x=12:0x21, x=13:0x0A → "X" + "0"?? Hmm x=13=0x0A. Row 5: 0x21, 0x0A → "X" and something. Row 6: x=11:0x61, x=12:0x21, x=13:0x07.
+    
+    Hmm, let me reconsider: Row 3: x11=0xF7 (icon?), x12=0x21 ("X"), x13=0x01, x14=0x01 → "X11"? But where's the rupee icon? 0xF7 at x11 could be the rupee icon.
+    Row 5: x11=0xF9 (icon?), x12=0x21 ("X"), x13=0x0A → "X" + one digit. 0x0A = "0"? Hmm, maybe 0x0A is digit "0" and 0x01 is "1". So "X0" = 0 bombs? But screenshot seemed to show X6.
+    Row 6: x11=0x61 (icon?), x12=0x21 ("X"), x13=0x07 → "X7"? Hmm 0x07 = digit 7 → keys = 7? Hmm.
+    
+    Wait row 6 x11=0x61 might be a key icon (0x61). Row 5 x11=0xF9 might be bom… [+6800 chars]
+    → read_nametable {"height": 4, "width": 12, "x": 20, "y": 7}
+    → read_tile {"tile_id": 257}
+    → read_tile {"tile_id": 266}
+    → read_tile {"tile_id": 263}
+[  82 14:00:10] RESULT read_nametable
+    Nametable 0 region (20,7) 12x4:
+      Row 7: 24 24 24 24 24 24 24 24 24 24 24 24
+      Row 8: D8 DA D8 DA D8 DA D8 DA D8 DA D8 DA
+      Row 9: D9 DB D9 DB D9 DB D9 DB D9 DB D9 DB
+      Row 10: D8 DA D8 DA D8 DA D8 DA D8 DA D8 DA
+    
+    [{"x":20,"y":7,"tile_id":36,"palette_id":0},{"x":21,"y":7,"tile_id":36,"palette_id":0},{"x":22,"y":7,"tile_id":36,"palette_id":1},{"x":23,"y":7,"tile_id":36,"palette_id":1},{"x":24,"y":7,"tile_id":36,"palette_id":1},{"x":25,"y":7,"tile_id":36,"palette_id":1},{"x":26,"y":7,"tile_id":36,"palette_id":1},{"x":27,"y":7,"tile_id":36,"palette_id":1},{"x":28,"y":7,"tile_id":36,"palette_id":1… [+1727 chars]
+[  84 14:00:10] RESULT read_tile
+    $101 (source: chrRom)
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+    
+    Raw pixels: [[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]]
+[  86 14:00:10] RESULT read_tile
+    $10A (source: chrRom)
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+    
+    Raw pixels: [[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]]
+[  88 14:00:10] RESULT read_tile
+    $107 (source: chrRom)
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+    
+    Raw pixels: [[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]]
+[  91 14:00:35] ASSISTANT (turn 1 step 11) · in 1832 (cache 53504) out 4860
+    ▷ The read_tile returned empty because the CHR source is chrRom default; but the background pattern table is 0x1000 and the tiles might be in CHR RAM? It said source chrRom and got zeros — maybe the tiles are in CHR RAM (Zelda uses CHR ROM though). Hmm, maybe read_tile for chrRom tile 257 is out of range or the ROM uses CHR RAM. get_rom_info said format undefined. Let me check: "CHR Type" isn't in context. Let me try read_tile with source chrRam. Actually, wait: the HUD digits are probably at pattern table 1 (0x1000) which for a mapper with CHR ROM would be chrRom tiles 256-511. Reading 257 gave blank. Maybe the pattern table base is 0x0000 for sprites and 0x1000 for bg, and that region is CHR RAM loaded at runtime... Zelda 1 uses CHR ROM (8KB). Hmm, tile 257 being blank suggests maybe the whole 0x1000 page is blank in CHR ROM and the game switches? But the HUD clearly has content.
+    
+    Wait, maybe the "background_pattern_addr: 4096" from get_tile_at_pixel but the actual VRAM pattern table used is 0x0000 and the bridge's chr_tile = 292 assumes +256. If background pattern addr is 0x1000, then tile 257 in CHR ROM should be the digit. It's blank. So perhaps read_tile chrRom isn't reading th… [+16072 chars]
+    The HUD font isn't essential. Let me read a chunk of the save/work RAM region to look for the counter cluster, and re-check the screen.
+    → read_memory {"address": 1632, "length": 64}
+    → screenshot {}
+[  93 14:00:35] RESULT read_memory
+    {"address":1632,"bytes":[7,7,3,3,7,7,3,3,7,7,3,3,0,11,3,0,48,7,3,3,7,7,3,3,7,7,3,3,7,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"mem_type":"cpuDebug"}
+[  95 14:00:35] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1358-holdout-hud-f2-r3/images/task-1/20e675000420.png
+[  98 14:00:48] ASSISTANT (turn 1 step 12) · in 540 (cache 60160) out 2479
+    ▷ The screenshot HUD clearly: top row "X11" with rupee, "B" "A" boxes (B has a dark item), "-LIFE-" red text, and a red heart to the right below LIFE. Second row "X6" and third row "X7"? Actually the OCR-ish reading: "X11" then below "X6" and "X7". Wait the image shows:
+    Row: "❋X11  B  A  -LIFE-"
+    Row: "❋X6" maybe?
+    Row: "X7"
+    
+    Hmm, in the image I see "X11" at top, and below it two more entries. The text seems "X6" and "X7"? or "X0"?
+    
+    Given nametable row5 x13=0x0A and row6 x13=0x07: row5 is bombs, row6 is keys. If 0x07="7", keys=7. Row5 0x0A might be "0" if digits are 0x0A-0x13? Let's test: If digit font: 0x0A="0", 0x0B="1", ... then row3 x13,x14 = 0x01,0x01 wouldn't be digits. Hmm.
+    
+    Alternatively row3 "X11": x13=0x01="1", x14=0x01="1". So 0x01="1". Then 0x07="7" ✓. And 0x0A would be digit... if 0x00="0", then 0x0A is beyond 9. But maybe the font isn't contiguous; 0x0A could be a special "0" glyph? Hmm.
+    
+    Wait, maybe row 5's counter is bombs and it shows only ONE digit because bombs < 10 and leading position... no, the single tile at x13 is the ones digit? Then where's tens? blank at x14. So bombs = one digit = 0x0A. If 0x01="1", and 0x0A="?"... 
+    
+    Hmm, maybe digit tiles are: 0x00="0"? But… [+6170 chars]
+    Interesting — reading at `$066D` I see `11`, matching the displayed rupee count "X11". Let me test whether it controls the HUD.
+    → write_memory {"address": 1645, "bytes": [42]}
+[ 100 14:00:48] RESULT write_memory
+    {"address":1645,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 103 14:00:50] ASSISTANT (turn 1 step 13) · in 236 (cache 62976) out 191
+    ▷ Now step frames and screenshot. The emulator is running, so it should update. Let me step? It's running; just screenshot. Actually writes may be overwritten each frame by game logic (if it's a shadow). Let me screenshot immediately.
+    
+    Actually I should pause to prevent overwrite? The game doesn't necessarily rewrite the value every frame. Let me just step 2 frames and screenshot. But stepping requires pause? step_frame works while paused; if running, it may still work? Let me pause then step 2 then screenshot.
+    
+    Actually simpler: screenshot now (game running). If HUD shows 42, great.
+    
+    Hmm, but if the game recomputes the HUD from a different byte, no change. Let's see.
+    → step_frame {"count": 3}
+[ 105 14:00:50] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 109 14:00:52] ASSISTANT (turn 1 step 14) · in 4409 (cache 63360) out 22
+    ▷ 
+    → screenshot {}
+[ 111 14:00:52] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1358-holdout-hud-f2-r3/images/task-1/9d54ff0ea749.png
+[ 114 14:01:11] ASSISTANT (turn 1 step 15) · in 442 (cache 67712) out 3936
+    ▷ The HUD now shows "X42" — the rupee count changed from X11 to X42! So 0x66D controls the rupee display. 
+    
+    But wait — is 0x66D the authoritative rupee counter or a display copy? Write stuck (persisted across 3 frames). Likely the real counter. Good.
+    
+    Now, this wasn't a differential search; it was reading a candidate. But I can construct a differential to be honest: Hmm. Actually, let me reconsider — I should do proper differential search for the others. But since 0x66D is proven by write+screenshot, that satisfies "prove each address by write_memory and a screenshot".
+    
+    However, the task explicitly wants differential search used. Let me at least do differential search to find the others (bombs, keys, hearts), which is also the reliable way.
+    
+    Now that I have one counter, the others are likely nearby. Look at 0x66D region: 0x667..0x66F = [3,3,0,11,3,0,48,7,3]. Hmm 0x66D=11 rupee. 0x66E=3, 0x66F=0, 0x670=48.
+    
+    Hmm, maybe structure: 0x66C=0, 0x66D=11 (rupees?), ... Actually let me reconsider: maybe rupees is 2-byte at 0x66D (low=11, high=0x66E=3?? no, high would be 0 with 11 rupees). Hmm 0x66E=3 is weird.
+    
+    Hmm, the pattern 3,3,0,11,3,0,48,7,3 — let me get a wider read and also see the val… [+11003 chars]
+    The write worked — the HUD now shows **X42**. So `$066D` drives the rupee display. Now let me locate the other counters. Let me probe the neighbouring bytes and figure out the heart/heart-tile layout.
+    → read_memory {"address": 1640, "length": 24}
+    → read_tile {"source": "chrRam", "tile_id": 277}
+    → get_pixel_color {"x": 205, "y": 40}
+[ 116 14:01:11] RESULT read_memory
+    {"address":1640,"bytes":[7,7,3,3,0,42,3,0,0,7,3,3,7,7,3,3,7,7,3,3,7,0,0,3],"mem_type":"cpuDebug"}
+[ 118 14:01:11] RESULT read_tile
+    $115 (source: chrRam)
+      . 1 1 . . . . .
+      . 1 1 . . . . .
+      . 1 1 . . . . .
+      . 1 1 . . . . .
+      . 1 1 . . . . .
+      . 1 1 . . . . .
+      . 1 1 1 1 1 1 .
+      . . . . . . . .
+    
+    Raw pixels: [[0,1,1,0,0,0,0,0],[0,1,1,0,0,0,0,0],[0,1,1,0,0,0,0,0],[0,1,1,0,0,0,0,0],[0,1,1,0,0,0,0,0],[0,1,1,0,0,0,0,0],[0,1,1,1,1,1,1,0],[0,0,0,0,0,0,0,0]]
+[ 120 14:01:11] RESULT get_pixel_color
+    {"x":205,"y":40,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 123 14:01:18] ASSISTANT (turn 1 step 16) · in 381 (cache 72064) out 1618
+    ▷ read_tile 277 chrRam = tile $115 = the digit "1"! So CHR is in chrRam (Zelda has 8KB CHR RAM? Actually the USA Zelda uses CHR RAM? Hmm, actually The Legend of Zelda uses CHR ROM. But the bridge says chrRam has data. Whatever — the game's CHR is loaded in RAM apparently, or the bridge maps it. Good: digits are in CHR RAM.)
+    
+    Wait, tile 277 = 0x115. read_tile reported "$115 (source: chrRam)" — so tile_id 277 → $115. Good, and it's "1". So tile 0x01 (nametable, +0x100 pattern base) = digit "1". Confirms rupee "X11".
+    
+    Now the read_memory at 1640 (0x668) length 24: [7,7,3,3,0,42,3,0,0,7,3,3,7,7,3,3,7,7,3,3,7,0,0,3]
+    Mapping: 0x668=7, 0x669=7, 0x66A=3, 0x66B=3, 0x66C=0, 0x66D=42, 0x66E=3, 0x66F=0, 0x670=0, 0x671=7, 0x672=3, 0x673=3, 0x674=7...
+    
+    Wait! Now 0x670 = 0 (earlier it was 48?). Earlier read from 0x660 gave index 16 = 0x670 = 48. Now 0x670 = 0. So 0x670 changed on its own (it was 48, now 0). Hmm, 48 might have been a transient (e.g., frame counter or something). Actually earlier read was at a different time. 0x670 changed from 48 → 0. Interesting.
+    
+    Hmm wait, earlier bytes at 0x660..0x67F were: [7,7,3,3,7,7,3,3,7,7,3,3,0,11,3,0,48,7,3,3,7,7,3,3,7,7,3,3,7,0,0,3,0,0,...]. So 0x66C=0, 0… [+1914 chars]
+    CHR is in chrRam, and I can read the glyphs. Let me decode the counters precisely.
+    → read_tile {"source": "chrRam", "tile_id": 266}
+    → read_tile {"source": "chrRam", "tile_id": 263}
+    → read_tile {"source": "chrRam", "tile_id": 289}
+    → read_tile {"source": "chrRam", "tile_id": 97}
+[ 125 14:01:18] RESULT read_tile
+    $10A (source: chrRam)
+      . . 1 1 1 . . .
+      . 1 1 . 1 1 . .
+      1 1 . . . 1 1 .
+      1 1 . . . 1 1 .
+      1 1 1 1 1 1 1 .
+      1 1 . . . 1 1 .
+      1 1 . . . 1 1 .
+      . . . . . . . .
+    
+    Raw pixels: [[0,0,1,1,1,0,0,0],[0,1,1,0,1,1,0,0],[1,1,0,0,0,1,1,0],[1,1,0,0,0,1,1,0],[1,1,1,1,1,1,1,0],[1,1,0,0,0,1,1,0],[1,1,0,0,0,1,1,0],[0,0,0,0,0,0,0,0]]
+[ 127 14:01:18] RESULT read_tile
+    $107 (source: chrRam)
+      1 1 1 1 1 1 1 .
+      1 1 . . . 1 1 .
+      . . . . 1 1 . .
+      . . . 1 1 . . .
+      . . 1 1 . . . .
+      . . 1 1 . . . .
+      . . 1 1 . . . .
+      . . . . . . . .
+    
+    Raw pixels: [[1,1,1,1,1,1,1,0],[1,1,0,0,0,1,1,0],[0,0,0,0,1,1,0,0],[0,0,0,1,1,0,0,0],[0,0,1,1,0,0,0,0],[0,0,1,1,0,0,0,0],[0,0,1,1,0,0,0,0],[0,0,0,0,0,0,0,0]]
+[ 129 14:01:18] RESULT read_tile
+    $121 (source: chrRam)
+      1 1 . . . 1 1 .
+      1 1 1 . 1 1 1 .
+      . 1 1 1 1 1 . .
+      . . 1 1 1 . . .
+      . 1 1 1 1 1 . .
+      1 1 1 . 1 1 1 .
+      1 1 . . . 1 1 .
+      . . . . . . . .
+    
+    Raw pixels: [[1,1,0,0,0,1,1,0],[1,1,1,0,1,1,1,0],[0,1,1,1,1,1,0,0],[0,0,1,1,1,0,0,0],[0,1,1,1,1,1,0,0],[1,1,1,0,1,1,1,0],[1,1,0,0,0,1,1,0],[0,0,0,0,0,0,0,0]]
+[ 131 14:01:18] RESULT read_tile
+    $61 (source: chrRam)
+      3 3 3 2 2 3 3 3
+      3 2 2 2 2 2 2 3
+      3 2 2 2 2 2 2 3
+      3 3 3 2 2 3 3 3
+      3 3 3 2 2 3 3 3
+      3 3 3 2 2 3 3 3
+      . 3 3 3 3 3 3 .
+      . . 3 3 3 3 . .
+    
+    Raw pixels: [[3,3,3,2,2,3,3,3],[3,2,2,2,2,2,2,3],[3,2,2,2,2,2,2,3],[3,3,3,2,2,3,3,3],[3,3,3,2,2,3,3,3],[3,3,3,2,2,3,3,3],[0,3,3,3,3,3,3,0],[0,0,3,3,3,3,0,0]]
+[ 134 14:01:50] ASSISTANT (turn 1 step 17) · in 1091 (cache 73984) out 7666
+    ▷ Now:
+    - tile 0x0A (266) = digit "0" (it's an "0" shape — actually it looks like "0"? The bitmap: a rounded shape with a horizontal bar in the middle = could be "8"? Let's see: rows: 01110 / 011011 / 11..011 / 11..011 / 1111111 / 11..011 / 11..011 — that's "8"? No, "8" has a middle bar and rounded. Actually it looks like "0" with a bar → maybe "8"? Hmm: The shape has a middle horizontal bar (row 4 = 1111111) → that's likely "8"? But 8 would have closed top and bottom. Here top row is 01110, so closed. Both top and bottom closed, middle bar → "8". Hmm, but if it were "0", no middle bar. So tile 0x0A = "8"?
+    
+    Wait, but if the bombs display is "X8"? Hmm. Actually maybe I mixed rows: row 5 = key? Let me recheck: row 5 (y=5) x13 = 0x0A. row 6 (y=6) x13 = 0x07 = "7" (tile 263 bitmap: 1111111 / 11...11 / ....11. / ...11.. / ..11... / ..11... / ..11... → that's "7"). Yes 0x07 = "7".
+    
+    And 0x0A bitmap = let me re-examine: 
+    row0: . . 1 1 1 . . .   (01110000)
+    row1: . 1 1 . 1 1 . .   (01101100)
+    row2: 1 1 . . . 1 1 .   (11000110)
+    row3: 1 1 . . . 1 1 .   (11000110)
+    row4: 1 1 1 1 1 1 1 .   (11111110)
+    row5: 1 1 . . . 1 1 .   (11000110)
+    row6: 1 1 . . . 1 1 .   (11000110)
+    That's "A"! An "A" glyph: point… [+18524 chars]
+    Let me decode the heart tiles (D8–DB) to understand the heart display, and check the box/label tiles.
+    → read_tile {"source": "chrRam", "tile_id": 472}
+    → read_tile {"source": "chrRam", "tile_id": 474}
+    → read_tile {"source": "chrRam", "tile_id": 473}
+    → read_nametable {"height": 4, "width": 14, "x": 18, "y": 7}
+[ 136 14:01:50] RESULT read_tile
+    $1D8 (source: chrRam)
+      1 1 1 . 2 . . 2
+      1 1 1 1 . . 2 1
+      1 1 1 1 . . 2 1
+      2 1 1 1 . . 2 1
+      2 1 1 1 . 2 1 1
+      1 1 1 1 . 2 1 1
+      1 1 1 1 . 2 1 1
+      1 1 1 1 . 2 1 1
+    
+    Raw pixels: [[1,1,1,0,2,0,0,2],[1,1,1,1,0,0,2,1],[1,1,1,1,0,0,2,1],[2,1,1,1,0,0,2,1],[2,1,1,1,0,2,1,1],[1,1,1,1,0,2,1,1],[1,1,1,1,0,2,1,1],[1,1,1,1,0,2,1,1]]
+[ 138 14:01:50] RESULT read_tile
+    $1DA (source: chrRam)
+      1 1 . . 2 . 1 1
+      1 1 1 1 . . . 2
+      1 1 1 1 . . 1 .
+      1 1 1 1 1 . 1 .
+      1 1 1 1 1 . 1 .
+      1 1 1 1 1 1 1 .
+      1 1 1 2 2 . . 2
+      1 1 2 1 1 1 . 2
+    
+    Raw pixels: [[1,1,0,0,2,0,1,1],[1,1,1,1,0,0,0,2],[1,1,1,1,0,0,1,0],[1,1,1,1,1,0,1,0],[1,1,1,1,1,0,1,0],[1,1,1,1,1,1,1,0],[1,1,1,2,2,0,0,2],[1,1,2,1,1,1,0,2]]
+[ 140 14:01:50] RESULT read_tile
+    $1D9 (source: chrRam)
+      1 1 1 . . 2 1 1
+      1 1 1 . . 2 1 1
+      2 1 . . . 2 . 1
+      2 1 . 2 2 2 . .
+      1 . 2 1 1 1 1 1
+      1 . 2 1 1 1 1 .
+      1 2 1 1 1 1 1 1
+      . 2 1 2 1 1 2 .
+    
+    Raw pixels: [[1,1,1,0,0,2,1,1],[1,1,1,0,0,2,1,1],[2,1,0,0,0,2,0,1],[2,1,0,2,2,2,0,0],[1,0,2,1,1,1,1,1],[1,0,2,1,1,1,1,0],[1,2,1,1,1,1,1,1],[0,2,1,2,1,1,2,0]]
+[ 142 14:01:52] RESULT read_nametable
+    Nametable 0 region (18,7) 14x4:
+      Row 7: 24 24 24 24 24 24 24 24 24 24 24 24 24 24
+      Row 8: 24 24 24 24 24 24 24 24 24 24 24 24 24 24
+      Row 9: 24 24 24 24 24 24 24 24 24 24 24 24 24 24
+      Row 10: 24 24 24 24 24 24 24 24 24 24 24 24 24 24
+    
+    [{"x":18,"y":7,"tile_id":36,"palette_id":0},{"x":19,"y":7,"tile_id":36,"palette_id":0},{"x":20,"y":7,"tile_id":36,"palette_id":0},{"x":21,"y":7,"tile_id":36,"palette_id":0},{"x":22,"y":7,"tile_id":36,"palette_id":0},{"x":23,"y":7,"tile_id":36,"palette_id":0},{"x":24,"y":7,"tile_id":36,"palette_id":0},{"x":25,"y":7,"tile_id":36,"palette_id":0},{"x":26,"y":7,"ti… [+2061 chars]
+[ 145 14:02:16] ASSISTANT (turn 1 step 18) · in 2140 (cache 82688) out 5610
+    ▷ Now rows 8-10 at x=18-31 are blank (0x24)! Earlier read of x=20,y=7,w=12,h=4 showed rows 8,9,10 = D8 DA... Wait, that earlier read was with x=20. Now x=18-31 rows 8-10 are blank? Contradiction!
+    
+    Oh! The nametable changes between reads because the game is running and scrolling/updating? No, it's paused now. Earlier the game was running (screenshot after play) when I read D8-DA. Now paused. Hmm, but nametable content shouldn't change from pause.
+    
+    Wait, earlier read: x=20,y=7,w=12,h=4 gave Row 8: D8 DA D8 DA... x=20-31. Now x=18,y=7,w=14,h=4 gives rows 8-10 all 24 (36). That's a direct contradiction for the same addresses.
+    
+    Unless... earlier I was reading nametable 0 while the game was running and the nametable shown was different? Both reads used default nametable 0. Hmm.
+    
+    OH. I bet the difference: earlier, the game was RUNNING and the HUD had been rendered differently, OR the earlier read happened when the playfield scroll position differed and the HUD... no, nametable is VRAM.
+    
+    Hmm wait, maybe the D8-DA pattern earlier was at a moment when the screen was scrolled such that the playfield's dark tiles occupied those nametable rows. When I later paused, the game had scrolled back to t… [+14494 chars]
+    Let me decode the remaining HUD glyphs/icons to read the exact counter values.
+    → read_tile {"source": "chrRam", "tile_id": 267}
+    → read_tile {"source": "chrRam", "tile_id": 247}
+    → read_tile {"source": "chrRam", "tile_id": 249}
+    → read_tile {"source": "chrRam", "tile_id": 256}
+    → read_tile {"source": "chrRam", "tile_id": 258}
+[ 147 14:02:16] RESULT read_tile
+    $10B (source: chrRam)
+      1 1 1 1 1 1 . .
+      1 1 . . . 1 1 .
+      1 1 . . . 1 1 .
+      1 1 1 1 1 1 . .
+      1 1 . . . 1 1 .
+      1 1 . . . 1 1 .
+      1 1 1 1 1 1 . .
+      . . . . . . . .
+    
+    Raw pixels: [[1,1,1,1,1,1,0,0],[1,1,0,0,0,1,1,0],[1,1,0,0,0,1,1,0],[1,1,1,1,1,1,0,0],[1,1,0,0,0,1,1,0],[1,1,0,0,0,1,1,0],[1,1,1,1,1,1,0,0],[0,0,0,0,0,0,0,0]]
+[ 149 14:02:16] RESULT read_tile
+    $F7 (source: chrRam)
+      1 2 2 1 2 2 2 2
+      2 1 2 2 2 2 2 .
+      2 2 2 2 2 2 2 .
+      2 2 2 3 3 3 3 3
+      2 2 2 1 2 2 . .
+      2 1 1 1 . . . .
+      2 2 2 1 . . . .
+      2 2 3 . . . . .
+    
+    Raw pixels: [[1,2,2,1,2,2,2,2],[2,1,2,2,2,2,2,0],[2,2,2,2,2,2,2,0],[2,2,2,3,3,3,3,3],[2,2,2,1,2,2,0,0],[2,1,1,1,0,0,0,0],[2,2,2,1,0,0,0,0],[2,2,3,0,0,0,0,0]]
+[ 151 14:02:16] RESULT read_tile
+    $F9 (source: chrRam)
+      2 2 2 1 2 2 2 1
+      2 3 2 1 2 2 2 2
+      . 3 1 1 1 2 2 2
+      . 3 1 3 1 1 1 1
+      . . 1 1 3 3 1 1
+      . . 2 2 2 1 3 3
+      . 2 2 2 2 2 1 1
+      . 3 2 3 2 3 . .
+    
+    Raw pixels: [[2,2,2,1,2,2,2,1],[2,3,2,1,2,2,2,2],[0,3,1,1,1,2,2,2],[0,3,1,3,1,1,1,1],[0,0,1,1,3,3,1,1],[0,0,2,2,2,1,3,3],[0,2,2,2,2,2,1,1],[0,3,2,3,2,3,0,0]]
+[ 153 14:02:16] RESULT read_tile
+    $100 (source: chrRam)
+      . . 1 1 1 . . .
+      . 1 . . 1 1 . .
+      1 1 . . . 1 1 .
+      1 1 . . . 1 1 .
+      1 1 . . . 1 1 .
+      . 1 1 . . 1 . .
+      . . 1 1 1 . . .
+      . . . . . . . .
+    
+    Raw pixels: [[0,0,1,1,1,0,0,0],[0,1,0,0,1,1,0,0],[1,1,0,0,0,1,1,0],[1,1,0,0,0,1,1,0],[1,1,0,0,0,1,1,0],[0,1,1,0,0,1,0,0],[0,0,1,1,1,0,0,0],[0,0,0,0,0,0,0,0]]
+[ 155 14:02:16] RESULT read_tile
+    $102 (source: chrRam)
+      . 1 1 1 1 1 . .
+      1 1 . . . 1 1 .
+      . . . . 1 1 1 .
+      . . 1 1 1 1 . .
+      . 1 1 1 1 . . .
+      1 1 1 . . . . .
+      1 1 1 1 1 1 1 .
+      . . . . . . . .
+    
+    Raw pixels: [[0,1,1,1,1,1,0,0],[1,1,0,0,0,1,1,0],[0,0,0,0,1,1,1,0],[0,0,1,1,1,1,0,0],[0,1,1,1,1,0,0,0],[1,1,1,0,0,0,0,0],[1,1,1,1,1,1,1,0],[0,0,0,0,0,0,0,0]]
+[ 158 14:02:29] ASSISTANT (turn 1 step 19) · in 1987 (cache 89728) out 2701
+    ▷ Now:
+    - 0x00 = "0" ✓ (oval)
+    - 0x02 = "2" ✓
+    - 0x0B = "B" ✓ (so 0x0A = "A")
+    - 0xF7 and 0xF9 are icons (rupee/bomb/key shapes).
+    
+    So digits are 0x00-0x09. Row 5 x13=0x0A = "A", row 6 x13=0x07 = "7".
+    
+    Hmm! Row 6 "X7" → keys = 7? But "X" is 0x21. Actually wait, maybe row 6 is "[key icon] A 7"? no.
+    
+    Hmm hold on. Let me re-examine: maybe row 5 x12=0x21 is "X" but row 6 x12=0x21 as well. So row6 = "[icon] X 7". And row5 = "[icon] X A". "A" isn't a digit... 
+    
+    Unless the "A" in row 5 is the A-button label placed lower, and the counter for bombs is elsewhere. But then where?
+    
+    Let me reconsider the whole HUD. Maybe the Zelda HUD is:
+    ```
+    [map]  [rupee]X11   B   A     LIFE
+           [bomb]X0    [box][box]  ♥♥♥
+           [key]X7
+    ```
+    Hmm. In that layout, row 3 = rupees + B/A labels + LIFE; row 4 = boxes; row 5 = ... 
+    
+    Wait, actually maybe the counters are stacked with the rupee on row 3, bomb on row 4, key on row 5? Row 4 x11-14 were blank though (x10=0x24,x11=0x24,x12=0x24,x13=0x24,x14=0x24). Hmm no.
+    
+    Hmm, let me re-look at row 5: "24 24 F5 F5 F5 F5 F5 F5 F5 F5 24 F9 21 0A 24 6C 24 6C 6C 24 6C ..." 
+    
+    x10=0x24, x11=0xF9, x12=0x21, x13=0x0A, x14=0x24.
+    
+    If the counter format is "[icon][X][ones]", then bomb … [+6905 chars]
+    The HUD shows icons + "X" + digits. Now let me probe which nearby RAM bytes drive which counter by writing a distinctive ramp and reading the HUD.
+    → load_state {"slot": 0}
+[ 160 14:02:29] RESULT load_state
+    {"stepped_frames":0,"action":"loaded","slot":0,"paused":false,"bytes":17224}
+[ 163 14:02:32] ASSISTANT (turn 1 step 20) · in 245 (cache 94208) out 316
+    ▷ State 0 was saved at the very beginning (rupees=11, health original). Now write ramp to 0x66C..0x674 = 1..9.
+    
+    0x66C=1, 0x66D=2, 0x66E=3, 0x66F=4, 0x670=5, 0x671=6, 0x672=7, 0x673=8, 0x674=9.
+    
+    Then screenshot. But the HUD may not update until a redraw. Let me pause, write, step 3 frames, screenshot. Actually writes are live; the HUD redraws each frame? For 0x66D it did update. Let's do it.
+    
+    Actually, the emulator is running after load_state. Let me pause, write, step, screenshot.
+    
+    Wait — better to write while running so the game redraws HUD; but pausing then stepping 3 frames worked before. Let's do: pause, write, step 3.
+    → pause_emulator {}
+    → write_memory {"address": 1644, "bytes": [1, 2, 3, 4, 5, 6, 7, 8, 9]}
+[ 165 14:02:32] RESULT pause_emulator
+    {"paused":true}
+[ 167 14:02:32] RESULT write_memory
+    {"address":1644,"bytes_written":9,"mem_type":"cpu","persistent":false}
+[ 170 14:02:33] ASSISTANT (turn 1 step 21) · in 223 (cache 94592) out 38
+    ▷ 
+    → step_frame {"count": 3}
+[ 172 14:02:33] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 175 14:02:34] ASSISTANT (turn 1 step 22) · in 155 (cache 94720) out 22
+    ▷ 
+    → screenshot {}
+[ 177 14:02:34] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1358-holdout-hud-f2-r3/images/task-1/408eb613b99d.png
+[ 180 14:02:38] ASSISTANT (turn 1 step 23) · in 415 (cache 94848) out 612
+    ▷ The rupee counter now shows "X2" (0x66D=2). The other HUD elements (keys?) still show "XA" and "X7"? Hmm, the screenshot shows "X2" and the same two rows "XA"?? and "X7". So writing 0x66C=1, 0x66E=3, etc. did NOT change those. Hmm!
+    
+    Wait, the display shows "X2" (rupees) and below "X4?" hmm. Actually I see "X2" at top, then below "XA"? and "X7"? Hard to read. Let me look: image shows "❋X2" then below "❋X4"?? and "X7"? 
+    
+    Hmm, wait: the screenshot shows "X2" top, and below it "X4" and "X7"? Hmm, I see three counters: X2, X4, X7? Let me re-read: top "X2", then "XA"? Actually the text in the image: "❋X2" then "❋X4" then "X7"? The middle might be X4 (from 0x66F=4) and bottom X7 (unchanged).
+    
+    Hmm interesting! Let me look carefully. The rendered image shows:
+    Line1: [rupee] X2
+    Line2: [bomb?] X6? — hmm
+    Line3: [key] X7
+    
+    Wait, actually I can't reliably read. Let me read the nametable HUD rows again after the write. That's precise. Read x=10,y=3,w=6,h=4.
+    
+    Values written: 0x66C=1,0x66D=2,0x66E=3,0x66F=4,0x670=5,0x671=6,0x672=7,0x673=8,0x674=9.
+    
+    If the counters are at 0x66D(rupee)=2, 0x66F(bomb)=4, 0x671(key)=6, the HUD would show X2, X4, X6. If at 0x66E=3, etc. The screenshot seems to show X2, X… [+128 chars]
+    → read_nametable {"height": 4, "width": 8, "x": 10, "y": 3}
+[ 182 14:02:39] RESULT read_nametable
+    Nametable 0 region (10,3) 8x4:
+      Row 3: 24 F7 21 02 24 69 0B 6B
+      Row 4: 24 24 24 24 24 6C 24 6C
+      Row 5: 24 F9 21 0A 24 6C 24 6C
+      Row 6: 24 61 21 07 24 6E 6A 6D
+    
+    [{"x":10,"y":3,"tile_id":36,"palette_id":1},{"x":11,"y":3,"tile_id":247,"palette_id":1},{"x":12,"y":3,"tile_id":33,"palette_id":0},{"x":13,"y":3,"tile_id":2,"palette_id":0},{"x":14,"y":3,"tile_id":36,"palette_id":0},{"x":15,"y":3,"tile_id":105,"palette_id":0},{"x":16,"y":3,"tile_id":11,"palette_id":0},{"x":17,"y":3,"tile_id":107,"palette_id":0},{"x":10,"y":4,"tile_id":36,"palette_id":1},{"x":11,"y":4,"tile_id":36,"palette_id":1},{"x… [+950 chars]
+[ 185 14:02:55] ASSISTANT (turn 1 step 24) · in 770 (cache 95872) out 3468
+    ▷ Now: row 3: x11=0xF7 icon, x12=0x21 X, x13=0x02 "2", x14=0x24 blank. So rupees = 2 ✓ (0x66D=2).
+    
+    Row 5: x11=0xF9 icon, x12=0x21 X, x13=0x0A. Row 6: x11=0x61 icon, x12=0x21 X, x13=0x07.
+    
+    So writing 0x66C=1, 0x66E=3, 0x66F=4, 0x670=5, 0x671=6, 0x672=7 did NOT change rows 5 and 6. So bombs and keys are NOT at 0x66C-0x672.
+    
+    Wait, but row 6 shows 0x07="7". Maybe that's not a counter digit — maybe row 6 is the key counter showing 7? If keys address isn't in this range, it stayed 7.
+    
+    And row 5 shows 0x0A="A". Hmm! An "A" in the bomb counter position. Unless... row 5 is not a counter but the "A" button label! And row 6 is the key counter.
+    
+    Hmm, but row 6 has icon 0x61 then X then 7. And row 5 has icon 0xF9 then X then A. So maybe:
+    - row 3: rupee icon, X, digits → rupees
+    - row 5: bomb icon (0xF9), X, then "A"?? 
+    - row 6: key icon (0x61), X, digit 7
+    
+    Hmm, "XA"? Unless the bomb counter's ones digit tile for 0 is... no, 0 is 0x00.
+    
+    Hold on! Maybe the counters are displayed with TWO digit positions: tens at x13 and ones at x14, and for row 5 the tens digit is "A"?? No.
+    
+    Wait, maybe I have the wrong idea: maybe the display is "[icon] X[digit]" where the X tile 0x21 is actually the *tens digit pl… [+8208 chars]
+    → list_sprites {}
+    → get_pixel_color {"x": 200, "y": 40}
+    → get_pixel_color {"x": 208, "y": 44}
+    → get_pixel_color {"x": 216, "y": 40}
+[ 187 14:02:55] RESULT list_sprites
+    {"sprite_pattern_addr":0,"sprites_enabled":true,"large_sprites":true,"background_pattern_addr":4096,"sprites":[{"flip_v":false,"chr_tile":12,"height":16,"width":8,"chr_tile_bottom":13,"attr":3,"flip_h":false,"index":18,"x":112,"behind_background":false,"y":88,"tile":12,"palette":7},{"flip_v":false,"chr_tile":14,"height":16,"width":8,"chr_tile_bottom":15,"attr":3,"flip_h":false,"index":19,"x":120,"behind_background":false,"y":88,"tile":14,"palette":7},{"flip_v":false,"chr_tile":62,"height":16,"width":8,"chr_tile_bottom":63,"attr":0,"flip_h":false,"index":21,"x":45,"behind_background":false,"y":… [+1639 chars]
+[ 189 14:02:55] RESULT get_pixel_color
+    {"x":200,"y":40,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 191 14:02:55] RESULT get_pixel_color
+    {"x":208,"y":44,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 193 14:02:55] RESULT get_pixel_color
+    {"x":216,"y":40,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 196 14:03:09] ASSISTANT (turn 1 step 25) · in 1004 (cache 100096) out 3103
+    ▷ Hmm, all black at those points. And list_sprites has no HUD sprite. So where IS the heart and the HUD text?! get_pixel_color(200,40) = black. But the HUD LIFE text should be around there. Hmm.
+    
+    Wait, maybe the HUD is at a different location than I think. Let me scan for the red LIFE text. get_pixel_color at (190,30)? Let me find red pixels. Actually let me scan the top-left region systematically for non-black. Hmm.
+    
+    Actually, maybe the screenshot rendering vs the actual coordinates differ? No.
+    
+    Let me get_pixel_color at (190,8), (200,8), (210,8) — maybe the HUD is at y=0-16.
+    
+    Hmm, the minimap gray box: get_pixel_color at (40,16) should be gray. Let me probe several points:
+    - (40,16) minimap
+    - (90,8) rupees?
+    - (100,28) counter area
+    - (190,8) LIFE?
+    
+    Let me do a batch.
+    
+    Actually, the earlier get_tile_at_pixel(90,12) returned nametable row 1 blank (tile 36), screen_box y=8. And get_tile_at_pixel(90,28) returned row 3 tile 0xF7 at screen y=24. So the HUD row 3 is at screen y=24-31. LIFE at row 3 x23-28 → screen x=184-231, y=24-31. get_pixel_color(200,28) should show red (LIFE). Let me test.
+    
+    And the heart: maybe at row 3? Hmm. Actually maybe the "heart" is at screen (204,28)? That's wit… [+9171 chars]
+    → read_tile {"source": "chrRam", "tile_id": 54}
+    → read_tile {"source": "chrRam", "tile_id": 62}
+    → get_pixel_color {"x": 130, "y": 34}
+    → get_pixel_color {"x": 190, "y": 28}
+[ 198 14:03:10] RESULT read_tile
+    $36 (source: chrRam)
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . 1 2 3 . .
+      . . 1 1 3 . . .
+      . 2 1 3 . . . .
+      . 2 2 3 . . . .
+    
+    Raw pixels: [[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,1,2,3,0,0],[0,0,1,1,3,0,0,0],[0,2,1,3,0,0,0,0],[0,2,2,3,0,0,0,0]]
+[ 200 14:03:10] RESULT read_tile
+    $3E (source: chrRam)
+      1 1 1 . . . . .
+      1 1 1 . . . . .
+      1 1 1 . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+    
+    Raw pixels: [[1,1,1,0,0,0,0,0],[1,1,1,0,0,0,0,0],[1,1,1,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]]
+[ 202 14:03:10] RESULT get_pixel_color
+    {"x":130,"y":34,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 204 14:03:10] RESULT get_pixel_color
+    {"x":190,"y":28,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 207 14:03:17] ASSISTANT (turn 1 step 26) · in 560 (cache 104192) out 1460
+    ▷ get_pixel_color(190,28) = black, but LIFE text should be at x=184-231, y=24-31 (row 3) and should be red. It's black. So my mapping of nametable row→screen y is WRONG.
+    
+    Recall get_tile_at_pixel(90,12) returned row 1 (screen_box y=8) — so screen y=12 is in row 1. That's consistent with row=y/8. And get_tile_at_pixel(90,28) returned row 3, screen_box y=24. Hmm, but wait, that was while the game was paused/running? get_tile_at_pixel used scroll_source vblank. 
+    
+    Then (190,28) should be row 3, x=23 → tile 0x62 (part of LIFE). But get_pixel_color says black. Hmm, discrepancy!
+    
+    Unless the HUD is at a different nametable and get_tile_at_pixel's scanline scroll for y=28 resolved to nametable 0 row 3, but the actual PPU renders a different nametable (e.g., mirroring/scroll) at that scanline.
+    
+    Hmm, wait: earlier get_tile_at_pixel(90,28) gave nametable 0, tile_y=3, screen_box y=24. And the tile there was 0xF7. If the HUD's LIFE is at nametable row 3, then screen y=24-31, and get_tile_at_pixel(190,28) should give tile at x=23 row 3 = 0x62. Let me call get_tile_at_pixel(190,28) to check.
+    
+    But get_pixel_color(190,28)=black contradicts. Unless the rendered frame at that moment had scroll such that… [+2287 chars]
+    My nametable→screen mapping seems off. Let me probe the actual rendered HUD positions.
+    → get_pixel_color {"x": 40, "y": 16}
+    → get_pixel_color {"x": 40, "y": 32}
+    → get_pixel_color {"x": 40, "y": 48}
+    → get_pixel_color {"x": 95, "y": 28}
+    → get_pixel_color {"x": 95, "y": 40}
+    → get_pixel_color {"x": 190, "y": 20}
+    → get_pixel_color {"x": 210, "y": 28}
+    → get_tile_at_pixel {"x": 190, "y": 28}
+[ 209 14:03:17] RESULT get_pixel_color
+    {"x":40,"y":16,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 211 14:03:17] RESULT get_pixel_color
+    {"x":40,"y":32,"rgb":[102,102,102],"nes_color":0,"nes_color_hex":"0x00","name":"dark gray"}
+[ 213 14:03:17] RESULT get_pixel_color
+    {"x":40,"y":48,"rgb":[102,102,102],"nes_color":0,"nes_color_hex":"0x00","name":"dark gray"}
+[ 215 14:03:17] RESULT get_pixel_color
+    {"x":95,"y":28,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 217 14:03:17] RESULT get_pixel_color
+    {"x":95,"y":40,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 219 14:03:17] RESULT get_pixel_color
+    {"x":190,"y":20,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 221 14:03:17] RESULT get_pixel_color
+    {"x":210,"y":28,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 223 14:03:17] RESULT get_tile_at_pixel
+    {"tile_id":98,"palette_id":1,"tile_x":23,"tile_y":3,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8311,"attribute_addr":9157,"scroll_source":"vblank","scroll_scanline":-1,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":184,"y":24,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":354}
+[ 226 14:03:53] ASSISTANT (turn 1 step 27) · in 537 (cache 106112) out 8029
+    ▷ get_tile_at_pixel(190,28) says tile 0x62 (98) at screen_box x=184,y=24. But get_pixel_color(190,28) = black. Contradiction! Unless the tile 0x62 at screen (184-191, 24-31) renders black (it's a blank/space tile!). 0x62 might be a blank space tile used as padding around LIFE. Indeed row3 x=23 = 0x62, x=28 = 0x62, and "LIFE" at x=24-27. So x=190 is the 0x62 blank. That's why black. ✓.
+    
+    And (210,28) → x=210 is tile x=26 → "F" (0x0F). But get_pixel_color(210,28) = black. Hmm! tile 0x0F = "F" should be red at that pixel... but maybe the specific pixel at (210,28) is the top row of the glyph which might be blank? Tile 0x0F (F): bitmap unknown, but the top row could be filled. Hmm. And (190,20) row2 blank ✓.
+    
+    Also (40,32) gray = minimap ✓ (minimap at x=16-79, y=24-55).
+    (95,28) black: x=95 → tile x=11 (0xF7 rupee icon) — pixel at y=28 (row 3 offset 4). Tile 0xF7 icon might be black at that pixel? The icon bitmap (0xF7) had values 1,2,3... at row 4 (y offset 4). Pixel (95,28): x offset within tile = 95-88=7, y offset=4. Tile 0xF7 row4 = [2,2,2,1,2,2,0,0] → x offset 7 = 0. So palette index 0 → the HUD's palette-0 color is black. ✓ makes sense.
+    
+    So the HUD IS at y=24-55. Good. LIFE at x=192-2… [+24057 chars]
+    Let me stop guessing at the HUD font and instead trace which RAM bytes the HUD routine reads each frame.
+    → load_state {"slot": 0}
+[ 228 14:03:53] RESULT load_state
+    {"stepped_frames":0,"action":"loaded","slot":0,"paused":false,"bytes":17224}
+[ 231 14:03:55] ASSISTANT (turn 1 step 28) · in 155 (cache 114560) out 88
+    ▷ 
+    → trace_writes {"address": 1632, "frames": 3, "length": 48, "mode": "read"}
+[ 233 14:03:55] RESULT trace_writes
+    {"address":1632,"mode":"read","total_accesses":54,"mem_type":"cpu","writers":[{"last_value":0,"last_frame":2,"count":12,"samples":[{"frame":0,"address":1644,"value":0},{"frame":0,"address":1644,"value":0},{"frame":0,"address":1644,"value":0},{"frame":0,"address":1644,"value":0},{"frame":1,"address":1644,"value":0},{"frame":1,"address":1644,"value":0},{"frame":1,"address":1644,"value":0},{"frame":1,"address":1644,"value":0}],"origin":{"address":126960,"mem_type_id":45,"mem_type":"prgRom"},"pc":61424,"last_address":1644,"pc_hex":"0xEFF0","origin_hex":"prgRom 0x1EFF0"},{"last_value":0,"last_frame… [+4139 chars]
+[ 236 14:04:12] ASSISTANT (turn 1 step 29) · in 1841 (cache 114688) out 3915
+    ▷ Excellent! This is very informative. The trace read of 0x660-0x68F shows reads with PCs. Key hits:
+    
+    - pc 0x6CCE (saveRam origin 0xCCE): reads 0x66D = 11 (rupees) — count 3 (once per frame). 
+    - pc 0x6D1F: reads 0x66D = 11.
+    - pc 0x6D15: reads 0x670 = 241? Wait last_address 1648 = 0x670, value 241. Hmm.
+    - pc 0x6D10: reads 0x66F = 1.
+    - pc 0x6CF3: reads 0x67E = 0.
+    - pc 0x6CE3: reads 0x67D = 0.
+    - pc 0x6D29: reads 0x664 = 7.
+    
+    Interesting: the PCs around 0x6CCE-0x6D29 are in RAM (0x6Cxx) — these are self-modifying/code in RAM? The origin says saveRam 0xCCE etc. Hmm, PC 0x6CCE is in the SRAM region ($6000-$7FFF battery). Wait, Zelda uses SRAM at $6000 for saved games, but code running from $6CCE? That would be... Actually, the PCs 0x6Cxx are in WRAM/SRAM space. Mesen reports origin as saveRam at 0xCCE (offset within SRAM). So there's code in SRAM? Odd, but maybe the game copies a routine to RAM.
+    
+    Actually hold on — maybe those "reads" are actually the game's own code being executed from SRAM... or Mesen's origin mapping is off.
+    
+    Anyway, more useful: several PCs read specific addresses once per frame. These are likely the HUD-drawing/format routines. The addresses read: 0x66D (rupees, read b… [+8975 chars]
+    The read-trace shows per-frame HUD reads of `$066D`, `$066F`, `$0670`, `$067D`, `$067E`, `$0664`. Let me write distinct values to each and see which HUD element each drives.
+    → pause_emulator {}
+    → write_memory {"address": 1636, "bytes": [11]}
+    → write_memory {"address": 1645, "bytes": [22]}
+    → write_memory {"address": 1647, "bytes": [33]}
+    → write_memory {"address": 1648, "bytes": [44]}
+    → write_memory {"address": 1661, "bytes": [55]}
+    → write_memory {"address": 1662, "bytes": [66]}
+[ 238 14:04:12] RESULT pause_emulator
+    {"paused":true}
+[ 240 14:04:12] RESULT write_memory
+    {"address":1636,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 242 14:04:12] RESULT write_memory
+    {"address":1645,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 244 14:04:12] RESULT write_memory
+    {"address":1647,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 246 14:04:12] RESULT write_memory
+    {"address":1648,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 248 14:04:12] RESULT write_memory
+    {"address":1661,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 250 14:04:12] RESULT write_memory
+    {"address":1662,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 253 14:04:14] ASSISTANT (turn 1 step 30) · in 315 (cache 120320) out 38
+    ▷ 
+    → step_frame {"count": 3}
+[ 255 14:04:14] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 258 14:04:16] ASSISTANT (turn 1 step 31) · in 247 (cache 120448) out 22
+    ▷ 
+    → screenshot {}
+[ 260 14:04:16] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1358-holdout-hud-f2-r3/images/task-1/2aac4426f9c5.png
+[ 263 14:04:25] ASSISTANT (turn 1 step 32) · in 376 (cache 120704) out 1737
+    ▷ Now the HUD shows "X22" (rupees = 0x66D = 22 ✓) and the life area shows THREE hearts (red) maybe? The image shows "-LIFE-" and below it a heart row. Hmm.
+    
+    Also the middle/bottom counters unchanged: "XA" and "X7". So 0x664, 0x66F, 0x670, 0x67D, 0x67E writes did NOT change those counters. Hmm!! And 55/66 didn't show anywhere.
+    
+    Wait, but something changed in the life area: I see multiple hearts now. Let me read the nametable HUD row for the heart area to see the actual tiles now. Also read the counter rows to see current tiles.
+    
+    Hmm, but actually, maybe 0x670=44 changed the hearts! Let me read the nametable rows 3-6 x=10-31 and also look for heart tiles.
+    
+    Let me read nametable x=10,y=3,w=22,h=4.
+    
+    Also, the key/bomb counters still show A/7 — so their addresses remain unfound.
+    
+    Hmm, wait: "XA" for the middle counter... Maybe the middle counter is the BOMB count and it shows "A"?? Ugh.
+    
+    Let me reconsider once more with the new data. The read-trace showed HUD reads of 0x66D, 0x66F, 0x670, 0x67D, 0x67E, 0x664. But writing 0x66F/0x670/0x67D/0x67E/0x664 didn't change counters. So those reads were for other purposes (or the counters don't update live).
+    
+    Hmm, maybe the HUD counters for bombs/k… [+3974 chars]
+    → read_memory {"address": 1632, "length": 48}
+    → read_nametable {"height": 4, "width": 22, "x": 10, "y": 3}
+[ 265 14:04:25] RESULT read_memory
+    {"address":1632,"bytes":[7,7,3,3,11,7,3,3,7,7,3,3,0,22,3,33,44,7,3,3,7,7,3,3,7,7,3,3,7,53,64,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"mem_type":"cpuDebug"}
+[ 267 14:04:25] RESULT read_nametable
+    Nametable 0 region (10,3) 22x4:
+      Row 3: 24 F7 21 02 02 69 0B 6B 69 0A 6B 24 24 62 15 12 0F 0E 62 24 24 24
+      Row 4: 24 24 24 24 24 6C 24 6C 6C 24 6C 24 24 24 24 24 24 24 24 24 24 24
+      Row 5: 24 F9 21 0A 24 6C 24 6C 6C 24 6C 24 24 24 24 24 24 24 24 24 24 24
+      Row 6: 24 61 21 07 24 6E 6A 6D 6E 6A 6D 24 F2 65 66 24 24 24 24 24 24 24
+    
+    [{"x":10,"y":3,"tile_id":36,"palette_id":1},{"x":11,"y":3,"tile_id":247,"palette_id":1},{"x":12,"y":3,"tile_id":33,"palette_id":0},{"x":13,"y":3,"tile_id":2,"palette_id":0},{"x":14,"y":3,"tile_id":2,"palette_id":0},{"x":15,"y":3,"tile_id":105,"palette_id":0},{"x":16,… [+3538 chars]
+[ 270 14:04:35] ASSISTANT (turn 1 step 33) · in 2193 (cache 122752) out 2226
+    ▷ Interesting! Now:
+    1. Memory read 0x660-0x68F: [7,7,3,3,11,7,3,3,7,7,3,3,0,22,3,33,44,7,3,3,7,7,3,3,7,7,3,3,7,53,64,3,...]
+       0x660=7,0x661=7,0x662=3,0x663=3,0x664=11 (I wrote 11 ✓ persisted),0x665=7,0x666=3,0x667=3,0x668=7,0x669=7,0x66A=3,0x66B=3,0x66C=0,0x66D=22 (✓),0x66E=3,0x66F=33 (✓),0x670=44 (✓),0x671=7,0x672=3,0x673=3,0x674=7,0x675=7,0x676=3,0x677=3,0x678=7,0x679=7,0x67A=3,0x67B=3,0x67C=7,0x67D=53 (I wrote 55, now 53!),0x67E=64 (wrote 66, now 64!),0x67F=3, then 0x680+ = 0.
+    
+    So 0x67D and 0x67E were DECREMENTED by 2 (55→53, 66→64) over the 3 frames! These are counting DOWN. So 0x67D/0x67E are a timer! (decrements each frame). That's the read trace's 0x67D/0x67E reads. So not counters.
+    
+    2. Nametable now shows row 3: x13=0x02 (2), x14=0x02 (2) → rupees "22" ✓. So rupees display uses TWO digit cells (x13,x14) and displayed 22. 
+    
+    Row 5: x13=0x0A (A) unchanged; row 6: x13=0x07 (7) unchanged.
+    Row 6 new: x22=0xF2, x23=0x65, x24=0x66 → tiles changed! 0xF2,0x65,0x66 appeared at x22-24 row6. Hmm, those might be the HEARTS or something affected by 0x670=44?
+    
+    Wait, row 6 x22-24 = 0xF2,0x65,0x66. And row 3 x23-28 = LIFE (0x62,0x15,0x12,0x0F,0x0E,0x62). So hearts are at row 6, x22-24! Tiles … [+4675 chars]
+    Now I can see it: writing `$0670=44` (or `$066F=33`) made hearts appear at nametable row 6 (`$F2,$65,$66`), and `$067D/$067E` are a countdown timer (decayed 55→53, 66→64). Let me isolate the heart addresses.
+    → load_state {"slot": 0}
+[ 272 14:04:38] RESULT load_state
+    {"stepped_frames":1,"action":"loaded","slot":0,"paused":true,"bytes":17224}
+[ 275 14:04:40] ASSISTANT (turn 1 step 34) · in 232 (cache 126976) out 134
+    ▷ 
+    → read_memory {"address": 1632, "length": 32}
+    → read_nametable {"height": 1, "width": 16, "x": 16, "y": 6}
+[ 277 14:04:40] RESULT read_memory
+    {"address":1632,"bytes":[7,7,3,3,7,7,3,3,7,7,3,3,0,11,3,2,2,7,3,3,7,7,3,3,7,7,3,3,7,0,0,3],"mem_type":"cpuDebug"}
+[ 279 14:04:40] RESULT read_nametable
+    Nametable 0 region (16,6) 16x1:
+      Row 6: 6A 6D 6E 6A 6D 24 F2 24 24 24 24 24 24 24 24 24
+    
+    [{"x":16,"y":6,"tile_id":106,"palette_id":0},{"x":17,"y":6,"tile_id":109,"palette_id":0},{"x":18,"y":6,"tile_id":110,"palette_id":0},{"x":19,"y":6,"tile_id":106,"palette_id":0},{"x":20,"y":6,"tile_id":109,"palette_id":0},{"x":21,"y":6,"tile_id":36,"palette_id":0},{"x":22,"y":6,"tile_id":242,"palette_id":1},{"x":23,"y":6,"tile_id":36,"palette_id":1},{"x":24,"y":6,"tile_id":36,"palette_id":1},{"x":25,"y":6,"tile_id":36,"palette_id":1},{"x":26,"y":6,"tile_id":36,"palette_id":1},{"x":27,"y":6,"tile_id":36,"pa… [+185 chars]
+[ 282 14:04:59] ASSISTANT (turn 1 step 35) · in 588 (cache 127232) out 4366
+    ▷ Baseline after load_state 0:
+    0x660-0x67F: [7,7,3,3,7,7,3,3,7,7,3,3,0,11,3,2,2,7,3,3,7,7,3,3,7,7,3,3,7,0,0,3]
+    So: 0x66C=0, 0x66D=11 (rupees), 0x66E=3, 0x66F=2, 0x670=2, 0x671=7, 0x672=3, 0x673=3, 0x674=7,...
+    
+    So baseline: 0x66F=2, 0x670=2! (Earlier trace said 0x66F=1, 0x670=241 — that was probably after the game ran and Link took damage / after the ramp; ignore.)
+    
+    And nametable row6 x22=0xF2 (heart tile), x23-31 blank. So baseline shows ONE heart tile at x22.
+    
+    Hmm, so the display shows one heart at x22. With 0x66F=2 and 0x670=2: if current health=2 and max=2, that's 1 heart (2 half-hearts)! So Link has 1 heart, and 0x66F=current health, 0x670=max health, both in HALF-HEARTS. Baseline: 2 half-hearts = 1 heart ✓ (matches the single heart I saw in the first screenshot!).
+    
+    So:
+    - 0x66F = current health (half-hearts)
+    - 0x670 = max health / heart containers (half-hearts)
+    
+    Now when I wrote 0x66F=33, 0x670=44: display showed 3 heart tiles F2,65,66. Hmm, with max=44 half-hearts = 22 hearts?? But only 3 tiles shown. Hmm, that doesn't fit.
+    
+    Hmm, maybe 0x66F/0x670 are NOT half-hearts but something else. With 0x66F=2, 0x670=2 → 1 heart. With 33/44 → 3 hearts? Hmm, 33 and 44... 
+    
+    Wait, maybe the h… [+11310 chars]
+    Baseline: `$066F=2`, `$0670=2`, and the HUD shows one heart tile (`$F2`). Let me confirm the encoding by writing `6` (three full hearts if half-hearts).
+    → write_memory {"address": 1647, "bytes": [6]}
+    → write_memory {"address": 1648, "bytes": [6]}
+[ 284 14:04:59] RESULT write_memory
+    {"address":1647,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 286 14:04:59] RESULT write_memory
+    {"address":1648,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 289 14:05:01] ASSISTANT (turn 1 step 36) · in 152 (cache 132096) out 38
+    ▷ 
+    → step_frame {"count": 3}
+[ 291 14:05:01] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 294 14:05:02] ASSISTANT (turn 1 step 37) · in 212 (cache 132096) out 100
+    ▷ 
+    → read_nametable {"height": 4, "width": 14, "x": 18, "y": 3}
+    → screenshot {}
+[ 296 14:05:02] RESULT read_nametable
+    Nametable 0 region (18,3) 14x4:
+      Row 3: 69 0A 6B 24 24 62 15 12 0F 0E 62 24 24 24
+      Row 4: 6C 24 6C 24 24 24 24 24 24 24 24 24 24 24
+      Row 5: 6C 24 6C 24 24 24 24 24 24 24 24 24 24 24
+      Row 6: 6E 6A 6D 24 F2 24 24 24 24 24 24 24 24 24
+    
+    [{"x":18,"y":3,"tile_id":105,"palette_id":0},{"x":19,"y":3,"tile_id":10,"palette_id":0},{"x":20,"y":3,"tile_id":107,"palette_id":0},{"x":21,"y":3,"tile_id":36,"palette_id":0},{"x":22,"y":3,"tile_id":36,"palette_id":1},{"x":23,"y":3,"tile_id":98,"palette_id":1},{"x":24,"y":3,"tile_id":21,"palette_id":1},{"x":25,"y":3,"tile_id":18,"palette_id":1},{"x":26,"y":3,"t… [+2056 chars]
+[ 298 14:05:02] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1358-holdout-hud-f2-r3/images/task-1/b5f73897d90e.png
+[ 301 14:05:09] ASSISTANT (turn 1 step 38) · in 1718 (cache 132352) out 1336
+    ▷ Hmm! Writing 0x66F=6, 0x670=6 did NOT change the heart display: still one heart tile 0xF2 at x22, and rupees back to X11 (since load_state 0 restored 0x66D=11). So the heart display didn't update! Yet in the multi-write test, hearts changed (3 tiles). So neither 0x66F nor 0x670 alone (set to 6) changed it. Hmm, but earlier with 33/44 the display showed 3 heart tiles.
+    
+    Wait, maybe the heart display didn't change because 6 is interpreted differently. Hmm, with 0x66F=2,0x670=2 → 1 heart (F2). With 0x66F=6,0x670=6 → should be 3 hearts. But still 1 heart. So maybe 0x66F/0x670 aren't hearts after all, OR the heart display only redraws on an event (like a value change detected through game logic). But the multi-write test DID change hearts after 3 frames...
+    
+    Hmm, in the multi-write test, I wrote 0x664=11 too. Maybe 0x664 is the heart-related one! And 0x66F/0x670 are something else (their values 33/44 might have caused no visible change).
+    
+    Wait, but the multi-write changed the heart row from "F2 at x22" (1 heart) to "F2,65,66 at x22-24" (3 tiles). Which write did that? Could be 0x664=11 (from 7). Hmm 0x664 baseline is 7; I wrote 11.
+    
+    Or maybe 0x670=44 changed it. But now 0x670=6 didn't. Hm… [+2615 chars]
+    `$066F/$0670 = 6` did **not** change the hearts. Let me isolate which write in the earlier batch actually changed them — testing `$0664=11`.
+    → load_state {"slot": 0}
+[ 303 14:05:11] RESULT load_state
+    {"stepped_frames":1,"action":"loaded","slot":0,"paused":true,"bytes":17224}
+[ 306 14:05:13] ASSISTANT (turn 1 step 39) · in 147 (cache 135296) out 58
+    ▷ 
+    → write_memory {"address": 1636, "bytes": [11]}
+[ 308 14:05:13] RESULT write_memory
+    {"address":1636,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 311 14:05:15] ASSISTANT (turn 1 step 40) · in 238 (cache 135296) out 38
+    ▷ 
+    → step_frame {"count": 3}
+[ 313 14:05:15] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 316 14:05:17] ASSISTANT (turn 1 step 41) · in 170 (cache 135424) out 100
+    ▷ 
+    → read_nametable {"height": 1, "width": 14, "x": 18, "y": 6}
+    → screenshot {}
+[ 318 14:05:17] RESULT read_nametable
+    Nametable 0 region (18,6) 14x1:
+      Row 6: 6E 6A 6D 24 F2 24 24 24 24 24 24 24 24 24
+    
+    [{"x":18,"y":6,"tile_id":110,"palette_id":0},{"x":19,"y":6,"tile_id":106,"palette_id":0},{"x":20,"y":6,"tile_id":109,"palette_id":0},{"x":21,"y":6,"tile_id":36,"palette_id":0},{"x":22,"y":6,"tile_id":242,"palette_id":1},{"x":23,"y":6,"tile_id":36,"palette_id":1},{"x":24,"y":6,"tile_id":36,"palette_id":1},{"x":25,"y":6,"tile_id":36,"palette_id":1},{"x":26,"y":6,"tile_id":36,"palette_id":1},{"x":27,"y":6,"tile_id":36,"palette_id":1},{"x":28,"y":6,"tile_id":36,"palette_id":1},{"x":29,"y":6,"tile_id":36,"palette_id… [+91 chars]
+[ 320 14:05:17] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1358-holdout-hud-f2-r3/images/task-1/b5f73897d90e.png
+[ 323 14:05:23] ASSISTANT (turn 1 step 42) · in 726 (cache 135680) out 1158
+    ▷ 0x664=11 didn't change hearts either. Hmm. So the 3-tile heart row in the multi-write was caused by 0x66F=33 or 0x670=44 or the timer writes.
+    
+    Hmm, but 6 didn't change it. Weird. Let me test 0x670=44 alone.
+    
+    Wait — maybe the heart display responds to 0x66F/0x670 only when they differ in a certain way, or the display uses a different formula. Let me test 0x670=44 alone, and 0x66F=33 alone.
+    
+    Actually, let me reconsider the multi-write screenshot: it showed 3 hearts. Maybe the change wasn't from the RAM writes at all but from the game's own state (e.g., a heart refill? no).
+    
+    Hmm, let me look at the multi-write screenshot again: "-LIFE-" with what appeared to be 3 red hearts below. And nametable row6 x22=0xF2, x23=0x65, x24=0x66. So 3 tiles: F2, 65, 66.
+    
+    Hmm, maybe 0x65 and 0x66 are NOT hearts but something else that appeared (e.g., text). And the single heart is 0xF2 always.
+    
+    Let me decode tiles 0xF2, 0x65, 0x66 to see what they are. read_tile 0x1F2=498, 0x165=357, 0x166=358.
+    
+    Hmm, 0xF2=242. Let me read them.
+    
+    Actually, let me think about what the heart tile is: baseline shows 0xF2 at x22 → 1 heart. If a full heart is 0xF2, then 3 hearts would be 0xF2,0xF2,0xF2. But we saw F2,65,66 → … [+2011 chars]
+    → read_tile {"source": "chrRam", "tile_id": 498}
+    → read_tile {"source": "chrRam", "tile_id": 357}
+    → read_tile {"source": "chrRam", "tile_id": 358}
+[ 325 14:05:23] RESULT read_tile
+    $1F2 (source: chrRam)
+      . 1 1 . 1 1 . .
+      1 1 1 1 1 1 1 .
+      1 1 1 1 1 1 1 .
+      1 1 1 1 1 1 1 .
+      1 1 1 1 1 1 1 .
+      . 1 1 1 1 1 . .
+      . . 1 1 1 . . .
+      . . . 1 . . . .
+    
+    Raw pixels: [[0,1,1,0,1,1,0,0],[1,1,1,1,1,1,1,0],[1,1,1,1,1,1,1,0],[1,1,1,1,1,1,1,0],[1,1,1,1,1,1,1,0],[0,1,1,1,1,1,0,0],[0,0,1,1,1,0,0,0],[0,0,0,1,0,0,0,0]]
+[ 327 14:05:23] RESULT read_tile
+    $165 (source: chrRam)
+      . 1 1 . 3 3 . .
+      1 1 1 1 3 3 3 .
+      1 1 1 3 3 3 3 .
+      1 1 1 1 3 3 3 .
+      1 1 1 3 3 3 3 .
+      . 1 1 1 3 3 . .
+      . . 1 3 3 . . .
+      . . . 1 . . . .
+    
+    Raw pixels: [[0,1,1,0,3,3,0,0],[1,1,1,1,3,3,3,0],[1,1,1,3,3,3,3,0],[1,1,1,1,3,3,3,0],[1,1,1,3,3,3,3,0],[0,1,1,1,3,3,0,0],[0,0,1,3,3,0,0,0],[0,0,0,1,0,0,0,0]]
+[ 329 14:05:23] RESULT read_tile
+    $166 (source: chrRam)
+      . 3 3 . 3 3 . .
+      3 3 3 3 3 3 3 .
+      3 3 3 3 3 3 3 .
+      3 3 3 3 3 3 3 .
+      3 3 3 3 3 3 3 .
+      . 3 3 3 3 3 . .
+      . . 3 3 3 . . .
+      . . . 3 . . . .
+    
+    Raw pixels: [[0,3,3,0,3,3,0,0],[3,3,3,3,3,3,3,0],[3,3,3,3,3,3,3,0],[3,3,3,3,3,3,3,0],[3,3,3,3,3,3,3,0],[0,3,3,3,3,3,0,0],[0,0,3,3,3,0,0,0],[0,0,0,3,0,0,0,0]]
+[ 332 14:05:35] ASSISTANT (turn 1 step 43) · in 866 (cache 137472) out 2340
+    ▷ These are heart shapes:
+    - 0xF2: filled with color 1 → full heart (red).
+    - 0x65: left part color 1, right part color 3 → half heart (half red, half dark).
+    - 0x66: all color 3 → empty heart (dark).
+    
+    So the heart display uses tiles F2 (full), 65 (half), 66 (empty). 
+    
+    In the multi-write test, row6 = F2,65,66 → full, half, empty = max 3 hearts, current health 1.5 hearts. That came from writing 0x66F=33, 0x670=44? Hmm, 33 and 44 aren't 6 and 6.
+    
+    Hmm, but the display showed 3 hearts (1 full + 1 half + 1 empty) = current 3 half-hearts out of 6. Hmm, with baseline (2,2) = 1 full heart. With (6,6), display SHOULD be 3 full hearts, but it stayed 1 full. So the display wasn't updated by my 6/6 write!
+    
+    But the multi-write DID update. So maybe the multi-write's heart change came from a DIFFERENT address (0x664=11? tested no; 0x66D=22? that's rupees; 0x67D/0x67E timer).
+    
+    Hmm, wait — maybe the heart display updates continuously BUT reads a DIFFERENT address than 0x66F/0x670. With 0x664=11 tested alone → no change. Hmm.
+    
+    Let me reconsider: in the multi-write, what changed the hearts? Writes: 0x664=11, 0x66D=22, 0x66F=33, 0x670=44, 0x67D=55, 0x67E=66.
+    
+    Baseline 0x66F=2, 0x670=2 → 1 heart (F2 at x22)… [+5716 chars]
+    The heart tiles are `$F2` (full), `$65` (half), `$66` (empty). Let me write `$066F=6,$0670=6` (three hearts) and then take damage to force a HUD redraw.
+    → load_state {"slot": 0}
+[ 334 14:05:36] RESULT load_state
+    {"stepped_frames":1,"action":"loaded","slot":0,"paused":true,"bytes":17224}
+[ 337 14:05:38] ASSISTANT (turn 1 step 44) · in 171 (cache 140544) out 106
+    ▷ 
+    → write_memory {"address": 1647, "bytes": [6]}
+    → write_memory {"address": 1648, "bytes": [6]}
+[ 339 14:05:38] RESULT write_memory
+    {"address":1647,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 341 14:05:38] RESULT write_memory
+    {"address":1648,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 344 14:05:41] ASSISTANT (turn 1 step 45) · in 211 (cache 140672) out 256
+    ▷ Now play to take damage. The game resumes for the run. Let me use play_input with watch on 0x66F, 0x670 to see if they change. Watch max 16 addresses. Let me watch 0x66F(1647),0x670(1648),0x66D(1645),0x664(1636).
+    
+    Script: hold down for 60 frames toward enemy, then idle 300. Actually, to take damage, just idle — octoroks shoot. Let me do [{buttons:[],frames:400}].
+    
+    But wait — with health=6 (3 hearts), Link survives. Good.
+    
+    Let me watch the addresses to see if 0x66F decreases on damage.
+    
+    play_input watch samples each frame. Let me include 0x66F and 0x670.
+    
+    Let me run.
+    → play_input {"script": [{"buttons": [], "frames": 500}], "watch": [1647, 1648, 1645, 1636]}
+[ 346 14:05:49] RESULT play_input
+    {"end_frame":131710,"port":0,"sample_frames":[9,18,27,36,45,54,63,72,81,90,99,108,117,126,135,144,153,162,171,180,189,198,207,216,225,234,243,252,261,270,279,288,297,306,315,324,333,342,351,360,369,378,387,396,405,414,423,432,441,450,459,468,477,486,495,500],"frames":500,"watch":[{"values":[6,6,6,6,6,6,6,6,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],"address":1647,"last":5,"first":6,"address_hex":"0x066F"},{"values":[6,6,6,6,6,6,6,6,245,245,245,245,245,245,245,245,229,229,229,229,229,213,213,213,213,213,213,213,213,197,197,197,197,197,197,19… [+861 chars]
+[ 349 14:06:01] ASSISTANT (turn 1 step 46) · in 858 (cache 141056) out 2444
+    ▷ Watch results over 500 idle frames:
+    - 0x66F: 6 → 5 at frame ~72 (took damage once), then stayed 5.
+    - 0x670: 6 → 245 → 229 → 213 → 197 (decreasing by 16 every ~27 frames). Whoa! 0x670 is being overwritten by the game: 6→245→229→213→197. These values (245,214,197) decrease by 16. Hmm, 0x670 is being used by something else! So 0x670 is NOT max hearts — it's a scratch variable that the game overwrote.
+    
+    Wait, but 0x670 baseline (after load) was 2. And now after 500 frames it's 245 etc. So 0x670 is volatile/scratch. So max hearts isn't 0x670.
+    
+    Hmm, but the baseline read showed 0x66F=2, 0x670=2 and the display showed 1 heart. And 0x66F decreased to 5 after damage (from 6) → 0x66F IS current health! Confirmed: damage decreased it by 1 (half heart). And the display... let me check the hearts now.
+    
+    So 0x66F = current health in half-hearts. When I set it to 6 and Link had max 1 heart (2 half), the game likely clamped? It stayed 6→5. Hmm, but max hearts should be 2 (1 heart). Setting health=6 > max is odd; the game let it be 6 then damage made 5.
+    
+    So max hearts: the display would show max hearts = ? Baseline 2 half-hearts = 1 heart. Where is max stored? Not 0x670 (scratch). Maybe 0x66E=3? or 0… [+5645 chars]
+    `$066F` is confirmed health: it dropped 6→5 when Link took damage. `$0670` turned out to be a scratch/palette buffer (it took values 245,229,213,197 during the damage flash) — not max hearts. Let me look at the current HUD and neighbours.
+    → read_memory {"address": 1643, "length": 12}
+    → read_nametable {"height": 2, "width": 14, "x": 18, "y": 5}
+    → screenshot {}
+[ 351 14:06:01] RESULT read_memory
+    {"address":1643,"bytes":[3,0,11,3,5,197,7,3,3,7,7,3],"mem_type":"cpuDebug"}
+[ 353 14:06:01] RESULT read_nametable
+    Nametable 0 region (18,5) 14x2:
+      Row 5: 6C 24 6C 24 24 24 24 24 24 24 24 24 24 24
+      Row 6: 6E 6A 6D 24 F2 24 24 24 24 24 24 24 24 24
+    
+    [{"x":18,"y":5,"tile_id":108,"palette_id":0},{"x":19,"y":5,"tile_id":36,"palette_id":0},{"x":20,"y":5,"tile_id":108,"palette_id":0},{"x":21,"y":5,"tile_id":36,"palette_id":0},{"x":22,"y":5,"tile_id":36,"palette_id":1},{"x":23,"y":5,"tile_id":36,"palette_id":1},{"x":24,"y":5,"tile_id":36,"palette_id":1},{"x":25,"y":5,"tile_id":36,"palette_id":1},{"x":26,"y":5,"tile_id":36,"palette_id":1},{"x":27,"y":5,"tile_id":36,"palette_id":1},{"x":28,"y":5,"tile_id":36,"pale… [+746 chars]
+[ 355 14:06:01] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1358-holdout-hud-f2-r3/images/task-1/1742cdc14aaa.png
+[ 358 14:06:13] ASSISTANT (turn 1 step 47) · in 1174 (cache 144256) out 2509
+    ▷ Now memory 0x66B..0x676: [3, 0, 11, 3, 5, 197, 7, 3, 3, 7, 7, 3] → 0x66B=3, 0x66C=0, 0x66D=11, 0x66E=3, 0x66F=5 (health), 0x670=197 (scratch/palette), 0x671=7, 0x672=3, 0x673=3, 0x674=7, 0x675=7, 0x676=3.
+    
+    And the display still shows ONE heart (0xF2 at x22) even though health=5?! So the heart display does NOT update from 0x66F directly (only max hearts shown, and one heart is full). Hmm. So the number of hearts shown = max hearts = 1? But health=5 (2.5 hearts) → the 1 displayed heart is full.
+    
+    Hmm, so the display shows N hearts where N = max hearts, and fills them according to health. With max=1 heart and health=5, it shows 1 full heart.
+    
+    So max hearts must be ≤ 3? Let's figure out: baseline max was 1 heart. So max = 1 heart = 2 half-hearts. Which byte is 2? Hmm, 0x66F was 2 baseline. Maybe the game derives max hearts from... hmm.
+    
+    Actually, maybe the number of hearts displayed is determined by a separate "max hearts" byte, and with baseline it's 1. When I did the multi-write, it showed 3 hearts — so something in that batch set max hearts to 3 (or 6 half-hearts). Which write? The candidates in that batch that I haven't isolated: 0x66F=33, 0x670=44, 0x67D=55, 0x67E=66. I tested 0x66… [+5949 chars]
+    `$066E` is my remaining candidate for heart containers. Let me set `$066E=6,$066F=6`, force a damage redraw, and check the hearts.
+    → load_state {"slot": 0}
+[ 360 14:06:15] RESULT load_state
+    {"stepped_frames":1,"action":"loaded","slot":0,"paused":true,"bytes":17224}
+[ 363 14:06:17] ASSISTANT (turn 1 step 48) · in 136 (cache 147840) out 106
+    ▷ 
+    → write_memory {"address": 1646, "bytes": [6]}
+    → write_memory {"address": 1647, "bytes": [6]}
+[ 365 14:06:17] RESULT write_memory
+    {"address":1646,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 367 14:06:17] RESULT write_memory
+    {"address":1647,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 370 14:06:19] ASSISTANT (turn 1 step 49) · in 176 (cache 147968) out 79
+    ▷ 
+    → play_input {"script": [{"buttons": [], "frames": 400}], "watch": [1646, 1647, 1645, 1648]}
+[ 372 14:06:25] RESULT play_input
+    {"end_frame":132111,"port":0,"sample_frames":[7,14,21,28,35,42,49,56,63,70,77,84,91,98,105,112,119,126,133,140,147,154,161,168,175,182,189,196,203,210,217,224,231,238,245,252,259,266,273,280,287,294,301,308,315,322,329,336,343,350,357,364,371,378,385,392,399,400],"frames":400,"watch":[{"values":[6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6],"address":1646,"last":6,"first":6,"address_hex":"0x066E"},{"values":[6,6,6,6,6,6,6,6,6,6,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],… [+884 chars]
+[ 375 14:06:27] ASSISTANT (turn 1 step 50) · in 922 (cache 148096) out 139
+    ▷ 0x66E stayed 6 (not overwritten). 0x66F went 6→5 on damage. 0x670 volatile. Now let me check the heart display.
+    → read_nametable {"height": 1, "width": 14, "x": 18, "y": 6}
+    → screenshot {}
+[ 377 14:06:27] RESULT read_nametable
+    Nametable 0 region (18,6) 14x1:
+      Row 6: 6E 6A 6D 24 F2 24 24 24 24 24 24 24 24 24
+    
+    [{"x":18,"y":6,"tile_id":110,"palette_id":0},{"x":19,"y":6,"tile_id":106,"palette_id":0},{"x":20,"y":6,"tile_id":109,"palette_id":0},{"x":21,"y":6,"tile_id":36,"palette_id":0},{"x":22,"y":6,"tile_id":242,"palette_id":1},{"x":23,"y":6,"tile_id":36,"palette_id":1},{"x":24,"y":6,"tile_id":36,"palette_id":1},{"x":25,"y":6,"tile_id":36,"palette_id":1},{"x":26,"y":6,"tile_id":36,"palette_id":1},{"x":27,"y":6,"tile_id":36,"palette_id":1},{"x":28,"y":6,"tile_id":36,"palette_id":1},{"x":29,"y":6,"tile_id":36,"palette_id… [+91 chars]
+[ 379 14:06:27] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1358-holdout-hud-f2-r3/images/task-1/ff61bed9b904.png
+[ 382 14:06:38] ASSISTANT (turn 1 step 51) · in 733 (cache 149120) out 1908
+    ▷ Still one heart (0xF2 at x22). So 0x66E isn't max hearts either. Hmm.
+    
+    So neither 0x66E nor 0x66F nor 0x670 controls the heart COUNT. The heart count displayed stays 1 regardless.
+    
+    Hmm, so maybe the heart count (containers) is stored elsewhere, and 0x66F is only... hmm. Actually wait: maybe the game derives the number of hearts from 0x66F but only up to the max, and the max is 1. When health > max*2, it shows max hearts. So max=1 heart.
+    
+    To find max: I need a byte that, when increased, increases the number of hearts. The display showed 3 hearts in the multi-write — but maybe that was a glitch.
+    
+    Hmm, wait. Let me reconsider the multi-write. It wrote 0x664=11 (baseline 7), 0x66D=22, 0x66F=33, 0x670=44, 0x67D=55, 0x67E=66. And the display showed F2,65,66. 
+    
+    Now, what if 0x66F is health in half-hearts, and the display draws hearts = ceil(health/2)? Baseline health=2 → 1 heart ✓. Multi-write health=33 → ceil(33/2)=17 hearts, but the screen only had 3 tiles... Hmm, maybe it draws up to 3 because the row only has room? No, row6 has room x22-28 (7 tiles).
+    
+    Hmm, but with health=33 and max hearts maybe not used for count, display = 17 hearts; it would draw 17 tiles but we only saw 3. So no.
+    … [+4373 chars]
+    Neither `$066E` nor `$066F` changed the heart count. Let me test the exact value from the earlier batch, `$066F=33`, alone.
+    → load_state {"slot": 0}
+[ 384 14:06:41] RESULT load_state
+    {"stepped_frames":1,"action":"loaded","slot":0,"paused":true,"bytes":17224}
+[ 387 14:06:43] ASSISTANT (turn 1 step 52) · in 246 (cache 151552) out 58
+    ▷ 
+    → write_memory {"address": 1647, "bytes": [33]}
+[ 389 14:06:43] RESULT write_memory
+    {"address":1647,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 392 14:06:45] ASSISTANT (turn 1 step 53) · in 209 (cache 151680) out 38
+    ▷ 
+    → step_frame {"count": 3}
+[ 394 14:06:45] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 397 14:06:46] ASSISTANT (turn 1 step 54) · in 141 (cache 151808) out 134
+    ▷ 
+    → read_nametable {"height": 1, "width": 14, "x": 18, "y": 6}
+    → read_memory {"address": 1647, "length": 1}
+[ 399 14:06:46] RESULT read_nametable
+    Nametable 0 region (18,6) 14x1:
+      Row 6: 6E 6A 6D 24 F2 65 66 24 24 24 24 24 24 24
+    
+    [{"x":18,"y":6,"tile_id":110,"palette_id":0},{"x":19,"y":6,"tile_id":106,"palette_id":0},{"x":20,"y":6,"tile_id":109,"palette_id":0},{"x":21,"y":6,"tile_id":36,"palette_id":0},{"x":22,"y":6,"tile_id":242,"palette_id":1},{"x":23,"y":6,"tile_id":101,"palette_id":1},{"x":24,"y":6,"tile_id":102,"palette_id":1},{"x":25,"y":6,"tile_id":36,"palette_id":1},{"x":26,"y":6,"tile_id":36,"palette_id":1},{"x":27,"y":6,"tile_id":36,"palette_id":1},{"x":28,"y":6,"tile_id":36,"palette_id":1},{"x":29,"y":6,"tile_id":36,"palette_… [+93 chars]
+[ 401 14:06:46] RESULT read_memory
+    {"address":1647,"bytes":[33],"mem_type":"cpuDebug"}
+[ 404 14:07:09] ASSISTANT (turn 1 step 55) · in 389 (cache 152064) out 4862
+    ▷ Writing 0x66F=33 alone produced F2,65,66 (3 hearts: full, half, empty)! So 0x66F DOES control the heart display — but with an encoding where 2 → 1 full heart and 33 → full/half/empty.
+    
+    Interesting. So what's the formula? health=2 → 1 full heart (2 half-hearts). health=33 → 3 hearts shown as full, half, empty (current = 3 half-hearts? or 1.5 hearts).
+    
+    Hmm, maybe the display routine uses the low bits differently. Let's think: 33 = 0x21. 2 = 0x02.
+    
+    Maybe the heart display routine takes the value N and draws ceil(N/2) hearts filled... For N=2: 1 heart full. For N=33: 17 hearts, but only 3 shown → capped at 3? Where does 3 come from? Hmm, maybe max hearts = 3 (from 0x66E=3 baseline?). Baseline 0x66E=3, and display with health=2 showed only 1 heart (not 3). Hmm.
+    
+    Alternatively, maybe the routine masks the value: N & 0x3F? 33 & 0x3F = 33. Hmm.
+    
+    Wait, maybe health isn't a byte count of half-hearts; maybe it's a bitfield! 33 = 0b00100001, 2 = 0b00000010. Hmm.
+    
+    Hmm, in Zelda the hearts might be stored as one byte per heart? Like an array? No.
+    
+    Let me test more values to derive the mapping:
+    - N=0 → ? 
+    - N=1 → ?
+    - N=2 → 1 heart full ✓
+    - N=3 → ?
+    - N=4 → 2 hearts full?
+    - N=6 → 3 hearts full?
+    - N… [+14130 chars]
+    Writing `$066F=33` alone DID change the hearts (full/half/empty). So `$066F` is health. Let me map the encoding with a few values.
+    → write_memory {"address": 1647, "bytes": [6]}
+[ 406 14:07:09] RESULT write_memory
+    {"address":1647,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 409 14:07:12] ASSISTANT (turn 1 step 56) · in 164 (cache 157184) out 38
+    ▷ 
+    → step_frame {"count": 3}
+[ 411 14:07:12] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 414 14:07:14] ASSISTANT (turn 1 step 57) · in 224 (cache 157184) out 134
+    ▷ 
+    → read_nametable {"height": 1, "width": 14, "x": 18, "y": 6}
+    → read_memory {"address": 1647, "length": 1}
+[ 416 14:07:14] RESULT read_nametable
+    Nametable 0 region (18,6) 14x1:
+      Row 6: 6E 6A 6D 24 F2 24 24 24 24 24 24 24 24 24
+    
+    [{"x":18,"y":6,"tile_id":110,"palette_id":0},{"x":19,"y":6,"tile_id":106,"palette_id":0},{"x":20,"y":6,"tile_id":109,"palette_id":0},{"x":21,"y":6,"tile_id":36,"palette_id":0},{"x":22,"y":6,"tile_id":242,"palette_id":1},{"x":23,"y":6,"tile_id":36,"palette_id":1},{"x":24,"y":6,"tile_id":36,"palette_id":1},{"x":25,"y":6,"tile_id":36,"palette_id":1},{"x":26,"y":6,"tile_id":36,"palette_id":1},{"x":27,"y":6,"tile_id":36,"palette_id":1},{"x":28,"y":6,"tile_id":36,"palette_id":1},{"x":29,"y":6,"tile_id":36,"palette_id… [+91 chars]
+[ 418 14:07:14] RESULT read_memory
+    {"address":1647,"bytes":[6],"mem_type":"cpuDebug"}
+[ 421 14:07:29] ASSISTANT (turn 1 step 58) · in 472 (cache 157440) out 3406
+    ▷ N=6 → 1 heart (F2). N=33 → 3 hearts (F2,65,66). Hmm!
+    
+    So 6 doesn't show 3 full hearts. That's very strange if health is half-hearts.
+    
+    Unless the heart display routine shows the hearts based on a *packed* format where the value's low 3 bits (or nibbles) matter. Let's compare:
+    - N=2 (0b00000010) → 1 full heart.
+    - N=6 (0b00000110) → 1 full heart.
+    - N=33 (0b00100001) → full, half, empty.
+    
+    Hmm! 33 = 0x21. Nibbles: high=2, low=1.
+    2 = 0x02. Nibbles: high=0, low=2.
+    6 = 0x06. high=0, low=6.
+    
+    Maybe the routine uses the high nibble and low nibble separately. E.g., high nibble = "hearts" related. For N=33 high=2 → maybe 2 hearts? plus? Display showed 3 hearts though.
+    
+    Hmm, alternatively maybe the value is treated as a bitmask of hearts! Each bit = a half heart? 33 = 0b100001: bits 0 and 5. Hmm, 2 hearts? Display 3 tiles.
+    
+    Or maybe the display routine only redraws when the value CHANGES to a value that... Wait, maybe the routine redraws on every change but renders from a DIFFERENT variable, and 0x66F is just a trigger? No, reading confirms.
+    
+    Hmm hold on, maybe the heart display is driven by a *bitmask* variable elsewhere, and 0x66F is the health count in half-hearts, and the routine recomputes … [+8867 chars]
+    Interesting — the mapping isn't simple binary. Let me disassemble the routine that reads `$066F` (PC `$6D10` from the read trace) to understand the encoding.
+    → disassemble {"address": 27840, "length": 96}
+[ 423 14:07:30] RESULT disassemble
+    $6cc0: a5 14       lda 0x14
+    $6cc2: d0 d2       bne 0x0000
+    $6cc4: ad 02 03    lda 0x0302
+    $6cc7: 10 cd       bpl 0x0000
+    $6cc9: a0 27       ldy #0x27
+    $6ccb: ad 6d 06    lda 0x066d
+    $6cce: f0 06       beq 0x0000
+    $6cd0: a0 26       ldy #0x26
+    $6cd2: c9 ff       cmp #0xff
+    $6cd4: d0 05       bne 0x0000
+    $6cd6: a9 00       lda #0x00
+    $6cd8: 99 57 06    sta 0x0657, y
+    $6cdb: a5 15       lda 0x15
+    $6cdd: 4a          lsr a
+    $6cde: b0 b6       bcs 0x0000
+    $6ce0: ad 7d 06    lda 0x067d
+    $6ce3: f0 0b       beq 0x0000
+    $6ce5: ce 7d 06    dec 0x067d
+    $6ce8: ee 6d 06    inc 0x066d
+    $6ceb: a9 10       lda #0x10
+    $6ced: 8d 0… [+580 chars]
+[ 426 14:07:38] ASSISTANT (turn 1 step 59) · in 782 (cache 161280) out 1806
+    ▷ Excellent! This is the HUD update routine in RAM (at 0x6CC0). It reads 0x066D (rupees), 0x066F (health), 0x0670 (max hearts), 0x067D/0x067E (timer). And calls JSR 0x6E79 with A=0x66F value, and Y=3? Actually:
+    ```
+    ldy #0x03
+    lda 0x066f
+    sta 0x0e
+    lda 0x0670
+    sta 0x0f
+    jsr 0x6e79
+    ```
+    So it copies 0x66F → 0x0E and 0x670 → 0x0F, then calls a subroutine at 0x6E79. So the heart display uses both 0x66F and 0x670! And 0x670 IS max hearts.
+    
+    But earlier 0x670 got overwritten with 245,229,... during damage. Hmm, but the code reads 0x670 as max hearts. Maybe the values I saw (245 etc.) were actually a different thing and 0x670 was temporarily used by something. Actually, the watch showed 0x670 changing to 245,229,213,197 during damage — maybe that's the *palette flash* using the same address? That would corrupt max hearts!
+    
+    Hmm, wait, maybe the watch addresses are off. Actually, the watch showed 0x670=197 at the end. And the HUD code reads 0x670 as max hearts. If max hearts=197, display would be huge.
+    
+    Hmm, unless 0x670 is genuinely max hearts but the game restores it? Or the damage flash temporarily clobbers it and restores? Hmm.
+    
+    Wait, actually maybe the values 245,229,213,197 are the "heart disp… [+3502 chars]
+    The routine reveals `$066F` = health and `$0670` = max hearts, and `$067D/$067E` are the rupee gain/loss animation counters. Let me disassemble further.
+    → disassemble {"address": 27930, "length": 110}
+    → disassemble {"address": 28256, "length": 110}
+[ 428 14:07:38] RESULT disassemble
+    $6d1a: a2 02       ldx #0x02
+    $6d1c: ad 6d 06    lda 0x066d
+    $6d1f: a0 1b       ldy #0x1b
+    $6d21: 20 50 6d    jsr 0x6d50
+    $6d24: a0 21       ldy #0x21
+    $6d26: ad 64 06    lda 0x0664
+    $6d29: f0 13       beq 0x0000
+    $6d2b: 84 00       sty 0x00
+    $6d2d: a9 21       lda #0x21
+    $6d2f: 85 01       sta 0x01
+    $6d31: a9 0a       lda #0x0a
+    $6d33: 20 75 6d    jsr 0x6d75
+    $6d36: a2 08       ldx #0x08
+    $6d38: 20 55 6d    jsr 0x6d55
+    $6d3b: 4c 46 6d    jmp 0x6d46
+    $6d3e: a2 08       ldx #0x08
+    $6d40: ad 6e 06    lda 0x066e
+    $6d43: 20 50 6d    jsr 0x6d50
+    $6d46: a2 0e       ldx #0x0e
+    $6d48: ad 58 06    lda 0x0658
+    $6d4b: a0 27… [+825 chars]
+[ 430 14:07:38] RESULT disassemble
+    $6e60: d0 07       bne 0x0000
+    $6e62: a0 24       ldy #0x24
+    $6e64: c9 00       cmp #0x00
+    $6e66: d0 01       bne 0x0000
+    $6e68: 98          tya 
+    $6e69: 85 02       sta 0x02
+    $6e6b: 84 01       sty 0x01
+    $6e6d: 60          rts 
+    $6e6e: a0 00       ldy #0x00
+    $6e70: c9 0a       cmp #0x0a
+    $6e72: 90 f9       bcc 0x0000
+    $6e74: e9 0a       sbc #0x0a
+    $6e76: c8          iny 
+    $6e77: d0 f7       bne 0x0000
+    $6e79: 84 0d       sty 0x0d
+    $6e7b: a5 0e       lda 0x0e
+    $6e7d: 48          pha 
+    $6e7e: 29 0f       and #0x0f
+    $6e80: 85 00       sta 0x00
+    $6e82: a9 0f       lda #0x0f
+    $6e84: 38          sec 
+    $6e85: e5 00     … [+1127 chars]
+[ 433 14:08:08] ASSISTANT (turn 1 step 60) · in 1954 (cache 163840) out 7338
+    ▷ Now I can decode the heart routine at 0x6E79:
+    
+    ```
+    6E79: sty 0x0d          ; Y = heart index base? (passed Y=3 from caller? actually caller did ldy #0x03 before? At 0x6D0B: ldy #0x03; lda 0x66f; sta 0x0e; lda 0x670; sta 0x0f; jsr 0x6e79)
+    6E7B: lda 0x0e          ; A = health (0x66F)
+    6E7D: pha
+    6E7E: and #0x0f         ; A = health & 0x0F  (low nibble)
+    6E80: sta 0x00
+    6E82: lda #0x0f
+    6E85: sbc 0x00          ; A = 0x0F - (health&0x0F)
+    6E87: sta 0x00          ; 0x00 = 15 - lowNibble
+    6E89: pla
+    6E8A: lsr; lsr; lsr; lsr  ; A = health >> 4 (high nibble)
+    6E8E: sta 0x01
+    6E90: lda #0x0f
+    6E93: sbc 0x01          ; A = 15 - highNibble
+    6E95: sta 0x01
+    ...
+    ```
+    
+    Hmm, so the health byte 0x66F is read as: low nibble and high nibble. So health is packed: low nibble = current half-hearts? high nibble = ??? Both are used.
+    
+    Then the loop uses 0x00 and 0x01 as thresholds to decide empty/half/full.
+    
+    At 0x6EAE:
+    ```
+    lda 0x0e   ; health
+    beq ...    ; if health==0, empty heart
+    cpx 0x01   ; compare heart index X with 0x01 (=15-highNibble)
+    bcs ...    ; if X >= 0x01, skip
+    lda #0x24  ; blank tile
+    ...
+    6EBA: cpx 0x00   ; compare X with 0x00 (=15-lowNibble)
+    beq ...    ; if X == 0x00 -> half heart? 
+    bcc ...    ; if X < 0x0… [+17462 chars]
+    The disassembly shows the HUD routine draws: rupees from `$066D`, a counter from `$066E`, a tile/item from `$0664`, another counter from `$0658`, and hearts from `$066F`/`$0670`. Let me read those.
+    → read_memory {"address": 1616, "length": 96}
+[ 435 14:08:08] RESULT read_memory
+    {"address":1616,"bytes":[34,255,0,0,0,0,0,0,7,7,3,3,0,0,0,0,7,7,3,3,7,7,3,3,7,7,3,3,0,11,3,6,2,7,3,3,7,7,3,3,7,7,3,3,7,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"mem_type":"cpuDebug"}
+[ 438 14:08:40] ASSISTANT (turn 1 step 61) · in 294 (cache 173056) out 7704
+    ▷ Read from 0x650, length 96 (0x650-0x6AF):
+    0x650=34 (0x22), 0x651=255 (0xFF), 0x652=0,0,0,0,0,0,
+    0x658=7, 0x659=7, 0x65A=3, 0x65B=3, 0x65C=0,0,0,0,
+    0x660=7,0x661=7,0x662=3,0x663=3,0x664=7,0x665=7,0x666=3,0x667=3,
+    0x668=7,0x669=7,0x66A=3,0x66B=3,0x66C=0,0x66D=11,0x66E=3,0x66F=6,0x670=2,0x671=7,...
+    
+    So:
+    0x658 = 7
+    0x66E = 3
+    0x66D = 11 (rupees)
+    0x66F = 6 (health I wrote)
+    0x670 = 2 (max hearts)
+    
+    Hmm interesting: 0x670=2 now (the earlier clobbering to 245 was transient? Now it's 2. Wait, the current state came from load_state 0 then writes; the 245 values were in a different run. So 0x670 might normally be 2 and only clobbered during damage flash? Hmm, but in this run no damage after load? Actually I did the damage run separately. OK.)
+    
+    So max hearts 0x670=2. With health 0x66F=6, display 1 heart. So max=2 (half-hearts) = 1 heart ✓.
+    
+    And when I wrote 0x66F=33, display showed 3 hearts. Hmm, so health=33 with max=2 gave 3 hearts?! That means the display's heart COUNT = (health >> 4)+1 = 3, and max wasn't limiting. Hmm.
+    
+    Wait, maybe the encoding: health is BCD where the high nibble is the number of hearts' worth and low nibble half-hearts. 0x02 → 0 hearts + 2 half = 1 heart. 0x06 → 0 hearts +… [+19984 chars]
+    Now the key finding: the HUD routine draws rupees `$066D`, a counter `$066E` (shown only when `$0664==0`), a counter `$0658`, and hearts from `$066F`/`$0670`. Let me test `$0658` and `$066E`.
+    → write_memory {"address": 1624, "bytes": [99]}
+[ 440 14:08:40] RESULT write_memory
+    {"address":1624,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 443 14:08:42] ASSISTANT (turn 1 step 62) · in 223 (cache 180864) out 38
+    ▷ 
+    → step_frame {"count": 3}
+[ 445 14:08:42] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 448 14:08:44] ASSISTANT (turn 1 step 63) · in 155 (cache 180992) out 88
+    ▷ 
+    → read_nametable {"height": 4, "width": 14, "x": 10, "y": 3}
+[ 450 14:08:44] RESULT read_nametable
+    Nametable 0 region (10,3) 14x4:
+      Row 3: 24 F7 21 01 01 69 0B 6B 69 0A 6B 24 24 62
+      Row 4: 24 24 24 24 24 6C 24 6C 6C 24 6C 24 24 24
+      Row 5: 24 F9 21 0A 24 6C 24 6C 6C 24 6C 24 24 24
+      Row 6: 24 61 21 09 09 6E 6A 6D 6E 6A 6D 24 F2 24
+    
+    [{"x":10,"y":3,"tile_id":36,"palette_id":1},{"x":11,"y":3,"tile_id":247,"palette_id":1},{"x":12,"y":3,"tile_id":33,"palette_id":0},{"x":13,"y":3,"tile_id":1,"palette_id":0},{"x":14,"y":3,"tile_id":1,"palette_id":0},{"x":15,"y":3,"tile_id":105,"palette_id":0},{"x":16,"y":3,"tile_id":11,"palette_id":0},{"x":17,"y":3,"tile_id":107,"palette_id":0},{"x":18,"y":3,"ti… [+2063 chars]
+[ 453 14:08:49] ASSISTANT (turn 1 step 64) · in 1419 (cache 181120) out 794
+    ▷ Writing 0x0658=99 changed row 6 from "X 7" to "9 9" (tiles 0x09,0x09) — so 0x0658 is the counter displayed on row 6! It's a two-digit counter (x13,x14). Baseline 0x0658=7 → "X07"? Hmm, row6 baseline was x13=0x07 only (single digit at x13). Now with 99 it shows x13=9,x14=9. So 0x0658 is a two-digit counter. Baseline value 7 → displayed as "7" with x13=7? Wait baseline row6 x13=0x07, x14=0x24(blank). With 99 → x13=9,x14=9. So the display shows the number with leading blank. So 0x0658 is a counter (baseline 7).
+    
+    And row6 x11=0x61 (icon), x12=0x21 (X) → format "[icon] X [digits]". So 0x0658 is one of key/bomb counts. Baseline 7.
+    
+    Now test 0x66E: write 0x66E=55 and see if row5 changes (row5 currently shows the A tile 0x0A because 0x0664≠0). Maybe 0x66E is displayed only if 0x0664==0. Let me test writing 0x0664=0 and 0x66E=55 → then row5 should show the counter.
+    
+    Actually, the routine:
+    ```
+    ldy #0x21
+    lda 0x0664
+    beq 0x6D3E    ; if 0x664 == 0 -> draw 0x66E at offset 8
+    ... draw tile 0x0A etc.
+    ```
+    So if 0x0664 != 0 → draws something (the A/item tile) and skips 0x66E. If 0x0664 == 0 → draws 0x66E.
+    
+    So 0x66E is displayed only when 0x0664 == 0. Baseline 0x0664=7 → 0x66E not shown. What is 0x0664… [+402 chars]
+    `$0658` drives the row-6 counter (wrote 99 → "99"). Now let me reveal the `$066E` counter by clearing the flag `$0664`.
+    → write_memory {"address": 1636, "bytes": [0]}
+    → write_memory {"address": 1646, "bytes": [55]}
+[ 455 14:08:49] RESULT write_memory
+    {"address":1636,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 457 14:08:49] RESULT write_memory
+    {"address":1646,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 460 14:08:50] ASSISTANT (turn 1 step 65) · in 227 (cache 183168) out 38
+    ▷ 
+    → step_frame {"count": 3}
+[ 462 14:08:50] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 465 14:08:52] ASSISTANT (turn 1 step 66) · in 159 (cache 183296) out 88
+    ▷ 
+    → read_nametable {"height": 4, "width": 14, "x": 10, "y": 3}
+[ 467 14:08:53] RESULT read_nametable
+    Nametable 0 region (10,3) 14x4:
+      Row 3: 24 F7 21 01 01 69 0B 6B 69 0A 6B 24 24 62
+      Row 4: 24 24 24 24 24 6C 24 6C 6C 24 6C 24 24 24
+      Row 5: 24 F9 21 05 05 6C 24 6C 6C 24 6C 24 24 24
+      Row 6: 24 61 21 09 09 6E 6A 6D 6E 6A 6D 24 F2 24
+    
+    [{"x":10,"y":3,"tile_id":36,"palette_id":1},{"x":11,"y":3,"tile_id":247,"palette_id":1},{"x":12,"y":3,"tile_id":33,"palette_id":0},{"x":13,"y":3,"tile_id":1,"palette_id":0},{"x":14,"y":3,"tile_id":1,"palette_id":0},{"x":15,"y":3,"tile_id":105,"palette_id":0},{"x":16,"y":3,"tile_id":11,"palette_id":0},{"x":17,"y":3,"tile_id":107,"palette_id":0},{"x":18,"y":3,"ti… [+2061 chars]
+[ 470 14:09:09] ASSISTANT (turn 1 step 67) · in 1422 (cache 183424) out 3407
+    ▷ Now row 5 shows x11=0xF9 (icon), x12=0x21 (X), x13=0x05, x14=0x05 → "55" from 0x66E=55. So 0x66E is the second counter (row 5), displayed when 0x0664==0.
+    
+    So now we have:
+    - 0x66D = rupee count (row3)
+    - 0x66E = a counter (row5) — keys or bombs
+    - 0x0658 = a counter (row6) — the other
+    - 0x66F = health
+    - 0x0670 = max hearts (to be confirmed)
+    
+    Which is keys and which is bombs? Baseline: 0x66E=3, 0x0658=7. The HUD icons: row5 icon=0xF9, row6 icon=0x61 (or 0x97?). Row 6 x11=0x61 (from earlier). Row 5 x11=0xF9.
+    
+    To determine which is key vs bomb, I can look at the icon tiles: 0xF9 vs 0x61. Earlier I read 0xF9 bitmap (complex) and 0x61 (a shape with a divider). Hmm. In Zelda, the bomb icon and key icon. Let me read the icons again and compare to known shapes, OR use gameplay to change one (pick up a key in a dungeon is hard).
+    
+    Better: use the classic Zelda RAM map knowledge? Bombs at $067C? no. Hmm.
+    
+    Actually, the community Zelda RAM map: I recall:
+    - $066D: Rupees? Hmm, but the real one says $067D. Wait, we PROVED $066D here. Hmm, maybe this ROM is byte-swapped? No... Actually maybe I misremember the map.
+    
+    Let me just determine key vs bomb by the icons. Let me read the two icon tiles (0xF9 … [+8584 chars]
+    `$066E` drives the row-5 counter ("55"). So I have two counters: `$066E` (row 5) and `$0658` (row 6). Let me identify which is bombs vs keys — reload cleanly and press B while watching.
+    → load_state {"slot": 0}
+[ 472 14:09:24] RESULT load_state ERROR
+    Error: Request load_state timed out after 15000ms
+[ 475 14:09:26] ASSISTANT (turn 1 step 68) · in 245 (cache 188032) out 104
+    ▷ The load_state timed out. The bridge might be disconnected or busy. Let me retry. Maybe the emulator is in a weird state. Let me check with a screenshot/get_rom_info.
+    
+    Actually, error says timed out after 15000ms. Perhaps the bridge is reconnecting. Let me retry load_state.
+    → load_state {"slot": 0}
+[ 477 14:09:28] RESULT load_state
+    {"stepped_frames":1,"action":"loaded","slot":0,"paused":true,"bytes":17224}
+[ 480 14:09:30] ASSISTANT (turn 1 step 69) · in 258 (cache 188160) out 117
+    ▷ 
+    → play_input {"script": [{"buttons": ["b"], "frames": 20}, {"buttons": [], "frames": 100}, {"buttons": ["b"], "frames": 20}, {"buttons": [], "frames": 160}], "watch": [1646, 1624, 1645, 1636, 1648]}
+[ 482 14:09:35] RESULT play_input
+    {"end_frame":132426,"port":0,"sample_frames":[5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145,150,155,160,165,170,175,180,185,190,195,200,205,210,215,220,225,230,235,240,245,250,255,260,265,270,275,280,285,290,295,300],"frames":300,"watch":[{"values":[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3],"address":1646,"last":3,"first":3,"address_hex":"0x066E"},{"values":[7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,… [+1089 chars]
+[ 485 14:09:53] ASSISTANT (turn 1 step 70) · in 1079 (cache 188416) out 3640
+    ▷ Pressing B didn't change 0x66E (3) or 0x0658 (7). So B didn't use a bomb (Link's B item isn't a bomb, or B does nothing). Also note 0x66E=3 and 0x0658=7 are the baseline.
+    
+    Interesting: 0x0670 baseline is 2 and it got clobbered to 241,225,... again during play. So 0x0670 is being used as a temporary during play. Wait, but this run had no damage (health 0x66F unchanged? not watched). Hmm, 0x670 changed to 241 etc. after ~frame 75. So 0x670 is definitely clobbered during normal play. Hmm. That means 0x670 is NOT the max hearts (or the game uses it as scratch which would be a bug). 
+    
+    Hmm, hold on. Maybe 0x670 is used by the *sound engine* or a stack. But the HUD routine reads it as max hearts... Confusing.
+    
+    Wait, maybe 0x670 is genuinely max hearts but the game writes the same address for a "damage flash palette" because the HUD max hearts is recomputed each frame from elsewhere. Hmm.
+    
+    Hmm, actually — maybe I mis-identified: maybe 0x66F is not health but something else, and the real health/max are computed. Let me reconsider.
+    
+    The routine at 0x6D0D:
+    ```
+    lda 0x066f
+    sta 0x0e
+    lda 0x0670
+    sta 0x0f
+    jsr 0x6e79
+    ```
+    Hmm, maybe 0x66F and 0x670 are "current hearts pattern" and "max" used for draw… [+10675 chars]
+    Pressing B didn't change either counter. Let me find what writes `$0670` (which keeps getting clobbered) to settle whether it's really max hearts.
+    → resume_emulator {}
+[ 487 14:09:53] RESULT resume_emulator
+    {"resumed":true}
+[ 491 14:09:55] ASSISTANT (turn 1 step 71) · in 4471 (cache 193024) out 93
+    ▷ Now trace writes to 0x670. The game is running. Let me call trace_writes.
+    → trace_writes {"address": 1648, "frames": 60, "length": 1}
+[ 493 14:09:56] RESULT trace_writes
+    {"address":1648,"mode":"write","total_accesses":0,"mem_type":"cpu","writers":[],"recorded_accesses":0,"truncated":false,"length":1,"frames":60,"note":"No access in the window: the game did not touch this range; trigger the event (resume, reset_emulator, play) and trace again."}
+[ 496 14:10:03] ASSISTANT (turn 1 step 72) · in 176 (cache 197504) out 1169
+    ▷ No writes to 0x670 in 60 frames of idle. But earlier watch showed 0x670 changing from 2 to 241 etc. during the B-press run. So the writes happen only when Link takes damage (the palette flash). In this 60-frame window, no damage occurred.
+    
+    So 0x670 is written during damage flash. Let me trace writes to 0x670 for 300 frames while idle (Link will take damage); if a writer PC appears, it's the damage-flash palette routine. But actually, since damage is random, let me use play_input to walk into enemies while tracing? trace_writes runs frames on its own; I can't combine with play_input. Hmm. But idle for 300 frames should produce damage eventually (octoroks).
+    
+    Actually, trace_writes max frames 600. Let me do 400 frames.
+    
+    But wait — health is 6 (I wrote it) in the current state? Actually I loaded state 0 earlier and then did the B press; health baseline 2. The B press run showed 0x670 changing → damage occurred, health likely 2→1 or died. Hmm.
+    
+    Let me trace writes to 0x670 for 400 frames.
+    
+    Actually, let me reconsider the whole max-hearts question with a cleaner approach: use the *save file*. The game's max hearts is a persistent value. It's probably in the save data block. The counters … [+2713 chars]
+    Let me trace writes to the counter block while the game runs (octoroks will hit Link), to find the damage routine.
+    → trace_writes {"address": 1645, "frames": 400, "length": 6}
+[ 498 14:10:10] RESULT trace_writes
+    {"address":1645,"mode":"write","total_accesses":6,"mem_type":"cpu","writers":[{"last_value":129,"last_frame":217,"count":3,"samples":[{"frame":73,"address":1648,"value":161},{"frame":120,"address":1648,"value":145},{"frame":217,"address":1648,"value":129}],"origin":{"address":7037,"mem_type_id":48,"mem_type":"saveRam"},"pc":31613,"last_address":1648,"pc_hex":"0x7B7D","origin_hex":"saveRam 0x1B7D"},{"last_value":1,"last_frame":217,"count":3,"samples":[{"frame":73,"address":1647,"value":1},{"frame":120,"address":1647,"value":1},{"frame":217,"address":1647,"value":1}],"origin":{"address":7055,"me… [+303 chars]
+[ 501 14:10:24] ASSISTANT (turn 1 step 73) · in 383 (cache 198784) out 3106
+    ▷ Now:
+    - PC 0x7B7D writes 0x670 with values 161,145,129 (0xA1,0x91,0x81) — decreasing by 16 each time. So this routine writes 0x670 during the damage flash. It's at PC 0x7B7D (in SRAM again, origin saveRam 0x1B7D).
+    - PC 0x7B8F writes 0x66F=1 at frames 73,120,217 (three damage events). So the damage routine sets health to 1 each time (Link had 2 and got hit → 1). Wait, it wrote value 1 three times — so Link got hit 3 times and each time health→1? That means health was reset to 2 between hits? Or the routine writes 1 (half heart) and Link dies at 0? Hmm. Actually maybe health was 2, hit → 1 (write 1). Then hit again → would be 0 (death), but it wrote 1 again. Perhaps the game refills health? Or my writes earlier set health=6 and the game clamped...
+    
+    Hmm, the trace started from the state after the B-press run where health may have been 2. Writes of 1 at frames 73,120,217.
+    
+    Hmm, the routine at 0x7B7D writes 0x670 = 0xA1, 0x91, 0x81 (values 161,145,129). Those are clearly palette-ish (decreasing by 0x10). And it writes 0x670. So 0x670 is being used as a color/palette value. Hmm! And the damage routine at 0x7B8F writes 0x66F=1.
+    
+    So maybe 0x670 is NOT max hearts! It's a scratch for the dama… [+7595 chars]
+    → disassemble {"address": 31600, "length": 80}
+    → disassemble {"address": 28364, "length": 80}
+[ 503 14:10:24] RESULT disassemble
+    $7b70: ad 70 06    lda 0x0670
+    $7b73: c5 0e       cmp 0x0e
+    $7b75: 90 19       bcc 0x0000
+    $7b77: 38          sec 
+    $7b78: e5 0e       sbc 0x0e
+    $7b7a: 8d 70 06    sta 0x0670
+    $7b7d: ad 6f 06    lda 0x066f
+    $7b80: 29 0f       and #0x0f
+    $7b82: c5 0d       cmp 0x0d
+    $7b84: 90 23       bcc 0x0000
+    $7b86: ad 6f 06    lda 0x066f
+    $7b89: 38          sec 
+    $7b8a: e5 0d       sbc 0x0d
+    $7b8c: 8d 6f 06    sta 0x066f
+    $7b8f: 60          rts 
+    $7b90: a5 0e       lda 0x0e
+    $7b92: 38          sec 
+    $7b93: ed 70 06    sbc 0x0670
+    $7b96: 85 0e       sta 0x0e
+    $7b98: ad 6f 06    lda 0x066f
+    $7b9b: 29 0f       and #0x0f
+    $7b9d: f… [+403 chars]
+[ 505 14:10:24] RESULT disassemble
+    $6ecc: a9 00       lda #0x00
+    $6ece: 8d 29 05    sta 0x0529
+    $6ed1: a9 65       lda #0x65
+    $6ed3: d0 02       bne 0x0000
+    $6ed5: a9 66       lda #0x66
+    $6ed7: 84 0c       sty 0x0c
+    $6ed9: a4 0b       ldy 0x0b
+    $6edb: 99 02 03    sta 0x0302, y
+    $6ede: c6 0b       dec 0x0b
+    $6ee0: a4 0c       ldy 0x0c
+    $6ee2: 88          dey 
+    $6ee3: e8          inx 
+    $6ee4: e0 10       cpx #0x10
+    $6ee6: d0 b9       bne 0x0000
+    $6ee8: 60          rts 
+    $6ee9: a9 80       lda #0x80
+    $6eeb: 8d 04 06    sta 0x0604
+    $6eee: 8d 03 06    sta 0x0603
+    $6ef1: 0a          asl a
+    $6ef2: 8d 05 06    sta 0x0605
+    $6ef5: 8d 07 06    sta 0x0607
+    $6e… [+536 chars]
+[ 508 14:11:05] ASSISTANT (turn 1 step 74) · in 1341 (cache 202240) out 9932
+    ▷ Now this is revealing! The routine at 0x7B70 is the DAMAGE routine:
+    
+    ```
+    7B70: lda $0670      ; 0x670 = max hearts?
+    7B73: cmp $0e        ; compare with damage amount (0x0e)
+    7B75: bcc ...        ; if 0x670 < damage, go to 0x7B90
+    7B77: sec
+    7B78: sbc $0e        ; 0x670 -= damage
+    7B7A: sta $0670
+    7B7D: lda $066f     ; health
+    7B80: and #$0f      ; low nibble
+    7B82: cmp $0d        ; compare with damage (0x0d)
+    7B84: bcc ...
+    7B86: lda $066f
+    7B89: sec
+    7B8A: sbc $0d
+    7B8C: sta $066f
+    7B8F: rts
+    ```
+    
+    Hmm interesting! So 0x670 is DECREASED by damage (0x0e), and 0x66F is decreased by damage (0x0d). So:
+    - 0x670 holds something that gets reduced by damage
+    - 0x66F low nibble holds health
+    
+    And 0x7B90:
+    ```
+    7B90: lda $0e
+    7B92: sec
+    7B93: sbc $0670    ; A = damage - 0x670
+    7B96: sta $0e
+    7B98: lda $066f
+    7B9B: and #$0f
+    7B9D: beq ...
+    7B9F: dec $066f    ; health low nibble -1
+    7BA2: lda #$ff
+    7BA4: sta $0670    ; 0x670 = 0xff
+    ...
+    7BA9: lda $066f
+    7BAC: and #$f0
+    7BAE: sta $066f    ; 0x66F low nibble cleared
+    7BB1: jsr $eba3    ; ???
+    7BB4: sta $0670    ; 0x670 = result
+    ```
+    
+    Hmm! So the damage routine uses 0x66F (health, nibble-packed) and 0x670 as a *damage accumulator/remainder*, not max hearts! The `sta $0670` value… [+26753 chars]
+    The damage routine shows `$0670` is a sub-heart damage fraction, and `$066F` packs hearts. Let me check the helper routine `$EBA3` and pin down the encoding with a test write.
+    → disassemble {"address": 60323, "length": 64}
+    → pause_emulator {}
+    → write_memory {"address": 1647, "bytes": [36]}
+    → write_memory {"address": 1648, "bytes": [0]}
+[ 510 14:11:05] RESULT disassemble
+    $eba3: a9 00       lda #0x00
+    $eba5: 85 11       sta 0x11
+    $eba7: 85 13       sta 0x13
+    $eba9: 60          rts 
+    $ebaa: 20 48 72    jsr 0x7248
+    $ebad: a5 7c       lda 0x7c
+    $ebaf: d0 47       bne 0x0000
+    $ebb1: a9 0f       lda #0x0f
+    $ebb3: 20 98 ff    jsr 0xff98
+    $ebb6: a5 5a       lda 0x5a
+    $ebb8: f0 03       beq 0x0000
+    $ebba: 4c f2 eb    jmp 0xebf2
+    $ebbd: 4c ea eb    jmp 0xebea
+    $ebc0: a5 5a       lda 0x5a
+    $ebc2: d0 35       bne 0x0000
+    $ebc4: ad 94 03    lda 0x0394
+    $ebc7: f0 29       beq 0x0000
+    $ebc9: c9 08       cmp #0x08
+    $ebcb: f0 25       beq 0x0000
+    $ebcd: c9 f8       cmp #0xf8
+    $ebcf: f0 21       b… [+241 chars]
+[ 512 14:11:05] RESULT pause_emulator
+    {"paused":true}
+[ 514 14:11:05] RESULT write_memory
+    {"address":1647,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 516 14:11:05] RESULT write_memory
+    {"address":1648,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 520 14:11:08] ASSISTANT (turn 1 step 75) · in 4931 (cache 213504) out 324
+    ▷ The EBA3 routine was trivial (lda #0; sta 0x11; sta 0x13; rts). So no max hearts there. Hmm, the disassembly offset: I asked for address 60323 = 0xEBA3, and it showed 0xEBA3: lda #$00... yes that's a tiny routine that clears 0x11 and 0x13. Hmm, so the `jsr 0xeba3; sta 0x0670` stores 0 into 0x670 (clearing the fraction). OK.
+    
+    So 0x670 = damage fraction, not max hearts.
+    
+    Now, the hearts display uses 0x66F's nibbles + 0x670 fraction. So containers are packed in 0x66F's high nibble. Hmm.
+    
+    Wait, but maybe the low nibble is half-hearts and the display routine I decoded is for a "half-heart" resolution. Let me just run the test I set up: 0x66F=0x24, 0x670=0 → step 3 → read hearts.
+    
+    Let me do that now.
+    
+    Current: paused, wrote 0x66F=36 (0x24), 0x670=0.
+    
+    Step 3, read nametable row6 x20-31.
+    → step_frame {"count": 3}
+[ 522 14:11:08] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 525 14:11:10] ASSISTANT (turn 1 step 76) · in 157 (cache 218624) out 134
+    ▷ 
+    → read_nametable {"height": 1, "width": 14, "x": 18, "y": 6}
+    → read_memory {"address": 1647, "length": 2}
+[ 527 14:11:10] RESULT read_nametable
+    Nametable 0 region (18,6) 14x1:
+      Row 6: 6E 6A 6D 24 F2 F2 F2 24 24 24 24 24 24 24
+    
+    [{"x":18,"y":6,"tile_id":110,"palette_id":0},{"x":19,"y":6,"tile_id":106,"palette_id":0},{"x":20,"y":6,"tile_id":109,"palette_id":0},{"x":21,"y":6,"tile_id":36,"palette_id":0},{"x":22,"y":6,"tile_id":242,"palette_id":1},{"x":23,"y":6,"tile_id":242,"palette_id":1},{"x":24,"y":6,"tile_id":242,"palette_id":1},{"x":25,"y":6,"tile_id":36,"palette_id":1},{"x":26,"y":6,"tile_id":36,"palette_id":1},{"x":27,"y":6,"tile_id":36,"palette_id":1},{"x":28,"y":6,"tile_id":36,"palette_id":1},{"x":29,"y":6,"tile_id":36,"palette_… [+93 chars]
+[ 529 14:11:10] RESULT read_memory
+    {"address":1647,"bytes":[36,0],"mem_type":"cpuDebug"}
+[ 532 14:11:51] ASSISTANT (turn 1 step 77) · in 407 (cache 218880) out 9403
+    ▷ 0x66F=0x24 (36), 0x670=0 → display F2,F2,F2 = 3 full hearts. So containers = 3 (high nibble 2 +1), full hearts = 3 (capped from low=4). Good.
+    
+    Hmm, so low nibble 4 gave 3 full hearts (capped). Let me test 0x66F=0x23 (low=3) and 0x66F=0x22 and 0x66F=0x21 to see full-heart counts.
+    
+    Predictions (model: full hearts = min(low, containers); transition heart at X=15-low determined by 0x670):
+    - 0x24: full=min(4,3)=3 → F2,F2,F2 ✓ (observed)
+    - 0x23: full=3 → F2,F2,F2
+    - 0x22: full=2, transition at X=13 (leftmost) → wait, X=13,14,15 drawn; full X>13 → 14,15; transition X=13. Hmm, but that's the leftmost heart position? Earlier I said higher X → smaller buffer position (leftmost). So X=15 leftmost = full, X=14 = full, X=13 = rightmost = transition. So display F2,F2,<frac>. With 0x670=0 → 0x66 (empty) → F2,F2,66. 
+    - 0x21: full=1, transition X=14 → F2,<frac>,66.
+    - 0x26: full=min(6,3)=3 → F2,F2,F2.
+    - 0x20: full=0, transition X=15 → <frac>,66,66.
+    
+    Let me test 0x66F=0x22 with 0x670=0 → expect F2,F2,66. And 0x66F=0x22 with 0x670=0x80 → F2,F2,F2. And 0x66F=0x22 with 0x670=0x40 → F2,F2,65.
+    
+    Wait, but if low = number of half-hearts (0x22 → 2 half = 1 heart), the display should be F2,66,66. Let me test t… [+25538 chars]
+    I made a CHR indexing error on the icons (nametable `$F9` wants CHR `$1F9`). Let me read the correct icon tiles.
+    → read_tile {"source": "chrRam", "tile_id": 503}
+    → read_tile {"source": "chrRam", "tile_id": 505}
+    → read_tile {"source": "chrRam", "tile_id": 353}
+[ 534 14:11:51] RESULT read_tile
+    $1F7 (source: chrRam)
+      . . . 2 3 3 3 2
+      . . 3 2 2 2 . 2
+      . 3 2 2 2 2 . 2
+      2 2 2 2 2 2 . 2
+      3 2 2 2 2 . . .
+      3 2 2 2 . 2 2 .
+      3 . . . 2 2 . .
+      2 2 2 . 2 . . .
+    
+    Raw pixels: [[0,0,0,2,3,3,3,2],[0,0,3,2,2,2,0,2],[0,3,2,2,2,2,0,2],[2,2,2,2,2,2,0,2],[3,2,2,2,2,0,0,0],[3,2,2,2,0,2,2,0],[3,0,0,0,2,2,0,0],[2,2,2,0,2,0,0,0]]
+[ 536 14:11:51] RESULT read_tile
+    $1F9 (source: chrRam)
+      . . . . 2 2 2 .
+      . . . 2 . . 2 2
+      . . . 2 . . . 2
+      . . . . 2 . . 2
+      . . . 2 . 2 2 .
+      . . 2 . . . . .
+      . 2 . 2 . . . .
+      2 . 2 . . . . .
+    
+    Raw pixels: [[0,0,0,0,2,2,2,0],[0,0,0,2,0,0,2,2],[0,0,0,2,0,0,0,2],[0,0,0,0,2,0,0,2],[0,0,0,2,0,2,2,0],[0,0,2,0,0,0,0,0],[0,2,0,2,0,0,0,0],[2,0,2,0,0,0,0,0]]
+[ 538 14:11:51] RESULT read_tile
+    $161 (source: chrRam)
+      . . . . . . . 1
+      . . 2 3 3 3 . 1
+      . 2 1 2 3 3 3 .
+      2 1 2 3 3 3 3 3
+      2 1 2 3 3 3 3 3
+      3 2 3 3 3 3 3 3
+      . 3 3 3 3 3 3 .
+      . . 3 3 3 3 . .
+    
+    Raw pixels: [[0,0,0,0,0,0,0,1],[0,0,2,3,3,3,0,1],[0,2,1,2,3,3,3,0],[2,1,2,3,3,3,3,3],[2,1,2,3,3,3,3,3],[3,2,3,3,3,3,3,3],[0,3,3,3,3,3,3,0],[0,0,3,3,3,3,0,0]]
+[ 541 14:12:08] ASSISTANT (turn 1 step 78) · in 855 (cache 228608) out 3827
+    ▷ Now these look better:
+    - 0x1F7 (rupee icon): a diamond/rhombus outline → rupee ✓ (it's a diamond shape).
+    - 0x1F9 (row5 icon): a small shape with a circle and lines → looks like a KEY? It has a round loop and a shaft going down-left... 
+    - 0x161 (row6 icon): a round blob with a fuse/highlight → looks like a BOMB (round ball).
+    
+    Hmm, 0x1F9: 
+    ```
+    ....222.
+    ...2..22
+    ...2...2
+    ....2..2
+    ...2.22.
+    ..2.....
+    .2.2....
+    2.2.....
+    ```
+    A thin diagonal line with a small circle at top-right → that's a KEY (key with a ring and shaft)! Or a "fairy"? Hmm.
+    
+    0x161:
+    ```
+    .......1
+    ..2333.1
+    .212333.
+    .2123333
+    .2123333
+    .3233333
+    .3333333
+    ..3333..
+    ```
+    A round shape with a highlight → BOMB ✓.
+    
+    Hmm, wait, but the shape for 0x161 might be rotated. It looks like a ball with a highlight at top-left → bomb.
+    
+    And 0x1F9 looks like a key: the top-right has a small loop (the bow) and a diagonal shaft with teeth. Actually the shape: rows 0-4 form a small circle/loop, and rows 5-7 a diagonal line — yes, a KEY (bow + shaft).
+    
+    Hmm, but actually the rupee icon 0x1F7 is a diamond (rhombus). Good.
+    
+    So:
+    - row5 icon 0x1F9 = KEY → 0x66E = key count!
+    - row6 icon 0x161 = BOMB → 0x0658 = bomb count!
+    
+    Hmm, let me double-check 0x1F9 vs 0x16… [+9462 chars]
+    Icon tiles decoded: `$1F9` is a key (loop + shaft), `$161` is a bomb (round + fuse). Let me confirm which counter is which by finding the decrement code in the ROM.
+    → search_memory {"hex": "ce 6e 06"}
+    → search_memory {"hex": "ce 58 06"}
+[ 543 14:12:08] RESULT search_memory
+    {"truncated":false,"searched":131072,"start":0,"memory_size":131072,"pattern_length":3,"offsets":[86655],"mem_type":"prgRom","offsets_hex":["0x1527F"]}
+[ 545 14:12:08] RESULT search_memory
+    {"truncated":false,"searched":131072,"start":0,"memory_size":131072,"pattern_length":3,"offsets":[26998],"mem_type":"prgRom","offsets_hex":["0x6976"]}
+[ 548 14:12:14] ASSISTANT (turn 1 step 79) · in 199 (cache 233216) out 1140
+    ▷ Found:
+    - `ce 6e 06` (DEC $066E) at prgRom offset 0x1527F.
+    - `ce 58 06` (DEC $0658) at prgRom offset 0x6976.
+    
+    Let me disassemble around those (in CPU address space). The PRG ROM offset → CPU address mapping depends on the mapper. Zelda MMC1: PRG banks. Offset 0x1527F with iNES header... The ROM's CPU address: PRG ROM starts at 0x8000 in the last bank etc. Hard to map directly. But I can search for the surrounding context and maybe find comments.
+    
+    Alternatively, search for LDA/STA of these addresses near item pickup code. Hmm.
+    
+    Let me instead search for "ad 58 06" (LDA $0658) and "ad 6e 06" and look at contexts. But without a CPU address mapper, disassembly is awkward.
+    
+    Actually, I can compute the CPU address: In iNES, PRG ROM offset includes the 16-byte header in the tool's offsets (the tool says "offsets are ROM offsets without the 16-byte iNES header"? Actually it says default PRG ROM offsets without header). For MMC1 Zelda (128KB PRG, 8x16KB banks), the last bank is mapped at 0xC000-0xFFFF. Offset 0x1527F is in the second-to-last bank? 0x1527F = 86655. 86655 / 16384 = 5.29 → bank 5 (0-indexed from 0). Zelda PRG size = 131072 = 8 banks. Bank 5 might be mapped to 0x8000-0xBFFF (swi… [+1621 chars]
+    → disassemble {"address": 53856, "length": 80}
+    → disassemble {"address": 43344, "length": 80}
+[ 550 14:12:14] RESULT disassemble
+    $d260: a8          tay 
+    $d261: b6 a5       ldx 0xa5, y
+    $d263: a4 52       ldy 0x52
+    $d265: d5 b6       cmp 0xb6, x
+    $d267: 95 d0       sta 0xd0, x
+[ 552 14:12:14] RESULT disassemble
+    $a950: 20 8d 04    jsr 0x048d
+[ 555 14:13:02] ASSISTANT (turn 1 step 80) · in 173 (cache 234496) out 10673
+    ▷ Hmm, the disassembly at those addresses doesn't look like the right region (garbage / only one instruction). My CPU mapping is off for the first, and the second landed in odd code.
+    
+    Let me instead find the CPU address differently. The bridge's search_memory returned prgRom offsets; maybe I should just search for the instruction with its context and use the "origin" mapping. Alternatively, use trace_writes while using a key... can't.
+    
+    Alternative approach for key vs bomb: use the read trace! The HUD routine in RAM reads 0x66E and 0x0658. Not helpful.
+    
+    Let me think about which is which using the game logic: The bomb count is the one that gets DECREMENTED when you place a bomb. The key count is decremented when you open a locked door. 
+    
+    Search for code that decrements and also checks a limit. Hmm.
+    
+    Let me try a different, decisive empirical approach: **the bomb counter can be increased by picking up a bomb**. In Zelda, if you're at max bombs you can't pick up more; if below, you can. Also, the bomb count is capped at 8 (or 16?) and the game gives bombs from enemies.
+    
+    Hmm, alternatively: **the key count is displayed in dungeons and is zero in the overworld?** eh.
+    
+    Hmm, let me try: in Z… [+32137 chars]
+    I have solid identifications. Now let me produce clean proof screenshots. First, reset and write all three counters at once (clearing `$0664` to reveal the key row).
+    → load_state {"slot": 0}
+[ 557 14:13:02] RESULT load_state
+    {"stepped_frames":1,"action":"loaded","slot":0,"paused":true,"bytes":17224}
+[ 560 14:13:04] ASSISTANT (turn 1 step 81) · in 259 (cache 245120) out 202
+    ▷ 
+    → write_memory {"address": 1636, "bytes": [0]}
+    → write_memory {"address": 1645, "bytes": [77]}
+    → write_memory {"address": 1646, "bytes": [33]}
+    → write_memory {"address": 1624, "bytes": [44]}
+[ 562 14:13:04] RESULT write_memory
+    {"address":1636,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 564 14:13:04] RESULT write_memory
+    {"address":1645,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 566 14:13:04] RESULT write_memory
+    {"address":1646,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 568 14:13:04] RESULT write_memory
+    {"address":1624,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 571 14:13:06] ASSISTANT (turn 1 step 82) · in 197 (cache 245504) out 38
+    ▷ 
+    → step_frame {"count": 3}
+[ 573 14:13:06] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 576 14:13:08] ASSISTANT (turn 1 step 83) · in 257 (cache 245504) out 22
+    ▷ 
+    → screenshot {}
+[ 578 14:13:08] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1358-holdout-hud-f2-r3/images/task-1/504d3b07be22.png
+[ 581 14:13:13] ASSISTANT (turn 1 step 84) · in 387 (cache 245760) out 500
+    ▷ The screenshot shows:
+    - "X77" (rupees)
+    - "X33" (with a key icon)
+    - "X44" (with a bomb icon)
+    - LIFE with 1 heart.
+    
+    So all three counters proven in one screenshot: 0x66D=77 → X77; 0x66E=33 → X33; 0x0658=44 → X44.
+    
+    Hmm, wait: which is the key icon? In the screenshot, the second row icon next to X33 and the third row icon next to X44. Per my analysis: row2 icon = key (0x1F9), row3 = bomb (0x161). So 0x66E=keys, 0x0658=bombs. Good.
+    
+    Now hearts proofs. Write 0x66F=0x42 (containers 5, full 2) and 0x670=0x40 (half) → expect 5 hearts: 2 full + 1 half + 2 empty.
+    
+    Then write 0x670=0x00 → 2 full + 3 empty.
+    Then write 0x66F=0x22 → 3 hearts: 2 full + 1 empty.
+    
+    Let me do the first: write 0x66F=66 (0x42), 0x670=64 (0x40), step, screenshot.
+    
+    0x42 = 66 decimal. 0x40 = 64.
+    
+    Note: after writing 0x0664=0, the key counter shows. Keep it.
+    
+    Let me write and step.
+    All three counters proven: **X77** rupees, **X33** keys, **X44** bombs. Now the hearts: write `$066F=0x42` (5 containers, 2 full) and `$0670=0x40` (half-heart remainder).
+    → write_memory {"address": 1647, "bytes": [66]}
+    → write_memory {"address": 1648, "bytes": [64]}
+[ 583 14:13:13] RESULT write_memory
+    {"address":1647,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 585 14:13:13] RESULT write_memory
+    {"address":1648,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 588 14:13:15] ASSISTANT (turn 1 step 85) · in 181 (cache 246528) out 38
+    ▷ 
+    → step_frame {"count": 3}
+[ 590 14:13:15] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 593 14:13:17] ASSISTANT (turn 1 step 86) · in 241 (cache 246528) out 100
+    ▷ 
+    → read_nametable {"height": 1, "width": 14, "x": 18, "y": 6}
+    → screenshot {}
+[ 595 14:13:17] RESULT read_nametable
+    Nametable 0 region (18,6) 14x1:
+      Row 6: 6E 6A 6D 24 F2 F2 65 66 66 24 24 24 24 24
+    
+    [{"x":18,"y":6,"tile_id":110,"palette_id":0},{"x":19,"y":6,"tile_id":106,"palette_id":0},{"x":20,"y":6,"tile_id":109,"palette_id":0},{"x":21,"y":6,"tile_id":36,"palette_id":0},{"x":22,"y":6,"tile_id":242,"palette_id":1},{"x":23,"y":6,"tile_id":242,"palette_id":1},{"x":24,"y":6,"tile_id":101,"palette_id":1},{"x":25,"y":6,"tile_id":102,"palette_id":1},{"x":26,"y":6,"tile_id":102,"palette_id":1},{"x":27,"y":6,"tile_id":36,"palette_id":1},{"x":28,"y":6,"tile_id":36,"palette_id":1},{"x":29,"y":6,"tile_id":36,"palett… [+95 chars]
+[ 597 14:13:17] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1358-holdout-hud-f2-r3/images/task-1/8880b6c4b400.png
