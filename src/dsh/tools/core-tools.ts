@@ -25,6 +25,8 @@ export interface CoreToolDeps {
   mapping: () => GameMapping | null;
   /** The loaded ROM's edit ledger, or null before the bridge has identified a ROM (ADR-0009). */
   ledger?: () => EditLedger | null;
+  /** Why the connected Mesen build cannot run this tool, if it cannot (ADR-0019 capability probe). */
+  unavailable?: (name: string) => string | undefined;
   /** Called after a successful call so the service can track emulator state. */
   onResult?: (name: string, result: ToolResult) => void;
 }
@@ -152,6 +154,8 @@ export function makeCoreTools(deps: CoreToolDeps): ToolDefinition[] {
         if (!(await deps.waitForConnection(BRIDGE_WAIT_MS, exec.signal))) {
           throw new Error("Mesen bridge is not connected. Load mesen/bridge.lua in Mesen2's Script Window (or run scripts/mesen-up.sh).");
         }
+        const unavailable = deps.unavailable?.(spec.name);
+        if (unavailable) throw new Error(unavailable);
         const result = await executeTool(
           spec.name,
           (args ?? {}) as Record<string, unknown>,

@@ -15,6 +15,7 @@ import { discoveryFromRecordResult } from "./tools/promote-mappings.js";
 import { HackStore } from "../hacks/store.js";
 import { applyOnBoot, type ApplyReport } from "../hacks/activate.js";
 import { ledgerDivergence, type LedgerDivergence } from "../agent/edit-ledger.js";
+import { unavailableTools } from "../agent/capabilities.js";
 
 declare module "@deepseek-ai/cordis" {
   interface Context {
@@ -54,6 +55,8 @@ export class MesenService extends Service {
   ledgerStatus: LedgerDivergence | null = null;
   /** What the boot-time apply of the active hack did on the last connect (ADR-0018); null when there was nothing to apply. */
   bootApply: ApplyReport | null = null;
+  /** Core tools this Mesen build cannot run, with the reason, from the connect-time probe (ADR-0019). */
+  unavailable: Map<string, string> = new Map();
   private readonly mappingsDir: string | undefined;
   private readonly seedMappingsDir: string | undefined;
   private readonly hacksDir: string;
@@ -114,7 +117,7 @@ export class MesenService extends Service {
     }
     if (name === "pause_emulator") this.paused = true;
     else if (name === "resume_emulator") this.paused = false;
-    else if (name === "step_frame" || name === "get_emulator_status" || name === "screenshot") {
+    else if (name === "step_frame" || name === "play_input" || name === "get_emulator_status" || name === "screenshot") {
       const match = /"paused":\s*(true|false)/.exec(result.text);
       if (match) this.paused = match[1] === "true";
     }
@@ -201,6 +204,13 @@ export class MesenService extends Service {
       } catch (error: unknown) {
         this.ctx.logger.warn(`mesen: could not read ${this.hackStore.dir}: ${error instanceof Error ? error.message : String(error)}`);
       }
+    }
+    try {
+      this.unavailable = unavailableTools(await this.adapter.debugEventTypes());
+      for (const reason of this.unavailable.values()) this.ctx.logger.warn(`mesen: ${reason}`);
+    } catch (error: unknown) {
+      this.unavailable = new Map();
+      this.ctx.logger.warn(`mesen: capability probe failed, assuming every tool runs: ${error instanceof Error ? error.message : String(error)}`);
     }
     const status = await this.adapter.getEmulatorStatus();
     this.paused = status.paused;

@@ -88,6 +88,12 @@ Everything else on the roadmap serves one of these two.
   adapter interface, never to Mesen directly. NES is first; SNES and GBA are
   adapters, not rewrites.
 - **Verify by looking.** An edit is not done until a screenshot shows it.
+- **Discovery works blind.** Most games have no disassembly and no RAM
+  map. Every mapping skill must work from the running game alone: play
+  it, measure what moves, read the code that moved it. A reference, where
+  one exists, names and scores what the agent found; it is never the
+  search (ADR-0017, ADR-0019). Super Mario Bros. has one, which makes it
+  the calibration game, not the model of a typical one.
 
 ## Bright lines
 

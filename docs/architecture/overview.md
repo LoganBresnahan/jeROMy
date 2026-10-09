@@ -10,7 +10,7 @@ ROMs. This document is the map; the decisions are in `docs/adr/`.
 │  web UI · agent loop · deepseek-flash · sessions (~/.dsh/sessions)        │
 │                                                                           │
 │  ┌─ jeROMy plugin  src/dsh/index.ts ───────────────────────────────────┐  │
-│  │  MesenService (ctx.mesen)   tools (23 core + promote_mappings)      │  │
+│  │  MesenService (ctx.mesen)   tools (core + promote_mappings)         │  │
 │  │  prompt section "jeromy:emulator"   emulator view :9002 (ADR-0004)  │  │
 │  └───────────────┬─────────────────────────────────────────────────────┘  │
 │                  │ EmulatorAdapter (interface, ADR-0005)                   │
@@ -29,7 +29,7 @@ ROMs. This document is the map; the decisions are in `docs/adr/`.
 |---|---|---|
 | Lua bridge | `mesen/bridge.lua` | Mesen's Lua API, the wire protocol. The only code on Windows. |
 | Bridge | `src/bridge/mesen/` | TCP server, request/response framing, `MesenAdapter` implementing `EmulatorAdapter`. |
-| Core | `src/agent/tools.ts`, `prompts.ts`, `nes-palette.ts`, `disassembler.ts`, `src/mappings/` | NES hardware, the 27 tools, the prompt, mapping files. Talks only to `EmulatorAdapter`. No `@deepseek-ai/*` import (ADR-0005). |
+| Core | `src/agent/tools.ts`, `prompts.ts`, `nes-palette.ts`, `disassembler.ts`, `src/mappings/` | NES hardware, the core tools, the prompt, mapping files. Talks only to `EmulatorAdapter`. No `@deepseek-ai/*` import (ADR-0005). |
 | dsh adapter | `src/dsh/` | Cordis plugin: service, tool registration via one mapper, attachments for images, system-prompt section, `agent.inject()` for pixel clicks, the loopback view server. |
 
 ## Runtime flow

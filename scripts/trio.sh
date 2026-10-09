@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # The standing trio from /verify, run headlessly through dsh with the jeROMy
-# plugin: look, read, edit, click, region, hacks, persist. Each is one `dsh --profile headless --json` run;
+# plugin: look, read, edit, click, region, hacks, persist, play. Each is one `dsh --profile headless --json` run;
 # the JSON event streams and a summary land in .chat-out/trio-<stamp>/.
 # Only one dsh process can own the bridge port, so this stops a running web
 # instance first and brings it back afterwards.
 #
-# Usage: scripts/trio.sh [look|read|edit|click|region|hacks|persist ...]   (default: all seven)
-#        scripts/trio.sh --task "<instruction>" [min-tool-calls]
+# Usage: scripts/trio.sh [look|read|edit|click|region|hacks|persist|play ...]   (default: all eight)
+#        scripts/trio.sh --blind variable      (ADR-0019 calibration: blind lives-counter search on SMB, ~2 min, not in the default set)
+#        scripts/trio.sh [--blind] --task "<instruction>" [min-tool-calls]   (--blind: JEROMY_BLIND=1, reference held back)
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 DSH_SRC="$(cd "${DSH_SRC:-$REPO/../deepseek-harness}" && pwd)"
@@ -24,13 +25,20 @@ declare -A TASK=(
   [click]="Call get_tile_at_pixel at (176, 182) and get_pixel_color at (176, 182), then get_palette for the palette the first result named. Report all three raw outputs verbatim and say whether the pixel's nes_color is one of that palette's entries or the shared backdrop."
   [region]="Call get_region at (176, 182) in color mode, then get_region at (176, 182) in object mode. Report both raw outputs verbatim and, in one sentence, say what a palette edit of the color-mode slot would also recolor according to the summary."
   [hacks]="Do exactly these calls in order, report every raw output verbatim, and nothing else: (1) new_hack with name trio-test and description 'trio check'. (2) use_hack trio-test. (3) write_memory at address 3276 (decimal), bytes [22], mem_type prgRom, reason 'trio hacks check'. (4) export_patch with format bps. (5) list_hacks. (6) use_hack default."
+  [play]="Do exactly these calls in order and report every raw output verbatim: (0) reset_emulator. (1) snapshot_memory with name before. (2) play_input with script [{buttons: [\"start\"], frames: 10}, {buttons: [], frames: 60}, {buttons: [\"start\"], frames: 10}, {buttons: [], frames: 40}] and watch [9, 1904]. (3) snapshot_memory with name after. (4) diff_memory with a before, b after, filter changed, name d1. (5) reset_emulator. Then say in one sentence how many addresses changed."
+  [variable]="Find the RAM address of the player's lives counter in this game by differential search, without any reference: use snapshot_memory, play_input and diff_memory (name each diff and narrow with from). Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title screen begins a game with 3 lives, but Start during the attract demo only returns to the title, so press Start, wait a second, and press Start again to be sure a game begins; the lives count is shown only on the black 'WORLD 1-1  x 3' card before each life, not in the in-game HUD; walking right for about four seconds from the start of 1-1 runs into the first enemy and loses a life, and the card appears about three seconds after. Plan your play_input scripts accordingly (each call is at most 600 frames; chain calls; take a screenshot when you need to know which screen you are on). Once a few candidates remain, prove one: write_memory a different value to it, lose another life, and take a screenshot of the card to confirm the number changed. Then record_mapping the address with mapping_type address, a clear name, and source 'differential search'. Report the raw diff results and the final address."
   [persist]="Do exactly this, no extra tool calls, and report every raw tool output verbatim: (1) search_memory with hex \"0F 29 1A 0F\" in prgRom. (2) write_memory at the first offset plus 1, bytes [22] (decimal twenty-two, which is NES color 0x16 red; do not write 0x22), mem_type prgRom, reason \"trio persist check\". (3) reset_emulator. (4) get_palette 0. (5) export_patch with format ips. (6) undo_edit with the seq the write reported. (7) reset_emulator."
 )
-declare -A MIN_CALLS=([look]=1 [read]=2 [edit]=5 [click]=3 [region]=2 [hacks]=6 [persist]=7)
+declare -A MIN_CALLS=([look]=1 [read]=2 [edit]=5 [click]=3 [region]=2 [hacks]=6 [persist]=7 [play]=6 [variable]=10)
 # --task "<text>": a one-off check named `custom` through the same machinery
 # (neutral cwd, bridge wait, replay line). Used by unattended runs.
+# --blind: the calibration switch (ADR-0019). JEROMY_BLIND=1 goes to the
+# headless dsh only, never to the web dsh restarted afterwards, and the
+# summary fails if lookup_symbol was called before the first write_memory.
+BLIND=0; if [ "${1:-}" = "--blind" ]; then BLIND=1; shift; fi
 if [ "${1:-}" = "--task" ]; then TASK[custom]="$2"; MIN_CALLS[custom]="${3:-1}"; set -- custom; fi
-CHECKS=("$@"); [ ${#CHECKS[@]} -eq 0 ] && CHECKS=(look read edit click region hacks persist)
+TIMEOUT="${TRIO_TIMEOUT:-420}"
+CHECKS=("$@"); [ ${#CHECKS[@]} -eq 0 ] && CHECKS=(look read edit click region hacks persist play)
 
 owner_of() { ss -ltnp 2>/dev/null | grep -E ":$1 " | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2; }
 WEB_PID="$(owner_of 9001)"; RESTART=0
@@ -49,7 +57,7 @@ fi
 # 2026-10-05 an edit check "completed" with zero emulator access because the
 # Lua client had not reconnected yet.
 summarize() { python3 - "$1" "$2" "${3:-}" <<'PY'
-import sys, json
+import sys, json, os
 calls = steps = errs = 0; tin = tout = 0; final = ""; reason = "?"; err = None
 for line in open(sys.argv[1]):
     line = line.strip()
@@ -135,6 +143,67 @@ if sys.argv[3:] == ["hacks"]:
     ex = next((r for r in by.get("export_patch", []) if isinstance(r, dict)), None)
     if not ex or not str(ex.get("written", "")).endswith("trio-test-v1.bps") or ex.get("hack") != "trio-test": problems.append(f"export_patch did not write trio-test-v1.bps for hack trio-test (got {ex and ex.get('written')})")
     if problems: ok = False; final = "HACKS CHECK: " + "; ".join(problems) + " · " + final
+if sys.argv[3:] == ["play"]:
+    # ADR-0019: after a reset, Start / 60 frames / Start / 40 frames completes with 120 frames and 120 polls, the watches
+    # carry 60 samples each of $09 (frame counter) and $0770 (OperMode), and OperMode ends at 1: a press landed in the game.
+    names = {}; res = []
+    for line in open(sys.argv[1]):
+        line = line.strip()
+        if not line.startswith("{"): continue
+        e = json.loads(line)
+        if e.get("type") == "tool_call": names[e["callId"]] = e.get("tool")
+        if e.get("type") == "tool_result" and isinstance(e.get("result"), str):
+            try: res.append((names.get(e["callId"], "?"), json.loads(e["result"])))
+            except Exception: res.append((names.get(e["callId"], "?"), e["result"]))
+    by = {}
+    for n, r in res: by.setdefault(n, []).append(r)
+    problems = []
+    run = next((r for r in by.get("play_input", []) if isinstance(r, dict)), None)
+    if not run: problems.append("no play_input result")
+    else:
+        ws = {w.get("address"): w.get("values") or [] for w in run.get("watch") or []}
+        fc, mode = ws.get(9, []), ws.get(1904, [])
+        if run.get("frames_run") != 120: problems.append(f"play_input ran {run.get('frames_run')} frames, not 120")
+        if run.get("polls") != 120: problems.append(f"the core polled input {run.get('polls')} times in 120 frames")
+        if len(fc) != 60: problems.append(f"watch did not sample $09 every other frame (got {len(fc)} samples)")
+        elif len(set(fc)) < 2: problems.append("the watched frame counter never changed during the run")
+        # $0770 is SMB's OperMode: 0 on the title screen and in the attract demo, 1 once a game begins. Start on the
+        # title begins a game; Start in the demo returns to the title, so the second Start a second later begins it.
+        # Hand-checked 2026-10-06 with bridge-call: Start 1 s after reset -> 1; 8 s or 14 s after -> re-init, still 0.
+        if not mode or mode[-1] != 1: problems.append(f"two Start presses did not begin a game ($0770 ended at {mode[-1] if mode else None}; title/demo read 0, a game 1)")
+    snaps = [r for r in by.get("snapshot_memory", []) if isinstance(r, dict)]
+    if len(snaps) < 2 or any(r.get("length") != 2048 for r in snaps): problems.append("two 2048-byte snapshots were not taken")
+    d = next((r for r in by.get("diff_memory", []) if isinstance(r, dict)), None)
+    if not d or d.get("considered") != 2048 or not d.get("matched"): problems.append(f"diff_memory did not compare 2048 bytes with at least one change (got {d and {k: d.get(k) for k in ('considered', 'matched')}})")
+    if problems: ok = False; final = "PLAY CHECK: " + "; ".join(problems) + " · " + final
+if sys.argv[3:] == ["variable"]:
+    # ADR-0019 calibration on SMB: at least two diff rounds, the second narrowed with `from`, and an address recorded
+    # with source "differential search". The address itself is scored afterwards by scripts/score-mapping.mjs, not here.
+    names = {}; diffs = []; recorded = None
+    for line in open(sys.argv[1]):
+        line = line.strip()
+        if not line.startswith("{"): continue
+        e = json.loads(line)
+        if e.get("type") == "tool_call":
+            names[e["callId"]] = e.get("tool")
+            if e.get("tool") == "diff_memory": diffs.append(e.get("input") or e.get("args") or {})
+            if e.get("tool") == "record_mapping": recorded = e.get("input") or e.get("args") or {}
+    problems = []
+    if len(diffs) < 2: problems.append(f"only {len(diffs)} diff_memory call(s); the procedure needs at least two rounds")
+    elif not any(d.get("from") for d in diffs[1:]): problems.append("no diff narrowed with from")
+    if not recorded or recorded.get("mapping_type") != "address" or "differential" not in str(recorded.get("source", "")): problems.append("no address recorded with source 'differential search'")
+    if problems: ok = False; final = "VARIABLE CHECK: " + "; ".join(problems) + " · " + final
+    else: final = f"VARIABLE: recorded {recorded.get('id')} {recorded.get('name')} after {len(diffs)} diff rounds · " + final
+if os.environ.get("BLIND") == "1":
+    # ADR-0019 calibration: the reference must not enter before the proof. A lookup_symbol before the first write_memory voids the run.
+    order = []
+    for line in open(sys.argv[1]):
+        line = line.strip()
+        if not line.startswith("{"): continue
+        e = json.loads(line)
+        if e.get("type") == "tool_call" and e.get("tool") in ("lookup_symbol", "write_memory"): order.append(e["tool"])
+    if "lookup_symbol" in order and ("write_memory" not in order or order.index("lookup_symbol") < order.index("write_memory")):
+        ok = False; final = "BLIND CHECK: lookup_symbol was called before the first write_memory · " + final
 if sys.argv[3:] == ["persist"]:
     names = {}; res = []
     for line in open(sys.argv[1]):
@@ -177,10 +246,10 @@ run_check() { # $1 = name; sets code/sok/sid; writes $OUT/$1.jsonl
   # (ADR-0011, found 2026-10-05).
   # TSX_TSCONFIG_PATH: outside the checkout tsx would not see its tsconfig `paths`
   # and would load stale built packages instead of workspace sources.
-  ( cd "$WORK" && TSX_TSCONFIG_PATH="$DSH_SRC/tsconfig.json" timeout 420 node --import "$TSX_ESM" "$DSH_SRC/apps/cli/src/bin.ts" --profile headless --patch "$PATCH" --json "$task" ) > "$OUT/$name.jsonl" 2> "$OUT/$name.err"
+  ( cd "$WORK" && JEROMY_BLIND="$BLIND" TSX_TSCONFIG_PATH="$DSH_SRC/tsconfig.json" timeout "$TIMEOUT" node --import "$TSX_ESM" "$DSH_SRC/apps/cli/src/bin.ts" --profile headless --patch "$PATCH" --json "$task" ) > "$OUT/$name.jsonl" 2> "$OUT/$name.err"
   code=$?
   sid="$(grep -o '"sessionId":"session-[0-9a-f-]*"' "$OUT/$name.jsonl" | head -1 | cut -d'"' -f4)"
-  summary="$(summarize "$OUT/$name.jsonl" "${MIN_CALLS[$name]:-1}" "$name")"; sok=$?
+  summary="$(BLIND="$BLIND" summarize "$OUT/$name.jsonl" "${MIN_CALLS[$name]:-1}" "$name")"; sok=$?
   echo "exit $code · $summary"
   [ -n "$sid" ] && echo "  replay: scripts/dsh-log.mjs show ${sid#session-} --images $OUT/$name-img"
   [ $code -eq 0 ] || echo "  stderr: $(grep -v '^\$ node' "$OUT/$name.err" | tail -3 | tr '\n' ' ')"

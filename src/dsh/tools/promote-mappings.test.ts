@@ -40,4 +40,9 @@ describe.skipIf(!linked)("promote_mappings", async () => {
     const tool = makePromoteMappingsTool({ romInfo: () => null, discoveries: () => [], onPromoted: () => {}, mappingsDir: () => undefined });
     await expect(tool.execute({}, exec)).rejects.toThrow(/not connected/);
   });
+
+  it("discoveryFromRecordResult keeps source and notes (ADR-0017, ADR-0019)", () => {
+    const d = discoveryFromRecordResult(JSON.stringify({ recorded: true, mapping_type: "address", id: "0x075A", name: "player_lives_counter", notes: "stores lives minus one", source: "differential search", confidence: 1 }));
+    expect(d).toMatchObject({ id: "0x075A", notes: "stores lives minus one", source: "differential search", confidence: 1 });
+  });
 });

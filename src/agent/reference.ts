@@ -146,3 +146,13 @@ export function saveReference(hackDir: string, ref: ReferenceFile): string {
 export function formatSymbol(s: ReferenceSymbol): string {
   return `${s.name} = $${s.address.toString(16).toUpperCase().padStart(4, "0")} (${s.kind}${s.size ? `, ${s.size} bytes` : ""}${s.notes ? `; ${s.notes}` : ""})`;
 }
+
+/**
+ * Blind calibration (ADR-0019): with JEROMY_BLIND=1 in the plugin's
+ * environment the reference is held back from every tool, so a session on a
+ * game that has one is measured the way it will run on the games that do
+ * not. The score script reads the reference regardless; it is the grader.
+ */
+export function blindMode(): boolean {
+  return process.env.JEROMY_BLIND === "1";
+}

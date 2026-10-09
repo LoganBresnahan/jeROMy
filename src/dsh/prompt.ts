@@ -30,5 +30,8 @@ export function jeromySectionText(mesen: MesenService): string {
   const link = mesen.isConnected
     ? ""
     : "\n\n## Bridge status\nThe Mesen2 bridge was not connected when this prompt was assembled. The Lua side reconnects every ~2 s and every emulator tool waits up to 10 s for it, so call the tool you need; only if it fails with a connection error should you ask the user to load mesen/bridge.lua in Mesen2's Script Window.";
-  return body + ledger + link;
+  const missing = mesen.unavailable.size
+    ? `\n\n## Not available on this Mesen build\n${[...mesen.unavailable.values()].map((r) => `- ${r}`).join("\n")}`
+    : "";
+  return body + ledger + missing + link;
 }

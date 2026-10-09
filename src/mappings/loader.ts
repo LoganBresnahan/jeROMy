@@ -125,10 +125,12 @@ export function mergeMappings(
         break;
       case "address":
         if (!base.addresses[entry.id]) {
+          // The notes carry the encoding ("stores lives minus one") and the
+          // proof; dropping them left bare names in the file (2026-10-06).
           base.addresses[entry.id] = {
             address: entry.id,
             mem_type: "cpu",
-            description: entry.name,
+            description: entry.notes ? `${entry.name}: ${entry.notes}` : entry.name,
           };
         }
         addOrigins(base.addresses[entry.id], entry.rom_origins);

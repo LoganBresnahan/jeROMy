@@ -8,12 +8,13 @@ what it learned about the ROM as a shareable mapping.
 **`docs/DIRECTION.md` is the source of truth for product intent.** Read it
 before product-level decisions; keep it updated when scope changes.
 
-## Where we are (2026-10-05, afternoon)
+## Where we are (2026-10-06)
 
 The dsh plugin is the only stack. `scripts/up.sh` boots the `jeromy`
-profile with `src/dsh/index.ts` mounted from source: 32 of 33 core tools
-registered through one mapper, `promote_mappings`, the full NES prompt
-section with live ROM/mapping/pause state, and the emulator view on :9002.
+profile with `src/dsh/index.ts` mounted from source: every core tool but
+`extract_sprite` registered through one mapper, `promote_mappings`, the
+full NES prompt section with live ROM/mapping/pause state, and the
+emulator view on :9002.
 Verified headless through dsh on `deepseek-flash` and by Logan's click
 session in the sidebar. The v0.1 server, web UI, SQLCipher store and
 Anthropic provider were deleted at roadmap item 8 (2026-10-05); dsh's
@@ -44,14 +45,14 @@ gate is `docs/plans/mapping-campaign.md`; its first step, reference import
 (ADR-0017: disassemblies imported into `hacks/`, never vendored or fetched;
 `lookup_symbol`), shipped the same evening. The plain-language tour of ROM,
 disassembly, mapping, hack and patch is `docs/guide/rom-hacking-with-jeromy.md`;
-ADR-0018 (named hacks in the person's own repo, one active hack, boot-time apply) shipped as roadmap item 19 the same night: `HackStore.open` migrates the old single ledger into `default/`, `use_hack` swaps the emulator's bytes, exports are `<hack>-v<N>.bps`. Build order: `docs/roadmap.md`;
+ADR-0018 (named hacks in the person's own repo, one active hack, boot-time apply) shipped as roadmap item 19 the same night: `HackStore.open` migrates the old single ledger into `default/`, `use_hack` swaps the emulator's bytes, exports are `<hack>-v<N>.bps`. Logan then set the direction that most games have no disassembly, so discovery must work blind (ADR-0019, roadmap item 22): `play_input` (a bounded button script from an `inputPolled` callback, the fourth thing that runs frames), `snapshot_memory`/`diff_memory` on the TypeScript side, the `find-variable` skill, and `scripts/score-mapping.mjs` to grade a blind SMB run against the imported reference. Proven 2026-10-06: a blind session found the lives counter at `$075A` in two diff rounds and the reference agreed; `scripts/trio.sh --blind variable` repeats it. Coverage for the gate is ticked in `docs/plans/smb-map-coverage.md`. Build order: `docs/roadmap.md`;
 the overnight log: `docs/plans/overnight-2026-10-05.md`.
 
 ## Stack
 
 - **Keep:** `mesen/bridge.lua` (Lua in Mesen2, JSON over TCP, the only part
   on Windows), `src/bridge/mesen/*` (connection, protocol, adapter),
-  `src/agent/tools.ts` (33 tools), `src/agent/prompts.ts`, `src/mappings/*`
+  `src/agent/tools.ts` (the core tools), `src/agent/prompts.ts`, `src/mappings/*`
   and `mappings/*.json`, `src/agent/disassembler.ts` (Capstone WASM),
   `src/agent/nes-palette.ts`. These move under `src/core/` (ADR-0005).
 - **Target (shipping):** `src/dsh/` plugin: Mesen service, core tools
@@ -84,8 +85,12 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
   into its NMI.
 - **No lookup, pick or read-only tool advances the emulator** (ADR-0013).
   Scroll comes from the standing ring in `bridge.lua`; only `step_frame`,
+  `play_input` (ADR-0019: at most 600 frames a call, pause restored),
   `reset_emulator`, save states and the view's Step button run frames, and
   each says so in its result.
+- **Discovery works blind** (ADR-0019). A mapping skill never requires a
+  reference; `lookup_symbol` names or disputes what a session found, after
+  the fact. Calibration sessions on SMB hold it back until the proof step.
 - **Mapping files are the artifact.** Keyed by ROM SHA1 in `mappings/`;
   discoveries promote there from session events, never the other way round.
   Per-user state lives in `hacks/sha1-<sha1>/` (edit ledger, unpromoted
@@ -135,10 +140,11 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
   against memory, drift flagged. Read-only.
 - `/shipshape` — pre-commit verification: tests green twice + typecheck,
   docs current, conventions hold (ADR citations, no escaped TODOs, tool↔test
-  parity, Lua handler↔adapter parity, watchdog budget, dsh import boundary).
+  parity, adapter methods only where TypeScript calls a handler, watchdog
+  budget, dsh import boundary).
   Proposes fixes, doesn't apply them.
 - `/verify` — runtime check against a live Mesen2: `scripts/up.sh` then
-  `scripts/trio.sh` (look, read, edit, click, region, hacks, persist headless through dsh) plus the human
+  `scripts/trio.sh` (look, read, edit, click, region, hacks, persist, play headless through dsh) plus the human
   pixel-picker check in the sidebar. A green `/shipshape` does not
   discharge it.
 - `/replay` — read what the DeepSeek agent did in a dsh session
@@ -162,9 +168,14 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
   WSL with the ROM and `mesen/bridge.lua` (single-instance handoff; default
   ROM is SMB (World) in `C:\Users\tarsier\Documents`)
 - `scripts/up.sh [rom]` / `scripts/up.sh --down` — the one-move bring-up
-  (dsh + Mesen + bridge wait); `scripts/trio.sh [look|read|edit|click|region|hacks|persist]`
-  or `scripts/trio.sh --task "<instruction>" [min-calls]` — the headless
-  checks, raw-result criteria per check, streams saved under `.chat-out/`
+  (dsh + Mesen + bridge wait); `scripts/trio.sh [look|read|edit|click|region|hacks|persist|play]`
+  or `scripts/trio.sh [--blind] --task "<instruction>" [min-calls]` — the headless
+  checks, raw-result criteria per check, streams saved under `.chat-out/`;
+  `--blind` sets `JEROMY_BLIND=1` for the headless dsh only (ADR-0019
+  calibration: no reference leads, `lookup_symbol` held back)
+- `scripts/score-mapping.mjs <sha1> [--discoveries]` — grade the mapping's
+  `address` entries against the imported reference (agrees / disagrees /
+  unknown); the calibration number for roadmap item 22
 - `scripts/dsh-dev.sh` — boot the `jeromy` dsh profile with the plugin
   mounted from `src/dsh/index.ts` (web UI on :3080, bridge on :9001). Runs
   `scripts/link-dsh.sh` first, which symlinks the harness checkout's

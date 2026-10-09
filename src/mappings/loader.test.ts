@@ -221,4 +221,11 @@ describe("mapping schema v2: rom_origins (ADR-0009)", () => {
     expect(text).toContain("Palette 0: p (ROM: prgRom 0xCCC (1 byte) level palette table, slot 1)");
     expect(text).toContain("0xB6: ground (ROM: chrRom 0xB60 (16 bytes))");
   });
+
+  it("promotes an address discovery with its notes folded into the description and its source kept (ADR-0019)", () => {
+    const result = mergeMappings(null, [
+      { mapping_type: "address", id: "0x075A", name: "player_lives_counter", notes: "stores lives minus one", source: "differential search", confidence: 1 },
+    ], { sha1: "abc", name: "SMB" } as any);
+    expect(result.addresses["0x075A"]).toMatchObject({ address: "0x075A", mem_type: "cpu", description: "player_lives_counter: stores lives minus one", source: "differential search" });
+  });
 });

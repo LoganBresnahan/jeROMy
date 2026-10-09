@@ -83,6 +83,10 @@ handler sets `allow_paused` and arranges the steps itself. `cancel()` runs
 on the 600-frame cap and on disconnect, so a handler's memory callbacks
 never outlive its request. `wait_frames {frames}` is the trivial pending
 handler kept for verification.
+`play_input` (ADR-0019) is the one pending handler that sets
+`allow_paused` and resumes a paused game itself: it sets `pending_resume`,
+runs the script, and breaks again in `complete()`, so the person's pause
+survives the run.
 
 ## Available Methods
 
@@ -111,6 +115,8 @@ handler kept for verification.
 | `load_state` | `{slot?}` | `{slot, action, bytes, stepped_frames, paused}` | Two-phase: `emu.loadSavestate(blob)` the same way; the slot must have been saved in this script session |
 | `ping` | — | `{pong, timestamp}` | Health check |
 | `debug_state` | `{depth?, path?}` | `{keys}` | Dump emu.getState() structure |
+| `debug_event_types` | — | `{event_types, has_set_input, has_get_input}` | The `emu.eventType` table this Mesen build offers and whether `setInput`/`getInput` exist; `MesenService` calls it on every connect to decide whether `play_input` can run (ADR-0019) |
+| `debug_step_types` | — | `{step_types, keepalive}` | The `emu.stepType` table and the step the paused keep-alive uses (ADR-0016) |
 | `get_lua_logs` | `{since?}` | `{logs[], count, overflow?}` | Retrieve buffered emu.log entries |
 | `read_chr_tile` | `{tile_id, source?}` | `{tile_id, source, pixels[][]}` | Read 8x8 CHR tile as 2-bit pixel grid |
 | `write_chr_tile` | `{tile_id, pixels[][], target?}` | `{tile_id, target, rows_written}` | Write 8x8 pixel grid to CHR memory |
@@ -118,6 +124,7 @@ handler kept for verification.
 | `resume_emulator` | — | `{resumed: true}` | Resume emulator execution |
 | `step_frame` | `{count?}` | `{stepped, paused}` | Advance N frames while paused (default 1) |
 | `get_emulator_status` | — | `{paused}` | Query current pause/run state |
+| `play_input` | `{script[{buttons[], frames}], port?, watch?[]}` | `{frames_run, frames, segments, port, start_frame, end_frame, polls, was_paused, paused, sample_every, sample_frames[], watch[{address, values[], first?, last?}]}` | Two-phase (ADR-0019): a bounded button script applied from the `inputPolled` event, frames counted at `endFrame`. Every button of the port is set explicitly each poll; the pad returns to the person at the next poll after the run. At most 600 frames (the pending cap) and 16 `watch` addresses, sampled at most 60 times per run (`sample_every`). Runs while paused and restores the pause; `polls: 0` means the script never reached the game. One run at a time |
 
 ### Memory Types
 
@@ -229,6 +236,15 @@ emu.write(address, value, emu.memType.palette)  -- write a byte
 ```
 
 **Note:** `emu.memType` names vary by Mesen2 build. Some builds use `emu.memType.palette` while others use `emu.memType.nesPaletteRam`. The bridge resolves these automatically at startup — see "Memory Type Resolver" above.
+
+### emu.setInput / inputPolled
+
+`emu.setInput(state, port)` takes the button table **first** and the port
+second; the online API reference has them the other way round and this
+build rejects that order (seen 2026-10-05). The state holds until the next
+input poll, so `play_input` sets it from an `emu.eventType.inputPolled`
+callback every poll. `debug_event_types` probes what a build offers, and
+the plugin runs it on connect.
 
 ### emu.getRomInfo()
 

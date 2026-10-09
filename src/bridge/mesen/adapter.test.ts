@@ -42,13 +42,6 @@ describe("MesenAdapter", () => {
     expect(result.tile_id).toBe(42);
   });
 
-  it("waitFrames sends wait_frames with a per-request timeout sized to the wait (ADR-0010)", async () => {
-    mockRequest.mockResolvedValue({ requested: 120, waited: 120 });
-    const result = await adapter.waitFrames(120);
-    expect(mockRequest).toHaveBeenCalledWith("wait_frames", { frames: 120 }, { timeoutMs: 7000 });
-    expect(result.waited).toBe(120);
-  });
-
   it("searchMemory sends the pattern, memory type and bounds (ADR-0009)", async () => {
     mockRequest.mockResolvedValue({ offsets: [0x0cb4], truncated: false });
     const result = await adapter.searchMemory([0x22, 0x29, 0x1a, 0x0f], "prgRom", { maxResults: 8 });
@@ -66,14 +59,6 @@ describe("MesenAdapter", () => {
     mockRequest.mockResolvedValue({ reset: true, cleared_palette_overrides: 0, frames_waited: 30, paused: false });
     await adapter.resetEmulator();
     expect(mockRequest).toHaveBeenCalledWith("reset_emulator", { frames: 30 }, { timeoutMs: 6000 });
-  });
-
-  it("convertAddress sends convert_address with the memory type (ADR-0009)", async () => {
-    // $8000 on SMB resolves to PRG ROM offset 0 (checked live 2026-10-05).
-    mockRequest.mockResolvedValue({ input: 0x8000, input_mem_type: "cpu", address: 0, mem_type: "prgRom", mem_type_id: 45, raw: {} });
-    const result = await adapter.convertAddress(0x8000);
-    expect(mockRequest).toHaveBeenCalledWith("convert_address", { address: 0x8000, mem_type: "cpu" });
-    expect(result).toMatchObject({ address: 0, mem_type: "prgRom" });
   });
 
   it("captureScrollWrites sends capture_scroll_writes with a timeout for the wait (ADR-0010)", async () => {
@@ -193,28 +178,11 @@ describe("MesenAdapter", () => {
     expect(mockRequest).toHaveBeenCalledWith("load_state", { slot: 3 });
   });
 
-  it("ping sends method", async () => {
-    mockRequest.mockResolvedValue({ pong: true, timestamp: 12345 });
-    const result = await adapter.ping();
-    expect(result.pong).toBe(true);
-  });
-
-  it("getLuaLogs passes since param", async () => {
-    mockRequest.mockResolvedValue({ logs: [], count: 0, overflow: 0 });
-    await adapter.getLuaLogs(1000);
-    expect(mockRequest).toHaveBeenCalledWith("get_lua_logs", { since: 1000 });
-  });
-
-  it("getLuaLogs defaults to since=0", async () => {
-    mockRequest.mockResolvedValue({ logs: [], count: 0 });
-    await adapter.getLuaLogs();
-    expect(mockRequest).toHaveBeenCalledWith("get_lua_logs", { since: 0 });
-  });
-
-  it("rawRequest passes method and params through", async () => {
-    mockRequest.mockResolvedValue({ keys: {} });
-    await adapter.rawRequest("debug_state", { depth: 3 });
-    expect(mockRequest).toHaveBeenCalledWith("debug_state", { depth: 3 });
+  it("debugEventTypes sends debug_event_types", async () => {
+    mockRequest.mockResolvedValue({ event_types: { inputPolled: 5 }, has_set_input: true, has_get_input: true });
+    const result = await adapter.debugEventTypes();
+    expect(mockRequest).toHaveBeenCalledWith("debug_event_types");
+    expect(result.event_types.inputPolled).toBe(5);
   });
 
   // -- Emulator Control Tests ------------------------------------------------

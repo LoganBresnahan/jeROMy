@@ -44,6 +44,9 @@ callback only calls `emu.getState()` for those. OAM is 256 bytes through
    **No lookup, pick or read-only tool may ever step the emulator.** Only
    `step_frame`, `reset_emulator`, `save_state`/`load_state` and the view's
    Step button advance frames, and each says so in its result.
+   *Amended 2026-10-05 (ADR-0019):* `play_input` joins that list. It runs a
+   bounded button script in real time, at most 600 frames per call, reports
+   `frames_run`, and restores the pause it found.
 2. **Picks and `get_tile_at_pixel` are sprite-aware.** A new bridge handler
    `get_sprites {x?, y?}` decodes OAM through the current sprite size and
    pattern table and, given a pixel, returns only the sprites whose box

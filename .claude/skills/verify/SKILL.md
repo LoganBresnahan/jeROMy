@@ -16,7 +16,8 @@ connected, stop and say so; do not simulate a result.
 
 ```bash
 scripts/up.sh          # dsh + Mesen + bridge, prints URLs (see /up)
-scripts/trio.sh        # look, read, edit, click, region, persist — headless through dsh, streams under .chat-out/
+scripts/trio.sh        # look, read, edit, click, region, hacks, persist, play — headless through dsh, streams under .chat-out/
+scripts/trio.sh --blind variable   # ADR-0019 calibration after a change to play_input, the diff tools or find-variable (~2 min, not in the default set)
 ```
 
 `trio.sh` stops the web dsh for its duration (one process owns the bridge

@@ -152,6 +152,33 @@ scripts/trio.sh                       # look / read / edit / click / persist thr
 scripts/dsh-log.mjs show latest       # what the agent saw, reasoned and called (ADR-0011)
 ```
 
+## Letting the agent play (no reference needed)
+
+Most games have no disassembly and no RAM map, so the agent can find
+things by playing (ADR-0019). Ask it, for instance, "find the lives
+counter without looking anything up". It will:
+
+1. `snapshot_memory` the 2 KiB of NES RAM as `before`;
+2. `play_input` a button script (hold right, jump, walk into an enemy;
+   at most 10 seconds per call, run in real time while you watch the
+   view; a paused game is resumed for the run and paused again after);
+3. `snapshot_memory` again and `diff_memory` with the filter the action
+   predicts (`decreased` after losing a life), naming each diff so the
+   next round only considers the survivors;
+4. prove the last candidates with `write_memory` and a screenshot of the
+   HUD, then `record_mapping` the address with `source: "differential
+   search"`.
+
+`play_input` also takes a `watch` list of up to 16 addresses sampled every
+frame, so one run of "hold right" shows which candidate climbs like an X
+position. The agent never presses a button outside a `play_input` call,
+never writes ROM while playing, and reports every run's frame count.
+
+If you imported a reference (above), `scripts/score-mapping.mjs <sha1>`
+grades what the agent found against it: agrees, disagrees, unknown to the
+reference. That score, on Super Mario Bros., is how we know the blind
+method works before pointing it at a game nobody has mapped.
+
 ## Layout
 
 ```

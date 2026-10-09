@@ -734,6 +734,56 @@ describe("executeTool", () => {
     }
   });
 
+  it("play_input sends the script, reports frames and pause, and names watched addresses from the reference (ADR-0019)", async () => {
+    const adapter = mockAdapter({
+      playInput: vi.fn().mockResolvedValue({ frames_run: 60, frames: 60, segments: 1, port: 0, start_frame: 100, end_frame: 160, was_paused: true, paused: true, sample_every: 1, sample_frames: [1, 2], watch: [{ address: 0x75a, values: [3, 3], first: 3, last: 3 }] }),
+    });
+    const result = await executeTool("play_input", { script: [{ buttons: ["right"], frames: 60 }], watch: [0x75a] }, adapter);
+    expect(adapter.playInput).toHaveBeenCalledWith({ script: [{ buttons: ["right"], frames: 60 }], port: undefined, watch: [0x75a] });
+    const parsed = JSON.parse((result as { text: string }).text);
+    expect(parsed.frames_run).toBe(60);
+    expect(parsed.note).toContain("paused again");
+    expect(parsed.watch[0].address_hex).toBe("0x075A");
+    expect(parsed.watch[0]).not.toHaveProperty("symbol");
+    const empty = await executeTool("play_input", { script: [] }, adapter);
+    expect((empty as { text: string }).text).toMatch(/^Error:/);
+  });
+
+  it("snapshot_memory and diff_memory run the differential search through a per-adapter store (ADR-0019)", async () => {
+    let lives = 3;
+    const adapter = mockAdapter({
+      readMemory: vi.fn().mockImplementation(async (addr: number, len: number, mem: string) => ({ address: addr, mem_type: mem, bytes: Array.from({ length: len }, (_, i) => (addr + i === 0x75a ? lives : 0)) })),
+    });
+    const before = JSON.parse((await executeTool("snapshot_memory", { name: "before" }, adapter) as { text: string }).text);
+    expect(before).toMatchObject({ name: "before", address: 0, length: 0x800, mem_type: "cpuDebug", snapshots: ["before"] });
+    expect(before).not.toHaveProperty("bytes");
+    expect(adapter.readMemory).toHaveBeenCalledWith(0, 0x400, "cpuDebug");
+    lives = 2;
+    await executeTool("snapshot_memory", { name: "after" }, adapter);
+    const diff = JSON.parse((await executeTool("diff_memory", { a: "before", b: "after", filter: "decreased", name: "d1" }, adapter) as { text: string }).text);
+    expect(diff).toMatchObject({ considered: 0x800, matched: 1, truncated: false });
+    expect(diff.hits).toEqual([{ address: 0x75a, old: 3, new: 2, address_hex: "0x075A" }]);
+    expect(diff.note).toContain("write_memory");
+    const none = JSON.parse((await executeTool("diff_memory", { a: "before", b: "after", filter: "increased", from: "d1" }, adapter) as { text: string }).text);
+    expect(none.matched).toBe(0);
+    expect(none.note).toContain("Nothing matched");
+    // Another adapter is another session: no snapshots.
+    await expect(executeTool("diff_memory", { a: "before", b: "after", filter: "changed" }, mockAdapter())).rejects.toThrow(/no snapshot "before"/);
+  });
+
+  it("JEROMY_BLIND=1 holds the reference back from every tool (ADR-0019 calibration)", async () => {
+    const prev = process.env.JEROMY_BLIND;
+    process.env.JEROMY_BLIND = "1";
+    try {
+      const adapter = mockAdapter();
+      const ledger = { dir: "/nonexistent/hacks/sha1-x/default", gameDir: "/nonexistent/hacks/sha1-x" } as any;
+      const r = await executeTool("lookup_symbol", { name: "lives" }, adapter, null, null, null, ledger);
+      expect((r as { text: string }).text).toContain("Blind calibration session");
+    } finally {
+      if (prev === undefined) delete process.env.JEROMY_BLIND; else process.env.JEROMY_BLIND = prev;
+    }
+  });
+
   it("step_frame defaults count to 1", async () => {
     const adapter = mockAdapter();
     const result = await executeTool("step_frame", {}, adapter);

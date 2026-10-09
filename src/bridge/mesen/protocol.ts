@@ -272,24 +272,6 @@ export interface ResetEmulatorResult {
   paused: boolean;
 }
 
-/** Answer to convert_address: where a CPU/PPU address lives through the mapper (ADR-0009). */
-export interface ConvertAddressResult {
-  input: number;
-  input_mem_type: string;
-  /** Offset within the resolved memory, e.g. the PRG ROM byte offset (no iNES header). */
-  address?: number;
-  /** Resolved memory type name when it is one the bridge knows (prgRom, chrRom, workRam, palette, ...). */
-  mem_type?: string;
-  mem_type_id?: number;
-  raw: unknown;
-}
-
-/** Answer to wait_frames, the trivial two-phase request (ADR-0010). */
-export interface WaitFramesResult {
-  requested: number;
-  waited: number;
-}
-
 /** Rendered color at a screen pixel (ADR-0010). */
 export interface PixelColorResult {
   x: number;
@@ -388,20 +370,11 @@ export interface WriteChrTileResult {
   rows_written: number;
 }
 
-export interface PingResult {
-  pong: true;
-  timestamp: number;
-}
-
-export interface LuaLogEntry {
-  ts: number;
-  msg: string;
-}
-
-export interface LuaLogsResult {
-  logs: LuaLogEntry[];
-  count: number;
-  overflow?: number;
+/** The `emu.eventType` table of the running Mesen build, probed rather than taken from the docs (ADR-0019). */
+export interface DebugEventTypesResult {
+  event_types: Record<string, number>;
+  has_set_input: boolean;
+  has_get_input: boolean;
 }
 
 // -- Emulator Control Types -------------------------------------------------
@@ -417,6 +390,45 @@ export interface ResumeEmulatorResult {
 export interface StepFrameResult {
   stepped: number;
   paused: boolean;
+}
+
+/** One segment of a `play_input` script (ADR-0019): these buttons held for this many frames. */
+export interface PlaySegment {
+  buttons: PadButton[];
+  frames: number;
+}
+
+export type PadButton = "a" | "b" | "select" | "start" | "up" | "down" | "left" | "right";
+
+export interface PlayInputParams {
+  script: PlaySegment[];
+  port?: number;
+  /** CPU addresses sampled at the end of each frame (at most 16). */
+  watch?: number[];
+}
+
+export interface WatchTrace {
+  address: number;
+  values: number[];
+  first?: number;
+  last?: number;
+}
+
+export interface PlayInputResult {
+  frames_run: number;
+  frames: number;
+  segments: number;
+  port: number;
+  start_frame: number;
+  end_frame: number;
+  /** How many times the core polled input during the run; 0 means the script never reached the game. */
+  polls: number;
+  /** The run resumed a paused game and broke again at the end. */
+  was_paused: boolean;
+  paused: boolean;
+  sample_every: number;
+  sample_frames: number[];
+  watch: WatchTrace[];
 }
 
 export interface EmulatorStatusResult {

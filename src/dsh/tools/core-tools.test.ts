@@ -82,6 +82,16 @@ describe.skipIf(!linked)("makeCoreTools (ADR-0005 mapper)", async () => {
     expect(d.deps.waitForConnection).toHaveBeenCalledWith(BRIDGE_WAIT_MS, exec.signal);
   });
 
+  it("a tool the capability probe ruled out fails with its reason before reaching the bridge (ADR-0019)", async () => {
+    const playInput = vi.fn();
+    const d = deps({ unavailable: (name: string) => (name === "play_input" ? "play_input is unavailable: no inputPolled event" : undefined) });
+    d.adapter.playInput = playInput;
+    const tools = makeCoreTools(d.deps);
+    await expect(tools.find((t) => t.name === "play_input")!.execute({ script: [{ buttons: ["right"], frames: 10 }] }, exec)).rejects.toThrow(/no inputPolled event/);
+    expect(playInput).not.toHaveBeenCalled();
+    await expect(tools.find((t) => t.name === "get_palette")!.execute({ palette_id: 1 }, exec)).resolves.toBeTruthy();
+  });
+
   it("reports results to onResult so the service can track pause state", async () => {
     const onResult = vi.fn();
     const d = deps({ onResult });

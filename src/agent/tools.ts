@@ -5,13 +5,14 @@
 
 import type { ToolSpec, ContentBlock, StoredImage } from "./types.js";
 import type { MesenAdapter } from "../bridge/mesen/index.js";
-import type { MemoryType, SearchMemoryResult } from "../bridge/mesen/protocol.js";
+import type { MemoryType, PadButton, SearchMemoryResult } from "../bridge/mesen/protocol.js";
+import { snapshotsFor, takeSnapshot, type DiffFilter } from "./snapshots.js";
 import type { Disassembler, Arch } from "./disassembler.js";
 import type { GameMapping } from "../mappings/types.js";
 import { NES_MASTER_PALETTE_RGB, nearestNesColor, nesColorName } from "./nes-palette.js";
 import { lookupTileAtPixel } from "./tile-lookup.js";
 import { getRegionAt } from "./region.js";
-import { findSymbols, formatSymbol, loadReference, nearestSymbol, type ReferenceFile } from "./reference.js";
+import { blindMode, findSymbols, formatSymbol, loadReference, nearestSymbol, type ReferenceFile } from "./reference.js";
 import { switchHack } from "../hacks/activate.js";
 import { describeLedger, isRomMemory, ledgeredRomWrite, ledgerDivergence, windowsPathToWsl, type EditLedger } from "./edit-ledger.js";
 import { applyEdits, applyIps, applyBps, crc32, encodeBps, encodeIps, inesLayout } from "../hacks/patch.js";
@@ -681,6 +682,63 @@ export const agentTools: ToolSpec[] = [
     },
   },
   {
+    name: "play_input",
+    description:
+      "Play the game for the model: hold buttons for a number of frames, as a script of segments run in real time by the plugin (ADR-0019). E.g. [{buttons:['right'],frames:60},{buttons:['right','a'],frames:20}] runs right for a second then jumps. At most 600 frames (10 s) per call; chain calls for longer. A paused game is resumed for the run and paused again at the end (the result says was_paused). Optional watch: up to 16 CPU addresses sampled at the end of each frame (thinned to 60 samples on long runs), so a run doubles as a measurement: watch candidate addresses while holding right and the one that climbs steadily is the X position. This tool runs frames; use it to make a value change between two snapshot_memory calls, to reach a screen, or to trigger a routine while trace_writes watches.",
+    input_schema: {
+      type: "object",
+      properties: {
+        script: {
+          type: "array",
+          description: "Segments in order; each holds exactly these buttons for that many frames (buttons: a, b, select, start, up, down, left, right; [] releases everything).",
+          items: {
+            type: "object",
+            properties: {
+              buttons: { type: "array", items: { type: "string" } },
+              frames: { type: "number" },
+            },
+            required: ["buttons", "frames"],
+          },
+        },
+        port: { type: "number", description: "Controller port, default 0 (player 1)." },
+        watch: { type: "array", items: { type: "number" }, description: "CPU addresses to sample each frame (max 16)." },
+      },
+      required: ["script"],
+    },
+  },
+  {
+    name: "snapshot_memory",
+    description:
+      "Take a named snapshot of a memory range for differential search (ADR-0019). Default: the NES's 2 KiB of internal RAM ($0000-$07FF) read without side effects. Returns the name, range, and a checksum, not the bytes. Take one, make something happen (play_input, or ask the user to play), take another, then diff_memory. Reusing a name replaces that snapshot. Session-only: snapshots are not saved anywhere.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Short label, e.g. 'before', 'after_coin', 's3'." },
+        address: { type: "number", description: "Start address (default 0)." },
+        length: { type: "number", description: "Bytes (default 2048). Battery SRAM: address 0x6000, length 0x2000." },
+        mem_type: { type: "string", description: "Memory to read (default cpuDebug, which has no read side effects)." },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "diff_memory",
+    description:
+      "Compare two snapshots and keep the addresses that moved the way an action predicts (ADR-0019). filter: changed, unchanged, increased, decreased, or equals (with value, e.g. equals 2 after losing a life from 3). Narrow round by round: pass name to keep this diff's survivors, then from with that name on the next diff so only they are considered. Returns up to 64 hits with old and new values plus the survivor count; each hit carries a reference symbol as a lead when one is imported (unverified until proven). Prove a candidate by write_memory and a screenshot before record_mapping, with source 'differential search'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        a: { type: "string", description: "Earlier snapshot name." },
+        b: { type: "string", description: "Later snapshot name." },
+        filter: { type: "string", enum: ["changed", "unchanged", "increased", "decreased", "equals"] },
+        value: { type: "number", description: "For filter equals: the value the later snapshot must hold." },
+        from: { type: "string", description: "Only consider the survivors of this earlier named diff." },
+        name: { type: "string", description: "Keep this diff's survivors under this name for the next round." },
+      },
+      required: ["a", "b", "filter"],
+    },
+  },
+  {
     name: "extract_sprite",
     description:
       "Extract pixel data from a user-uploaded reference image. Crops a region, quantizes colors " +
@@ -884,12 +942,24 @@ export async function searchMemoryAll(
 
 /** The imported reference for the loaded ROM, read from the hack directory on each use so a fresh import needs no restart (ADR-0017). */
 function referenceFor(ledger: EditLedger | null | undefined): ReferenceFile | null {
+  if (blindMode()) return null;
   const dir = ledger?.gameDir ?? ledger?.dir;
   if (!dir) return null;
   try { return loadReference(dir); } catch { return null; }
 }
 
 /** `symbol` for a code address: the nearest reference label and the distance, always marked as a lead. */
+/**
+ * A lead for a RAM address: exact equates only. The reference cannot tell a
+ * constant from an address (`DeathMusic = 1` and `FrameCounter = $09` are
+ * both equates), so small values carry several names and every name is
+ * listed; a nearest-label hint as used for code PCs would label every byte.
+ */
+function ramSymbolHint(ref: ReferenceFile, address: number): { symbols?: string[] } {
+  const names = ref.symbols.filter((s) => s.address === address).map((s) => s.name);
+  return names.length ? { symbols: names.slice(0, 6) } : {};
+}
+
 function symbolHint(ref: ReferenceFile, address: number): { symbol?: string } {
   const near = nearestSymbol(ref.symbols, address, 0x400);
   if (!near) return {};
@@ -973,6 +1043,7 @@ export async function executeTool(
 
     case "lookup_symbol": {
       const ref = referenceFor(ledger);
+      if (blindMode()) return { type: "text", text: "Blind calibration session (JEROMY_BLIND=1): the reference is held back so the method is measured without it. Find the address by snapshot_memory, play_input and diff_memory, prove it with write_memory and a screenshot, and record it; the score script compares afterwards." };
       if (!ref) return { type: "text", text: "No reference imported for this ROM. Import one with scripts/import-reference.mjs (a disassembly's .dbg or .asm, or a wiki table) into the hack directory; until then, discover addresses with search_memory, trace_writes and snapshot comparisons." };
       const credit = `Reference: ${ref.source} (${ref.symbols.length} symbols; unverified leads, not mappings).`;
       if (typeof input.name === "string" && input.name.trim()) {
@@ -1500,6 +1571,58 @@ export async function executeTool(
       const count = (input.count as number) ?? 1;
       const result = await adapter.stepFrame(count);
       return { type: "text", text: JSON.stringify(result) };
+    }
+
+    case "play_input": {
+      const script = input.script as Array<{ buttons: string[]; frames: number }>;
+      if (!Array.isArray(script) || script.length === 0) return { type: "text", text: "Error: script must be a non-empty array of {buttons, frames}." };
+      const result = await adapter.playInput({
+        script: script.map((s) => ({ buttons: (s.buttons ?? []) as PadButton[], frames: Number(s.frames) })),
+        port: input.port as number | undefined,
+        watch: input.watch as number[] | undefined,
+      });
+      const ref = referenceFor(ledger);
+      const watch = result.watch.map((w) => ({
+        ...w,
+        address_hex: `0x${w.address.toString(16).toUpperCase().padStart(4, "0")}`,
+        ...(ref ? ramSymbolHint(ref, w.address) : {}),
+      }));
+      const note = `Ran ${result.frames_run} frames of input on port ${result.port}.${result.was_paused ? " The game was paused before and is paused again now." : " The game is still running."}${watch.length ? ` watch values are one sample every ${result.sample_every} frame(s), sample_frames gives their frame numbers.` : ""}`;
+      return { type: "text", text: JSON.stringify({ ...result, watch, note }) };
+    }
+
+    case "snapshot_memory": {
+      const store = snapshotsFor(adapter);
+      const taken = await takeSnapshot(adapter, store, input.name as string, {
+        address: input.address as number | undefined,
+        length: input.length as number | undefined,
+        mem_type: input.mem_type as MemoryType | undefined,
+      });
+      return { type: "text", text: JSON.stringify({ ...taken, snapshots: store.list().map((s) => s.name), note: "Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory." }) };
+    }
+
+    case "diff_memory": {
+      const store = snapshotsFor(adapter);
+      const result = store.diff(input.a as string, input.b as string, input.filter as DiffFilter, {
+        value: input.value as number | undefined,
+        from: input.from as string | undefined,
+        name: input.name as string | undefined,
+      });
+      const ref = referenceFor(ledger);
+      const hits = result.hits.map((h) => ({
+        ...h,
+        address_hex: `0x${h.address.toString(16).toUpperCase().padStart(4, "0")}`,
+        ...(ref ? ramSymbolHint(ref, h.address) : {}),
+      }));
+      const note = result.matched === 0
+        ? "Nothing matched: the action may not have changed what you expected, or the value lives outside the snapshot range, or it is stored in a different form (BCD digits, offset by one, a countdown). Try changed on the same pair."
+        : result.matched > hits.length
+          ? `${result.matched} addresses survive, more than shown: narrow with another action and a diff with from: "${input.name ?? "<name this diff>"}".`
+          : result.matched <= 8
+            ? "Few enough to test: write_memory each candidate and look at the screen; a change the HUD shows is the proof."
+            : "Narrow further with another action: keep this diff's name and pass it as from on the next.";
+      const leads = ref ? " symbols are the reference's exact equates for that address, unverified; small addresses also collect constants that happen to share the value." : "";
+      return { type: "text", text: JSON.stringify({ ...result, hits, note: note + leads }) };
     }
 
     case "extract_sprite": {

@@ -73,10 +73,14 @@ power state, enemy slots, the frame counter.
   until one remains; then prove it by writing it and watching the HUD.
   Record an `address` entry with the value semantics (BCD, offset by one,
   per-slot arrays).
-- **Tools:** missing the core of it: `snapshot_memory {mem_type, name}` and
-  `diff_memory {a, b, filter: changed|increased|decreased|equals N}` over
-  the 2 KiB of work RAM, pure and cheap; `read_memory` and `write_memory`
-  exist for the proof. `lookup_symbol` gives the candidate's reference name.
+- **Tools:** built 2026-10-05 (ADR-0019): `snapshot_memory {name, address?,
+  length?}` and `diff_memory {a, b, filter, value?, from?, name?}` over the
+  2 KiB of internal RAM, pure and cheap, narrowing round by round; and
+  `play_input` so the "make the value change" step needs nobody in the
+  chair (hold right, jump, walk into the Goomba), with `watch` sampling
+  candidate addresses every frame. `read_memory` and `write_memory` exist
+  for the proof. `lookup_symbol` names the candidate afterwards, never
+  before: a reference is calibration, and most games have none.
 - **SMB accelerator:** Data Crystal's 120 addresses and the disassembly's
   equates; the skill verifies each one it needs instead of searching.
 

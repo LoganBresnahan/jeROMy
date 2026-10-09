@@ -1,6 +1,6 @@
 ---
 name: shipshape
-description: Verify jeROMy is shipshape — vitest green twice and typecheck clean, docs (DIRECTION / roadmap / ADRs / plans / CLAUDE.md commands) match the code, and the conventions hold (uniform ADR-NNNN citations, no escaped TODOs, every tool has a test, every Lua handler has an adapter method, the Lua watchdog budget, no dsh imports outside src/dsh). Use after substantive changes, before commits, or when asked whether the project is in order.
+description: Verify jeROMy is shipshape — vitest green twice and typecheck clean, docs (DIRECTION / roadmap / ADRs / plans / CLAUDE.md commands) match the code, and the conventions hold (uniform ADR-NNNN citations, no escaped TODOs, every tool has a test, an adapter method exactly where TypeScript calls a Lua handler, the Lua watchdog budget, no dsh imports outside src/dsh). Use after substantive changes, before commits, or when asked whether the project is in order.
 ---
 
 # /shipshape — repo verification pass
@@ -44,7 +44,8 @@ surfaces:
 - **Protocol framing** (`connection.test.ts`, `protocol.test.ts`):
   newline-delimited JSON, request ids matched, error responses surfaced.
 - **Adapter** (`adapter.test.ts`): each method sends the matching Lua handler
-  name with the right params.
+  name with the right params; every method has a caller outside tests (the
+  `NO CALLER` check below).
 - **Prompt assembly** (`prompts.test.ts`): emulator status, mapping context,
   CHR guide present when expected.
 - **Mapping loader** (`loader.test.ts`): SHA1 keying, missing file is not an
@@ -108,18 +109,29 @@ for t in $(grep -ohE '^\s+name: "[a-z_]+"' $T | grep -oE '[a-z_]+"' | tr -d '"')
 # expect: no output
 ```
 
-**Lua handler↔adapter parity** — every `handlers.<name>` in `bridge.lua` is
-sent by the TypeScript adapter, and vice versa:
+**Lua handler↔adapter parity** — an adapter method exists only because
+TypeScript calls it, and every handler TypeScript calls exists in
+`bridge.lua`. Handlers no TypeScript code calls are Lua-only probes, reached
+from WSL through `scripts/bridge-call.mjs`, and must be on the escape list
+below so a new handler without a caller is noticed:
 
 ```bash
 # Only existing dirs: a missing path makes some greps (ugrep) exit non-zero even on a match.
+LUA_ONLY="ping get_lua_logs wait_frames convert_address debug_state debug_step_types"
 for h in $(grep -oE '^function handlers\.[a-z_]+' mesen/bridge.lua | sed 's/function handlers\.//'); do
-  grep -rq "\"$h\"" src/bridge/mesen/ || echo "NO ADAPTER: $h"; done
-# allowed escapes: debug_state, get_lua_logs, ping (Lua-side debugging only)
+  grep -rq --exclude='*.test.ts' "\"$h\"" src/bridge/mesen/ || echo " $LUA_ONLY " | grep -q " $h " || echo "NO ADAPTER: $h"; done
 for m in $(grep -rohE --exclude='*.test.ts' 'request(<[A-Za-z]+>)?\("[a-z_]+"' src/bridge/mesen/ | grep -oE '[a-z_]+"$' | tr -d '"' | sort -u); do
   grep -q "^function handlers\.$m" mesen/bridge.lua || echo "NO HANDLER: $m"; done
-# expect: no output beyond the escapes
+for m in $(grep -oE '^  async [a-zA-Z]+' src/bridge/mesen/adapter.ts | awk '{print $2}'); do
+  grep -rq --exclude='*.test.ts' --exclude=adapter.ts "\.$m(" src scripts || echo "NO CALLER: $m"; done
+# expect: no output
 ```
+
+`NO ADAPTER` on a handler meant for people: add it to `LUA_ONLY`. On a
+handler a tool should use: write the adapter method with its caller.
+`NO CALLER`: delete the method and its test (the handler stays, reachable
+through `bridge-call.mjs`, and joins `LUA_ONLY`). A method with only a test
+pins a name, not a behavior.
 
 **Watchdog budget** — the blocking poll inside `codeBreak` stays under
 Mesen's 1-second Lua watchdog:

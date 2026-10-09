@@ -24,7 +24,7 @@ src/bridge/mesen/
   protocol.test.ts        request/response/error shapes
   adapter.test.ts         each adapter method sends the matching Lua handler and params
 src/agent/
-  tools.test.ts           all 24 tools against a mocked EmulatorAdapter
+  tools.test.ts           every core tool against a mocked EmulatorAdapter
   prompts.test.ts         prompt assembly: emulator status, mapping context, CHR guide
 src/mappings/
   loader.test.ts          SHA1 keying, missing file is not an error, merge, prompt formatting

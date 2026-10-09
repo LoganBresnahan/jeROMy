@@ -31,6 +31,8 @@ export function discoveryFromRecordResult(text: string): DiscoveredEntry | null 
     ...(parsed.category ? { category: String(parsed.category) } : {}),
     ...(parsed.group ? { group: String(parsed.group) } : {}),
     ...(parsed.notes ? { notes: String(parsed.notes) } : {}),
+    // record_mapping emits `source` (ADR-0017); without this line it never reached the file (found 2026-10-06).
+    ...(parsed.source ? { source: String(parsed.source) } : {}),
     confidence,
     ...(Array.isArray(parsed.rom_origins) && parsed.rom_origins.length ? { rom_origins: parsed.rom_origins as DiscoveredEntry["rom_origins"] } : {}),
   };

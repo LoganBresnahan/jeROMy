@@ -16,19 +16,18 @@ import type {
   CpuStateResult,
   RomInfoResult,
   StateResult,
-  PingResult,
-  LuaLogsResult,
+  DebugEventTypesResult,
   ReadChrTileResult,
   WriteChrTileResult,
   MemoryType,
   PauseEmulatorResult,
   ResumeEmulatorResult,
   StepFrameResult,
+  PlayInputParams,
+  PlayInputResult,
   EmulatorStatusResult,
   PixelColorResult,
-  WaitFramesResult,
   ScrollCaptureResult,
-  ConvertAddressResult,
   SearchMemoryResult,
   SpritesResult,
   ReadRegionParams,
@@ -71,14 +70,6 @@ export class MesenAdapter {
   }
 
   /**
-   * Park a request for N frames and learn how many elapsed: the smallest
-   * two-phase request (ADR-0010). Debug/verification only; not a model tool.
-   */
-  async waitFrames(frames: number): Promise<WaitFramesResult> {
-    return this.conn.request<WaitFramesResult>("wait_frames", { frames }, { timeoutMs: Math.ceil(frames / 60) * 1000 + 5000 });
-  }
-
-  /**
    * Capture every $2000/$2005/$2006 write for one frame (two stepped frames
    * while paused) with the PPU position, for the scanline-accurate scroll
    * reconstruction (ADR-0010). Two-phase on the Lua side.
@@ -114,11 +105,6 @@ export class MesenAdapter {
   /** Soft-reset the console; clears palette overrides first and answers after `frames` have run (ADR-0009). */
   async resetEmulator(frames: number = 30): Promise<ResetEmulatorResult> {
     return this.conn.request<ResetEmulatorResult>("reset_emulator", { frames }, { timeoutMs: Math.ceil(frames / 60) * 1000 + 5000 });
-  }
-
-  /** Resolve a CPU (default) or PPU address to its ROM/RAM origin through the mapper (ADR-0009). */
-  async convertAddress(address: number, memType: MemoryType = "cpu"): Promise<ConvertAddressResult> {
-    return this.conn.request<ConvertAddressResult>("convert_address", { address, mem_type: memType });
   }
 
   /** Rendered color at a screen pixel; ground truth for what the user sees (ADR-0010). */
@@ -247,14 +233,9 @@ export class MesenAdapter {
     });
   }
 
-  /** Health check — verify the bridge is responsive. */
-  async ping(): Promise<PingResult> {
-    return this.conn.request<PingResult>("ping");
-  }
-
-  /** Retrieve buffered emu.log entries from the Lua side. */
-  async getLuaLogs(since: number = 0): Promise<LuaLogsResult> {
-    return this.conn.request<LuaLogsResult>("get_lua_logs", { since });
+  /** Probe which `emu.eventType` callbacks and input functions this Mesen build offers (ADR-0019). */
+  async debugEventTypes(): Promise<DebugEventTypesResult> {
+    return this.conn.request<DebugEventTypesResult>("debug_event_types");
   }
 
   // -- Emulator Control -------------------------------------------------------
@@ -274,13 +255,14 @@ export class MesenAdapter {
     return this.conn.request<StepFrameResult>("step_frame", { count });
   }
 
+  /** Run a bounded button script in real time; completes when its frames have elapsed (ADR-0019). */
+  async playInput(params: PlayInputParams): Promise<PlayInputResult> {
+    const frames = params.script.reduce((n, seg) => n + (seg.frames | 0), 0);
+    return this.conn.request<PlayInputResult>("play_input", { ...params }, { timeoutMs: Math.ceil(frames / 60) * 1000 + 5000 });
+  }
+
   /** Query the current emulator pause/run state. */
   async getEmulatorStatus(): Promise<EmulatorStatusResult> {
     return this.conn.request<EmulatorStatusResult>("get_emulator_status");
-  }
-
-  /** Send a raw request — for debugging and discovery. */
-  async rawRequest(method: string, params: Record<string, unknown> = {}): Promise<unknown> {
-    return this.conn.request<unknown>(method, params);
   }
 }

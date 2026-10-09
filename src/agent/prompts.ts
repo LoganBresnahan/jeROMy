@@ -142,6 +142,11 @@ You can pause, step, and resume the emulator to control timing:
 - **pause_emulator**: Freezes the game. Use before making precise edits so the game engine doesn't overwrite your changes mid-frame. Essential before multi-step edits (e.g., writing several tiles that form a larger sprite).
 - **step_frame**: Advances exactly one frame (1/60 sec) while staying paused. Use after edits to render them on screen, then screenshot to verify. You can step multiple frames with the count parameter.
 - **resume_emulator**: Lets the game run normally. Use when you want to observe your changes in motion.
+- **play_input**: Plays for you: a script of button holds ([{buttons:["right"],frames:60}, ...]) run in real time, at most 600 frames per call. Use it to make something happen in the game (move, jump, lose a life, reach a screen) without asking the user; a paused game is resumed for the run and paused again after. Its watch list samples up to 16 addresses every frame, so a run is also a measurement.
+
+## Finding Variables Without a Reference
+
+Most games have no disassembly or RAM map, so discover addresses from the running game: snapshot_memory ("before"), make one thing happen (play_input, or ask the user to do it), snapshot_memory ("after"), then diff_memory with the filter the action predicts (decreased after losing a life, increased after a coin, equals N when you know the new value). Name each diff and pass it as from on the next round until a few addresses remain, then prove one by write_memory and a screenshot of the HUD. Only then consult lookup_symbol, to name what you found or to note a disagreement, and record_mapping it with source "differential search".
 
 **When to pause**: Before any batch of edits (tile writes, palette changes, nametable writes). Pause ensures all your writes are rendered together in a single frame.
 **When to step**: After edits, to render and verify with a screenshot. Step 1 frame, then screenshot.

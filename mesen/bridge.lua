@@ -276,10 +276,20 @@ emu.log("[jeROMy] script start; log file: " .. tostring(log_file_path or "(none:
 -- A Lua error inside a callback stops the whole script in Mesen, which from
 -- WSL looks like a client that never reconnects (docs/issues.md 2026-10-05).
 -- Log it and keep the callback registered.
+-- A per-frame callback that keeps failing must not log once a frame: a
+-- 60-line-a-second flood crashed Mesen's Script Window renderer on
+-- 2026-10-05. First error in full, then one line per 300.
+local guarded_errors = {}
 local function guarded(name, fn)
   return function()
     local ok, err = pcall(fn)
-    if not ok then emu.log("[jeROMy] " .. name .. " callback error: " .. tostring(err)) end
+    if not ok then
+      local n = (guarded_errors[name] or 0) + 1
+      guarded_errors[name] = n
+      if n == 1 or n % 300 == 0 then
+        emu.log("[jeROMy] " .. name .. " callback error (" .. n .. " so far): " .. tostring(err))
+      end
+    end
   end
 end
 
@@ -1414,6 +1424,13 @@ function handlers.get_lua_logs(params)
   return { logs = entries, count = #entries, overflow = log_overflow }
 end
 
+-- debug_event_types: the emu.eventType names this Mesen build offers (ADR-0019: is inputPolled one of them?).
+function handlers.debug_event_types(params)
+  local out = {}
+  for k, v in pairs(emu.eventType) do out[k] = v end
+  return { event_types = out, has_set_input = emu.setInput ~= nil, has_get_input = emu.getInput ~= nil }
+end
+
 -- debug_step_types: the emu.stepType names this Mesen build offers (ADR-0016).
 function handlers.debug_step_types(params)
   local out = {}
@@ -1504,6 +1521,130 @@ end
 -- get_emulator_status: Query current pause/run state
 function handlers.get_emulator_status(params)
   return { paused = is_paused }
+end
+
+---------------------------------------------------------------------------
+-- play_input (ADR-0019): a bounded button script the plugin runs so the
+-- model never drives frame by frame. Segments are applied from the
+-- inputPolled event (Mesen honours setInput until the next poll), frames
+-- are counted at endFrame, and the request completes two-phase like
+-- trace_writes. Every button of the port is set explicitly so a run is
+-- deterministic whatever the person holds; when the run ends the pad
+-- returns to the person at the next poll with no release write.
+---------------------------------------------------------------------------
+local PAD_BUTTONS = { "a", "b", "select", "start", "up", "down", "left", "right" }
+local MAX_WATCH = 16
+local MAX_WATCH_SAMPLES = 60
+local play = nil
+
+local function play_apply_input()
+  if not play then return end
+  play.polls = play.polls + 1
+  local seg = play.segments[play.seg]
+  -- Table first, port second: the online API reference has it the other way
+  -- round and this build rejects that order on every poll (seen 2026-10-05).
+  if seg then
+    emu.setInput(seg.state, play.port)
+    if play.polls == 1 then
+      local ok, got = pcall(emu.getInput, play.port)
+      local parts = {}
+      if ok and type(got) == "table" then for k, v in pairs(got) do parts[#parts + 1] = k .. "=" .. tostring(v) end end
+      table.sort(parts)
+      emu.log("[jeROMy] play_input first poll: getInput(" .. play.port .. ") -> " .. (ok and table.concat(parts, " ") or tostring(got)))
+    end
+  end
+end
+emu.addEventCallback(guarded("inputPolled", play_apply_input), emu.eventType.inputPolled)
+
+-- One frame of the script, from endFrame. Skips the frame the request was
+-- parked in, as tick_pending does, so both reach the total together.
+local function play_tick()
+  if not play or play.start == frame_counter then return end
+  play.done = play.done + 1
+  if #play.watch > 0 and (play.done % play.every == 0 or play.done == play.frames) then
+    for i, a in ipairs(play.watch) do
+      local s = play.samples[i]
+      s[#s + 1] = emu.read(a, MT.cpuDebug)
+    end
+    play.sample_frames[#play.sample_frames + 1] = play.done
+  end
+  play.left = play.left - 1
+  if play.left <= 0 then
+    play.seg = play.seg + 1
+    local seg = play.segments[play.seg]
+    if seg then play.left = seg.frames end
+  end
+end
+
+function handlers.play_input(params)
+  if play then error("play_input is already running (" .. play.done .. "/" .. play.frames .. " frames); wait for it to finish") end
+  local port = params.port or 0
+  if type(port) ~= "number" or port < 0 or port > 3 or port ~= math.floor(port) then error("port must be 0-3") end
+  local segments, total = {}, 0
+  for i, s in ipairs(params.script or {}) do
+    local frames = math.floor(tonumber(s.frames) or 0)
+    if frames < 1 then error("script[" .. i .. "].frames must be at least 1") end
+    local state = {}
+    for _, b in ipairs(PAD_BUTTONS) do state[b] = false end
+    for _, b in ipairs(s.buttons or {}) do
+      if state[b] == nil then error("script[" .. i .. "]: unknown button " .. tostring(b) .. " (a, b, select, start, up, down, left, right)") end
+      state[b] = true
+    end
+    segments[#segments + 1] = { frames = frames, state = state }
+    total = total + frames
+  end
+  if #segments == 0 then error("script needs at least one segment, e.g. [{buttons: [\"right\"], frames: 60}]") end
+  -- The cap is the two-phase cap: a longer experiment is several calls (ADR-0019).
+  if total > MAX_PENDING_FRAMES then error("script totals " .. total .. " frames; the cap per call is " .. MAX_PENDING_FRAMES) end
+  local watch = params.watch or {}
+  if type(watch) ~= "table" then error("watch must be an array of CPU addresses") end
+  if #watch > MAX_WATCH then error("watch lists " .. #watch .. " addresses; the cap is " .. MAX_WATCH) end
+  -- Validated here, not in play_tick: a bad address there would throw inside
+  -- the guarded endFrame callback every frame and return partial samples.
+  for i, a in ipairs(watch) do
+    if type(a) ~= "number" or a < 0 or a > 0xFFFF or a ~= math.floor(a) then error("watch[" .. i .. "] must be a CPU address 0-0xFFFF") end
+  end
+  local every = math.max(1, math.ceil(total / MAX_WATCH_SAMPLES))
+  play = {
+    port = port, segments = segments, seg = 1, left = segments[1].frames,
+    frames = total, done = 0, watch = watch, samples = {}, sample_frames = {},
+    every = every, was_paused = is_paused, start = frame_counter, polls = 0,
+  }
+  for i = 1, #watch do play.samples[i] = {} end
+  -- Probe the call once here so a refused signature fails this request with
+  -- its message instead of throwing inside inputPolled once a frame.
+  local ok, err = pcall(emu.setInput, segments[1].state, port)
+  if not ok then play = nil; error("setInput refused: " .. tostring(err)) end
+  -- A paused game is resumed for the run and broken again on completion;
+  -- that is the one sanctioned way a tool leaves a pause (ADR-0013 amended).
+  if is_paused then pending_resume = true end
+  return {
+    pending = {
+      frames = total,
+      allow_paused = true,
+      complete = function()
+        local run = play
+        play = nil
+        local out = {}
+        for i, a in ipairs(run.watch) do
+          local s = run.samples[i]
+          out[i] = { address = a, values = s, first = s[1], last = s[#s] }
+        end
+        if run.was_paused then
+          is_paused = true
+          step_active = true
+          emu.breakExecution()
+        end
+        return {
+          frames_run = run.done, frames = run.frames, segments = #run.segments, port = run.port,
+          start_frame = run.start, end_frame = frame_counter,
+          was_paused = run.was_paused, paused = run.was_paused, polls = run.polls,
+          sample_every = run.every, sample_frames = run.sample_frames, watch = out,
+        }
+      end,
+      cancel = function() play = nil end,
+    },
+  }
 end
 
 ---------------------------------------------------------------------------
@@ -1820,6 +1961,7 @@ local function on_end_frame()
     end
   else
     poll_connection()
+    play_tick()
     if conn then tick_pending() end
     if conn then send_heartbeat() end
   end

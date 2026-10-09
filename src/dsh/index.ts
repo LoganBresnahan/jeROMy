@@ -84,6 +84,7 @@ export function apply(ctx: Context, config: Config): void {
       disassembler: () => disassembler,
       mapping: () => scope.mesen.mapping,
       ledger: () => scope.mesen.hackStore,
+      unavailable: (toolName) => scope.mesen.unavailable.get(toolName),
       onResult: (toolName, result) => scope.mesen.observeToolResult(toolName, result),
     });
     for (const tool of tools) scope.tools.register(tool);

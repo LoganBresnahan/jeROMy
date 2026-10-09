@@ -211,6 +211,36 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       195 dots and two PC bytes per idle minute against a hundred-plus
       instructions before; a zero-count step was tried and does not
       re-break. Watchdog entry in `docs/issues.md` stands.
+- [x] **22. The agent plays and maps blind** (ADR-0019; Logan's direction
+      2026-10-05: "many games will not have a disassembly like Super Mario
+      Bros"). Done 2026-10-06: the proof below ran as written. A blind
+      headless session (`scripts/trio.sh --blind variable`) pressed Start,
+      walked into the first Goomba twice, narrowed 2048 bytes to 29 to 3
+      with two `decreased` diffs, picked `$075A` by its one-per-death step,
+      wrote 5 to it and saw the "WORLD 1-1 x N" card follow, recorded it
+      with `source: "differential search"`; `scripts/score-mapping.mjs`
+      says the reference agrees (`NumberofLives`). On the way: Mesen's
+      `setInput` takes the table first (its docs say otherwise), callback
+      errors are throttled so a per-frame fault can never flood the Script
+      Window again (it crashed its log pane once), and SMB's Start during
+      the attract demo returns to the title, so the checks press it twice.
+      Carry-ins: conditional segments and runs past 600 frames; recording
+      the person's play as a script; a `mesen-service` test for the pause
+      regex; hand-checked fixtures for the score classifier; a hack
+      selector and `hack diff` still sit on item 19. Original scope:
+      step 2 of the mapping campaign, with the controller added:
+      `play_input` (a bounded button script run from an `inputPolled`
+      callback in `bridge.lua`, two-phase, 600-frame cap, pause restored,
+      `watch` addresses sampled per frame), `snapshot_memory` and
+      `diff_memory` on the TypeScript side (per-adapter in-memory store,
+      `changed|unchanged|increased|decreased|equals`, narrowing with
+      `from`, reference names as leads), the `find-variable` skill written
+      from the first blind session on SMB, `scripts/score-mapping.mjs`
+      comparing promoted `address` entries against the reference, and a
+      `trio.sh play` check. Proof: a headless session finds the lives
+      counter with `lookup_symbol` held back, writes it, sees the HUD
+      change, records it with `source: "differential search"`, and the
+      score script confirms `$075A`.
 
 ## Next
 
