@@ -68,5 +68,5 @@ if (cmd === "import") {
 
 function dedupe(symbols) {
   const seen = new Set();
-  return symbols.filter((s) => { const k = `${s.name}@${s.address}`; if (seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => a.address - b.address || a.name.localeCompare(b.name));
+  return symbols.filter((s) => { const k = `${s.name}@${s.address}@${s.rom_offset ?? ""}`; if (seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => a.address - b.address || a.name.localeCompare(b.name));
 }

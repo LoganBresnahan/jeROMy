@@ -26,6 +26,22 @@ describe("reference symbols (ADR-0017)", () => {
     expect(syms[2].size).toBe(16);
   });
 
+  it("gives a banked label its PRG offset from its segment, less a header segment, and keeps same-address labels of different banks", () => {
+    // Shape of aldonunez/zelda1-disassembly's Z.dbg (MMC1, eight 16 KiB banks), hand-checked by Claude 2026-10-09.
+    const banked = `seg\tid=0,name="HEADER",start=0x000000,size=0x0010,addrsize=absolute,type=ro,oname="z.nes",ooffs=0
+seg\tid=6,name="BANK_00_00",start=0x008D60,size=0x1299,addrsize=absolute,type=ro,oname="z.nes",ooffs=3440
+seg\tid=9,name="BANK_01_00",start=0x008000,size=0x2500,addrsize=absolute,type=ro,oname="z.nes",ooffs=16400
+sym\tid=0,name="NoteLengthTable4",addrsize=absolute,scope=0,def=480,val=0x9FF1,seg=6,type=lab
+sym\tid=1,name="IsrReset",addrsize=absolute,scope=0,def=1,val=0x8000,seg=9,type=lab
+sym\tid=2,name="IsrReset",addrsize=absolute,scope=0,def=1,val=0x8000,seg=6,type=lab
+sym\tid=3,name="Lives",addrsize=absolute,scope=0,def=1,val=0x75A,type=equ
+`;
+    const syms = parseCc65Dbg(banked);
+    expect(syms.find((s) => s.name === "NoteLengthTable4")?.rom_offset).toBe(0xd60 + (0x9ff1 - 0x8d60));
+    expect(syms.filter((s) => s.name === "IsrReset").map((s) => s.rom_offset).sort((a, b) => a! - b!)).toEqual([0xd60 - 0xd60, 0x4000]);
+    expect(syms.find((s) => s.name === "Lives")?.rom_offset).toBeUndefined();
+  });
+
   it("parses assembler equates with comments, and wiki CSV/TSV tables", () => {
     const asm = parseAsmEquates("NumberOfLives = $075a ; lives, minus one\n  lda #$00\nFrameCounter   .equ $09\nTimerControl EQU $0747\n", "smb1.asm");
     expect(asm.map((s) => [s.name, s.address, s.notes])).toEqual([["FrameCounter", 9, undefined], ["TimerControl", 0x747, undefined], ["NumberOfLives", 0x75a, "lives, minus one"]]);

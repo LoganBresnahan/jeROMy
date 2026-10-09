@@ -18,14 +18,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const WASM_PATH = resolve(__dirname, "../../capstone/capstone.js");
 const require = createRequire(import.meta.url);
 
-// Capstone constants
+// Capstone constants, copied from capstone/capstone-src/include/capstone/capstone.h (cs_arch, cs_mode).
+// Never retype these from memory: MOS65XX was written as 14 (BPF in this build), so every 6502 disassemble
+// failed with CS_ERR_ARCH until eval/runs/20261009-1135-sheet3-hud-position hit it.
 const CS_ARCH_ARM = 0;
-const CS_ARCH_MOS65XX = 14;
+const CS_ARCH_MOS65XX = 12;
 const CS_MODE_ARM = 0;
 const CS_MODE_THUMB = 1 << 4;
 const CS_MODE_MOS65XX_6502 = 1 << 1;
 const CS_MODE_MOS65XX_65C02 = 1 << 2;
-const CS_MODE_MOS65XX_W65C816 = 1 << 3;
+const CS_MODE_MOS65XX_65816 = 1 << 4;
 
 // cs_insn struct offsets (Capstone 5.x)
 const INSN_SIZE = 240; // sizeof(cs_insn)
@@ -59,6 +61,21 @@ interface CapstoneModule {
   _malloc: (size: number) => number;
   _free: (ptr: number) => void;
   UTF8ToString: (ptr: number) => string;
+}
+
+/**
+ * A NUL-terminated ASCII string from WASM memory. The build exports only
+ * ccall/cwrap/getValue/setValue (capstone/build.sh), never HEAPU8 or
+ * UTF8ToString: reading those returned undefined and every disassemble threw.
+ */
+function cString(M: CapstoneModule, ptr: number, max = 160): string {
+  let s = "";
+  for (let i = 0; i < max; i++) {
+    const c = M.getValue(ptr + i, "i8") & 0xff;
+    if (c === 0) break;
+    s += String.fromCharCode(c);
+  }
+  return s;
 }
 
 export class Disassembler {
@@ -109,7 +126,7 @@ export class Disassembler {
 
     // Allocate memory for the input bytes
     const codePtr = M._malloc(bytes.length);
-    M.HEAPU8.set(bytes, codePtr);
+    bytes.forEach((b, i) => M.setValue(codePtr + i, b, "i8"));
 
     // Allocate pointer for output (cs_disasm returns a pointer to cs_insn array)
     const insnPtrPtr = M._malloc(4);
@@ -118,7 +135,8 @@ export class Disassembler {
       "cs_disasm",
       "number",
       ["number", "number", "number", "number", "number", "number"],
-      [handle, codePtr, bytes.length, address, 0, /* count=0 means all */ insnPtrPtr]
+      // cs_disasm's address is uint64_t; this build passes i64 as BigInt (WASM_BIGINT), and a plain number throws.
+      [handle, codePtr, bytes.length, BigInt(address), 0, /* count=0 means all */ insnPtrPtr]
     );
 
     const instructions: DisasmInstruction[] = [];
@@ -134,11 +152,11 @@ export class Disassembler {
 
         const instrBytes: number[] = [];
         for (let j = 0; j < instrSize; j++) {
-          instrBytes.push(M.HEAPU8[base + INSN_BYTES_OFF + j]);
+          instrBytes.push(M.getValue(base + INSN_BYTES_OFF + j, "i8") & 0xff);
         }
 
-        const mnemonic = M.UTF8ToString(base + INSN_MNEMONIC_OFF);
-        const op_str = M.UTF8ToString(base + INSN_OP_STR_OFF);
+        const mnemonic = cString(M, base + INSN_MNEMONIC_OFF);
+        const op_str = cString(M, base + INSN_OP_STR_OFF);
 
         instructions.push({
           address: instrAddress,
@@ -204,7 +222,7 @@ function archToCapstone(arch: Arch): [number, number] {
     case "65c02":
       return [CS_ARCH_MOS65XX, CS_MODE_MOS65XX_65C02];
     case "w65816":
-      return [CS_ARCH_MOS65XX, CS_MODE_MOS65XX_W65C816];
+      return [CS_ARCH_MOS65XX, CS_MODE_MOS65XX_65816];
     case "arm":
       return [CS_ARCH_ARM, CS_MODE_ARM];
     case "thumb":

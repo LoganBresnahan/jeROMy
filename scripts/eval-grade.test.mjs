@@ -16,14 +16,14 @@ describe("eval-grade", () => {
   it("counts each line once per stage, a right claim outranking a wrong one", () => {
     const lines = [{ id: "a", name: "A" }, { id: "b", name: "B" }, { id: "c", name: "C" }, { id: "d", name: "D" }];
     const rows = [
-      { line: "a", name: "a1", proof: "write+look", promoted: true, final: "agrees" },
+      { line: "a", name: "a1", proof: "write+look", promoted: true, derived: true, final: "agrees" },
       { line: "a", name: "a2", proof: null, promoted: false, final: "unproven" },
       { line: "b", name: "b1", proof: "write+look", promoted: false, final: "disagrees" },
       { line: "c", name: "c1", proof: null, promoted: true, final: "unproven" },
       { line: null, name: "stray", proof: null, promoted: false, final: "unknown-to-reference" },
     ];
     const { stages, per } = distribution(lines, rows);
-    expect(stages).toEqual({ in_scope: 4, reached_proof: 2, recorded: 3, promoted: 2, right: 1, wrong: 1, unproven: 1 });
+    expect(stages).toEqual({ in_scope: 4, reached_proof: 2, recorded: 3, derived: 1, promoted: 2, right: 1, wrong: 1, unproven: 1 });
     expect(per[0].best.name).toBe("a1");
     expect(per[3]).toMatchObject({ recorded: false, best: null });
   });

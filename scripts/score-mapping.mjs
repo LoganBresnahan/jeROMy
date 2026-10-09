@@ -68,7 +68,10 @@ export function lineFor(claim, lines) {
     return best?.line ?? null;
   };
   const ctx = claim.context ? ` ${claim.context}` : "";
-  return tryText(`${claim.name}${ctx}`) ?? tryText(`${claim.name}${ctx} ${claim.notes ?? ""}`);
+  // The head of the name decides; a parenthetical is description, like notes ("screen_scroll_x (level's left
+  // edge)" is the scroll, not the level: eval/runs/20261009-1135-sheet3-hud-position).
+  const head = String(claim.name ?? "").replace(/\([^)]*\)/g, " ");
+  return tryText(`${head}${ctx}`) ?? tryText(`${claim.name}${ctx}`) ?? tryText(`${claim.name}${ctx} ${claim.notes ?? ""}`);
 }
 
 /** A reference symbol's extent in bytes: the line's span, the symbol's size, or for a PRG label the gap to the next label (capped). */
@@ -83,24 +86,26 @@ export function spanOf(sym, symbols, line) {
   return 1;
 }
 
-/** CPU address of a PRG ROM offset for a fixed-bank game; banked games need the symbol's own rom_offset (not imported yet). */
-function prgToCpu(offset, spec) {
-  if ((spec?.mapper ?? "NROM") !== "NROM") return null;
-  return (spec?.prg_base ?? 0x8000) + offset;
-}
-
-/** [start, end) of what a claim points at, in CPU space, or null when it cannot be placed. */
-function claimRange(claim, spec) {
-  if (claim.kind === "address" || claim.kind === "routine") return [claim.address, claim.address + Math.max(1, claim.length ?? 1)];
-  if (claim.kind === "origin" || claim.kind === "level") {
-    if (claim.mem !== "prgRom") return null;
-    const cpu = prgToCpu(claim.offset, spec);
-    return cpu === null ? null : [cpu, cpu + Math.max(1, claim.length ?? 1)];
-  }
-  return null;
-}
-
 const hex = (n) => `$${n.toString(16).toUpperCase().padStart(4, "0")}`;
+const prgHex = (n) => `PRG 0x${n.toString(16).toUpperCase()}`;
+
+/**
+ * Put a claim and the reference in one address space: CPU space for RAM and
+ * routines; for a PRG origin, PRG-offset space when the reference's labels
+ * carry rom_offset (a banked game's .dbg import), else CPU space through the
+ * spec's fixed prg_base (NROM). Null when it cannot be placed.
+ */
+function place(claim, symbols, spec) {
+  const len = Math.max(1, claim.length ?? 1);
+  if (claim.kind === "address" || claim.kind === "routine") return { lo: claim.address, hi: claim.address + len, syms: symbols, prg: false, fmt: hex };
+  if (claim.kind !== "origin" && claim.kind !== "level") return null;
+  if (claim.mem !== "prgRom") return null;
+  const banked = symbols.filter((s) => s.rom_offset !== undefined);
+  if (banked.length) return { lo: claim.offset, hi: claim.offset + len, syms: banked.map((s) => ({ ...s, address: s.rom_offset, size: s.size, kind: "label" })), prg: true, fmt: prgHex };
+  if ((spec?.mapper ?? "NROM") !== "NROM") return null;
+  const cpu = (spec?.prg_base ?? 0x8000) + claim.offset;
+  return { lo: cpu, hi: cpu + len, syms: symbols, prg: false, fmt: hex };
+}
 
 /** Loose name agreement for claims no spec line takes (the pre-spec scorer, kept for out-of-spec claims). */
 function looseAgrees(symbols, claim) {
@@ -118,16 +123,15 @@ function looseAgrees(symbols, claim) {
  * (an origin the scorer cannot put in CPU space).
  */
 export function gradeClaim(claim, reference, spec) {
-  const symbols = reference.symbols ?? [];
   const line = spec ? lineFor(claim, spec.lines ?? []) : null;
   const base = { ...claim, line: line?.id ?? null };
   if (["tile", "palette", "sprite", "scene", "note"].includes(claim.kind)) return { ...base, verdict: "needs-judge", grader: "claude" };
-  const range = claimRange(claim, spec);
-  if (!range) return { ...base, verdict: "unplaced", grader: "reference", why: "a PRG origin in a banked game needs symbol ROM offsets" };
-  const [lo, hi] = range;
-  const at = symbols.filter((s) => s.address <= lo && lo < s.address + spanOf(s, symbols, null) && (s.kind === "label") === (lo >= 0x8000));
+  const p = place(claim, reference.symbols ?? [], spec);
+  if (!p) return { ...base, verdict: "unplaced", grader: "reference", why: "a PRG origin in a banked game needs symbol ROM offsets (import the .dbg)" };
+  const { lo, hi, syms: symbols, fmt } = p;
+  const at = symbols.filter((s) => s.address <= lo && lo < s.address + spanOf(s, symbols, null) && (p.prg ? s.kind === "label" : (s.kind === "label") === (lo >= 0x8000)));
   const exactAt = symbols.filter((s) => s.address === lo);
-  const loc = hex(lo) + (hi - lo > 1 ? `-${hex(hi - 1)}` : "");
+  const loc = fmt(lo) + (hi - lo > 1 ? `-${fmt(hi - 1)}` : "");
   if (line) {
     const refs = symbols.filter((s) => (line.ref ?? []).includes(s.name));
     if (refs.length === 0) return { ...base, loc, verdict: "unknown-to-reference", grader: "reference", why: `spec names ${line.ref?.join(", ")} but the reference has none of them` };
@@ -136,7 +140,7 @@ export function gradeClaim(claim, reference, spec) {
       if (claim.kind === "routine") return lo === s.address || (hi - lo > 1 && lo <= s.address && s.address < hi);
       return lo >= s.address && hi <= s.address + span;
     });
-    const expected = refs.map((s) => `${s.name} ${hex(s.address)}${spanOf(s, symbols, line) > 1 ? `+${spanOf(s, symbols, line)}` : ""}`).join(" | ");
+    const expected = refs.map((s) => `${s.name} ${fmt(s.address)}${spanOf(s, symbols, line) > 1 ? `+${spanOf(s, symbols, line)}` : ""}`).join(" | ");
     const found = (exactAt.length ? exactAt : at).map((s) => s.name).slice(0, 4).join(" | ") || "none";
     return { ...base, loc, verdict: hit ? "agrees" : "disagrees", grader: "reference", symbol: hit?.name ?? null, expected, reference_at_claim: found };
   }
@@ -202,10 +206,31 @@ export function claimsFromStream(text, label = "stream") {
   calls.forEach((c, i) => {
     if (c.tool !== "record_mapping" || !c.ok) return;
     for (const claim of claimsFromRecord(c.input, label)) {
-      out.push({ ...claim, proof: proofFor(claim, calls.slice(0, i)), promoted: promotedAt > i });
+      out.push({ ...claim, proof: proofFor(claim, calls.slice(0, i)), derived: derivedFor(claim, calls.slice(0, i)), promoted: promotedAt > i });
     }
   });
   return { claims: out, calls: calls.length, tools: calls.map((c) => c.tool) };
+}
+
+/**
+ * Did the address come out of the session's own search before it was
+ * recorded? True when a diff_memory result listed it (or search_memory, for
+ * a ROM origin). The worker model has read SMB's RAM map in training
+ * (eval/runs/20261009-1135-sheet3-hud-position), so a proven claim it never
+ * derived measures its memory, not the method.
+ */
+export function derivedFor(claim, before) {
+  const listed = (c, lo, hi) => {
+    try {
+      const r = JSON.parse(c.result ?? "");
+      if (c.tool === "diff_memory") return (r.hits ?? []).some((h) => h.address >= lo && h.address < hi);
+      if (c.tool === "search_memory") return (Array.isArray(r.offsets) ? r.offsets : []).some((m) => { const a = typeof m === "number" ? m : m.offset ?? m.address; return a >= lo && a < hi; });
+    } catch { /* a non-JSON result lists nothing */ }
+    return false;
+  };
+  if (claim.kind === "address") return before.some((c) => c.ok && listed(c, claim.address, claim.address + Math.max(1, claim.length ?? 1)));
+  if (claim.kind === "origin" || claim.kind === "level") return before.some((c) => c.ok && c.tool === "search_memory" && listed(c, claim.offset, claim.offset + Math.max(1, claim.length ?? 1)));
+  return null;
 }
 
 function covers(input, lo, hi) {

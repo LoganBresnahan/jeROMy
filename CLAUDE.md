@@ -189,7 +189,8 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
   Falsified by `scripts/score-mapping.test.mjs` + `eval/spec/falsify/`
 - `scripts/eval-run.sh --spec <spec> --slug <s> --lines <ids> --task "<t>" [...]`
   — one eval run: `config.md` first, `up.sh` on the spec's ROM, each task
-  blind through `trio.sh` under a cost cap (default $1), streams, images and
+  blind through `trio.sh` under a cost cap (default $1; a turn ending on a
+  provider error is resumed once, `TRIO_SESSION_ID`), streams, images and
   transcripts into `eval/runs/<id>/`, then `scripts/eval-grade.mjs <run>`
   (grades.md with proof held, distribution.md); Claude judges and writes
   `report.md`

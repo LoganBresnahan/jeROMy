@@ -15,6 +15,8 @@ export interface ReferenceSymbol {
   address: number;
   kind: SymbolKind;
   size?: number;
+  /** PRG ROM offset (no iNES header) for a label in a ROM segment; what places it in a banked game, where `address` repeats per bank. */
+  rom_offset?: number;
   file?: string;
   line?: number;
   /** Free text from the source (wiki description, equate comment). */
@@ -34,7 +36,9 @@ export const REFERENCE_FILE = "reference.json";
  * cc65/ld65 debug file (`--dbgfile`, version 2): one record per line,
  * `sym id=12,name="NumberOfLives",addrsize=absolute,size=1,scope=0,def=5,ref=7+9,val=0x75A,type=equ`
  * for equates and `type=lab` for labels. Only `sym` records with a `val`
- * are symbols; segments and lines are skipped. Names are unquoted.
+ * are symbols; lines are skipped. Names are unquoted. A label in a segment
+ * written to the output (`seg ... ooffs=N`) gets `rom_offset`, its PRG offset:
+ * `ooffs + (val - seg.start)`, less any `HEADER` segment at the front.
  */
 export function parseCc65Dbg(text: string): ReferenceSymbol[] {
   const out: ReferenceSymbol[] = [];
@@ -46,6 +50,20 @@ export function parseCc65Dbg(text: string): ReferenceSymbol[] {
       if (id && name) files.set(id, name);
     }
   }
+  const segs = new Map<string, { start: number; ooffs: number }>();
+  let header = 0;
+  for (const line of text.split(/\r?\n/)) {
+    if (!(line.startsWith("seg\t") || line.startsWith("seg "))) continue;
+    const id = /\bid=(\d+)/.exec(line)?.[1];
+    const name = /\bname="([^"]*)"/.exec(line)?.[1] ?? "";
+    const start = /\bstart=(0x[0-9A-Fa-f]+|\d+)/.exec(line)?.[1];
+    const size = /\bsize=(0x[0-9A-Fa-f]+|\d+)/.exec(line)?.[1];
+    const ooffs = /\booffs=(\d+)/.exec(line)?.[1];
+    if (!id || start === undefined || ooffs === undefined) continue;
+    // An iNES header written as a segment shifts every file offset; PRG offsets never include it (ADR-0009).
+    if (/^HEADER$/i.test(name) && Number(ooffs) === 0) header = Number(size ?? 16);
+    else segs.set(id, { start: Number(start), ooffs: Number(ooffs) });
+  }
   for (const line of text.split(/\r?\n/)) {
     if (!(line.startsWith("sym\t") || line.startsWith("sym "))) continue;
     const name = /\bname="([^"]*)"/.exec(line)?.[1];
@@ -55,7 +73,9 @@ export function parseCc65Dbg(text: string): ReferenceSymbol[] {
     const size = /\bsize=(\d+)/.exec(line)?.[1];
     // Local labels (@loop) and cheap locals are noise for a lookup table.
     if (name.startsWith("@") || name.startsWith(".")) continue;
-    out.push({ name, address: Number(val), kind: type === "equ" ? "equ" : "label", ...(size ? { size: Number(size) } : {}) });
+    const seg = type === "equ" ? undefined : segs.get(/\bseg=(\d+)/.exec(line)?.[1] ?? "");
+    const romOffset = seg ? seg.ooffs - header + (Number(val) - seg.start) : undefined;
+    out.push({ name, address: Number(val), kind: type === "equ" ? "equ" : "label", ...(size ? { size: Number(size) } : {}), ...(romOffset !== undefined && romOffset >= 0 ? { rom_offset: romOffset } : {}) });
   }
   return dedupe(out);
 }
@@ -100,7 +120,7 @@ export function parseWikiTable(text: string): ReferenceSymbol[] {
 
 function dedupe(symbols: ReferenceSymbol[]): ReferenceSymbol[] {
   const seen = new Set<string>();
-  return symbols.filter((s) => { const k = `${s.name}@${s.address}`; if (seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => a.address - b.address || a.name.localeCompare(b.name));
+  return symbols.filter((s) => { const k = `${s.name}@${s.address}@${s.rom_offset ?? ""}`; if (seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => a.address - b.address || a.name.localeCompare(b.name));
 }
 
 export interface NearestSymbol {

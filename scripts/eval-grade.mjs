@@ -35,6 +35,7 @@ export function distribution(lines, rows) {
       recorded: mine.length > 0,
       proof: mine.some((r) => PROVEN.has(r.proof ?? "")),
       promoted: mine.some((r) => r.promoted),
+      derived: mine.some((r) => r.derived),
       right: mine.some((r) => r.final === "agrees" || r.final === "confirmed"),
       wrong: mine.length > 0 && !mine.some((r) => r.final === "agrees" || r.final === "confirmed") && mine.some((r) => r.final === "disagrees" || r.final === "rejected"),
       unproven: mine.length > 0 && mine.every((r) => r.final === "unproven"),
@@ -42,7 +43,7 @@ export function distribution(lines, rows) {
     };
   });
   const count = (k) => per.filter((p) => p[k]).length;
-  return { per, stages: { in_scope: lines.length, reached_proof: count("proof"), recorded: count("recorded"), promoted: count("promoted"), right: count("right"), wrong: count("wrong"), unproven: count("unproven") } };
+  return { per, stages: { in_scope: lines.length, reached_proof: count("proof"), recorded: count("recorded"), derived: count("derived"), promoted: count("promoted"), right: count("right"), wrong: count("wrong"), unproven: count("unproven") } };
 }
 
 function usage(text) {
@@ -71,13 +72,18 @@ function main(argv) {
 
   const streamsDir = join(dir, "streams");
   const files = existsSync(streamsDir) ? readdirSync(streamsDir).filter((f) => f.endsWith(".jsonl")).sort() : [];
+  // A resumed session (task-1.r1.jsonl after a provider error) is one task: its proof may sit in the first stream.
+  const tasks = new Map();
+  for (const f of files) {
+    const task = f.replace(/(\.r\d+)?\.jsonl$/, "");
+    tasks.set(task, (tasks.get(task) ?? "") + readFileSync(join(streamsDir, f), "utf8") + "\n");
+  }
   const rows = [];
   const totals = { calls: 0, steps: 0, inTok: 0, outTok: 0 };
-  for (const f of files) {
-    const text = readFileSync(join(streamsDir, f), "utf8");
+  for (const [task, text] of tasks) {
     const u = usage(text);
     for (const k of Object.keys(totals)) totals[k] += u[k];
-    for (const c of claimsFromStream(text, f.replace(/\.jsonl$/, "")).claims) {
+    for (const c of claimsFromStream(text, task).claims) {
       const g = gradeClaim(c, reference, spec);
       rows.push({ ...g, reference_verdict: g.verdict, final: finalVerdict(g) });
     }
@@ -95,7 +101,7 @@ function main(argv) {
       "",
       "| line | claim | at | evidence (proof) | reference | final | grader | image |",
       "|---|---|---|---|---|---|---|---|",
-      ...rows.map((r) => `| ${r.line ?? "(none)"} | ${cell(r.name)}${r.notes ? ` — ${cell(r.notes).slice(0, 120)}` : ""} | ${r.loc ?? r.id} | ${r.proof ?? "none"}${r.promoted ? ", promoted" : ""} | ${r.reference_verdict}${r.expected ? ` (expected ${cell(r.expected)}; here: ${cell(r.reference_at_claim)})` : ""} | ${r.final === "needs-judge" ? "pending" : r.final} | ${r.grader} | |`),
+      ...rows.map((r) => `| ${r.line ?? "(none)"} | ${cell(r.name)}${r.notes ? ` — ${cell(r.notes).slice(0, 120)}` : ""} | ${r.loc ?? r.id} | ${r.proof ?? "none"}${r.derived === true ? ", derived by diff" : r.derived === false ? ", not in any diff" : ""}${r.promoted ? ", promoted" : ""} | ${r.reference_verdict}${r.expected ? ` (expected ${cell(r.expected)}; here: ${cell(r.reference_at_claim)})` : ""} | ${r.final === "needs-judge" ? "pending" : r.final} | ${r.grader} | |`),
       "",
     ];
     writeFileSync(gradesMd, out.join("\n"));
@@ -111,15 +117,16 @@ function main(argv) {
     `| attempted (from the replay) | see below |`,
     `| reached proof | ${s.reached_proof} |`,
     `| recorded | ${s.recorded} |`,
+    `| derived (the address was in a diff before it was recorded) | ${s.derived} |`,
     `| promoted | ${s.promoted} |`,
     `| graded right | ${s.right} |`,
     `| graded wrong | ${s.wrong} |`,
     `| unproven | ${s.unproven} |`,
     `| cost (USD), tool calls, wall time | ${run.cost_usd ?? "?"}, ${totals.calls}, ${run.wall_seconds ? `${Math.round(run.wall_seconds)} s` : "?"} |`,
     "",
-    "| line | recorded | proof | promoted | final | claim |",
-    "|---|---|---|---|---|---|",
-    ...dist.per.map((p) => `| ${p.id} | ${p.recorded ? "yes" : "no"} | ${p.best?.proof ?? "—"} | ${p.promoted ? "yes" : "no"} | ${p.best?.final ?? "—"} | ${p.best ? `${cell(p.best.name)} @ ${p.best.loc ?? p.best.id}` : "—"} |`),
+    "| line | recorded | proof | derived | promoted | final | claim |",
+    "|---|---|---|---|---|---|---|",
+    ...dist.per.map((p) => `| ${p.id} | ${p.recorded ? "yes" : "no"} | ${p.best?.proof ?? "—"} | ${p.derived ? "yes" : "no"} | ${p.promoted ? "yes" : "no"} | ${p.best?.final ?? "—"} | ${p.best ? `${cell(p.best.name)} @ ${p.best.loc ?? p.best.id}` : "—"} |`),
     "",
     `Tokens in ${totals.inTok}, out ${totals.outTok}, steps ${totals.steps}. Claims outside the lines in scope: ${rows.filter((r) => !run.lines.includes(r.line)).length}.`,
     "",

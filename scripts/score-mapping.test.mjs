@@ -55,6 +55,11 @@ describe("score-mapping lines", () => {
     expect(lineFor({ kind: "origin", name: "grass palette" }, SPEC.lines)?.id).toBe("grass_pal");
     expect(lineFor({ kind: "address", name: "player y speed" }, SPEC.lines)).toBeNull();
   });
+  it("lets the head of the name decide over a parenthetical", () => {
+    const lines = [...SPEC.lines, { id: "scroll", type: "address", match: [["scroll"]], ref: [] }, { id: "level", type: "address", match: [["level"]], ref: [] }];
+    expect(lineFor({ kind: "address", name: "screen_scroll_x (level's left edge, mod 256)" }, lines)?.id).toBe("scroll");
+    expect(lineFor({ kind: "address", name: "the (level) number" }, lines)?.id).toBe("level");
+  });
   it("only gives a claim to a line of its own kind", () => {
     expect(lineFor({ kind: "routine", name: "lives" }, SPEC.lines)).toBeNull();
   });
@@ -91,6 +96,20 @@ describe("score-mapping falsification (synthetic)", () => {
     const loose = claimsFromRecord({ mapping_type: "address", id: "0x21", name: "player y position" }, "t").map((c) => gradeClaim(c, REF, null));
     expect(loose[0].verdict).toBe("agrees");
   });
+  it("a banked reference grades origins by PRG offset, so the same CPU address in another bank disagrees", () => {
+    const banked = { source: "synthetic banked", symbols: [
+      { name: "OverworldPal", address: 0x8100, kind: "label", rom_offset: 0x0100 },
+      { name: "DungeonPal", address: 0x8100, kind: "label", rom_offset: 0x4100 },
+      { name: "Next0", address: 0x8110, kind: "label", rom_offset: 0x0110 },
+      { name: "Next1", address: 0x8110, kind: "label", rom_offset: 0x4110 },
+    ] };
+    const spec = { mapper: "MMC1", lines: [{ id: "ow", type: "origin", match: [["overworld", "palette"]], ref: ["OverworldPal"] }] };
+    const g = (offset) => gradeClaim(claimsFromRecord({ mapping_type: "palette", id: "0", name: "overworld palette", rom_origins: [{ mem: "prgRom", offset, length: 4 }] }, "t").find((k) => k.kind === "origin"), banked, spec);
+    expect(g(0x0104).verdict).toBe("agrees");
+    expect(g(0x4104).verdict).toBe("disagrees");
+    expect(g(0x010e).verdict).toBe("disagrees");
+  });
+
   it("an unplaceable origin (banked game) is unplaced, never agrees", () => {
     const c = claimsFromRecord({ mapping_type: "palette", id: "0", name: "grass palette", rom_origins: [{ mem: "prgRom", offset: 0x10f, length: 1 }] }, "t").find((k) => k.kind === "origin");
     expect(gradeClaim(c, REF, { ...SPEC, mapper: "MMC1" }).verdict).toBe("unplaced");
@@ -114,6 +133,15 @@ describe("score-mapping streams", () => {
   it("reads record_mapping calls with the proof each rests on and whether they were promoted", () => {
     const { claims } = claimsFromStream(stream, "s");
     expect(claims.map((c) => [c.name, c.proof, c.promoted])).toEqual([["coins", "write+look", true], ["lives", null, true]]);
+    expect(claims.map((c) => c.derived)).toEqual([false, false]);
+  });
+  it("marks a claim derived only when a diff before the record listed its address", () => {
+    const diff = [
+      ev({ type: "tool_call", callId: "x", tool: "diff_memory", input: { a: "s0", b: "s1", filter: "increased" } }),
+      ev({ type: "tool_result", callId: "x", status: "completed", result: JSON.stringify({ matched: 2, hits: [{ address: 0x11, old: 0, new: 1 }, { address: 0x40, old: 3, new: 4 }] }) }),
+    ].join("\n");
+    const { claims } = claimsFromStream(diff + "\n" + stream, "s");
+    expect(claims.map((c) => [c.name, c.derived])).toEqual([["coins", true], ["lives", false]]);
   });
 });
 

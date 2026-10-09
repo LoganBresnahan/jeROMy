@@ -8,6 +8,7 @@
 # Usage: scripts/trio.sh [look|read|edit|click|region|hacks|persist|play ...]   (default: all eight)
 #        scripts/trio.sh --blind variable      (ADR-0019 calibration: blind lives-counter search on SMB, ~2 min, not in the default set)
 #        scripts/trio.sh [--blind] --task "<instruction>" [min-tool-calls]   (--blind: JEROMY_BLIND=1, reference held back)
+#        TRIO_SESSION_ID=session-<id> scripts/trio.sh --task "continue"   (resume that headless session; eval-run.sh after a provider error)
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 DSH_SRC="$(cd "${DSH_SRC:-$REPO/../deepseek-harness}" && pwd)"
@@ -253,7 +254,7 @@ run_check() { # $1 = name; sets code/sok/sid; writes $OUT/$1.jsonl
   # (ADR-0011, found 2026-10-05).
   # TSX_TSCONFIG_PATH: outside the checkout tsx would not see its tsconfig `paths`
   # and would load stale built packages instead of workspace sources.
-  ( cd "$WORK" && JEROMY_BLIND="$BLIND" TSX_TSCONFIG_PATH="$DSH_SRC/tsconfig.json" timeout "$TIMEOUT" node --import "$TSX_ESM" "$DSH_SRC/apps/cli/src/bin.ts" --profile headless --patch "$PATCH" --json "$task" ) > "$OUT/$name.jsonl" 2> "$OUT/$name.err"
+  ( cd "$WORK" && JEROMY_BLIND="$BLIND" TSX_TSCONFIG_PATH="$DSH_SRC/tsconfig.json" timeout "$TIMEOUT" node --import "$TSX_ESM" "$DSH_SRC/apps/cli/src/bin.ts" --profile headless --patch "$PATCH" ${TRIO_SESSION_ID:+--session-id "$TRIO_SESSION_ID"} --json "$task" ) > "$OUT/$name.jsonl" 2> "$OUT/$name.err"
   code=$?
   sid="$(grep -o '"sessionId":"session-[0-9a-f-]*"' "$OUT/$name.jsonl" | head -1 | cut -d'"' -f4)"
   summary="$(BLIND="$BLIND" summarize "$OUT/$name.jsonl" "${MIN_CALLS[$name]:-1}" "$name")"; sok=$?

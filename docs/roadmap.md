@@ -260,6 +260,13 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       test; (f) the holdout game's reference import and spec, before SMB
       tuning continues. Item 18's sheets then proceed through runs, each
       recorded under `eval/runs/`.
+      Progress 2026-10-09: (a)-(d) shipped (`eval/spec/smb.json`, the scorer
+      graded by spec line and falsified, ADR-0021 schema 3,
+      `scripts/eval-run.sh` + `eval-grade.mjs`); (e) ran as
+      `eval/runs/20261009-1135-sheet3-hud-position` (4 of 8 lines right, 0
+      wrong; HUD task lost to a provider error) and fixed `disassemble`;
+      (f) the Zelda reference re-imported with PRG offsets per bank and its
+      sheet-3 spec written. Open: the HUD re-run and the first holdout run.
 
 ## Next
 
