@@ -71,10 +71,9 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Lines hit:** C1.score; any multi-digit number (Zelda's rupees later).
 - **Changed:** `find-variable` step 7: write a distinct digit to every byte
   and one past each end, claim only the bytes that showed (commit `7ec93e5`).
-- **Status:** `changed`. `sheet3-hud-rerun2` r1-r3 wrote distinct digits
-  across the range 3/3 (the step was followed), and claimed the score right
-  3/3, but `$07DD` was in their prompt through other entries (F10), so the
-  right answers do not count; re-run with the broader hold-back.
+- **Status:** `fixed` (`sheet3-hud-rerun3` r1-r3, clean hold-back: score
+  right 3/3, distinct digits across the range and one past each end 3/3).
+  The earlier `sheet3-hud-rerun2` series was contaminated (F10).
 - **A re-run checks:** C1.score `agrees`, and the stream shows a write of
   distinct digits across the range before the record.
 
@@ -164,14 +163,16 @@ change bought; if the failure comes back, reopen it with the new run.
   in-scope lines' entries (each line's `entry`); `eval-run.sh` points the
   plugin's `mappingsDir` at that copy for the run, which also promotes
   there, not into `mappings/`.
-- **Status:** `changed` (reopened). The held-back entries were out of the
+- **Status:** `fixed` (reopened once). The held-back entries were out of the
   prompt, but other entries named the same addresses: the score series'
   copy mentioned `$07DD` six times and the coin and timer digits often
   (sheet 5's routine notes, the coin tally's description), and the
   sheet2-tiles re-run's copy mentioned `$8C8C` and `$6ED3`. Those two
   series' right answers are not clean measurements; both are re-run.
   `eval-mapping-in.mjs` now also holds back every entry and note that names
-  a held-back address (the world/level series' copy was clean).
+  a held-back address or a held-back entry's ROM origin (the world/level
+  series' copy was clean). Fixed: `sheet3-x-rerun` and `sheet3-hud-rerun3`
+  copies named none of their answers.
 - **A re-run checks:** `config.md` lists the entries held back, and the
   session's prompt (`dsh-log.mjs show <id> --system --full`) does not
   contain them. A one-step session's prompt has no mapping at all (the
