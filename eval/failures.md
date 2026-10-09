@@ -26,7 +26,7 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Changed:** `eval-run.sh` resumes the session once with "continue"
   (`TRIO_SESSION_ID`), and `eval-grade.mjs` joins a task's streams so a
   proof before the error still counts (commit `7593dc6`).
-- **Status:** `changed` (reopened). Fixed once (`20261009-1241-sheet5-routines`
+- **Status:** `fixed` (reopened once). Fixed once (`20261009-1241-sheet5-routines`
   task 2, one resume), then `sheet3-worldlevel-rerun` r1 and r3 were lost
   with one resume each (r1's resume failed in four seconds, r3's after 15
   calls). Five of fifteen tasks so far. The error is not deterministic: a
@@ -36,7 +36,8 @@ change bought; if the failure comes back, reopen it with the new run.
   model writes hex literals in JSON tool arguments
   (`{"address": 0x8182, "length": 80}`), carrying the prompt's prose hex
   rule into JSON. Changed: a prompt line, "tool arguments are JSON with
-  decimal numbers" (checked live).
+  decimal numbers" (checked live). Fixed: no `MALFORMED_RESPONSE` in the
+  fourteen tasks since (sheet2-text-tiles through sheet2-tiles-rerun2).
 - **A re-run checks:** no `MALFORMED_RESPONSE` across the next runs' tasks;
   if one appears, the debug capture says whether it is still hex.
 
