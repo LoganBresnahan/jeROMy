@@ -16,3 +16,4 @@ Mapping sheet 3 (the RAM a hacker reaches for), scene World 1-1 of Super Mario B
 ```
 
 [eval-mapping-in] held back addresses.0x07ED, addresses.0x07F8, addresses.0x07DD, addresses.0x075E (names it), routines.0xBBFE (names it), routines.0xB74F (names it), routines.0x8F5F (names it), 1 note(s) (name it)
+- balance after: $6.70 · ended: 2026-10-09T15:39:08-05:00
