@@ -9,6 +9,7 @@ during a run; `docs/adr/0020-built-by-an-eval-loop.md` is the decision.
 ```
 eval/
   README.md              this manual
+  failures.md            every way a run broke, what changed for it, what a re-run checks
   spec/
     attributes.md        the attribute classes of an NES game (what "mapped" means)
     smb.json             SMB's instances, one line each, with its grading method
@@ -64,6 +65,8 @@ eval/
 6. **Report.** `report.md` holds the distribution (table below), two or
    three sentences on why lines failed where they did (from the replay: the
    tool trace, not the final text), and the one change the run argues for.
+   Every failure goes into `eval/failures.md` (a new entry, or the run added
+   to an existing one) before the run is committed.
 7. **Decide the change.** One thing: a tool, a skill step, a prompt line, a
    schema field. A decision gets an ADR; a prompt or skill edit cites the run
    that motivated it (`eval/runs/<run>`) in its commit subject.
@@ -74,6 +77,38 @@ eval/
    five SMB runs: the same sheet's task on the holdout game, graded the same
    way, recorded under `runs/` with `holdout: true` in its config. Nothing is
    tuned from its grades; its report says only whether the SMB gain carried.
+
+## Re-running a sheet
+
+A re-run is a run of lines an earlier run already attempted, after a change
+meant to fix why they failed. It is how a change earns `fixed` in
+`eval/failures.md`, and how a regression is caught.
+
+1. **Read the ledger first.** In `eval/failures.md`, every entry whose
+   "Lines hit" include the lines you are about to run. Each says what a
+   re-run must check; those checks go in the report.
+2. **Name the run you are redoing.** `scripts/eval-run.sh ... --rerun-of
+   <run-id>`: the config records it and `eval-grade.mjs` writes
+   `comparison.md`, every line in scope with its final verdict, proof and
+   `derived` in the earlier run against this one (`better`, `same`,
+   `worse`, `new`).
+3. **Keep the task text unless the failure is in the task.** If the ledger
+   says the task itself was the problem (F5: too many lines), change only
+   that, and say so in `config.md`. Otherwise the same words, so the change
+   under test is the only change.
+4. **Report against the earlier run.** The report's first table is
+   `comparison.md`; then the ledger checks, one line each (passed, failed,
+   not reached).
+5. **Update the ledger.** An entry moves to `fixed` only when its check
+   passed in this run; a check that failed stays `changed` with this run
+   added under "Seen"; a new way of failing is a new entry. Commit the
+   ledger with the run.
+6. **A `worse` line stops the loop** (Stop conditions) unless the replay
+   explains it; the question goes at the top of the report.
+
+A first run of a line is not a re-run, but it still reads the ledger: an
+`open` entry that hits the line is a known risk, and the report says
+whether it showed.
 
 ## Grading vocabulary
 

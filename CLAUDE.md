@@ -156,7 +156,9 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
   `eval/spec/<game>.json`, `scripts/eval-run.sh` (config, blind
   `trio.sh --task`, grade), judge (`score-mapping.mjs` for what the reference answers,
   Claude from the saved images for pictures), `report.md` with the
-  distribution, one change, verify, commit, push; holdout at milestones.
+  distribution, every failure into `eval/failures.md` (the ledger a re-run
+  reads first; `--rerun-of <run>` writes `comparison.md`), one change,
+  verify, commit, push; holdout at milestones.
 - `adr-plan` workflow (`.claude/workflows/adr-plan.js`) — decompose an
   accepted ADR into an effort-ranked, dependency-ordered build checklist
   before implementing it. Output goes to `docs/plans/adr-NNNN-<topic>-build-plan.md`.

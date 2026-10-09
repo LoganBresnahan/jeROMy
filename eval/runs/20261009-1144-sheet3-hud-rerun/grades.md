@@ -1,6 +1,6 @@
 # Grades: 20261009-1144-sheet3-hud-rerun
 
-Reference: smbdis (doppelganger), ca65 port by threecreepio. Spec: Super Mario Bros. (World) v2 (graded first under v1, where the coin line accepted only CoinTally and the coin claim was `disagrees`; see report.md). One row per claim (eval/README.md); `final` is the reference verdict held to the proof step.
+Reference: smbdis (doppelganger), ca65 port by threecreepio. Spec: Super Mario Bros. (World) v2. One row per claim (eval/README.md); `final` is the reference verdict held to the proof step.
 
 | line | claim | at | evidence (proof) | reference | final | grader | image |
 |---|---|---|---|---|---|---|---|
@@ -8,4 +8,4 @@ Reference: smbdis (doppelganger), ca65 port by threecreepio. Spec: Super Mario B
 | C1.coins | coin_count — Coin count shown by the HUD as "coin x NN". Encoding: two BCD digits, $07ED = tens, $07EE = ones (0-99). Found by differ | $07ED-$07EE | write+look, not in any diff, promoted | agrees (expected DisplayDigits+0x16:2 $07ED+2 \| CoinTally $075E; here: none) | agrees | reference | |
 | C1.timer | level_timer — The level countdown shown as TIME. Encoding: three BCD digits, one per byte, most significant first: $07F8 = hundreds, $ | $07F8-$07FA | write+look, derived by diff, promoted | agrees (expected GameTimerDisplay $07F8+3; here: GameTimerDisplay) | agrees | reference | |
 | C2.player_x_page | player_x_page — Page byte (high byte) of Mario's horizontal position in the level. Encoding: Mario's absolute level x = 0x006D*256 + 0x0 | $006D | write+look, derived by diff, promoted | agrees (expected Player_PageLoc $006D; here: Player_PageLoc \| SprObject_PageLoc) | agrees | reference | |
-| (none) | Mario's level x is 16-bit: page 0x006D + low 0x0086 — Correction to the existing 0x0086 'player_x_position' entry, which says 'no separate player page byte was found'. There  | player_horizontal_position_pair | look, promoted | needs-judge | confirmed | claude | images/task-2/cc4c7be60dff.png (before: 086c6db6efab.png): after $006D=1, $0086=0 with the scroll at 93, Mario is drawn at x≈168, right of where he stood (x≈118); page 0 with x=0 would put him behind the left edge. 1×256+0−93=163 fits a 16-bit position |
+| (none) | Mario's level x is 16-bit: page 0x006D + low 0x0086 — Correction to the existing 0x0086 'player_x_position' entry, which says 'no separate player page byte was found'. There  | player_horizontal_position_pair | look, promoted | needs-judge | pending | claude | |

@@ -2,7 +2,7 @@
 // the distribution per line, never a scalar. Rows are shaped like
 // scripts/score-mapping.mjs output; only the fields read here matter.
 import { describe, expect, it } from "vitest";
-import { distribution, finalVerdict } from "./eval-grade.mjs";
+import { compareRuns, distribution, finalVerdict } from "./eval-grade.mjs";
 
 describe("eval-grade", () => {
   it("a reference agreement without its proof step is unproven", () => {
@@ -26,5 +26,23 @@ describe("eval-grade", () => {
     expect(stages).toEqual({ in_scope: 4, reached_proof: 2, recorded: 3, derived: 1, promoted: 2, right: 1, wrong: 1, unproven: 1 });
     expect(per[0].best.name).toBe("a1");
     expect(per[3]).toMatchObject({ recorded: false, best: null });
+  });
+
+  it("compares a re-run with the run it redoes, line by line", () => {
+    const lines = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
+    const before = [
+      { line: "a", name: "a", proof: "write+look", final: "agrees" },
+      { line: "b", name: "b", proof: "write+look", final: "disagrees" },
+      { line: "d", name: "d", proof: "write+look", final: "agrees" },
+    ];
+    const after = [
+      { line: "a", name: "a", proof: "write+look", final: "agrees", derived: true },
+      { line: "b", name: "b", proof: "write+look", final: "agrees" },
+      { line: "c", name: "c", proof: "write+look", final: "agrees" },
+      { line: "d", name: "d", proof: null, final: "unproven" },
+    ];
+    expect(compareRuns(lines, before, after).map((c) => [c.id, c.change, c.now])).toEqual([
+      ["a", "same", "agrees, derived"], ["b", "better", "agrees"], ["c", "new", "agrees"], ["d", "worse", "unproven"],
+    ]);
   });
 });

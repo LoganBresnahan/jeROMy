@@ -7,11 +7,13 @@
 #
 # Usage: scripts/eval-run.sh --spec eval/spec/smb.json --slug sheet3-hud \
 #          --lines C1.coins,C1.timer --task "<task 1>" [--task "<task 2>" ...] \
-#          [--min-calls N] [--cap 1.00] [--holdout]
+#          [--min-calls N] [--cap 1.00] [--holdout] [--rerun-of <run-id>]
+# --rerun-of: this run redoes lines of an earlier one (eval/README.md, "Re-running a sheet");
+#   read eval/failures.md first. eval-grade.mjs then writes comparison.md.
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO"
-SPEC=""; SLUG=""; LINES=""; MIN=8; CAP="1.00"; HOLDOUT=false; TASKS=()
+SPEC=""; SLUG=""; LINES=""; MIN=8; CAP="1.00"; HOLDOUT=false; TASKS=(); RERUN=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --spec) SPEC="$2"; shift 2 ;;
@@ -21,10 +23,12 @@ while [ $# -gt 0 ]; do
     --min-calls) MIN="$2"; shift 2 ;;
     --cap) CAP="$2"; shift 2 ;;
     --holdout) HOLDOUT=true; shift ;;
+    --rerun-of) RERUN="$2"; shift 2 ;;
     *) echo "[eval-run] unknown argument $1" >&2; exit 2 ;;
   esac
 done
-[ -f "$SPEC" ] && [ -n "$SLUG" ] && [ -n "$LINES" ] && [ ${#TASKS[@]} -gt 0 ] || { sed -n 2,13p "$0" >&2; exit 2; }
+[ -f "$SPEC" ] && [ -n "$SLUG" ] && [ -n "$LINES" ] && [ ${#TASKS[@]} -gt 0 ] || { sed -n 2,15p "$0" >&2; exit 2; }
+[ -z "$RERUN" ] || [ -d "eval/runs/$RERUN" ] || { echo "[eval-run] --rerun-of $RERUN: no such run under eval/runs" >&2; exit 2; }
 
 spec_get() { python3 -c "import json,sys; print(json.load(open('$SPEC')).get('$1',''))"; }
 GAME="$(spec_get game)"; SHA1="$(spec_get sha1)"; ROM="$(spec_get rom_path)"; SPECV="$(spec_get spec_version)"
@@ -46,16 +50,17 @@ MODEL="$(sed -n 's/^ *model: *//p' .dsh-dev/cordis.yml | head -1)"
   echo "- game: $GAME (sha1 \`$SHA1\`)"
   echo "- spec: \`$SPEC\` v$SPECV · lines: $LINES"
   echo "- model: ${MODEL:-?} · blind: true (JEROMY_BLIND=1) · holdout: $HOLDOUT"
+  [ -n "$RERUN" ] && echo "- re-run of: \`$RERUN\` (eval/failures.md entries for these lines apply)"
   echo "- caps: \$$CAP per run · min tool calls per task $MIN · trio timeout ${TRIO_TIMEOUT:-420} s"
   echo "- balance before: \$$BEFORE"
   echo "- started: $(date -Iseconds)"
   echo
   i=0; for t in "${TASKS[@]}"; do i=$((i+1)); echo "## Task $i"; echo; echo '```'; echo "$t"; echo '```'; echo; done
 } > "$RUN/config.md"
-python3 - "$RUN/run.json" "$ID" "$SPEC" "$LINES" "$CAP" "$BEFORE" "$COMMIT" "$HOLDOUT" <<'PY'
+python3 - "$RUN/run.json" "$ID" "$SPEC" "$LINES" "$CAP" "$BEFORE" "$COMMIT" "$HOLDOUT" "$RERUN" <<'PY'
 import json, sys, time
-f, i, spec, lines, cap, before, commit, holdout = sys.argv[1:]
-json.dump({"id": i, "spec": spec, "lines": lines.split(","), "cap_usd": float(cap), "balance_before": float(before), "commit": commit, "holdout": holdout == "true", "started": time.time(), "tasks": []}, open(f, "w"), indent=2)
+f, i, spec, lines, cap, before, commit, holdout, rerun = sys.argv[1:]
+json.dump({"id": i, "spec": spec, "lines": lines.split(","), "cap_usd": float(cap), "balance_before": float(before), "commit": commit, "holdout": holdout == "true", **({"rerun_of": rerun} if rerun else {}), "started": time.time(), "tasks": []}, open(f, "w"), indent=2)
 PY
 
 # The view only reports the ROM name; a handoff does not refresh the plugin's ROM identity (docs/issues.md), so a different game means a full down/up.

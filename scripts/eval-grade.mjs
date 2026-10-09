@@ -57,19 +57,8 @@ function usage(text) {
   return { calls, steps, inTok, outTok };
 }
 
-const cell = (s) => String(s ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ");
-
-function main(argv) {
-  const dir = resolve(argv[2] ?? "");
-  const force = argv.includes("--force");
-  const runFile = join(dir, "run.json");
-  if (!argv[2] || !existsSync(runFile)) { console.error("usage: scripts/eval-grade.mjs <eval/runs/<id>> (needs run.json from scripts/eval-run.sh)"); process.exit(2); }
-  const run = JSON.parse(readFileSync(runFile, "utf8"));
-  const spec = JSON.parse(readFileSync(resolve(run.spec), "utf8"));
-  const refFile = resolve("hacks", `sha1-${spec.sha1}`, "reference.json");
-  const reference = existsSync(refFile) ? JSON.parse(readFileSync(refFile, "utf8")) : { source: "none", symbols: [] };
-  const inScope = spec.lines.filter((l) => run.lines.includes(l.id));
-
+/** Grade every task of a run directory's streams; a resumed task's streams are joined. */
+export function gradeStreams(dir, reference, spec) {
   const streamsDir = join(dir, "streams");
   const files = existsSync(streamsDir) ? readdirSync(streamsDir).filter((f) => f.endsWith(".jsonl")).sort() : [];
   // A resumed session (task-1.r1.jsonl after a provider error) is one task: its proof may sit in the first stream.
@@ -88,6 +77,41 @@ function main(argv) {
       rows.push({ ...g, reference_verdict: g.verdict, final: finalVerdict(g) });
     }
   }
+  return { rows, totals };
+}
+
+const RANK = { agrees: 3, confirmed: 3, disagrees: 1, rejected: 1, unproven: 1, "needs-judge": 1, unplaced: 1 };
+
+/**
+ * A re-run against the run it redoes, line by line (eval/README.md,
+ * "Re-running a sheet"): right beats wrong or unproven, which beat nothing.
+ * Both runs are graded under the current spec, so a spec change is not
+ * mistaken for the worker getting better.
+ */
+export function compareRuns(lines, before, after) {
+  const a = new Map(distribution(lines, before).per.map((p) => [p.id, p]));
+  return distribution(lines, after).per.map((now) => {
+    const was = a.get(now.id);
+    const r = (p) => (p?.best ? RANK[p.best.final] ?? 1 : 0);
+    const change = !was?.best && now.best ? "new" : r(now) > r(was) ? "better" : r(now) < r(was) ? "worse" : "same";
+    return { id: now.id, was: was?.best ? `${was.best.final}${was.derived ? ", derived" : ""}` : "not recorded", now: now.best ? `${now.best.final}${now.derived ? ", derived" : ""}` : "not recorded", change };
+  });
+}
+
+const cell = (s) => String(s ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ");
+
+function main(argv) {
+  const dir = resolve(argv[2] ?? "");
+  const force = argv.includes("--force");
+  const runFile = join(dir, "run.json");
+  if (!argv[2] || !existsSync(runFile)) { console.error("usage: scripts/eval-grade.mjs <eval/runs/<id>> (needs run.json from scripts/eval-run.sh)"); process.exit(2); }
+  const run = JSON.parse(readFileSync(runFile, "utf8"));
+  const spec = JSON.parse(readFileSync(resolve(run.spec), "utf8"));
+  const refFile = resolve("hacks", `sha1-${spec.sha1}`, "reference.json");
+  const reference = existsSync(refFile) ? JSON.parse(readFileSync(refFile, "utf8")) : { source: "none", symbols: [] };
+  const inScope = spec.lines.filter((l) => run.lines.includes(l.id));
+
+  const { rows, totals } = gradeStreams(dir, reference, spec);
   const dist = distribution(inScope, rows);
   writeFileSync(join(dir, "grades.json"), JSON.stringify({ run: run.id, spec: `${spec.game} v${spec.spec_version}`, reference: reference.source, totals, stages: dist.stages, rows }, null, 2) + "\n");
 
@@ -132,6 +156,20 @@ function main(argv) {
     "",
   ];
   writeFileSync(join(dir, "distribution.md"), md.join("\n"));
+  if (run.rerun_of) {
+    const prior = resolve("eval/runs", run.rerun_of);
+    if (existsSync(prior)) {
+      const cmp = compareRuns(inScope, gradeStreams(prior, reference, spec).rows, rows);
+      writeFileSync(join(dir, "comparison.md"), [
+        `## Against ${run.rerun_of}`, "",
+        `Both runs graded under ${spec.game} v${spec.spec_version}.`, "",
+        "| line | before | now | change |", "|---|---|---|---|",
+        ...cmp.map((c) => `| ${c.id} | ${c.was} | ${c.now} | ${c.change} |`), "",
+      ].join("\n"));
+      const worse = cmp.filter((c) => c.change === "worse").map((c) => c.id);
+      if (worse.length) console.log(`[eval-grade] WORSE than ${run.rerun_of}: ${worse.join(", ")} (a stop condition unless the replay explains it)`);
+    } else console.log(`[eval-grade] rerun_of ${run.rerun_of} not found under eval/runs`);
+  }
   console.log(`[eval-grade] ${rows.length} claim(s) · in scope ${s.in_scope} · proof ${s.reached_proof} · recorded ${s.recorded} · promoted ${s.promoted} · right ${s.right} · wrong ${s.wrong} · unproven ${s.unproven}${judged && !force ? " · grades.md kept (has claude verdicts)" : ""}`);
 }
 
