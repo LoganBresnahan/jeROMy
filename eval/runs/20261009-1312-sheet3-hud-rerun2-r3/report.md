@@ -1,5 +1,7 @@
 # Report: sheet3-hud-rerun2, three repeats (r1-r3)
 
+> **Contaminated (found after the series, ledger F10):** the mapping copy these repeats started from held back the lines' own entries but not other entries naming the same addresses; the answers were in the prompt. The verdicts stand as recorded; they are not evidence the method found the answers. The series is re-run with the broader hold-back.
+
 A re-run of `20261009-1144-sheet3-hud-rerun` task 1 (coins, timer, score)
 after the `find-variable` extent step (ledger F3), three repeats (eval/README.md,
 "Re-running a sheet"), each starting from the mapping without these three

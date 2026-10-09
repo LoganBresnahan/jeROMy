@@ -16,4 +16,12 @@ describe("eval-mapping-in", () => {
     expect(out.notes).toEqual(["x"]);
     expect(Object.keys(mapping.addresses)).toHaveLength(2);
   });
+
+  it("also holds back entries and notes that name a held-back address", () => {
+    const mapping = { addresses: { "0x0086": { description: "x" }, "0x03AD": { description: "screen x = $0086 - scroll" }, "0x0860": { description: "unrelated" } }, notes: ["page 0x006D + low 0x0086", "other"] };
+    const spec = { lines: [{ id: "x", entry: "addresses.0x0086" }] };
+    const { mapping: out } = stripLines(mapping, spec, ["x"]);
+    expect(Object.keys(out.addresses)).toEqual(["0x0860"]);
+    expect(out.notes).toEqual(["other"]);
+  });
 });

@@ -1,5 +1,7 @@
 # Report: sheet2-tiles-rerun, three repeats (r1-r3)
 
+> **Contaminated (found after the series, ledger F10):** the mapping copy these repeats started from held back the lines' own entries but not other entries naming the same addresses; the answers were in the prompt. The verdicts stand as recorded; they are not evidence the method found the answers. The series is re-run with the broader hold-back.
+
 A re-run of `20261009-1428-sheet2-text-tiles` task 2 (the ? block's
 metatile entry, small Mario's standing frame) after `reset_emulator`'s
 timeout was widened for paused resets (ledger F12). Same task text; each

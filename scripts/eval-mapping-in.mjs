@@ -22,6 +22,18 @@ export function stripLines(mapping, spec, ids) {
     const [record, key] = [line.entry.slice(0, line.entry.indexOf(".")), line.entry.slice(line.entry.indexOf(".") + 1)];
     if (out[record] && key in out[record]) { delete out[record][key]; removed.push(line.entry); }
   }
+  // Other entries and notes that name a held-back address give the answer away too ("$03AD = $0086 - $071C",
+  // "page 0x006D + low 0x0086"): hold them back as well (ledger F10, found before sheet3-x-rerun).
+  const addrs = removed.map((e) => e.slice(e.indexOf(".") + 1)).filter((k) => /^0x[0-9a-f]+$/i.test(k)).map((k) => parseInt(k, 16));
+  if (addrs.length) {
+    const re = new RegExp(`(0x|\\$)0*(${addrs.map((n) => n.toString(16)).join("|")})(?![0-9a-f])`, "i");
+    for (const record of ["tiles", "palettes", "sprites", "addresses", "scenes", "levels", "routines"]) {
+      for (const [k, v] of Object.entries(out[record] ?? {})) if (re.test(JSON.stringify(v))) { delete out[record][k]; removed.push(`${record}.${k} (names it)`); }
+    }
+    const kept = (out.notes ?? []).filter((n) => !re.test(n));
+    if (kept.length < (out.notes ?? []).length) removed.push(`${(out.notes ?? []).length - kept.length} note(s) (name it)`);
+    out.notes = kept;
+  }
   return { mapping: out, removed };
 }
 
