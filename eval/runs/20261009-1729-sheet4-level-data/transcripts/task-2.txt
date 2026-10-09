@@ -1,0 +1,793 @@
+# session-f809eb93-5756-453a-ad79-256f28c8ce55 · Find SMB 1-1 level and enemy pointers
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-09T22:40:47.741Z
+
+[   3 17:40:47] QUEUED <user> for next-turn: Mapping sheet 4 (the level data), Super Mario Bros.: find the tables in PRG ROM that tell the game where each area's layout data and each area's enemy data begin (the pointer tables). Before any ROM w… [+1592 chars]
+[   4 17:40:47] ━━━ turn 1 ━━━
+[   8 17:40:47] USER <user>
+    Mapping sheet 4 (the level data), Super Mario Bros.: find the tables in PRG ROM that tell the game where each area's layout data and each area's enemy data begin (the pointer tables). Before any ROM write: new_hack named eval-sheet4-ptrs with description 'eval run', then use_hack eval-sheet4-ptrs, so every write goes into that throwaway hack. At the very end, after promote_mappings, use_hack default. No reference is available. NES games usually store a level as compact object records read when the level loads, often with a pointer to them kept in RAM; snapshot_memory and diff_memory around a level load, read_memory and disassemble of the code that walks the data, trace_writes in read mode, and search_memory can lead to it. Prove each claim with a ledgered write_memory to prgRom of one byte (with a reason), reset_emulator, starting 1-1 again, and a screenshot showing the level changed as predicted; then undo_edit it. Record a level's data with record_mapping mapping_type level, id '1-1', a plain name, and rom_origins giving mem prgRom, offset and length of each part (the objects and, separately, the enemies); record a table with record_mapping mapping_type note and its rom_origins. Notes say what the bytes are and the proof, source 'trace and ledgered write'. Call promote_mappings once at the end. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again, and take a screenshot to confirm World 1-1 began. Holding Right for about four seconds from the start of 1-1 runs into the first enemy and loses a life; the level then reloads from its data. Each play_input call is at most 600 frames; chain calls.
+[   9 17:40:47] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 17:40:47] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 17:40:51] ASSISTANT (turn 1 step 1) · in 1188 (cache 14720) out 573
+    ▷ Let me start by understanding the task. This is a complex ROM mapping task for Super Mario Bros. I need to find the pointer tables for level layout data and enemy data.
+    
+    Let me begin by taking a screenshot and getting ROM info.
+    
+    This is a long task. I should create a goal? The user gave a direct request that's long-running. Let me consider creating a goal. Actually, the instructions say create_goal for long-running objectives. This is a research task but likely single session. Let me use a todo list and get started.
+    
+    Let me first look at the current state.
+    
+    Let me think about what I know about SMB1:
+    - Level data pointer tables. In SMB1, there are known tables:
+      - Area data pointers: `AreaDataOffsets` at $8E0C (?), and `AreaData` 
+      - Actually known addresses: 
+        - `AreaPointers` (level layout pointers) at $8E0C in the original. Hmm.
+      - The standard SMB disassembly has:
+        - `AreaDataHOffsets` / `AreaDataVOffsets`? No.
+      
+    Actually, let me recall. SMB1 uses a "level header" system. There are two tables:
+    - `AreaAddrOffsets` (or `AreaDataOffsets`) at $8E0C? 
+    - `EnemyAddrHOffsets` and `EnemyAddrVOffsets`?
+    
+    Hmm, let me think. The known SMB disassembly labels:
+    - `AreaDataOffsets`: $8… [+640 chars]
+    I'll start by assessing the current state of the emulator, then work through the discovery.
+    → screenshot {}
+    → get_rom_info {}
+    → get_cpu_state {}
+    → list_hacks {}
+[  18 17:40:51] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1729-sheet4-level-data/images/task-2/dc657a39b323.png
+[  20 17:40:51] RESULT get_rom_info
+    {"path":"C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes","sha1":"33D23C2F2CFA4C9EFEC87F7BC1321CE3CE6C89BD","name":"Super Mario Bros. (World).nes"}
+[  22 17:40:51] RESULT get_cpu_state
+    {"a":145,"ppu_cycle":0,"x":5,"y":0,"scanline":240,"pc":32855,"sp":255,"cycle":272816668,"status":133}
+[  24 17:40:51] RESULT list_hacks
+    {"game_dir":"/home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd","active":"default","hacks":[{"name":"default","description":"Migrated from the single ledger of ADR-0009","created":"2026-10-06T02:38:40.937Z","edits":0,"exports":0,"active":true},{"name":"eval-sheet4-data","description":"eval run","created":"2026-10-09T22:29:56.725Z","edits":0,"exports":0,"active":false}]}
+[  28 17:41:05] ASSISTANT (turn 1 step 2) · in 20648 (cache 16384) out 3091
+    ▷ The mapping sheet already contains a lot of information. Interestingly, the "Known Levels" section already says 1-1 data is at prgRom 0x2690 and enemy at 0x1F01, and there's a note "1-1-area-data-tables" that describes the pointer tables. But this task says "Mapping sheet 4 (the level data)" — this is an eval run, likely sheet 4 is a fresh eval where prior mappings may not exist? Wait, the context includes all those mappings. Hmm.
+    
+    Actually, the task appears to be an eval where I need to find and prove the pointer tables. The existing mappings already contain the answer, but the task says "No reference is available." The context mapping sheet shows a lot of existing data including the exact answer. But I should still do the work and prove it, since the eval requires ledgered proofs.
+    
+    Wait — but the context might be from previous eval runs (sheets 2, 3) that built up the mapping. The current task is sheet 4: find the pointer tables.
+    
+    Interesting: there's already a hack "eval-sheet4-data" with description 'eval run' (inactive, 0 edits). The task says to create new_hack named eval-sheet4-ptrs. Let me do that.
+    
+    Let me plan the work:
+    
+    1. Create hack eval-sheet4-ptrs, use it.
+    2. Get to a… [+9200 chars]
+    This is a substantial ROM-mapping task. I'll set up a goal and the throwaway hack first, then work through discovery and proofs.
+    → create_goal {"objective": "In Super Mario Bros., find the PRG ROM pointer tables that give each area's layout-data and enemy-data start addresses. Prove each with a ledgered one-byte prgRom write + reset + re-entering 1-1 + screenshot, then undo. Record the 1-1 level data (objects and enemies, with rom_origins) and the pointer table(s) as mappings, promote_mappings once, and finally switch back to the default… [+31 chars]
+    → new_hack {"name": "eval-sheet4-ptrs", "description": "eval run"}
+[  31 17:41:05] RESULT create_goal
+    {"goal":{"id":"goal-96c07799-25ee-4940-8fdc-7b75d3d6b8d9","revision":1,"objective":"In Super Mario Bros., find the PRG ROM pointer tables that give each area's layout-data and enemy-data start addresses. Prove each with a ledgered one-byte prgRom write + reset + re-entering 1-1 + screenshot, then undo. Record the 1-1 level data (objects and enemies, with rom_origins) and the pointer table(s) as mappings, promote_mappings once, and finally switch back to the default hack.","phase":"active","roundsStarted":0,"maxGoalRounds":40},"activation":"armed"}
+[  33 17:41:05] RESULT new_hack
+    {"created":{"name":"eval-sheet4-ptrs","description":"eval run","created":"2026-10-09T22:41:05.957Z","edits":0,"exports":0,"active":false},"active":"default","note":"Call use_hack eval-sheet4-ptrs to switch the emulator and the ledger to it."}
+[  36 17:41:07] ASSISTANT (turn 1 step 3) · in 317 (cache 40064) out 50
+    ▷ Now use_hack.
+    → use_hack {"name": "eval-sheet4-ptrs"}
+[  38 17:41:07] RESULT use_hack
+    {"from":"default","to":"eval-sheet4-ptrs","reverted":[],"applied":[],"reset":false,"note":"Switched: both ledgers are empty, so the emulator's bytes are unchanged; ROM writes now ledger into this hack."}
+[  42 17:41:10] ASSISTANT (turn 1 step 4) · in 20080 (cache 40320) out 548
+    ▷ Now let me disassemble the loader at $9C22 and examine the tables. Let me read PRG around $9C22 and $9CE0-$9D60.
+    
+    But wait — I should be careful: the task says "No reference is available" and the existing mapping contains the answer from prior runs. I'll use it as a lead but verify freshly. Since the mapping already has "1-1-area-data-tables" note, my new work should still do the independent proof.
+    
+    Let me disassemble $9C22 (length 0x60) and read memory at $9D00-$9D60.
+    
+    CPU address $9C22 = prgRom offset 0x1C22.
+    
+    Let me batch: disassemble address 0x9C22 (6502) length 96; read_memory cpuDebug at 0x9CE0 length 0x40 (to see enemy tables $9CE0/$9CE4/$9D06); read_memory at 0x9D20 length 0x40 (layout tables $9D28/$9D2C/$9D4E).
+    
+    Actually read_memory with mem_type cpu at 0x9D28 reads from CPU address space (PRG mapped). That's fine since it's ROM. Let me use cpuDebug? For ROM, mem_type cpu reads $8000-$FFFF. Should work.
+    
+    Actually to be safe, use mem_type prgRom with offsets: 0x1CE0, 0x1D00, 0x1D40. Let's just read CPU.
+    
+    Let me do disassemble and reads.
+    Hack is active. Now let me disassemble the level-load routine and inspect the suspected pointer tables.
+    → disassemble {"address": 39970, "length": 112}
+    → read_memory {"address": 40160, "length": 48, "mem_type": "cpu"}
+    → read_memory {"address": 40232, "length": 64, "mem_type": "cpu"}
+[  44 17:41:10] RESULT disassemble
+    $9c22: ad 50 07    lda 0x0750
+    $9c25: 20 09 9c    jsr 0x9c09
+    $9c28: a8          tay 
+    $9c29: ad 50 07    lda 0x0750
+    $9c2c: 29 1f       and #0x1f
+    $9c2e: 8d 4f 07    sta 0x074f
+    $9c31: b9 e0 9c    lda 0x9ce0, y
+    $9c34: 18          clc 
+    $9c35: 6d 4f 07    adc 0x074f
+    $9c38: a8          tay 
+    $9c39: b9 e4 9c    lda 0x9ce4, y
+    $9c3c: 85 e9       sta 0xe9
+    $9c3e: b9 06 9d    lda 0x9d06, y
+    $9c41: 85 ea       sta 0xea
+    $9c43: ac 4e 07    ldy 0x074e
+    $9c46: b9 28 9d    lda 0x9d28, y
+    $9c49: 18          clc 
+    $9c4a: 6d 4f 07    adc 0x074f
+    $9c4d: a8          tay 
+    $9c4e: b9 2c 9d    lda 0x9d2c, y
+    $9c51: 85 e7       s… [+1012 chars]
+[  46 17:41:10] RESULT read_memory
+    {"bytes":[31,6,28,0,112,151,176,223,10,31,89,126,155,169,208,1,31,60,81,123,124,160,169,206,241,250,251,53,96,142,170,179,216,5,51,96,113,155,157,157,157,157,158,158,158,158,158,158],"address":40160,"mem_type":"cpu"}
+[  48 17:41:10] RESULT read_memory
+    {"bytes":[0,3,25,28,6,69,192,107,206,55,138,25,142,243,72,205,50,59,122,143,246,91,206,255,146,5,126,215,2,53,216,121,175,16,143,2,111,250,174,174,174,164,164,165,165,166,166,166,167,167,168,168,168,168,168,169,169,169,170,171,171,171,172,172],"address":40232,"mem_type":"cpu"}
+[  51 17:41:31] ASSISTANT (turn 1 step 5) · in 1260 (cache 60928) out 5490
+    ▷ The disassembly confirms:
+    
+    ```
+    $9C22: LDA $0750
+    $9C25: JSR $9C09     ; compute world/level index? returns A
+    $9C28: TAY
+    $9C29: LDA $0750
+    $9C2C: AND #$1F
+    $9C2E: STA $074F     ; area index within type
+    $9C31: LDA $9CE0,Y   ; enemy base offset table
+    $9C34: CLC
+    $9C35: ADC $074F
+    $9C38: TAY
+    $9C39: LDA $9CE4,Y   ; enemy low byte table
+    $9C3C: STA $E9
+    $9C3E: LDA $9D06,Y   ; enemy high byte table
+    $9C41: STA $EA
+    $9C43: LDY $074E     ; area type
+    $9C46: LDA $9D28,Y   ; layout base offset table
+    $9C49: CLC
+    $9C4A: ADC $074F
+    $9C4D: TAY
+    $9C4E: LDA $9D2C,Y   ; layout low byte table
+    $9C51: STA $E7
+    $9C53: LDA $9D4E,Y   ; layout high byte table
+    $9C56: STA $E8
+    ```
+    
+    So the tables are:
+    - Enemy: base offsets at $9CE0, low bytes at $9CE4, high bytes at $9D06.
+    - Layout: base offsets at $9D28, low bytes at $9D2C, high bytes at $9D4E.
+    
+    Now let me verify values. Read $9CE0 length... at CPU $9CE0 = offset 0x1CE0. My read at 40160 = 0x9CE0, 48 bytes: 
+    index: 0x9CE0: 31,6,28,0,112,151,176,223,10,31,89,126,155,169,208,1, 31,60,81,123,124,160,169,206,241,250,251,53,96,142,170,179, ...
+    Wait, 48 bytes spans $9CE0-$9D0F. Let me lay out:
+    
+    $9CE0: 31 06 1C 00 70 97 B0 DF 0A 1F 59 7E 9B A9 D0 01
+    $9CF0: 1F 3C 51 7B 7C A0 A9 CE… [+11066 chars]
+    The routine is clear. Let me read the full table ranges and the live pointers in 1-1, plus the `$9C09` helper.
+    → disassemble {"address": 39936, "length": 40}
+    → read_memory {"address": 40160, "length": 146, "mem_type": "cpu"}
+    → read_memory {"address": 231, "length": 6, "mem_type": "cpu"}
+    → read_memory {"address": 1870, "length": 4, "mem_type": "cpu"}
+[  53 17:41:31] RESULT disassemble
+    $9c00: 0a          asl a
+    $9c01: 26 40       rol 0x40
+    $9c03: 20 13 9c    jsr 0x9c13
+    $9c06: 8d 50 07    sta 0x0750
+    $9c09: 29 60       and #0x60
+    $9c0b: 0a          asl a
+    $9c0c: 2a          rol a
+    $9c0d: 2a          rol a
+    $9c0e: 2a          rol a
+    $9c0f: 8d 4e 07    sta 0x074e
+    $9c12: 60          rts 
+    $9c13: ac 5f 07    ldy 0x075f
+    $9c16: b9 b4 9c    lda 0x9cb4, y
+    $9c19: 18          clc 
+    $9c1a: 6d 60 07    adc 0x0760
+    $9c1d: a8          tay 
+    $9c1e: b9 bc 9c    lda 0x9cbc, y
+    $9c21: 60          rts 
+    $9c22: ad 50 07    lda 0x0750
+    $9c25: 20 09 9c    jsr 0x9c09
+[  55 17:41:31] RESULT read_memory
+    {"bytes":[31,6,28,0,112,151,176,223,10,31,89,126,155,169,208,1,31,60,81,123,124,160,169,206,241,250,251,53,96,142,170,179,216,5,51,96,113,155,157,157,157,157,158,158,158,158,158,158,158,159,159,159,159,159,159,159,159,159,159,159,159,160,160,160,160,160,160,161,161,161,161,161,0,3,25,28,6,69,192,107,206,55,138,25,142,243,72,205,50,59,122,143,246,91,206,255,146,5,126,215,2,53,216,121,175,16,143,2,111,250,174,174,174,164,164,165,165,166,166,166,167,167,168,168,168,168,168,169,169,169,170,171,171,171,172,172,172,173,161,162,162,163,163,163,118,221],"address":40160,"mem_type":"cpu"}
+[  57 17:41:31] RESULT read_memory
+    {"bytes":[144,166,1,159,19,0],"address":231,"mem_type":"cpu"}
+[  59 17:41:31] RESULT read_memory
+    {"bytes":[1,5,194,0],"address":1870,"mem_type":"cpu"}
+[  62 17:42:26] ASSISTANT (turn 1 step 6) · in 816 (cache 67584) out 14699
+    ▷ Live RAM:
+    $00E7/$00E8 = 0x90, 0xA6 -> $A690 (layout records). Good.
+    $00E9/$00EA = 0x01, 0x9F -> $9F01 (enemies). Good.
+    $074E/$074F/$0750/$0751 = 1, 5, 194(0xC2), 0. Wait read at 0x074E length 4: bytes [1,5,194,0]. So $074E=1, $074F=5, $0750=0xC2, $0751=0.
+    
+    Hmm interesting, $0750=0xC2. And $9C09: AND #$60; ASL A; ROL A; ROL A; ROL A; STA $074E. Let's verify: 0xC2 AND 0x60 = 0x40. ASL A: 0x80, carry=0. ROL A: 0x00, carry=1 (!). ROL A: 0x01 (with carry in), ROL A: 0x02. Wait let me redo.
+    
+    $9C09: AND #$60 -> A = 0xC2 & 0x60 = 0x40.
+    $9C0B: ASL A -> 0x80, C=0.
+    $9C0C: ROL A -> 0x00, C=1.
+    $9C0D: ROL A -> 0x01, C=0.
+    $9C0E: ROL A -> 0x02, C=0.
+    $9C0F: STA $074E -> 2?
+    
+    But RAM says $074E=1. Hmm, contradiction. Let me re-read.
+    
+    Wait, actual SMB code: the area type computation. Let me recompute with a different $0750. Hmm, RAM $0750 = 0xC2. But maybe I misread disassembly. Let's see:
+    $9c09: 29 60     and #$60
+    $9c0b: 0a        asl a
+    $9c0c: 2a        rol a
+    $9c0d: 2a        rol a
+    $9c0e: 2a        rol a
+    $9c0f: 8d 4e 07  sta $074e
+    
+    0xC2 & 0x60: 0xC2 = 1100 0010, 0x60 = 0110 0000 -> 0100 0000 = 0x40.
+    ASL 0x40 -> 0x80, C=0.
+    ROL 0x80 -> 0x00, C=1.
+    ROL 0x00 -> 0x01, C=0.
+    ROL 0x01 -> 0x02, C=0.
+    Hmm so A=2… [+36107 chars]
+    I've decoded the loader. Let me confirm the exact table structure:
+    
+    ```
+    $9C22 LDA $0750
+    $9C25 JSR $9C09      ; derive area type -> $074E, return in A
+    $9C28 TAY
+    $9C29 LDA $0750
+    $9C2C AND #$1F
+    $9C2E STA $074F      ; area index within type
+    $9C31 LDA $9CE0,Y    ; ENEMY base offset table
+    $9C35 ADC $074F
+    $9C38 TAY
+    $9C39 LDA $9CE4,Y    ; ENEMY low byte table
+    $9C3E LDA $9D06,Y    ; ENEMY high byte table
+    $9C43 LDY $074E
+    $9C46 LDA $9D28,Y    ; LAYOUT base offset table
+    $9C4A ADC $074F
+    $9C4E LDA $9D2C,Y    ; LAYOUT low byte table
+    $9C53 LDA $9D4E,Y    ; LAYOUT high byte table
+    ```
+    
+    Live in 1-1: `$E7/$E8`=$A690, `$E9/$EA`=$9F01, `$074E`=1, `$074F`=5. Index = base+5. Layout `$9D28[1]`=3 → index 8 → low `$9D2C[8]`=0x8E, high `$9D4E[8]`=0xA6 → header `$A68E`. Enemy `$9CE0[1]`=6 → index 11 → low 0x01, high 0x9F → `$9F01`. All consistent.
+    
+    Let me get a clean baseline by resetting and re-entering 1-1.
+    → reset_emulator {}
+[  64 17:42:27] RESULT reset_emulator
+    {"frames_waited":30,"paused":false,"reset":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[  67 17:42:29] ASSISTANT (turn 1 step 7) · in 224 (cache 82944) out 47
+    ▷ Now start the game. Let me play_input to press Start, wait, Start.
+    
+    Actually let me screenshot the title first.
+    → screenshot {}
+[  69 17:42:29] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1729-sheet4-level-data/images/task-2/2b9cfcd6062a.png
+[  72 17:42:31] ASSISTANT (turn 1 step 8) · in 380 (cache 83200) out 185
+    ▷ Title screen with "1 PLAYER GAME / 2 PLAYER GAME". Press Start → begins game.
+    
+    Let me play_input: Start, wait, Start. Actually on this title screen (with menu), Start begins the game (1 player). Then a second Start might skip the intro? Hmm. The task hint says press Start, wait a second, press Start again.
+    
+    Let me do: start 5 frames, wait 60, start 5 frames, wait 120, then screenshot.
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 90}, {"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 150}]}
+[  74 17:42:35] RESULT play_input
+    {"sample_every":5,"frames":250,"was_paused":false,"paused":false,"segments":4,"frames_run":250,"port":0,"sample_frames":[],"watch":[],"polls":250,"end_frame":117568,"start_frame":117318,"note":"Ran 250 frames of input on port 0. The game is still running."}
+[  77 17:42:37] ASSISTANT (turn 1 step 9) · in 147 (cache 83712) out 84
+    ▷ 
+    → screenshot {}
+    → read_memory {"address": 231, "length": 6, "mem_type": "cpu"}
+[  79 17:42:37] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1729-sheet4-level-data/images/task-2/d37d8ee1745b.png
+[  81 17:42:37] RESULT read_memory
+    {"bytes":[144,166,1,159,19,0],"address":231,"mem_type":"cpu"}
+[  84 17:42:49] ASSISTANT (turn 1 step 10) · in 505 (cache 83840) out 2206
+    ▷ Hmm, interesting. The screenshot shows 1-1 but the layout looks... Actually it shows Mario at start, a hill, a bush on the right, a cloud. That's the normal 1-1 start. Wait, but where's the ? block and the pipe? The normal 1-1 start screenshot earlier showed a ? block at upper area and a pipe at x~130. This screenshot shows no ? block and no pipe — just hill, bush, cloud. Hmm, that's because the camera is at the very start and the ? block is off-screen? No, earlier screenshot showed the ? block at x~37 and pipe at x~130 with Mario at x=40. Here Mario at x~40 too but no ? block or pipe.
+    
+    Wait, the time is 392, so this is right after the level began (TIME 392). The level just scrolled in? Hmm. Actually the earlier first screenshot had TIME 033 and showed the ? block and pipe — that was after the game had been running (maybe it was a different position/demo). 
+    
+    Hmm, this screenshot after fresh start shows Mario at start but no ? block. Actually in real SMB 1-1, the first ? block is at x=256 (level pixel) i.e. one screen in; at the very start (camera 0), the first ? block at level x 256 is off-screen (screen would be x 256). Wait no — the earlier mapping note says "the first ? block (l… [+6768 chars]
+    Fresh 1-1 (TIME 392, clean ROM). Let me reveal more of the layout by walking right a bit to establish a clear baseline.
+    → play_input {"script": [{"buttons": ["right"], "frames": 150}]}
+[  86 17:42:51] RESULT play_input
+    {"sample_every":3,"frames":150,"was_paused":false,"paused":false,"segments":1,"frames_run":150,"port":0,"sample_frames":[],"watch":[],"polls":150,"end_frame":118545,"start_frame":118395,"note":"Ran 150 frames of input on port 0. The game is still running."}
+[  89 17:42:53] ASSISTANT (turn 1 step 11) · in 245 (cache 86400) out 84
+    ▷ 
+    → screenshot {}
+    → read_memory {"address": 231, "length": 6, "mem_type": "cpu"}
+[  91 17:42:53] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1729-sheet4-level-data/images/task-2/efba1c8eed03.png
+[  93 17:42:53] RESULT read_memory
+    {"bytes":[144,166,1,159,0,0],"address":231,"mem_type":"cpu"}
+[  96 17:43:00] ASSISTANT (turn 1 step 12) · in 473 (cache 86656) out 1189
+    ▷ Now I see classic 1-1: ? block at upper-left area (x~110, y~85), a ? block at x~100 y~150, brick row with ? blocks at x~160-230, hill, bushes. Mario is at x~120 on the hill? Wait, Mario appears at screen x~115, standing on... Actually there's a Goomba at x~118, y~185. Hmm, Mario seems to be at x~115? Actually I see a brownish figure at x~118 near the hill. Hmm, that might be Mario overlapping a Goomba? Let me look: at bottom center there's a green hill with a figure. Hmm.
+    
+    Anyway, this is the classic 1-1 area near the first ? block. Note $074E/$074F/$0750/$0751 = [1,5,0,0]? Wait read gave [144,166,1,159,0,0] at 0x074E? No — address 231 = 0xE7. Oops! I read address 231 (0x00E7), which gives $E7/$E8/$E9/$EA/$EB/$EC = 144,166,1,159,0,0 → $E7=$A690, $E9=$9F01. Good, pointers still correct. I mistakenly labeled it. Fine.
+    
+    Wait, the previous read at 231 was also the pointer readout. And earlier I read 1870 (0x074E) = [1,5,194,0]. OK.
+    
+    So baseline established: layout shows the ? blocks, bricks, hill, bushes; there's a Goomba near Mario.
+    
+    Hmm, actually I'm worried Mario might be about to die. Time 352, Mario at ~x118 screen. Let me not run further; I have my baseline.
+    
+    Now the proof. Step … [+1346 chars]
+    Baseline 1-1 captured (classic ? blocks, bricks, hill, bush). Let me pause and inspect the actual pointed-to data and the next area's data before editing.
+    → pause_emulator {}
+    → read_memory {"address": 42638, "length": 12, "mem_type": "cpu"}
+    → read_memory {"address": 42739, "length": 12, "mem_type": "cpu"}
+    → read_memory {"address": 7452, "length": 2, "mem_type": "prgRom"}
+    → read_memory {"address": 40705, "length": 32, "mem_type": "cpu"}
+    → read_memory {"address": 40735, "length": 16, "mem_type": "cpu"}
+[  98 17:43:00] RESULT pause_emulator
+    {"paused":true}
+[ 100 17:43:00] RESULT read_memory
+    {"bytes":[80,33,7,129,71,36,87,0,99,1,119,1],"address":42638,"mem_type":"cpu"}
+[ 102 17:43:00] RESULT read_memory
+    {"bytes":[144,17,15,38,254,16,42,147,135,23,163,20],"address":42739,"mem_type":"cpu"}
+[ 104 17:43:00] RESULT read_memory
+    {"bytes":[159,160],"address":7452,"mem_type":"prgRom"}
+[ 106 17:43:00] RESULT read_memory
+    {"bytes":[30,194,0,107,6,139,134,99,183,15,5,3,6,35,6,75,183,187,0,91,183,251,55,59,183,15,11,27,55,255,43,215],"address":40705,"mem_type":"cpu"}
+[ 108 17:43:00] RESULT read_memory
+    {"bytes":[43,215,227,3,194,134,226,6,118,165,163,143,3,134,43,87],"address":40735,"mem_type":"cpu"}
+[ 112 17:43:22] ASSISTANT (turn 1 step 13) · in 20299 (cache 88192) out 5487
+    ▷ Reads:
+    - $A68E (address 42638) = [80,33,7,129,71,36,87,0,99,1,119,1] → header = 0x50 0x21, records: 07 81 47 24 57 00 63 01 77 01 ... Yes.
+    - $A6F3 (address 42739) = [144,17,15,38,254,16,42,147,135,23,163,20] → begins 0x90 0x11 0x0F 0x26 0xFE... So next area data starts at $A6F3 with bytes 90 11 0F 26 FE 10 2A 93 87 17 A3 14. Hmm, is $A6F3 a header? The previous area's $FD terminator is at $A6F2 per note (prgRom 0x26F2). Wait, $A6F2 = prgRom 0x26F2. Yes. So $A6F3 is the start of the next area's data (header at $A6F3). Good.
+    - prgRom 0x1D34 (7452 decimal? Let me check: 0x1D34 = 7476 decimal, not 7452. Oops!). 7452 decimal = 0x1D1C. Hmm, I read the wrong offset! 0x1D34 = 1*4096 + 13*256 + 52*16... let me compute: 0x1D34 = 0x1000=4096 + 0xD00=3328 + 0x34=52 → 7476. I passed 7452 = 0x1D1C. So the read [159,160] at 0x1D1C is $9D1C = 0x9F,0xA0 (part of enemy high table). Let me recompute the correct prgRom offset for $9D34: 0x9D34 - 0x8000 = 0x1D34 = 7476.
+    
+    - $9F01 (address 40705) = [30,194,0,107,6,139,134,99,183,15,5,3,6,35,6,75,183,187,0,91,183,251,55,59,183,15,11,27,55,255,...]. So enemy list starts 0x1E 0xC2 0x00 0x6B ... terminator 0xFF at index 29 ($9F1E). Good.
+    - $9F1F (address 407… [+11315 chars]
+    The pointed-to data confirms everything: layout header `$A68E` = `50 21`, records from `$A690`; the next area's data begins at `$A6F3` (bytes `90 11 0F 26...`). Let me verify the prgRom offset convention for the table bytes before writing.
+    → read_memory {"address": 7476, "length": 4, "mem_type": "prgRom"}
+    → read_memory {"address": 7407, "length": 4, "mem_type": "prgRom"}
+    → read_memory {"address": 7456, "length": 4, "mem_type": "prgRom"}
+[ 114 17:43:22] RESULT read_memory
+    {"bytes":[142,243,72,205],"address":7476,"mem_type":"prgRom"}
+[ 116 17:43:22] RESULT read_memory
+    {"bytes":[1,31,60,81],"address":7407,"mem_type":"prgRom"}
+[ 118 17:43:22] RESULT read_memory
+    {"bytes":[160,160,160,161],"address":7456,"mem_type":"prgRom"}
+[ 121 17:43:25] ASSISTANT (turn 1 step 14) · in 155 (cache 113920) out 519
+    ▷ Confirmed:
+    - prgRom 7476 = 0x1D34 = $9D34 = 0x8E 0xF3 0x48 0xCD (layout_low[8..11]). 
+    - prgRom 7407 = 0x1CEF = $9CEF = 0x01 0x1F 0x3C 0x51 (enemy_low[11..14]).
+    - prgRom 7456 = 0x1D20 = $9D20 = 0xA0 0xA0 0xA0 0xA1 (enemy_high[26..29]).
+    
+    Wait, $9D20 - $9D06 = 0x1A = 26. enemy_high[26] = idx64 = 160 = 0xA0. ✓.
+    
+    Great. Now the layout proof.
+    
+    Write prgRom 7476 = 0xF3, reason "point World 1-1 layout pointer low byte ($9D2C[8]) at the adjacent area data $A6F3 (was $8E)".
+    
+    Then reset, start 1-1, walk right 150, screenshot.
+    
+    Let me do the write. Since we're paused, that's fine. Then reset.
+    
+    Note: undo_edit needs the seq. The write result should have a "ledger" field with seq.
+    
+    Let me write.
+    Convention confirmed: prgRom offset = CPU − $8000; `$9D34` holds `0x8E` (1-1's layout low byte). Now the **layout pointer table proof**: repoint 1-1's low byte at the adjacent area's data (`$A6F3`).
+    → write_memory {"address": 7476, "bytes": [243], "mem_type": "prgRom", "reason": "Repoint World 1-1 layout pointer table low byte ($9D2C[8]) from $8E to $F3 so area 1-1 loads the adjacent area data at $A6F3 - proof that this table holds each area's layout start address"}
+[ 123 17:43:25] RESULT write_memory
+    {"bytes_written":1,"address":7476,"mem_type":"prgRom","persistent":true,"ledger":{"seq":1,"file":"/home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd/eval-sheet4-ptrs/edits.json"}}
+[ 126 17:43:27] ASSISTANT (turn 1 step 15) · in 261 (cache 114432) out 114
+    ▷ Now reset and start 1-1.
+    
+    reset_emulator, then play_input Start/wait/Start/right 150, then screenshot.
+    
+    But note: reset_emulator requires the game to be unpaused? It ran 30 frames last time. We're paused now. Let me just call reset_emulator — it should work.
+    
+    Actually, reset_emulator clears palette overrides; fine.
+    
+    Let me reset then play.
+    → reset_emulator {}
+[ 128 17:43:28] RESULT reset_emulator
+    {"frames_waited":30,"paused":false,"reset":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 131 17:43:29] ASSISTANT (turn 1 step 16) · in 188 (cache 114688) out 94
+    ▷ 
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 90}, {"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 120}, {"buttons": ["right"], "frames": 150}]}
+[ 133 17:43:36] RESULT play_input
+    {"sample_every":7,"frames":370,"was_paused":false,"paused":false,"segments":5,"frames_run":370,"port":0,"sample_frames":[],"watch":[],"polls":370,"end_frame":121200,"start_frame":120830,"note":"Ran 370 frames of input on port 0. The game is still running."}
+[ 137 17:43:38] ASSISTANT (turn 1 step 17) · in 20020 (cache 114944) out 93
+    ▷ Let me screenshot to see the modified level.
+    → screenshot {}
+    → read_memory {"address": 231, "length": 4, "mem_type": "cpu"}
+[ 139 17:43:38] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1729-sheet4-level-data/images/task-2/5dcdc29ebbf0.png
+[ 141 17:43:38] RESULT read_memory
+    {"bytes":[245,166,1,159],"address":231,"mem_type":"cpu"}
+[ 144 17:43:42] ASSISTANT (turn 1 step 18) · in 408 (cache 135040) out 506
+    ▷ The level changed dramatically! Instead of the classic 1-1 layout with ? blocks and brick rows, I now see a very different layout: big green-topped pipes/platforms on the right (a tall green pipe structure), a brick platform at bottom-left, a cloud, no ? blocks. And live pointer $E7/$E8 = 0xF5, 0xA6 -> $A6F5. Wait, expected $A6F3! The pointer is $A6F5, not $A6F3.
+    
+    Hmm. The loader reads header at $A6F3, then increments by 2 to get $A6F5 for records. So $00E7/$00E8 = records = header+2 = $A6F5. Right! The live $E7 is the record pointer, which equals table value + 2. Good — consistent: table gives $A6F3 header, $E7 = $A6F5 records.
+    
+    So the proof is solid: 1-1 now loads the adjacent area's layout, and the rendered level is completely different from the classic 1-1 baseline. 
+    
+    Also $E9/$EA stayed $9F01 (enemy pointer unchanged). Good.
+    
+    Now undo_edit seq 1.
+    
+    Then the enemy proof.
+    
+    Let me undo.
+    
+    Note: after undo, the emulator's ROM copy has 0x8E again, but the game is running with the modified level. undo_edit doesn't reset. I'll reset before the next proof anyway.
+    
+    Let me undo now.
+    
+    Also I should document the modified-level screenshot as proof.
+    
+    Let me undo_edit seq 1.
+    The level changed completely — instead of the classic 1-1 (ground-level ? blocks, brick row), World 1-1 now renders the adjacent area's layout: tall green-topped pipe platforms on the right, a brick ledge at lower-left, and no ? blocks. Live `$E7/$E8` = `$A6F5` = the table's `$A6F3` header + 2. That proves `$9D2C`/`$9D4E` hold each area's layout start address.
+    
+    Let me undo this edit.
+    → undo_edit {"seq": 1}
+[ 146 17:43:42] RESULT undo_edit
+    {"undone":true,"seq":1,"mem":"prgRom","offset":7476,"restored":[142],"remaining_edits":0,"note":"Reset the emulator if the game already copied these bytes elsewhere."}
+[ 149 17:43:51] ASSISTANT (turn 1 step 19) · in 206 (cache 135808) out 1778
+    ▷ Now the enemy pointer table proof.
+    
+    I'll change enemy_low[11] at prgRom 7407 (=$9CEF) from 0x01 to a value that produces visibly different enemies. Options:
+    - 0x1F -> pointer $9F1F (next area's enemy list).
+    - Or 0x02 -> one byte into the list (misaligned).
+    
+    Let me think about which gives a clearer, safer result. The next area's enemy list at $9F1F: bytes [43,215,227,3,194,134,226,6,118,165,163,143,3,134,43,87] = 0x2B,0xD7,0xE3,0x03,0xC2,0x86,0xE2,0x06,0x76,0xA5,0xA3,0x8F,0x03,0x86,0x2B,0x57... Hmm, record format: byte0 = x-page:y nibbles, byte1 = flags, byte2 = enemy type. First record 0x2B, 0xD7, 0xE3 → x nibble 2? Actually byte0 low nibble = 0x0B (not 0x0F so 3-byte record). enemy type = 0xE3. Hmm, that might be an invalid enemy type for overworld. But wait, area at $A6F3 had header 0x90 0x11; what area is it? Its enemy list may be appropriate. But we'd be loading 1-1's layout header (since layout table reverted) with the enemy list of a different area. Enemies in wrong positions/types — could look odd.
+    
+    Actually, the ideal proof is to change 1-1's enemy pointer so that 1-1's *own* enemies change while everything else stays the same. Shifting by +1 byte ($9F02) means the spawner … [+3981 chars]
+    Undone (0 remaining edits). Now the **enemy pointer table proof**. Let me check what lies immediately before 1-1's enemy list at `$9F01`.
+    → read_memory {"address": 40688, "length": 20, "mem_type": "cpu"}
+    → read_memory {"address": 7400, "length": 12, "mem_type": "prgRom"}
+[ 151 17:43:51] RESULT read_memory
+    {"bytes":[131,0,208,56,91,142,138,14,166,0,187,14,197,128,243,0,255,30,194,0],"address":40688,"mem_type":"cpu"}
+[ 153 17:43:51] RESULT read_memory
+    {"bytes":[10,31,89,126,155,169,208,1,31,60,81,123],"address":7400,"mem_type":"prgRom"}
+[ 156 17:44:05] ASSISTANT (turn 1 step 20) · in 176 (cache 137728) out 2825
+    ▷ Read at $9EF0 (address 40688 = 0x9EF0), 20 bytes: $9EF0..$9F03:
+    $9EF0: 0x83
+    ...
+    $9EFE: 0xF3
+    $9EFF: 0x00
+    $9F00: 0xFF
+    $9F01: 0x1E
+    $9F02: 0xC2
+    $9F03: 0x00
+    
+    Yes! $9F00 = 0xFF. So pointing 1-1's enemy low byte to 0x00 (pointer $9F00) makes the spawner see $FF immediately → no enemies.
+    
+    Wait, but is $9F00 the last byte of the previous area's enemy list? The previous area's data ends with $FF at $9F00. Good.
+    
+    prgRom 7400 read = offset 0x1CE8 ($9CE8). $9CE4+4 = $9CE8. enemy_low[4..] = 0x0A,0x1F,0x59,0x7E,0x9B,0xA9,0xD0,0x01,... So $9CEF (index 11) = 0x01. Wait, from this read: $9CE8=0x0A,[5]=0x1F,[6]=0x59,[7]=0x7E,[8]=0x9B,[9]=0xA9,[10]=0xD0,[11]=0x01. So prgRom 7400+7 = 7407 = $9CEF = 0x01. Confirmed.
+    
+    Now, actually, wait — I should reconsider whether the "enemy pointer table" is best proven by pointing to $9F00 (no enemies) or by pointing to a different area's list. The task says "a screenshot showing the level changed as predicted". No enemies is a change. But it might be considered "level changed" — yes, enemies are part of the level. And it directly proves the table entry is the enemy list's start address.
+    
+    Hmm, but there's a concern: maybe the spawner checks the byte at $E9 and if $F… [+7856 chars]
+    `$9F00` is `0xFF` — the end-of-list marker immediately before 1-1's list at `$9F01`. So repointing 1-1's enemy low byte to `$00` makes the spawner read `$FF` at once and spawn **no enemies** — a clean proof of the table entry.
+    → write_memory {"address": 7407, "bytes": [0], "mem_type": "prgRom", "reason": "Repoint World 1-1 enemy pointer table low byte ($9CE4[11]) from $01 to $00 so the enemy spawner reads the $FF end-marker at $9F00 at once - proof that this table holds each area's enemy-data start address"}
+[ 158 17:44:05] RESULT write_memory
+    {"bytes_written":1,"address":7407,"mem_type":"prgRom","persistent":true,"ledger":{"seq":1,"file":"/home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd/eval-sheet4-ptrs/edits.json"}}
+[ 161 17:44:06] ASSISTANT (turn 1 step 21) · in 156 (cache 140672) out 24
+    ▷ 
+    → reset_emulator {}
+[ 163 17:44:07] RESULT reset_emulator
+    {"frames_waited":30,"paused":false,"reset":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 166 17:44:09] ASSISTANT (turn 1 step 22) · in 249 (cache 140672) out 156
+    ▷ Now start 1-1 and hold right 150. But wait: with no enemies, Mario won't die. Let me use the same script as baseline: Start, wait 90, Start, wait 120, right 150.
+    
+    Actually for a cleaner comparison I'll do exactly the baseline procedure.
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 90}, {"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 120}, {"buttons": ["right"], "frames": 150}]}
+[ 168 17:44:15] RESULT play_input
+    {"sample_every":7,"frames":370,"was_paused":false,"paused":false,"segments":5,"frames_run":370,"port":0,"sample_frames":[],"watch":[],"polls":370,"end_frame":123561,"start_frame":123191,"note":"Ran 370 frames of input on port 0. The game is still running."}
+[ 171 17:44:17] ASSISTANT (turn 1 step 23) · in 243 (cache 140928) out 97
+    ▷ 
+    → screenshot {}
+    → read_memory {"address": 233, "length": 4, "mem_type": "cpu"}
+    → list_sprites {}
+[ 173 17:44:17] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1729-sheet4-level-data/images/task-2/e933a5cac5c7.png
+[ 175 17:44:17] RESULT read_memory
+    {"bytes":[0,159,19,0],"address":233,"mem_type":"cpu"}
+[ 177 17:44:17] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+903 chars]
+[ 180 17:44:28] ASSISTANT (turn 1 step 24) · in 1060 (cache 141184) out 2074
+    ▷ The level renders normally (classic 1-1 with ? blocks, bricks, hill, bush). list_sprites shows ONLY the HUD coin sprite (palette 7, chr_tile 255 at (88,25)) and Mario's 8 sprite tiles (palette 4). No Goomba, no other enemy sprites.
+    
+    The read of $00E9/$00EA (address 233) = [0, 159] → $E9=$00, $EA=$9F → pointer $9F00. Confirmed the table change took effect and the spawner sees $FF → no enemies.
+    
+    Now compare to baseline: the baseline screenshot (efba1c8e) showed the same level but I described "a Goomba at x~118". Let me look at the baseline again... Actually in this modified screenshot, at the hill bottom center there's Mario (small, red/brown) at x~118,y~185. Hmm, wait — in this screenshot I see a figure on the hill at (118,185). list_sprites shows Mario at x112-120, y177-201. So that figure IS Mario. So where was the Goomba in baseline?
+    
+    Hmm! In the baseline screenshot (efba1c8e), the same position had a figure too. Was that Mario or a Goomba? If it's Mario in both, then the baseline didn't show a Goomba on screen, and my "no enemies" proof is weak (no visible difference).
+    
+    Hmm. Wait, but actually list_sprites in the modified shot shows only Mario. In the baseline, there might have … [+6185 chars]
+    The level renders normally and `list_sprites` shows *only* Mario and the HUD coin — no enemy sprites. Live `$E9/$EA` = `$9F00`. But at 150 right-hold frames the first Goomba may not be on screen yet. Let me extend both runs to where the first Goomba should appear, to make the comparison unambiguous.
+    → play_input {"script": [{"buttons": ["right"], "frames": 70}]}
+[ 182 17:44:29] RESULT play_input
+    {"sample_every":2,"frames":70,"was_paused":false,"paused":false,"segments":1,"frames_run":70,"port":0,"sample_frames":[],"watch":[],"polls":70,"end_frame":124410,"start_frame":124340,"note":"Ran 70 frames of input on port 0. The game is still running."}
+[ 185 17:44:31] ASSISTANT (turn 1 step 25) · in 156 (cache 144256) out 35
+    ▷ 
+    → screenshot {}
+    → list_sprites {}
+[ 187 17:44:31] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1729-sheet4-level-data/images/task-2/7d68b090946d.png
+[ 189 17:44:31] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+903 chars]
+[ 192 17:44:34] ASSISTANT (turn 1 step 26) · in 1000 (cache 144384) out 281
+    ▷ At 220 right frames (total), the modified level shows: a ? block, a brick row with ? blocks, a pipe, Mario, no enemy. list_sprites shows only Mario (8 tiles) + HUD coin. No Goomba.
+    
+    Now do the baseline: undo the enemy edit, reset, start, hold right 220, list_sprites + screenshot. The Goomba should appear (brown, palette 7, at some x).
+    
+    Let me undo seq 1 first.
+    
+    Wait — the ledger seq for the enemy edit is also 1 (since the layout one was undone, remaining_edits 0, so the new write got seq 1). Yes, write result said seq 1.
+    
+    undo_edit seq 1.
+    
+    Then reset, play_input.
+    
+    Actually, I need to do a single play_input of the full script (start, wait, start, right 220) for the baseline. Let me do that.
+    
+    Let me undo first.
+    At 220 right-hold frames the modified run shows a pipe and ? blocks but `list_sprites` still finds only Mario + HUD coin — no enemy. Now the baseline: undo and repeat identically.
+    → undo_edit {"seq": 1}
+[ 194 17:44:34] RESULT undo_edit
+    {"undone":true,"seq":1,"mem":"prgRom","offset":7407,"restored":[1],"remaining_edits":0,"note":"Reset the emulator if the game already copied these bytes elsewhere."}
+[ 197 17:44:36] ASSISTANT (turn 1 step 27) · in 189 (cache 145536) out 24
+    ▷ 
+    → reset_emulator {}
+[ 199 17:44:37] RESULT reset_emulator
+    {"frames_waited":30,"paused":false,"reset":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 202 17:44:38] ASSISTANT (turn 1 step 28) · in 154 (cache 145664) out 94
+    ▷ 
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 90}, {"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 120}, {"buttons": ["right"], "frames": 220}]}
+[ 204 17:44:46] RESULT play_input
+    {"sample_every":8,"frames":440,"was_paused":false,"paused":false,"segments":5,"frames_run":440,"port":0,"sample_frames":[],"watch":[],"polls":440,"end_frame":125411,"start_frame":124971,"note":"Ran 440 frames of input on port 0. The game is still running."}
+[ 207 17:44:48] ASSISTANT (turn 1 step 29) · in 214 (cache 145792) out 35
+    ▷ 
+    → screenshot {}
+    → list_sprites {}
+[ 209 17:44:48] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1729-sheet4-level-data/images/task-2/aba00574d7e0.png
+[ 211 17:44:48] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":7,"attr":67,"behind_background":false,"chr_tile":252,"y":185,"x":120,"index":34,"height":8,"width":8,"flip_h":true,"tile":252,"flip_v":false},{"palette":7,"attr":67,"behind_background":false,"chr_tile":252,"y":185,"x":128,"index":35,"height":8,"width":8,"flip_h":true,"tile":252,"flip_v":false},{"palette":7,"attr":67,"behind_background":false,"chr_tile":113,"y":193,"x":120,"index":36,"height":8,"width":8,"flip_h":true,"tile"… [+613 chars]
+[ 214 17:45:04] ASSISTANT (turn 1 step 30) · in 951 (cache 145920) out 3078
+    ▷ Wait — the baseline screenshot at 220 frames shows the classic 1-1 area, but list_sprites shows only 7 sprites: HUD coin (index 0, palette 7) and a 6-entry block at index 34-39 with palette 7, chr_tiles 112,113,114,115 ×2 columns, flipped, at (120,185)-(135,207). That's a GOOMBA! Palette 7 (goomba brown), tiles 112-115 ($70-$73) — exactly the goomba tile set. So a Goomba is present in the baseline near screen x=120, y=185.
+    
+    But wait — where's Mario in the baseline list_sprites?! There's no palette-4 Mario entry. Uh oh. That means Mario is... dead? Or Mario is the goomba? Hmm. Actually index 34-39 with tiles $70-$73 and palette 7 is the Goomba. But no Mario sprites (palette 4) in the list. That means Mario died and the death animation/I'm at a point where Mario isn't drawn? Or Mario is off-screen?
+    
+    Hmm, look at the screenshot: at bottom center there's a green hill and a small figure at ~(120,195) — brownish/red. That looks like... hmm. Actually the screenshot shows a figure that could be Mario or a Goomba. Since list_sprites shows only goomba + HUD coin, Mario is NOT in OAM. So Mario died and is in the death animation? But the screenshot shows no death animation either. Actually whe… [+9870 chars]
+    The baseline shows a **Goomba** — `list_sprites` returns 6 palette-7 entries with tiles `$70`–`$73` (the Goomba tile set) at (120,185), which the no-enemy run lacked. But Mario is already gone (he died), so let me capture a cleaner baseline with both on screen, slightly earlier.
+    → reset_emulator {}
+[ 216 17:45:05] RESULT reset_emulator
+    {"frames_waited":30,"paused":false,"reset":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 219 17:45:06] ASSISTANT (turn 1 step 31) · in 258 (cache 149760) out 94
+    ▷ 
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 90}, {"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 120}, {"buttons": ["right"], "frames": 175}]}
+[ 221 17:45:13] RESULT play_input
+    {"sample_every":7,"frames":395,"was_paused":false,"paused":false,"segments":5,"frames_run":395,"port":0,"sample_frames":[],"watch":[],"polls":395,"end_frame":127049,"start_frame":126654,"note":"Ran 395 frames of input on port 0. The game is still running."}
+[ 224 17:45:15] ASSISTANT (turn 1 step 32) · in 190 (cache 150016) out 35
+    ▷ 
+    → screenshot {}
+    → list_sprites {}
+[ 226 17:45:15] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1729-sheet4-level-data/images/task-2/b21d596aebc4.png
+[ 228 17:45:15] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":218,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":218,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":226,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1526 chars]
+[ 231 17:45:27] ASSISTANT (turn 1 step 33) · in 1283 (cache 150144) out 2161
+    ▷ Now at 175 right frames baseline, list_sprites shows:
+    - index 0: HUD coin (palette 7)
+    - indices 1-6: Mario (palette 4, tiles 158 and 252) — wait, Mario's at y218-234, which is low on screen. Mario appears to be falling/dying (y218+). Actually Mario died already? The sprites at y218,226,234 with tiles 158/252 — that's the death animation (Mario flying up then falling). Hmm. And there's a Goomba at index 34-39 (palette 7, tiles 112-115) at (120,185).
+    
+    Hmm, so at 175 frames Mario is already dying (dead). That means the Goomba hit him earlier than 175 frames. That contradicts my estimate that the Goomba is 4 seconds away.
+    
+    Wait, look at the screenshot: I see a Goomba at (118,195) near the hill, and Mario... hmm, at bottom center there's a small figure overlapping the Goomba? The screenshot shows a goomba-like figure at (118,195) on the hill.
+    
+    Hmm. Actually wait — the death sprite at y218-234 is near the bottom of the screen (ground is y~208+). So Mario died.
+    
+    Hmm, but 175 frames = ~2.9s, and the task said ~4 seconds. Close enough; Mario's x maybe.
+    
+    Hmm, this means the Goomba encounters Mario quite early. Let me reconsider the enemy data. Maybe the first enemy is much closer.
+    
+    Regardles… [+5856 chars]
+    Baseline at 175 frames: Goomba present (palette-7 tiles `$70`–`$73`) and Mario mid-death. Let me capture the matched no-enemy run at the same 175 frames for a clean, same-timing comparison.
+    → write_memory {"address": 7407, "bytes": [0], "mem_type": "prgRom", "reason": "Repoint World 1-1 enemy pointer table low byte ($9CE4[11]) $01->$00 to the $FF terminator at $9F00 - matched-timing proof of the enemy pointer table"}
+[ 233 17:45:27] RESULT write_memory
+    {"bytes_written":1,"address":7407,"mem_type":"prgRom","persistent":true,"ledger":{"seq":1,"file":"/home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd/eval-sheet4-ptrs/edits.json"}}
+[ 236 17:45:29] ASSISTANT (turn 1 step 34) · in 215 (cache 153472) out 24
+    ▷ 
+    → reset_emulator {}
+[ 238 17:45:29] RESULT reset_emulator
+    {"frames_waited":30,"paused":false,"reset":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 241 17:45:32] ASSISTANT (turn 1 step 35) · in 180 (cache 153600) out 94
+    ▷ 
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 90}, {"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 120}, {"buttons": ["right"], "frames": 175}]}
+[ 243 17:45:38] RESULT play_input
+    {"sample_every":7,"frames":395,"was_paused":false,"paused":false,"segments":5,"frames_run":395,"port":0,"sample_frames":[],"watch":[],"polls":395,"end_frame":128562,"start_frame":128167,"note":"Ran 395 frames of input on port 0. The game is still running."}
+[ 246 17:45:40] ASSISTANT (turn 1 step 36) · in 240 (cache 153728) out 97
+    ▷ 
+    → screenshot {}
+    → list_sprites {}
+    → read_memory {"address": 233, "length": 2, "mem_type": "cpu"}
+[ 248 17:45:40] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1729-sheet4-level-data/images/task-2/5743eeaa535a.png
+[ 250 17:45:40] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+903 chars]
+[ 252 17:45:40] RESULT read_memory
+    {"bytes":[0,159],"address":233,"mem_type":"cpu"}
+[ 255 17:45:55] ASSISTANT (turn 1 step 37) · in 1047 (cache 153984) out 3026
+    ▷ Matched 175-frame comparison:
+    - Modified (enemy ptr $9F00): screenshot shows classic 1-1, Mario alive standing on the hill at (112,177-201), list_sprites = HUD coin + 8 Mario tiles. NO Goomba. Live $E9/$EA = $00/$9F = $9F00.
+    - Baseline (enemy ptr $9F01): Goomba present (6 palette-7 tiles $70-$73 at x120), Mario dying (palette-4 tiles at y218+). 
+    
+    So the enemy pointer table proof is solid.
+    
+    Now undo_edit seq 1.
+    
+    Then record mappings:
+    1. record_mapping level id "1-1" name, with rom_origins for objects (prgRom 0x2690, length 98) and enemies (prgRom 0x1F01, length 30). The task says "rom_origins giving mem prgRom, offset and length of each part (the objects and, separately, the enemies)". rom_origins is an array, so two entries.
+    
+    Wait, but the task says "Record a level's data with record_mapping mapping_type level, id '1-1', a plain name, and rom_origins giving mem prgRom, offset and length of each part (the objects and, separately, the enemies)". So the level mapping's rom_origins = [{mem:'prgRom', offset:0x2690, length:98}, {mem:'prgRom', offset:0x1F01, length:30}].
+    
+    Hmm, but should I include the header (0x268E, 2 bytes)? The task says "the objects and, separately, the enemies". Obje… [+9665 chars]
+    Matched proof at 175 frames: with the pointer at `$9F00` (`$E9/$EA`=`$00/$9F`) `list_sprites` returns only Mario + HUD coin; the baseline (`$9F01`) had the Goomba. Enemy table proven. Undoing.
+    → undo_edit {"seq": 1}
+[ 257 17:45:55] RESULT undo_edit
+    {"undone":true,"seq":1,"mem":"prgRom","offset":7407,"restored":[1],"remaining_edits":0,"note":"Reset the emulator if the game already copied these bytes elsewhere."}
+[ 260 17:46:01] ASSISTANT (turn 1 step 38) · in 165 (cache 157952) out 857
+    ▷ Now I want to do a read trace on the table block $9CE0-$9D6F during a level reload. To get a reload during the trace window, I need Mario to die and reload. 
+    
+    Current state: game running in modified level (no enemies) with Mario alive. But ROM restored, so on reset it's clean. The current run has the modified level loaded (pointer $9F00 computed at load). If I reset, it reloads clean.
+    
+    Let me reset, start 1-1, and hold right to die. Then trace.
+    
+    Actually, simpler: from the CURRENT state (Mario alive in the "no enemy" level), if I reset the emulator, it goes to title. Then start 1-1 with enemies. Then hold right into the Goomba → die → reload.
+    
+    But I can also just hold right now until death. But the current level has no enemies (loaded before undo), so Mario won't die. Need reset.
+    
+    Plan:
+    1. reset_emulator.
+    2. play_input: [start 5, wait 90, start 5, wait 120, right 400]. This should run into the Goomba (~175 frames) and die, then the death/card/reload sequence proceeds within the 400 frames. Actually with 400 frames of right, Mario dies around 175 and the game does death animation + card + reload. During the reload (inside this play_input), the tables are read — but I'm not tracing t… [+1735 chars]
+    Now let me get a genuine **read trace** of the pointer-table block during a level (re)load, to match the requested evidence source. I'll position Mario just before the Goomba, then trace while the death-and-reload happens.
+    → reset_emulator {}
+[ 262 17:46:01] RESULT reset_emulator
+    {"frames_waited":30,"paused":false,"reset":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 265 17:46:03] ASSISTANT (turn 1 step 39) · in 195 (cache 158848) out 94
+    ▷ 
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 90}, {"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 120}, {"buttons": ["right"], "frames": 155}]}
+[ 267 17:46:09] RESULT play_input
+    {"sample_every":7,"frames":375,"was_paused":false,"paused":false,"segments":5,"frames_run":375,"port":0,"sample_frames":[],"watch":[],"polls":375,"end_frame":130441,"start_frame":130066,"note":"Ran 375 frames of input on port 0. The game is still running."}
+[ 270 17:46:11] ASSISTANT (turn 1 step 40) · in 255 (cache 158976) out 129
+    ▷ Now call trace_writes read on 0x9CE0 length 0x90 frames=600. This will run the game 600 frames, during which Mario dies and the level reloads.
+    → trace_writes {"address": 40160, "length": 144, "frames": 600, "mode": "read"}
+[ 272 17:46:21] RESULT trace_writes
+    {"frames":600,"truncated":false,"mode":"read","address":40160,"writers":[{"last_value":6,"last_frame":176,"count":1,"pc":39988,"origin":{"mem_type_id":45,"address":7220,"mem_type":"prgRom"},"last_address":40161,"samples":[{"frame":176,"address":40161,"value":6}],"pc_hex":"0x9C34","origin_hex":"prgRom 0x1C34"},{"last_value":3,"last_frame":176,"count":1,"pc":40009,"origin":{"mem_type_id":45,"address":7241,"mem_type":"prgRom"},"last_address":40233,"samples":[{"frame":176,"address":40233,"value":3}],"pc_hex":"0x9C49","origin_hex":"prgRom 0x1C49"},{"last_value":142,"last_frame":176,"count":1,"pc":4… [+1107 chars]
+[ 275 17:46:41] ASSISTANT (turn 1 step 41) · in 624 (cache 159360) out 5405
+    ▷ Excellent! The read trace caught exactly the six table reads at frame 176, from PCs:
+    - $9C34: reads $9CE0+... last_address $9D01 (40161) value 6 → LDA $9CE0,Y (enemy base). Wait, $9C34 is ADC $074F? Let me check: $9C31 LDA $9CE0,Y; $9C34 CLC; $9C35 ADC $074F. Hmm, the read PC reported is $9C34. Actually the trace's "pc" is the PC after the instruction? It says pc 39988 = 0x9C34, last_address 40161 = 0x9D01. Hmm, 0x9D01? That's odd — enemy base is $9CE0-$9CE3, not $9D01.
+    
+    Hmm wait, 40161 = 0x9CE1. Let me recompute: 0x9CE1 = 40161. Yes! 0x9CE0 = 40160, so 40161 = 0x9CE1. Good. So $9C34 read $9CE1 (enemy base[1]) = 6. ✓ (pc reported as 0x9C34 which is the CLC after LDA; the read happened during LDA at $9C31, but the trace reports the PC after?). Anyway.
+    
+    - $9C3C: last_address 40175 = 0x9CEF, value 1 → enemy_low[11] ✓ (LDA $9CE4,Y at $9C39; pc reported $9C3C = STA $E9).
+    - $9C41: last_address 40209 = 0x9D11, value 159 (0x9F) → enemy_high[11] ✓ (LDA $9D06,Y at $9C3E).
+    - $9C49: last_address 40233 = 0x9D29, value 3 → layout base[1] ✓ (LDA $9D28,Y at $9C46).
+    - $9C51: last_address 40244 = 0x9D34, value 142 (0x8E) → layout_low[8]! Wait, $9D34 = layout_low[8] = 0x8E = 142. ✓ (LDA $9D2C,Y at $9… [+8390 chars]
+    The read trace is conclusive — during the 1-1 reload it caught exactly the six table reads from the loader:
+    
+    | PC | Table read | Value |
+    |---|---|---|
+    | `$9C34` | `$9CE1` enemy base | 6 |
+    | `$9C3C` | `$9CEF` enemy low | 1 |
+    | `$9C41` | `$9D11` enemy high | `$9F` |
+    | `$9C49` | `$9D29` layout base | 3 |
+    | `$9C51` | `$9D34` layout low | `$8E` |
+    | `$9C56` | `$9D56` layout high | `$A6` |
+    
+    → enemy pointer `$9F01`, layout header `$A68E`. Now let me record the findings.
+    → record_mapping {"mapping_type": "level", "id": "1-1", "name": "World 1-1 layout objects and enemy placements", "source": "trace and ledgered write", "notes": "Where World 1-1's data lives in PRG ROM. Objects: 98 bytes = 49 two-byte layout records at prgRom 0x2690, walked by the area parser at CPU $9508 through base pointer $00E7/$00E8; the 2-byte area header is just before at 0x268E (50 21). Enemies: 30 bytes at… [+932 chars]
+    → record_mapping {"mapping_type": "note", "id": "area-layout-data-pointer-table", "name": "PRG table of each area's layout-data start address (low $9D2C / high $9D4E, base $9D28)", "source": "trace and ledgered write", "notes": "What the bytes are: the table the game uses to find each area's layout data. Low bytes at prgRom 0x1D2C (CPU $9D2C) and high bytes at 0x1D4E (CPU $9D4E), 34 entries each; base offsets at 0… [+1199 chars]
+    → record_mapping {"mapping_type": "note", "id": "area-enemy-data-pointer-table", "name": "PRG table of each area's enemy-data start address (low $9CE4 / high $9D06, base $9CE0)", "source": "trace and ledgered write", "notes": "What the bytes are: the table the game uses to find each area's enemy list. Low bytes at prgRom 0x1CE4 (CPU $9CE4) and high bytes at 0x1D06 (CPU $9D06), 34 entries each; base offsets at 0x1C… [+1182 chars]
+[ 277 17:46:41] RESULT record_mapping
+    {"mapping_type":"level","id":"1-1","name":"World 1-1 layout objects and enemy placements","category":null,"group":null,"notes":"Where World 1-1's data lives in PRG ROM. Objects: 98 bytes = 49 two-byte layout records at prgRom 0x2690, walked by the area parser at CPU $9508 through base pointer $00E7/$00E8; the 2-byte area header is just before at 0x268E (50 21). Enemies: 30 bytes at prgRom 0x1F01, a list of 3-byte records (2 bytes when byte0's low nibble is $0F) ending in the $FF terminator at 0x1F1E, walked by the enemy spawner at CPU $C147 through $00E9/$00EA. Both pointers are built at level… [+800 chars]
+[ 279 17:46:41] RESULT record_mapping
+    {"mapping_type":"note","id":"area-layout-data-pointer-table","name":"PRG table of each area's layout-data start address (low $9D2C / high $9D4E, base $9D28)","category":null,"group":null,"notes":"What the bytes are: the table the game uses to find each area's layout data. Low bytes at prgRom 0x1D2C (CPU $9D2C) and high bytes at 0x1D4E (CPU $9D4E), 34 entries each; base offsets at 0x1D28 (CPU $9D28), 4 entries indexed by area type $074E. Level-init routine CPU $9C22 ($9C43-$9C56): LDY $074E / LDA $9D28,Y / CLC / ADC $074F / TAY / LDA $9D2C,Y -> $E7 / LDA $9D4E,Y -> $E8. The resolved address poi… [+1059 chars]
+[ 281 17:46:41] RESULT record_mapping
+    {"mapping_type":"note","id":"area-enemy-data-pointer-table","name":"PRG table of each area's enemy-data start address (low $9CE4 / high $9D06, base $9CE0)","category":null,"group":null,"notes":"What the bytes are: the table the game uses to find each area's enemy list. Low bytes at prgRom 0x1CE4 (CPU $9CE4) and high bytes at 0x1D06 (CPU $9D06), 34 entries each; base offsets at 0x1CE0 (CPU $9CE0), 4 entries indexed by the area type returned by CPU $9C09 (from $0750). Level-init routine CPU $9C22 ($9C31-$9C41): LDA $9CE0,Y / CLC / ADC $074F / TAY / LDA $9CE4,Y -> $E9 / LDA $9D06,Y -> $EA. World … [+1042 chars]
+[ 284 17:46:44] ASSISTANT (turn 1 step 42) · in 1651 (cache 165376) out 219
+    ▷ All three recorded with confidence 1.
+    
+    Now I should also record the loader routine $9C22? Not required. Skip.
+    
+    Now: promote_mappings once, then use_hack default.
+    
+    But first, let me verify the ledger is empty (all edits undone) and the emulator state. Let me call list_hacks to check, and maybe reapply check. Actually, list_hacks shows edit counts.
+    
+    Also, the task says "Call promote_mappings once at the end." Then "use_hack default".
+    
+    Let me call promote_mappings, then use_hack default.
+    
+    Should I first confirm the ROM is clean (no ledgered edits)? remaining_edits was 0 after each undo. Good.
+    
+    Let me also consider: the current game state is a level-reload from the trace; not important.
+    
+    Let me call promote_mappings.
+    All three mappings recorded at confidence 1. Now promote them once, then switch back to the default hack.
+    → promote_mappings {}
+[ 286 17:46:44] RESULT promote_mappings
+    Promoted 3 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 14 tiles, 7 palettes, 1 sprites, 14 addresses. 0 hypotheses skipped.
+[ 290 17:46:47] ASSISTANT (turn 1 step 43) · in 20944 (cache 167168) out 130
+    ▷ Now switch back to default hack. use_hack default.
+    
+    But first, the emulator currently has the ROM restored (both edits undone), so switching hacks should be clean. Let me call use_hack default.
+    
+    Also, I should mark the goal complete after. Let me do use_hack, then get_goal + update_goal complete.
+    
+    Let me call use_hack default.
+    Now switch back to the default hack and close out the goal.
+    → use_hack {"name": "default"}
+[ 292 17:46:47] RESULT use_hack
+    {"from":"eval-sheet4-ptrs","to":"default","reverted":[],"applied":[],"reset":false,"note":"Switched: both ledgers are empty, so the emulator's bytes are unchanged; ROM writes now ledger into this hack."}
+[ 296 17:46:49] ASSISTANT (turn 1 step 44) · in 20925 (cache 188160) out 89
+    ▷ Now mark the goal complete. Get goal first for id/revision.
+    
+    Goal id: goal-96c07799-25ee-4940-8fdc-7b75d3d6b8d9, revision 1. update_goal complete requires revision. Let me get_goal to be safe.
+    → get_goal {}
+[ 298 17:46:49] RESULT get_goal
+    {"goal":{"id":"goal-96c07799-25ee-4940-8fdc-7b75d3d6b8d9","revision":1,"objective":"In Super Mario Bros., find the PRG ROM pointer tables that give each area's layout-data and enemy-data start addresses. Prove each with a ledgered one-byte prgRom write + reset + re-entering 1-1 + screenshot, then undo. Record the 1-1 level data (objects and enemies, with rom_origins) and the pointer table(s) as mappings, promote_mappings once, and finally switch back to the default hack.","phase":"active","roundsStarted":0,"maxGoalRounds":40},"activation":"armed"}
+[ 301 17:46:51] ASSISTANT (turn 1 step 45) · in 194 (cache 209152) out 100
+    ▷ 
+    → update_goal {"goal_id": "goal-96c07799-25ee-4940-8fdc-7b75d3d6b8d9", "revision": 1, "action": "complete"}
+[ 304 17:46:51] RESULT update_goal
+    {"goal":{"id":"goal-96c07799-25ee-4940-8fdc-7b75d3d6b8d9","revision":2,"objective":"In Super Mario Bros., find the PRG ROM pointer tables that give each area's layout-data and enemy-data start addresses. Prove each with a ledgered one-byte prgRom write + reset + re-entering 1-1 + screenshot, then undo. Record the 1-1 level data (objects and enemies, with rom_origins) and the pointer table(s) as mappings, promote_mappings once, and finally switch back to the default hack.","phase":"complete","roundsStarted":0,"maxGoalRounds":40},"activation":"disarmed"}
+[ 307 17:46:57] ASSISTANT (turn 1 step 46) · in 211 (cache 209408) out 1168
+    ▷ Done. Let me write the final summary.
+    
+    Key facts:
+    - Layout pointer table: base $9D28 (prgRom 0x1D28), low $9D2C (0x1D2C, 34 bytes), high $9D4E (0x1D4E, 34 bytes).
+    - Enemy pointer table: base $9CE0 (prgRom 0x1CE0), low $9CE4 (0x1CE4, 34 bytes), high $9D06 (0x1D06, 34 bytes).
+    - Loader CPU $9C22.
+    - 1-1: layout header $A68E / records prgRom 0x2690 length 98; enemies prgRom 0x1F01 length 30.
+    - Proofs done and undone.
+    - Mappings recorded, promoted, hack switched back.
+    
+    Let me write a concise final answer.
+    Done. Here's what I found and proved.
+    
+    ## The two pointer tables (PRG ROM)
+    
+    Both are read by the level-init routine at CPU `$9C22` (`prgRom 0x1C22`), which builds two 16-bit pointers per area. Each table has a small base-offset array plus parallel low/high byte arrays; a running index is `base[area_type] + $074F`.
+    
+    **Layout data (objects)** — `prgRom` offsets:
+    | part | CPU | prgRom | size |
+    |---|---|---|---|
+    | base offsets | `$9D28` | `0x1D28` | 4 |
+    | low bytes | `$9D2C` | `0x1D2C` | 34 |
+    | high bytes | `$9D4E` | `0x1D4E` | 34 |
+    
+    `LDY $074E / LDA $9D28,Y / CLC / ADC $074F / TAY / LDA $9D2C,Y → $E7 / LDA $9D4E,Y → $E8`. The address points at a 2-byte area header; records start at +2.
+    
+    **Enemy data** — `prgRom` offsets:
+    | part | CPU | prgRom | size |
+    |---|---|---|---|
+    | base offsets | `$9CE0` | `0x1CE0` | 4 |
+    | low bytes | `$9CE4` | `0x1CE4` | 34 |
+    | high bytes | `$9D06` | `0x1D06` | 34 |
+    
+    `LDA $9CE0,Y / CLC / ADC $074F / TAY / LDA $9CE4,Y → $E9 / LDA $9D06,Y → $EA`.
+    
+    ## Proofs (in the throwaway hack `eval-sheet4-ptrs`, all undone)
+    
+    - **Trace**: a read trace over `0x1CE0–0x1D6F` during a 1-1 reload returned exactly the six loader reads — `$9C34`→`$9CE1`=6, `$9C3C`→`$9CEF`=1, `$9C41`→`$9D11`=`$9F` (enemy `$9F01`), and `$9C49`→`$9D29`=3, `$9C51`→`$9D34`=`$8E`, `$9C56`→`$9D56`=`$A6` (layout header `$A68E`).
+    - **Layout table**: ledgered `write_memory prgRom 0x1D34` `0x8E→0xF3`, reset, re-entered 1-1 → the level rendered completely differently (tall green-topped pipe platforms instead of the ?-block/brick start), and live `$E7/$E8` became `$A6F5` (the adjacent area's header `$A6F3` + 2). `undo_edit` restored `0x8E`.
+    - **Enemy table**: ledgered `write_memory prgRom 0x1CEF` `0x01→0x00`, reset, matched 175-frame run → live `$E9/$EA`=`$9F00` and `list_sprites` found **no Goomba** (only Mario + HUD coin), versus a 6-tile palette-7 Goomba at (120,185) in the unedited baseline. `undo_edit` restored `0x01`.
+    
+    ## The data those tables point at for 1-1
+    - **Objects**: `prgRom 0x2690`, 98 bytes (49 × 2-byte records; header at `0x268E`).
+    - **Enemies**: `prgRom 0x1F01`, 30 bytes (3-byte records, `$FF` terminator at `0x1F1E`).
+    
+    ## Recording
+    Recorded a `level` mapping for `1-1` (both `rom_origins`) and two `note` mappings for the pointer tables (all three with their `rom_origins`, source `trace and ledgered write`), called `promote_mappings` once, and switched back to the `default` hack. Both ledgered test edits were undone, so no ROM bytes remain changed.
+[ 309 17:46:57] ─── turn 1 end: {"kind":"completed"}
+
