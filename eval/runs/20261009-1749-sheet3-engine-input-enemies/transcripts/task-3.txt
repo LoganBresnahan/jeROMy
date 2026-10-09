@@ -1,0 +1,2126 @@
+# session-9c023b6e-abc0-41e4-968d-b9233e4dbfda · Find Super Mario Bros enemy RAM arrays
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-09T22:58:43.274Z
+
+[   3 17:58:43] QUEUED <user> for next-turn: Mapping sheet 3 (the RAM a hacker reaches for), Super Mario Bros., World 1-1: find the RAM arrays that hold the enemies on screen: each enemy slot's type, horizontal position and vertical position (th… [+1124 chars]
+[   4 17:58:43] ━━━ turn 1 ━━━
+[   8 17:58:43] USER <user>
+    Mapping sheet 3 (the RAM a hacker reaches for), Super Mario Bros., World 1-1: find the RAM arrays that hold the enemies on screen: each enemy slot's type, horizontal position and vertical position (the game keeps several enemy slots side by side). Use the find-variable skill; no reference is available. Prove each address by write_memory and a screenshot showing the predicted effect, or, for a value the game rewrites every frame, by a play_input watch whose samples follow the action exactly. Record each with record_mapping: mapping_type address, a plain name, notes with the encoding and the proof, length or stride and count when it is an array, source 'differential search'. Call promote_mappings once at the end. Report each address, its encoding and the evidence. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again, and take a screenshot to confirm World 1-1 began. During a level, Start pauses and unpauses the game. Holding Right for about four seconds from the start of 1-1 runs into the first enemy, a Goomba walking left. Each play_input call is at most 600 frames; chain calls, and play_input's watch samples addresses while it plays.
+[   9 17:58:43] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 17:58:43] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 17:58:45] ASSISTANT (turn 1 step 1) · in 1049 (cache 14720) out 191
+    ▷ Let me start by loading the find-variable skill.
+    
+    Then get context: screenshot, ROM info. Let me also set up a goal? The task is long-running but single-session; the user gave a concrete objective. Let me create a goal maybe. The instructions say create_goal for long-running objectives. This is one. But it's a single-turn request... it's a long task though. I'll create a goal to be safe? Hmm, creating a goal adds continuation rounds. The request is a substantial multi-step task. I'll create one.
+    
+    Let me start with skill loading and screenshot in parallel.
+    → skill {"name": "find-variable"}
+    → screenshot {}
+    → get_rom_info {}
+[  18 17:58:45] RESULT skill
+    <skill_content name="find-variable">
+    <skill_resources>
+    Base directory for this skill: /home/oof/jeROMy/skills/find-variable
+    Resolve relative paths mentioned by this skill against the base directory before using them. Load referenced resources only as needed.
+    </skill_resources>
+    
+    <skill_instructions>
+    
+    # Find a variable by differential search
+    
+    Most games have no reference. This procedure needs only the running game:
+    `snapshot_memory`, `play_input`, `diff_memory`, then `write_memory` and a
+    screenshot for the proof (ADR-0019). Written from the blind session of
+    2026-10-06 on Super Mario Bros. (World… [+6512 chars]
+[  20 17:58:45] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/6853df6bc296.png
+[  22 17:58:45] RESULT get_rom_info
+    {"path":"C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes","sha1":"33D23C2F2CFA4C9EFEC87F7BC1321CE3CE6C89BD","name":"Super Mario Bros. (World).nes"}
+[  26 17:59:22] ASSISTANT (turn 1 step 2) · in 25184 (cache 15872) out 6882
+    ▷ Let me plan. I need to find the RAM arrays holding enemies on screen: enemy slot type, horizontal position, vertical position. SMB1 has enemy object arrays. In the original SMB, the enemy data is at $06A1 (Enemy_Object?) Hmm. Actually known SMB RAM map:
+    - $06A1: Enemy_Object? No, that's the metatile buffer.
+    - Enemy object RAM: $04xx? Let me recall the real SMB RAM map:
+      - $0400-$04xx? Hmm.
+    
+    Known: Enemy_Objects start at $04B0? Actually in smbdis: 
+    - Sprite_Info? 
+    The enemy data in SMB: `Enemy_Y_Position` = $04B0? Let me think. The SMB disassembly labels:
+    - $00B0: Enemy_Data? Hmm.
+    
+    Actually smbdis.asm (doppelganger) RAM defines:
+    ```
+    ; $0400-$04FF = ?
+    ; Enemy object variables:
+    ; $04xx?
+    ```
+    I recall:
+    - `Enemy_Y_Position` = $04B0? Hmm no.
+    - `Enemy_X_Position` uses low byte and page: `Enemy_X_Position` = $04xx? Actually the object arrays use 6 slots: `Enemy_Flag` (0), `Enemy_ID`, etc.
+    
+    Real smbdis RAM:
+    ```
+    ;-------------------------------
+    ; Enemy object variables
+    ;-------------------------------
+    Enemy_Flag     = $0F
+    Enemy_ID       = $16
+    Enemy_X_Position = $1A  (low)
+    Enemy_Page   = $1D
+    Enemy_Y_Position = $20
+    ...
+    ```
+    and the offsets are applied with an index for 6 active enemy objects: e… [+23285 chars]
+    I'll load the find-variable procedure (done) and start by checking where the game currently is.
+    → create_goal {"objective": "Find and prove the SMB1 World 1-1 RAM arrays holding on-screen enemies: each slot's type, horizontal position, and vertical position. Prove each address by write_memory + screenshot, or by a play_input watch whose samples follow the action for per-frame-rewritten values. record_mapping each (address, stride/count, source 'differential search') and call promote_mappings once at the e… [+73 chars]
+    → read_memory {"address": 1904, "length": 1}
+    → screenshot {}
+[  29 17:59:22] RESULT create_goal
+    {"goal":{"id":"goal-8faebb55-b018-466e-8a40-056200319cd7","revision":1,"objective":"Find and prove the SMB1 World 1-1 RAM arrays holding on-screen enemies: each slot's type, horizontal position, and vertical position. Prove each address by write_memory + screenshot, or by a play_input watch whose samples follow the action for per-frame-rewritten values. record_mapping each (address, stride/count, source 'differential search') and call promote_mappings once at the end. Report each address, encoding, and evidence.","phase":"active","roundsStarted":0,"maxGoalRounds":40},"activation":"armed"}
+[  31 17:59:22] RESULT read_memory
+    {"bytes":[1],"address":1904,"mem_type":"cpuDebug"}
+[  33 17:59:22] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/3cb753517875.png
+[  36 17:59:25] ASSISTANT (turn 1 step 3) · in 614 (cache 47872) out 389
+    ▷ The first screenshot was from the attract demo/level; now it shows "TIME UP" — interesting, the game state changed (time ran out in the demo?). $0770 = 1 (playing a level). The screen shows TIME UP card.
+    
+    Hmm, this is the death/time-up sequence. Let me press Start/Start to get a fresh 1-1. Actually the "TIME UP" screen will proceed on its own. Let me do the Start sequence: press Start, wait, press Start.
+    
+    Actually per instructions: "Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again, and take a screenshot to confirm World 1-1 began."
+    
+    Let me do that and then screenshot.
+    
+    Wait, but $0770=1 means we're in a level (mode 1). The TIME UP card is part of the level. Let me just play through: after TIME UP, Mario loses a life and we get the WORLD 1-1 card, then restart. That takes a while. Maybe faster to let it run and then take control.
+    
+    Let me do: play_input [{buttons:['start'],frames:5},{buttons:[],frames:90},{buttons:['start'],frames:5},{buttons:[],frames:60}] then screenshot.
+    
+    Actually if a life is lost and the WORLD card shows, pressing Start does nothing (or starts?). Let me just run some f… [+21 chars]
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 90}, {"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 60}]}
+[  38 17:59:28] RESULT play_input
+    {"sample_every":3,"frames":160,"was_paused":false,"paused":false,"segments":4,"frames_run":160,"port":0,"sample_frames":[],"watch":[],"polls":160,"end_frame":178039,"start_frame":177879,"note":"Ran 160 frames of input on port 0. The game is still running."}
+[  41 17:59:29] ASSISTANT (turn 1 step 4) · in 201 (cache 48768) out 68
+    ▷ 
+    → screenshot {}
+    → read_memory {"address": 1904, "length": 1}
+[  43 17:59:29] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/4638828759c8.png
+[  45 17:59:29] RESULT read_memory
+    {"bytes":[1],"address":1904,"mem_type":"cpuDebug"}
+[  48 17:59:32] ASSISTANT (turn 1 step 5) · in 399 (cache 49024) out 432
+    ▷ We're at the start of World 1-1, TIME 398, Mario at start. No Goomba on screen yet (first Goomba spawns around camera x ~ 100+). Actually in 1-1, the first Goomba appears when you get close; at start it's not visible.
+    
+    Now, the enemy at spawn. Let me plan the differential search for x position.
+    
+    Approach: hold Right briefly to bring the Goomba on screen, but I want low noise. Actually, let's find enemy x by having the Goomba walk while Mario stands still. But the Goomba won't be on screen unless I scroll.
+    
+    Hmm, actually maybe the enemy spawns before being visible: camera at 0, enemy list first entry x=1E → maybe level x = 0x1E*? Let me look at the enemy list bytes at prgRom 0x1F01 (Known level data). Read memory prgRom 0x1F01 length 30.
+    
+    Actually the mapping says enemy list at 0x1F01, records 3 bytes. byte0 = x-page:y nibbles, byte1 = flags/within-page, byte2 = enemy. Let's read it to know where the first Goomba spawns.
+    
+    Let me read it and also list sprites.
+    
+    Actually, the enemy spawn logic: camera/scroll x compared to enemy x → when the enemy's x is within some distance ahead of camera, spawn. So at camera 0, the first Goomba (x maybe 0x16*16+?) might already be spawned but off-sc… [+45 chars]
+    → read_memory {"address": 7937, "length": 30, "mem_type": "prgRom"}
+    → list_sprites {}
+[  50 17:59:32] RESULT read_memory
+    {"bytes":[30,194,0,107,6,139,134,99,183,15,5,3,6,35,6,75,183,187,0,91,183,251,55,59,183,15,11,27,55,255],"address":7937,"mem_type":"prgRom"}
+[  52 17:59:32] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":40,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":48,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":40,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[  55 17:59:38] ASSISTANT (turn 1 step 6) · in 730 (cache 49792) out 1085
+    ▷ Only Mario + HUD coin sprite. No Goomba yet. Good — the first Goomba hasn't spawned.
+    
+    Enemy list: bytes [30,194,0, 107,6,139, 134,99,183, 15,5,3, 6,35,6, 75,183,187, 0,91,183, 251,55,59, 183,15,11, 27,55,255]
+    
+    Hmm, that doesn't look like x-page nibbles. Hmm, the mapping said the enemy list is at 0x1F01 and begins byte0=$1E. But here byte0=30 ($1E) ✓. Records 3 bytes: (1E,C2,00), (6B,06,8B), (86,63,B7), (0F,05,03), (06,23,06), (4B,B7,BB), (00,5B,B7), (FB,37,3B), (B7,0F,0B), (1B,37,FF)... hmm the terminator should be $FF at 0x1F1E. Let's index: 0x1F01 + 29 = 0x1F1E. byte[29] = 255? The list has 30 bytes, indices 0..29, last = 255 ✓. But the structure isn't obvious; maybe record layout differs (page entries when low nibble $0F). Whatever.
+    
+    Anyway. The enemy spawner: it spawns enemies as the camera moves right. So to find enemy arrays, I'll scroll right until the first Goomba spawns on screen, then do differential search.
+    
+    Actually — better idea to reduce noise: I can find enemy arrays using the fact that the enemy spawns while the camera moves. But many things change while scrolling (camera, Mario x, scroll, background). 
+    
+    Alternative: let Mario stand still and let the Goomba come to … [+2202 chars]
+    We're at the start of World 1-1. No enemy has spawned yet. Let me scroll right until the first Goomba appears.
+    → play_input {"script": [{"buttons": ["right"], "frames": 130}]}
+[  57 17:59:40] RESULT play_input
+    {"sample_every":3,"frames":130,"was_paused":false,"paused":false,"segments":1,"frames_run":130,"port":0,"sample_frames":[],"watch":[],"polls":130,"end_frame":178804,"start_frame":178674,"note":"Ran 130 frames of input on port 0. The game is still running."}
+[  60 17:59:42] ASSISTANT (turn 1 step 7) · in 245 (cache 51456) out 35
+    ▷ 
+    → screenshot {}
+    → list_sprites {}
+[  62 17:59:42] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/4638828759c8.png
+[  64 17:59:42] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":40,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":48,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":40,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[  67 17:59:45] ASSISTANT (turn 1 step 8) · in 966 (cache 51712) out 395
+    ▷ Nothing changed! Mario still at x=40, time still 398. The screenshot is identical (same sha). So the emulator isn't advancing the game during play_input?? Frames ran (end_frame changed). But the game didn't change. Wait — the timer is 398 same, Mario at x=40 same.
+    
+    Hmm, maybe the game is paused! $0776 pause? Or the emulator's "running" status is misleading. Let's check $0776 and $0770 and CPU state.
+    
+    Actually wait — earlier "TIME UP" screen, then I pressed start twice, and got 1-1 at TIME 398. Then held right for 130 frames with no change. That suggests the game is paused (bit 0 of $0776 set) — play_input resumes and pauses? It says was_paused:false, paused:false.
+    
+    Or maybe the emulator is in a weird state. Let's check $0776, $0009 frame counter, $0086, $071C.
+    
+    Actually the frame counter $0009 increments every frame regardless of pause (NMI runs). Let's read those.
+    → read_memory {"address": 1910, "length": 1}
+    → read_memory {"address": 134, "length": 1}
+    → read_memory {"address": 9, "length": 1}
+    → get_cpu_state {}
+[  69 17:59:45] RESULT read_memory
+    {"bytes":[1],"address":1910,"mem_type":"cpuDebug"}
+[  71 17:59:45] RESULT read_memory
+    {"bytes":[40],"address":134,"mem_type":"cpuDebug"}
+[  73 17:59:45] RESULT read_memory
+    {"bytes":[114],"address":9,"mem_type":"cpuDebug"}
+[  75 17:59:45] RESULT get_cpu_state
+    {"a":144,"ppu_cycle":0,"x":7,"y":0,"scanline":240,"pc":32856,"sp":255,"cycle":705021072,"status":133}
+[  78 17:59:47] ASSISTANT (turn 1 step 9) · in 206 (cache 52992) out 205
+    ▷ $0776 = 1 → paused! So the game is paused. My earlier Start presses: first Start was during "TIME UP"? Then it went into 1-1 and second Start paused it. Indeed: Start on TIME UP maybe skipped to level start, then second Start paused.
+    
+    So the game is paused at start of 1-1. That explains identical screenshots and play_input right having no effect (paused). Frame counter advanced (114).
+    
+    Let me unpause: press Start once, verify $0776=0.
+    
+    Careful: pressing Start toggles pause. Let me press Start 5 frames then check.
+    The game was paused ($0776 = 1). Let me unpause.
+    → play_input {"script": [{"buttons": ["start"], "frames": 4}, {"buttons": [], "frames": 20}]}
+[  80 17:59:48] RESULT play_input
+    {"sample_every":1,"frames":24,"was_paused":false,"paused":false,"segments":2,"frames_run":24,"port":0,"sample_frames":[],"watch":[],"polls":24,"end_frame":179251,"start_frame":179227,"note":"Ran 24 frames of input on port 0. The game is still running."}
+[  83 17:59:49] ASSISTANT (turn 1 step 10) · in 249 (cache 53248) out 113
+    ▷ 
+    → read_memory {"address": 1910, "length": 1}
+    → read_memory {"address": 134, "length": 1}
+    → screenshot {}
+[  85 17:59:49] RESULT read_memory
+    {"bytes":[0],"address":1910,"mem_type":"cpuDebug"}
+[  87 17:59:49] RESULT read_memory
+    {"bytes":[40],"address":134,"mem_type":"cpuDebug"}
+[  89 17:59:50] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/5a78dcce7668.png
+[  92 17:59:52] ASSISTANT (turn 1 step 11) · in 524 (cache 53504) out 271
+    ▷ Now unpaused: $0776=0, TIME 393. Good.
+    
+    Now I need to be careful: pause state persists. I should always ensure the game isn't paused before play_input runs. The earlier run of "right 130 frames" happened while paused, so it did nothing.
+    
+    Now: hold Right to reach the first Goomba. Let me do 150 frames right and check.
+    
+    Actually let me plan the differential search more precisely, to minimize risk of dying.
+    
+    Since I now know the game is at level start TIME 393, Mario at x=40 screen (camera 0). I'll hold Right for about 140 frames → Mario around x 200. Goomba should be spawning/appearing around then.
+    
+    Let me hold right 140 and then check list_sprites.
+    
+    Actually there's a subtlety: while holding right, the enemy spawner also spawns the first Goomba when camera reaches ~x=100? Goomba then walks left. Collision occurs ~240 frames per instructions.
+    
+    I'll do 140 frames, then screenshot + list_sprites.
+    → play_input {"script": [{"buttons": ["right"], "frames": 140}]}
+[  94 17:59:55] RESULT play_input
+    {"sample_every":3,"frames":140,"was_paused":false,"paused":false,"segments":1,"frames_run":140,"port":0,"sample_frames":[],"watch":[],"polls":140,"end_frame":179666,"start_frame":179526,"note":"Ran 140 frames of input on port 0. The game is still running."}
+[  97 17:59:56] ASSISTANT (turn 1 step 12) · in 249 (cache 54144) out 126
+    ▷ 
+    → screenshot {}
+    → list_sprites {}
+    → read_memory {"address": 134, "length": 1}
+    → read_memory {"address": 1820, "length": 1}
+[  99 17:59:56] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/e54287d82d41.png
+[ 101 17:59:56] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 103 17:59:56] RESULT read_memory
+    {"bytes":[250],"address":134,"mem_type":"cpuDebug"}
+[ 105 17:59:56] RESULT read_memory
+    {"bytes":[138],"address":1820,"mem_type":"cpuDebug"}
+[ 108 17:59:59] ASSISTANT (turn 1 step 13) · in 1462 (cache 54400) out 306
+    ▷ The Goomba is on screen at screen x=147-155, y=185-201. $0086 = 250, $071C (cell 1820 = 0x071C) = 138. So Mario screen x = 250-138 = 112 ✓ (matches OAM x=112).
+    
+    Goomba screen x = 147. So Goomba level x = 147 + 138 = 285 (approximately, depending on the sprite box offset).
+    
+    Now snapshot s0, then run ~36 frames with no input, and diff.
+    
+    Goomba walks left at ~0.5 px/frame? In 36 frames it'd move ~18 px. Screen x 147 → 129. Still > Mario 112, safe.
+    
+    Actually wait, does the Goomba move at 0.5 or 0.75? Let's just do 36 frames.
+    
+    Let's snapshot s0 first.
+    Goomba is on screen at x≈147 (screen), y≈185. Now a low-noise differential window: snapshot, let the Goomba walk left with no input, snapshot again.
+    → snapshot_memory {"name": "g0"}
+    → play_input {"script": [{"buttons": [], "frames": 36}]}
+[ 110 17:59:59] RESULT snapshot_memory
+    {"name":"g0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T22:59:59.868Z","checksum":"ea3648ea","snapshots":["g0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 112 18:00:00] RESULT play_input
+    {"sample_every":1,"frames":36,"was_paused":false,"paused":false,"segments":1,"frames_run":36,"port":0,"sample_frames":[],"watch":[],"polls":36,"end_frame":179980,"start_frame":179944,"note":"Ran 36 frames of input on port 0. The game is still running."}
+[ 115 18:00:02] ASSISTANT (turn 1 step 14) · in 287 (cache 56064) out 75
+    ▷ Now snapshot g1 and diff. But first, did Mario stay still? Let me take screenshot/check sprites after. Let's snapshot g1 and diff decreased.
+    → snapshot_memory {"name": "g1"}
+[ 117 18:00:02] RESULT snapshot_memory
+    {"name":"g1","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:00:02.364Z","checksum":"0b8e485a","snapshots":["g0","g1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 120 18:00:04] ASSISTANT (turn 1 step 15) · in 204 (cache 56320) out 91
+    ▷ 
+    → diff_memory {"a": "g0", "b": "g1", "filter": "decreased", "name": "e1"}
+[ 122 18:00:04] RESULT diff_memory
+    {"a":"g0","b":"g1","filter":"decreased","considered":2048,"matched":70,"hits":[{"address":0,"old":3,"new":0,"address_hex":"0x0000"},{"address":1,"old":159,"new":3,"address_hex":"0x0001"},{"address":2,"old":239,"new":5,"address_hex":"0x0002"},{"address":3,"old":1,"new":0,"address_hex":"0x0003"},{"address":6,"old":56,"new":55,"address_hex":"0x0006"},{"address":14,"old":11,"new":6,"address_hex":"0x000E"},{"address":206,"old":207,"new":4,"address_hex":"0x00CE"},{"address":245,"old":114,"new":69,"address_hex":"0x00F5"},{"address":247,"old":13,"new":11,"address_hex":"0x00F7"},{"address":248,"old":28… [+3267 chars]
+[ 125 18:00:09] ASSISTANT (turn 1 step 16) · in 1570 (cache 56576) out 915
+    ▷ 70 survivors, truncated. Many are $02xx (OAM buffer!) and $06EA-$06FB (OAM?). Those change because the Goomba moved. Interesting.
+    
+    Note $00CE (player y) decreased 207→4?? Wait, that's odd: player y was 207 and became 4. Hmm, that's because... wait $00CE is player y. Old 207? Earlier mapping said on ground it's 176. 207 seems weird. Hmm, maybe Mario was in the middle of something. Actually wait, maybe the Goomba collided with Mario and Mario died? Let's check: 36 frames, Goomba at screen 147 walking left at ~0.5 → 129. Mario at 112. Gap 17. Hmm, no collision. But $00CE 207→4 is bizarre.
+    
+    Hold on — maybe Mario died! If he died, the level restarts and lots of values reset. The diff shows $073F (scroll) 138→0, $073C 12→6, $0747 119→0, $0772 3→2, $0722 1→0. These look like death/level-restart transitions! $06EA-$06FB with patterns... Hmm.
+    
+    Wait, $06EA old 168 new 40, $06EB 192→64, $06EC 216→88, $06ED 232→104, $06EF 248→120, $06F0 252→124 — these are $A8,$C0,$D8,$E8,$F8,$FC → 40,64,88,104,120,124. Divide by... these look like OAM y values! Old: 168,192,216,232,248,252 (multiple of 8: 0xA8=168, 0xC0=192, 0xD8=216, 0xE8=232, 0xF8=248, 0xFC=252). New: 40,64,88,104,120,124. Difference -128. … [+1208 chars]
+    → screenshot {}
+    → read_memory {"address": 134, "length": 1}
+    → read_memory {"address": 1855, "length": 1}
+    → list_sprites {}
+[ 127 18:00:09] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/2b9cfcd6062a.png
+[ 129 18:00:09] RESULT read_memory
+    {"bytes":[40],"address":134,"mem_type":"cpuDebug"}
+[ 131 18:00:09] RESULT read_memory
+    {"bytes":[0],"address":1855,"mem_type":"cpuDebug"}
+[ 133 18:00:09] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":40,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":48,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":40,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 136 18:00:25] ASSISTANT (turn 1 step 17) · in 1045 (cache 59008) out 2545
+    ▷ Mario died — we're back at the title screen! The Goomba must have hit Mario... Actually the Goomba was to the right at level 285 vs Mario 250, walking left. Collision happened. Wait, Mario died? But we saw TIME 376 and Goomba; then 36 frames later, title screen. That means Mario died (Goomba collision) and lost his last life? No, he had 3 lives. Death → level card → respawn. But we're at the TITLE screen. Hmm, so game over? Or the attract demo?
+    
+    Actually the title screen with "1 PLAYER GAME / 2 PLAYER GAME" and TOP- 000400. This is the title. So the game went to title. That means either game over (unlikely with 3 lives) or the game mode went back.
+    
+    Wait — maybe Mario did NOT die, but the game was in attract demo mode and my Start presses... Hmm, no, we were playing.
+    
+    Hmm, actually: maybe the Goomba killed Mario because Mario was standing at x=250 and the Goomba reached him. One death → WORLD 1-1 card → then Mario respawns at start with time reset. But we see the TITLE screen, not the card. Unless... the "SUPER MARIO BROS." title screen appears after the last life. Let me check lives $075A and mode $0770.
+    
+    Actually — hold on. The title screen also shows Mario at bottom-left (the HUD… [+8688 chars]
+    Mario died during that window (we're back at the title screen), so that diff was polluted. Let me start a fresh game and stop as soon as the Goomba appears, keeping Mario far away.
+    → play_input {"script": [{"buttons": ["start"], "frames": 4}, {"buttons": [], "frames": 170}]}
+[ 138 18:00:28] RESULT play_input
+    {"sample_every":3,"frames":174,"was_paused":false,"paused":false,"segments":2,"frames_run":174,"port":0,"sample_frames":[],"watch":[],"polls":174,"end_frame":181652,"start_frame":181478,"note":"Ran 174 frames of input on port 0. The game is still running."}
+[ 141 18:00:30] ASSISTANT (turn 1 step 18) · in 228 (cache 62464) out 159
+    ▷ 
+    → screenshot {}
+    → read_memory {"address": 1910, "length": 1}
+    → read_memory {"address": 134, "length": 1}
+    → read_memory {"address": 1820, "length": 1}
+[ 143 18:00:30] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/2b9cfcd6062a.png
+[ 145 18:00:30] RESULT read_memory
+    {"bytes":[0],"address":1910,"mem_type":"cpuDebug"}
+[ 147 18:00:30] RESULT read_memory
+    {"bytes":[40],"address":134,"mem_type":"cpuDebug"}
+[ 149 18:00:30] RESULT read_memory
+    {"bytes":[0],"address":1820,"mem_type":"cpuDebug"}
+[ 152 18:00:33] ASSISTANT (turn 1 step 19) · in 439 (cache 62848) out 392
+    ▷ Still on the title screen after pressing Start! Hmm. Maybe Start on this title requires... Actually $0770 = 0. Wait, maybe the "Start" press didn't register because the title screen requires the game to be at a particular state.
+    
+    Note: the screenshot sha is identical to the previous one (2b9cfcd...). So nothing changed at all — the screen is frozen? $0776=0 (not paused). But the title screen is static anyway. Mario at $0086=40, $071C=0. Hmm, but earlier title screen also had those values.
+    
+    Maybe the game is running the attract demo? No, we see the title.
+    
+    Why didn't Start work? Perhaps because the title screen requires the player to press Start — and we did. Let me check $06FC (controller) during a press... Actually let me check mode $0770 and also whether the game might be in a "wait for demo" state.
+    
+    Wait, maybe the issue: play_input's Start press happened while... hmm. Earlier (first action) Start,wait,Start got us from TIME UP to 1-1 with pause. So Start works.
+    
+    Let me try pressing Start again now and watch $0770.
+    
+    Actually, maybe the game is at the title but expects the attract demo cycle; pressing Start should start. Let me do a longer press and check $06FC/$0770 with watch.
+    → play_input {"script": [{"buttons": [], "frames": 60}, {"buttons": ["start"], "frames": 8}, {"buttons": [], "frames": 60}], "watch": [1904, 1910, 1788]}
+[ 154 18:00:35] RESULT play_input
+    {"sample_every":3,"frames":128,"was_paused":false,"paused":false,"segments":3,"frames_run":128,"port":0,"sample_frames":[3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93,96,99,102,105,108,111,114,117,120,123,126,128],"watch":[{"last":0,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":1904,"first":0,"address_hex":"0x0770"},{"last":0,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":1910,"first":0,"address_hex":"0x0776"},{"last":0,"values":[0… [+346 chars]
+[ 157 18:00:46] ASSISTANT (turn 1 step 20) · in 592 (cache 63616) out 1861
+    ▷ $06FC (0x06FC = 1788) shows the Start press 1... wait values: 1 from sample index 3 to 19, i.e. frames 12-63ish? Start was pressed from frame 60-68. The samples show 1 starting at sample index 3 (frame 9) through 19 (frame 63). Hmm, that's odd: bit0 = Right, not Start! $06FC bit0 = Right. Value 1 = Right pressed. But we didn't press Right!
+    
+    Hmm wait, maybe 1788 = 0x6FC. bit field: A=0x80,B=0x40,Select=0x20,Start=0x10,Up=0x08,Down=0x04,Left=0x02,Right=0x01. Start should read 0x10=16. We saw 1 = Right.
+    
+    Hmm! That's strange. Unless the button mapping is different in this ROM/patch? Or the value 1 corresponds to... Hmm.
+    
+    Wait, actually the samples: sample index 0..42, sample_every 3, so frames 3,6,...,128. Value 1 at samples 3..19 → frames 9..57. The Start press was in segment 2 (frames 60-68). So the 1s at frames 9-57 precede the press — that doesn't match either. Hmm, hold on: the watch samples were during the run; the script: 60 frames nothing, 8 Start, 60 nothing. Frames 1-60 nothing → all 0. Then frames 61-68 Start → should show 0x10. But samples jump from 60 to 63 (sample_every 3). Sample at frame 63 = 1. Then 66,69,72,75,78,81,84,87,90,93,96,99,102,105,108,111,114,117 (all 1) th… [+4865 chars]
+    Something's off with input/mode. Let me test directly with a per-frame watch of the controller byte and game mode.
+    → screenshot {}
+    → read_memory {"address": 1882, "length": 1}
+    → play_input {"script": [{"buttons": [], "frames": 20}, {"buttons": ["start"], "frames": 20}, {"buttons": [], "frames": 40}], "watch": [1904, 1910, 1788]}
+[ 159 18:00:46] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/ae00301569ff.png
+[ 161 18:00:46] RESULT read_memory
+    {"bytes":[2],"address":1882,"mem_type":"cpuDebug"}
+[ 163 18:00:47] RESULT play_input
+    {"sample_every":2,"frames":80,"was_paused":false,"paused":false,"segments":3,"frames_run":80,"port":0,"sample_frames":[2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80],"watch":[{"last":0,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":1904,"first":0,"address_hex":"0x0770"},{"last":0,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":1910,"first":0,"address_hex":"0x0776"},{"last":0,"values":[129,129,65,65,65,65,65,65,65,65,0,0… [+318 chars]
+[ 166 18:00:56] ASSISTANT (turn 1 step 21) · in 908 (cache 66048) out 1430
+    ▷ Interesting! The screenshot now shows the level 1-1 in a glitchy state: the title screen graphics (logo "OS.", "intendo") remain at the left edge, and the level is loaded with a Goomba on screen! Mario at bottom-left. There's a Goomba (brown) at x~135.
+    
+    $06FC watch shows 129,129,65,65,... = 0x81 = A+Right, 0x41 = B+Right. So the game's demo/attract is feeding synthetic inputs?! 0x81 = A+Right, 0x41 = B+Right. That looks like the attract demo playing the level! Indeed: the screen shows the level with a Goomba, and $06FC is being driven by the demo's synthetic controller.
+    
+    So we ARE in the attract demo (mode 0), which plays World 1-1 automatically. The title graphic remnants on the left are a glitch/artifact of the emulator's rendering? Actually the title text at left edge overlapping is weird. Hmm, maybe the PPU is mid-transition.
+    
+    Hmm wait. Actually the mapping says mode 0 = title screen / attract demo. $0770=0. The attract demo plays a scripted demo of 1-1 with synthetic inputs written into $06FC (0x81 = A+Right, 0x41 = B+Right). That explains everything: the game auto-plays.
+    
+    And the title screen text at the left is a leftover because the demo started and the title wasn't fully c… [+4008 chars]
+    This is the attract demo auto-playing 1-1 ($06FC shows synthetic 0x81/0x41 = A+Right / B+Right). Per the procedure, Start during the demo returns to title, then Start again begins a real game.
+    → play_input {"script": [{"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 90}, {"buttons": ["start"], "frames": 5}, {"buttons": [], "frames": 150}], "watch": [1904, 1910]}
+[ 168 18:01:00] RESULT play_input
+    {"sample_every":5,"frames":250,"was_paused":false,"paused":false,"segments":4,"frames_run":250,"port":0,"sample_frames":[5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145,150,155,160,165,170,175,180,185,190,195,200,205,210,215,220,225,230,235,240,245,250],"watch":[{"last":1,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"address":1904,"first":0,"address_hex":"0x0770"},{"last":0,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0… [+262 chars]
+[ 171 18:01:02] ASSISTANT (turn 1 step 22) · in 494 (cache 68352) out 183
+    ▷ $0770 went 0→1 at frame ~95 (sample index 19 = frame 95). So the game started. $0776=0 (not paused). 
+    
+    Let's screenshot to confirm we're in a real 1-1 and check where Mario is.
+    → screenshot {}
+    → read_memory {"address": 134, "length": 1}
+    → read_memory {"address": 1820, "length": 1}
+    → list_sprites {}
+[ 173 18:01:02] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/1224e1e1d4c1.png
+[ 175 18:01:02] RESULT read_memory
+    {"bytes":[40],"address":134,"mem_type":"cpuDebug"}
+[ 177 18:01:02] RESULT read_memory
+    {"bytes":[0],"address":1820,"mem_type":"cpuDebug"}
+[ 179 18:01:02] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":40,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":48,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":40,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 182 18:01:05] ASSISTANT (turn 1 step 23) · in 1034 (cache 68992) out 299
+    ▷ Now we're in a real World 1-1 at the start, TIME 396, unpaused, mode 1. Mario at screen x=40, camera 0.
+    
+    Now I want to advance right until the Goomba spawns/appears, then stop early. This time I know the game is real, and holding Right affects Mario.
+    
+    Let me hold right in small chunks. To be safe from dying, I'll go ~90 frames (Mario ~ x 130) then check for Goomba; if not, another 20.
+    
+    Actually from the earlier demo run, I can observe the Goomba spawn level x. But let me just do it.
+    
+    Let me do a smarter approach: hold right 90 frames, then check sprites. If Goomba not present, hold 15 more, etc. I'll batch: right 90.
+    
+    Then, once the Goomba is on screen at a good distance, do the no-input window. But careful: the Goomba approaches Mario; with a big gap we have time.
+    
+    Let's go.
+    Now we're in a real World 1-1 (mode 1, unpaused). Advancing right to spawn the Goomba, stopping early to keep distance.
+    → play_input {"script": [{"buttons": ["right"], "frames": 90}]}
+[ 184 18:01:07] RESULT play_input
+    {"sample_every":2,"frames":90,"was_paused":false,"paused":false,"segments":1,"frames_run":90,"port":0,"sample_frames":[],"watch":[],"polls":90,"end_frame":183991,"start_frame":183901,"note":"Ran 90 frames of input on port 0. The game is still running."}
+[ 187 18:01:08] ASSISTANT (turn 1 step 24) · in 147 (cache 70272) out 126
+    ▷ 
+    → screenshot {}
+    → list_sprites {}
+    → read_memory {"address": 134, "length": 1}
+    → read_memory {"address": 1820, "length": 1}
+[ 189 18:01:09] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/c47169e3277e.png
+[ 191 18:01:09] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":105,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":113,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":105,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 193 18:01:09] RESULT read_memory
+    {"bytes":[174],"address":134,"mem_type":"cpuDebug"}
+[ 195 18:01:09] RESULT read_memory
+    {"bytes":[69],"address":1820,"mem_type":"cpuDebug"}
+[ 198 18:01:12] ASSISTANT (turn 1 step 25) · in 1358 (cache 70528) out 325
+    ▷ Goomba on screen at x=233-241 (facing right in sprite attr = flipped, but it's walking left). Mario at x=105-113, level x=174, scroll=69 → Mario screen x=105 ✓. Goomba level x = 233 + 69 = 302 (approx, using the sprite x).
+    
+    Gap: Goomba screen 233 vs Mario 105 → 128 px. Goomba walks left at ~0.5 px/frame → in 40 frames, moves ~20px. Safe. Timer decreases.
+    
+    Now do the differential: snapshot s0, no input 40 frames, snapshot s1, diff decreased. Expect Goomba x and timer and RNG.
+    
+    Actually, hold on: with no input, Mario stands still. Good. Let's do 40 frames.
+    
+    Also note: the demo earlier showed $073F scroll. Now $071C (cell 1820) = 69, and $0086=174 → Mario screen x = 105 ✓.
+    
+    Let's snapshot.
+    Goomba on screen at x≈233 (level x≈302), Mario at x=105 — a safe 128 px gap. Clean differential window now.
+    → snapshot_memory {"name": "h0"}
+    → play_input {"script": [{"buttons": [], "frames": 40}]}
+[ 200 18:01:12] RESULT snapshot_memory
+    {"name":"h0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:01:12.582Z","checksum":"e758de58","snapshots":["g0","g1","h0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 202 18:01:13] RESULT play_input
+    {"sample_every":1,"frames":40,"was_paused":false,"paused":false,"segments":1,"frames_run":40,"port":0,"sample_frames":[],"watch":[],"polls":40,"end_frame":184354,"start_frame":184314,"note":"Ran 40 frames of input on port 0. The game is still running."}
+[ 205 18:01:15] ASSISTANT (turn 1 step 26) · in 208 (cache 72192) out 54
+    ▷ 
+    → snapshot_memory {"name": "h1"}
+    → list_sprites {}
+[ 207 18:01:15] RESULT snapshot_memory
+    {"name":"h1","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:01:15.444Z","checksum":"070cc445","snapshots":["g0","g1","h0","h1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 209 18:01:15] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":7,"attr":67,"behind_background":false,"chr_tile":252,"y":185,"x":115,"index":12,"height":8,"width":8,"flip_h":true,"tile":252,"flip_v":false},{"palette":7,"attr":67,"behind_background":false,"chr_tile":252,"y":185,"x":123,"index":13,"height":8,"width":8,"flip_h":true,"tile":252,"flip_v":false},{"palette":7,"attr":67,"behind_background":false,"chr_tile":113,"y":193,"x":115,"index":14,"height":8,"width":8,"flip_h":true,"tile"… [+613 chars]
+[ 212 18:01:20] ASSISTANT (turn 1 step 27) · in 569 (cache 72448) out 736
+    ▷ Whoa — the Goomba is now at x=115, right next to Mario (Mario's sprites are gone from the list!). So Mario died again! The Goomba moved from 233 to 115 in 40 frames → 118 px in 40 frames = ~3 px/frame? That's way too fast. Unless the Goomba didn't walk but Mario walked into it... no, no input.
+    
+    Wait, Mario's sprites are missing from list_sprites. So Mario died. And the Goomba is at x=115. Hmm, Goomba speed should be ~0.5-0.75 px/frame. 118 px in 40 frames is impossible for a walking Goomba.
+    
+    Unless... the screen scrolled: no input, camera fixed.
+    
+    Wait, maybe I mislabeled: In h0, the Goomba was at screen 233 and Mario at 105. In h1, Goomba at 115, Mario gone. If Mario died, the level resets and the Goomba respawns? But right after death, the game freezes on the death animation.
+    
+    Hmm, list_sprites shows only the Goomba and the HUD coin. Mario's absence + no death animation sprites... Actually during the death animation Mario is drawn (death sprite). Hmm.
+    
+    Wait, actually maybe the Goomba moved and is now at 115 because the CAMERA scrolled right? With no input the camera shouldn't move.
+    
+    Hold on, could play_input with empty buttons have released... no.
+    
+    Let me take a screenshot immedia… [+818 chars]
+    → screenshot {}
+    → read_memory {"address": 134, "length": 1}
+    → read_memory {"address": 1820, "length": 1}
+    → read_memory {"address": 1904, "length": 1}
+[ 214 18:01:20] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/1224e1e1d4c1.png
+[ 216 18:01:20] RESULT read_memory
+    {"bytes":[40],"address":134,"mem_type":"cpuDebug"}
+[ 218 18:01:20] RESULT read_memory
+    {"bytes":[0],"address":1820,"mem_type":"cpuDebug"}
+[ 220 18:01:20] RESULT read_memory
+    {"bytes":[1],"address":1904,"mem_type":"cpuDebug"}
+[ 223 18:01:28] ASSISTANT (turn 1 step 28) · in 466 (cache 73728) out 1196
+    ▷ The screen shows the level start (Mario at x=40, camera 0, TIME 396). So Mario died and the level restarted, back at the start, unpaused, mode 1. The Goomba at x=115 in the sprite list was from the moment of death maybe? No...
+    
+    Wait, but the screenshot is the same sha as the earlier level-start screenshot (1224e1e...). And $0086=40, $071C=0. So we're at level start again — Mario died during the 40-frame window, and the death + respawn happened FAST (40 frames?!). That's impossible for a normal death (death animation ~2 s + card ~2 s + respawn).
+    
+    Hmm, so maybe Mario didn't die. Maybe the Goomba reached Mario... no.
+    
+    Hold on: TIME 396 both before and after. Before h0, TIME was 380 (screenshot after 90 frames right). Wait no: after the 90-frame right run, the screenshot showed TIME 380 and Mario at screen 105. Then h0 snapshot, 40 frames no input, h1 snapshot. Now TIME 396 and Mario at screen 40? TIME went UP from 380 to 396? That means the level restarted (timer reset to 400-ish and ticked down to 396).
+    
+    So yes the level restarted. In 40 frames: Mario died and... no, a death takes longer.
+    
+    Unless the Goomba hitting Mario caused a quick death and the game's death sequence was sped thr… [+2918 chars]
+    → read_memory {"address": 1882, "length": 1}
+    → diff_memory {"a": "h0", "b": "h1", "filter": "decreased", "name": "e2"}
+[ 225 18:01:28] RESULT read_memory
+    {"bytes":[1],"address":1882,"mem_type":"cpuDebug"}
+[ 227 18:01:28] RESULT diff_memory
+    {"a":"h0","b":"h1","filter":"decreased","considered":2048,"matched":55,"hits":[{"address":2,"old":208,"new":50,"address_hex":"0x0002"},{"address":9,"old":95,"new":11,"address_hex":"0x0009"},{"address":135,"old":194,"new":184,"address_hex":"0x0087"},{"address":206,"old":176,"new":18,"address_hex":"0x00CE"},{"address":244,"old":1,"new":0,"address_hex":"0x00F4"},{"address":247,"old":27,"new":14,"address_hex":"0x00F7"},{"address":248,"old":45,"new":30,"address_hex":"0x00F8"},{"address":249,"old":72,"new":45,"address_hex":"0x00F9"},{"address":494,"old":12,"new":11,"address_hex":"0x01EE"},{"address"… [+2811 chars]
+[ 230 18:01:36] ASSISTANT (turn 1 step 29) · in 1479 (cache 75264) out 1278
+    ▷ Lives $075A = 1. Earlier the mapping said a 3-life game starts at 2. Now it's 1, so Mario has died once. So during the 40-frame window, Mario died and the level restarted?! But 40 frames is too short...
+    
+    Wait, actually: maybe Mario died BEFORE h0 too, and the "Goomba at 233, Mario at 105" was in a level that restarted... no.
+    
+    Hmm, lives=1 means one death. The g0→g1 window (earlier, before the title) also involved a death (that was a different game). This current game is new (started from title after that). So lives should be 2. Now 1 → one death in this game.
+    
+    When did it happen? Between the "right 90" run and now. In the right-90 run, Mario went from x=40 to x=174. The Goomba appeared. Then h0→h1 40 frames no input. Mario died during those 40 frames? Then respawned, and TIME back to 396.
+    
+    Death + respawn in 40 frames is impossible... unless the death happened at the END of the right-90 run and the level had already restarted by the h0 snapshot? But h0 showed Mario at screen 105 with Goomba at 233.
+    
+    Hmm, wait: maybe h0's list_sprites (Mario at 105, Goomba at 233) was taken BEFORE the 90-frame run ended? No, after.
+    
+    Let me reconsider: maybe the "play_input empty 40 frames" actually … [+3734 chars]
+    The game free-runs between calls — that's what ruined my windows (Mario died while I was reading). I'll keep the emulator paused and let `play_input` run exactly N frames and re-pause.
+    → pause_emulator {}
+[ 232 18:01:36] RESULT pause_emulator
+    {"paused":true}
+[ 236 18:01:42] ASSISTANT (turn 1 step 30) · in 22819 (cache 77952) out 616
+    ▷ Now paused. Current state: level start, unpaused before, lives 1. Actually we're paused at level start with Mario at x=40.
+    
+    Now I can do controlled windows. But note: the game state is at level start; no Goomba on screen. I need to spawn the Goomba. 
+    
+    But wait — there's a much better idea now that I can control timing. Since the emulator stays paused between calls, I can do exact differential windows.
+    
+    Plan:
+    1. play_input right 90 frames (game resumes and re-pauses) → Goomba spawns. But 90 frames was enough to bring Mario to x=174 and Goomba visible at 233.
+    2. Immediately snapshot a0 (while paused).
+    3. play_input empty 40 frames (pauses).
+    4. snapshot a1.
+    5. diff decreased → survivors.
+    
+    But actually with the game paused between, play_input runs exactly the frames specified. But hold on: does play_input's watch semantics let me sample? Yes.
+    
+    Even better approach: use play_input's watch directly. But I need candidate addresses.
+    
+    Let me redo the differential with control. 
+    
+    Actually, a smarter first step: rather than the walking Goomba (which requires proximity and risks death), let me find the enemy arrays by observing the spawn with the game controlled. But the walk approach is fine … [+893 chars]
+    Good — emulator is paused. Now `play_input` runs exactly N frames and re-pauses, so my windows are controlled. Let me save this clean level-start state and walk to the Goomba.
+    → save_state {"slot": 1}
+    → play_input {"script": [{"buttons": ["right"], "frames": 85}]}
+[ 238 18:01:42] RESULT save_state
+    {"action":"saved","slot":1,"paused":true,"stepped_frames":1,"bytes":4666}
+[ 240 18:01:43] RESULT play_input
+    {"sample_every":2,"frames":85,"was_paused":true,"paused":true,"segments":1,"frames_run":85,"port":0,"sample_frames":[],"watch":[],"polls":85,"end_frame":185860,"start_frame":185775,"note":"Ran 85 frames of input on port 0. The game was paused before and is paused again now."}
+[ 243 18:01:45] ASSISTANT (turn 1 step 31) · in 144 (cache 101376) out 138
+    ▷ Now paused after 85 frames right. Check sprites.
+    → screenshot {}
+    → list_sprites {}
+    → read_memory {"address": 134, "length": 1}
+    → read_memory {"address": 1820, "length": 1}
+[ 245 18:01:45] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/c16fc8e5c76c.png
+[ 247 18:01:45] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":99,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":107,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":99,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,… [+899 chars]
+[ 249 18:01:45] RESULT read_memory
+    {"bytes":[138],"address":134,"mem_type":"cpuDebug"}
+[ 251 18:01:45] RESULT read_memory
+    {"bytes":[38],"address":1820,"mem_type":"cpuDebug"}
+[ 254 18:01:48] ASSISTANT (turn 1 step 32) · in 1023 (cache 101632) out 254
+    ▷ Mario at screen x=99, level x=138, camera=38 → 138-38=100 ✓. No Goomba on screen yet (it's further right). Hmm, at 85 frames Mario is at 138.
+    
+    Earlier at 90 frames (uncontrolled) Mario was at 174 with Goomba visible. Different because of the free-running.
+    
+    The Goomba spawns when Mario/camera gets close enough. Let's continue: another 40 frames right. But careful not to die. Let me do right 40 and check.
+    
+    Actually, I want the Goomba on screen with a good gap. Let's step right in 30-frame chunks.
+    
+    Alternatively, note the enemy list first entry byte0=$1E: could mean x page 1, x=0xE? Hmm.
+    
+    Let's just walk. right 40 → Mario ~198, camera ~98. Goomba may appear around level x 285.
+    
+    Let me do right 40, check.
+    → play_input {"script": [{"buttons": ["right"], "frames": 40}]}
+[ 256 18:01:49] RESULT play_input
+    {"sample_every":1,"frames":40,"was_paused":true,"paused":true,"segments":1,"frames_run":40,"port":0,"sample_frames":[],"watch":[],"polls":40,"end_frame":185900,"start_frame":185860,"note":"Ran 40 frames of input on port 0. The game was paused before and is paused again now."}
+[ 259 18:01:51] ASSISTANT (turn 1 step 33) · in 224 (cache 102784) out 114
+    ▷ 
+    → list_sprites {}
+    → read_memory {"address": 134, "length": 1}
+    → read_memory {"address": 1820, "length": 1}
+[ 261 18:01:51] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1363 chars]
+[ 263 18:01:51] RESULT read_memory
+    {"bytes":[198],"address":134,"mem_type":"cpuDebug"}
+[ 265 18:01:51] RESULT read_memory
+    {"bytes":[86],"address":1820,"mem_type":"cpuDebug"}
+[ 268 18:01:53] ASSISTANT (turn 1 step 34) · in 890 (cache 103040) out 220
+    ▷ Goomba is at x=254 (right edge, partially off-screen), level x = 254+86 = 340. Mario level 198, screen 112. Gap 142 px. 
+    
+    Now: snapshot a0, empty 40 frames, snapshot a1, diff decreased. The Goomba walks left ~0.5 px/frame → ~20 px. Safe.
+    
+    Let me do it. I must ensure the game stays paused between calls, which play_input handles.
+    
+    Actually, wait: after play_input empty 40, I want to immediately snapshot. But there's a risk: between play_input returning and snapshot_memory, the game is paused, so no time passes. Good.
+    
+    Let me snapshot a0 now.
+    Goomba is just entering at screen x=254 (level x≈340), Mario at 112 — a 140 px gap. Clean window now.
+    → snapshot_memory {"name": "a0"}
+[ 270 18:01:53] RESULT snapshot_memory
+    {"name":"a0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:01:53.757Z","checksum":"270ebca5","snapshots":["g0","g1","h0","h1","a0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 273 18:01:55] ASSISTANT (turn 1 step 35) · in 191 (cache 104064) out 48
+    ▷ 
+    → play_input {"script": [{"buttons": [], "frames": 40}]}
+[ 275 18:01:56] RESULT play_input
+    {"sample_every":1,"frames":40,"was_paused":true,"paused":true,"segments":1,"frames_run":40,"port":0,"sample_frames":[],"watch":[],"polls":40,"end_frame":185940,"start_frame":185900,"note":"Ran 40 frames of input on port 0. The game was paused before and is paused again now."}
+[ 278 18:01:58] ASSISTANT (turn 1 step 36) · in 210 (cache 104192) out 86
+    ▷ 
+    → snapshot_memory {"name": "a1"}
+    → list_sprites {"x": 200, "y": 193}
+[ 280 18:01:58] RESULT snapshot_memory
+    {"name":"a1","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:01:58.379Z","checksum":"e1fc2411","snapshots":["g0","g1","h0","h1","a0","a1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 282 18:01:58] RESULT list_sprites
+    {"sprites":[],"large_sprites":false,"mask_source":"frame","count":0,"sprite_pattern_addr":0,"background_pattern_addr":4096,"sprites_enabled":true}
+[ 285 18:02:00] ASSISTANT (turn 1 step 37) · in 198 (cache 104448) out 140
+    ▷ list_sprites with x=200,y=193 gave nothing (Goomba moved left of 200? or is at ~234). Let me get all sprites and diff.
+    → diff_memory {"a": "a0", "b": "a1", "filter": "decreased", "name": "d1"}
+    → list_sprites {}
+[ 287 18:02:00] RESULT diff_memory
+    {"a":"a0","b":"a1","filter":"decreased","considered":2048,"matched":73,"hits":[{"address":1,"old":57,"new":53,"address_hex":"0x0001"},{"address":87,"old":24,"new":1,"address_hex":"0x0057"},{"address":135,"old":81,"new":61,"address_hex":"0x0087"},{"address":494,"old":21,"new":19,"address_hex":"0x01EE"},{"address":533,"old":54,"new":50,"address_hex":"0x0215"},{"address":537,"old":55,"new":51,"address_hex":"0x0219"},{"address":541,"old":56,"new":52,"address_hex":"0x021D"},{"address":545,"old":57,"new":53,"address_hex":"0x0221"},{"address":560,"old":248,"new":184,"address_hex":"0x0230"},{"address"… [+3277 chars]
+[ 289 18:02:00] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 292 18:02:37] ASSISTANT (turn 1 step 38) · in 2531 (cache 104704) out 7433
+    ▷ Goomba moved from screen x=254 (a0) to x=202 (a1) in 40 frames → 52 px / 40 frames = 1.3 px/frame. Hmm, that's faster than expected but okay (Goomba speed ~0.75? Actually 52/40=1.3). Hmm, wait: a0 showed the Goomba partially off-screen at 254; the level x was 340. a1 Goomba at 202 → level x = 202+86 = 288 (camera unchanged at 86). So level x decreased 340→288 = 52 in 40 frames = 1.3 px/frame.
+    
+    Hmm, Goomba walking speed in SMB is actually... maybe 0.5 px/frame? Whatever, empirically 1.3.
+    
+    Wait, but that means in 40 frames it moved 52 px. And earlier gaps... At 1.3 px/frame, from 142 px gap it'd take 109 frames to reach Mario. We're fine.
+    
+    Now, candidate addresses. Note $0087 (player_x related? old 81 new 61) — $0086 is player x, $0087 could be... hmm, Mario idle, so $0087 shouldn't change. old 81 new 61 = -20. Hmm, that's suspicious. Actually $0087 might be player x fractional or Mario's animation frame. Wait no, with no input Mario is idle.
+    
+    Look at the diff: several $02xx addresses (OAM shadow) changed: $0215 54→50, $0219 55→51, $021D 56→52, $0221 57→53 (subtracting 4), and $0230 (OAM y?) 248→184, $0232 67→3, $028B 254→203, $02D3 252→202 etc. These are the OAM shadow buffer ($0200… [+22512 chars]
+    The full diff truncates at 64 hits. Let me do range-limited snapshots so nothing is hidden — this pins the byte that actually tracks the Goomba.
+    → snapshot_memory {"name": "z0", "address": 0, "length": 256}
+    → snapshot_memory {"name": "y0", "address": 256, "length": 256}
+    → snapshot_memory {"name": "x0", "address": 768, "length": 256}
+    → snapshot_memory {"name": "w0", "address": 1024, "length": 256}
+    → snapshot_memory {"name": "v0", "address": 1536, "length": 256}
+[ 294 18:02:37] RESULT snapshot_memory
+    {"name":"z0","address":0,"length":256,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:02:37.862Z","checksum":"beb0c505","snapshots":["g0","g1","h0","h1","a0","a1","z0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 296 18:02:37] RESULT snapshot_memory
+    {"name":"y0","address":256,"length":256,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:02:37.870Z","checksum":"bc9d3ff8","snapshots":["g0","g1","h0","h1","a0","a1","z0","y0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 298 18:02:37] RESULT snapshot_memory
+    {"name":"x0","address":768,"length":256,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:02:37.877Z","checksum":"63f83422","snapshots":["g0","g1","h0","h1","a0","a1","z0","y0","x0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 300 18:02:37] RESULT snapshot_memory
+    {"name":"w0","address":1024,"length":256,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:02:37.885Z","checksum":"2a0543a6","snapshots":["g0","g1","h0","h1","a0","a1","z0","y0","x0","w0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 302 18:02:37] RESULT snapshot_memory
+    {"name":"v0","address":1536,"length":256,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:02:37.892Z","checksum":"0a7eead5","snapshots":["g0","g1","h0","h1","a0","a1","z0","y0","x0","w0","v0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 305 18:02:39] ASSISTANT (turn 1 step 39) · in 681 (cache 114560) out 116
+    ▷ Now run 24 frames no input, then snapshot the same ranges. But the Goomba is close; 24 frames moves it ~31 px. Current gap: at a1, Goomba level 288, Mario 198 → 90. After 24 → 59. Fine.
+    
+    Let's do play_input empty 24.
+    → play_input {"script": [{"buttons": [], "frames": 24}]}
+[ 307 18:02:40] RESULT play_input
+    {"sample_every":1,"frames":24,"was_paused":true,"paused":true,"segments":1,"frames_run":24,"port":0,"sample_frames":[],"watch":[],"polls":24,"end_frame":185964,"start_frame":185940,"note":"Ran 24 frames of input on port 0. The game was paused before and is paused again now."}
+[ 310 18:02:42] ASSISTANT (turn 1 step 40) · in 256 (cache 115200) out 327
+    ▷ 
+    → snapshot_memory {"name": "z1", "address": 0, "length": 256}
+    → snapshot_memory {"name": "y1", "address": 256, "length": 256}
+    → snapshot_memory {"name": "x1", "address": 768, "length": 256}
+    → snapshot_memory {"name": "w1", "address": 1024, "length": 256}
+    → snapshot_memory {"name": "v1", "address": 1536, "length": 256}
+[ 312 18:02:42] RESULT snapshot_memory
+    {"name":"z1","address":0,"length":256,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:02:42.553Z","checksum":"23242366","snapshots":["g0","g1","h0","h1","a0","a1","z0","y0","x0","w0","v0","z1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 314 18:02:42] RESULT snapshot_memory
+    {"name":"y1","address":256,"length":256,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:02:42.561Z","checksum":"bc9d3ff8","snapshots":["g0","g1","h0","h1","a0","a1","z0","y0","x0","w0","v0","z1","y1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 316 18:02:42] RESULT snapshot_memory
+    {"name":"x1","address":768,"length":256,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:02:42.568Z","checksum":"c854c046","snapshots":["g0","g1","h0","h1","a0","a1","z0","y0","x0","w0","v0","z1","y1","x1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 318 18:02:42] RESULT snapshot_memory
+    {"name":"w1","address":1024,"length":256,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:02:42.576Z","checksum":"7726e576","snapshots":["g0","g1","h0","h1","a0","a1","z0","y0","x0","w0","v0","z1","y1","x1","w1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 320 18:02:42] RESULT snapshot_memory
+    {"name":"v1","address":1536,"length":256,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:02:42.584Z","checksum":"7c202c3e","snapshots":["g0","g1","h0","h1","a0","a1","z0","y0","x0","w0","v0","z1","y1","x1","w1","v1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 323 18:02:45] ASSISTANT (turn 1 step 41) · in 715 (cache 115712) out 429
+    ▷ y1 checksum == y0 checksum (bc9d3ff8): range $0100-$01FF unchanged over 24 frames! Interesting. So the enemy data is NOT in $0100-$01FF. Good to know.
+    
+    Now diff each range. Let me diff z, x, w, v (changed) to see all.
+    
+    Let me call diff for each with filter 'changed'.
+    $0100–$01FF didn't change at all. Let me diff the other ranges completely.
+    → diff_memory {"a": "z0", "b": "z1", "filter": "changed", "name": "dz"}
+    → diff_memory {"a": "x0", "b": "x1", "filter": "changed", "name": "dx"}
+    → diff_memory {"a": "w0", "b": "w1", "filter": "changed", "name": "dw"}
+    → diff_memory {"a": "v0", "b": "v1", "filter": "changed", "name": "dv"}
+[ 325 18:02:45] RESULT diff_memory
+    {"a":"z0","b":"z1","filter":"changed","considered":256,"matched":7,"hits":[{"address":1,"old":53,"new":79,"address_hex":"0x0001"},{"address":9,"old":116,"new":140,"address_hex":"0x0009"},{"address":87,"old":1,"new":0,"address_hex":"0x0057"},{"address":135,"old":61,"new":49,"address_hex":"0x0087"},{"address":247,"old":8,"new":9,"address_hex":"0x00F7"},{"address":248,"old":16,"new":17,"address_hex":"0x00F8"},{"address":249,"old":23,"new":27,"address_hex":"0x00F9"}],"truncated":false,"note":"Few enough to test: write_memory each candidate and look at the screen; a change the HUD shows is the proo… [+4 chars]
+[ 327 18:02:45] RESULT diff_memory
+    {"a":"x0","b":"x1","filter":"changed","considered":256,"matched":2,"hits":[{"address":773,"old":23,"new":39,"address_hex":"0x0305"},{"address":942,"old":202,"new":190,"address_hex":"0x03AE"}],"truncated":false,"note":"Few enough to test: write_memory each candidate and look at the screen; a change the HUD shows is the proof."}
+[ 329 18:02:45] RESULT diff_memory
+    {"a":"w0","b":"w1","filter":"changed","considered":256,"matched":2,"hits":[{"address":1200,"old":205,"new":193,"address_hex":"0x04B0"},{"address":1202,"old":215,"new":203,"address_hex":"0x04B2"}],"truncated":false,"note":"Few enough to test: write_memory each candidate and look at the screen; a change the HUD shows is the proof."}
+[ 331 18:02:45] RESULT diff_memory
+    {"a":"v0","b":"v1","filter":"changed","considered":256,"matched":2,"hits":[{"address":1748,"old":0,"new":3,"address_hex":"0x06D4"},{"address":1749,"old":96,"new":184,"address_hex":"0x06D5"}],"truncated":false,"note":"Few enough to test: write_memory each candidate and look at the screen; a change the HUD shows is the proof."}
+[ 334 18:02:54] ASSISTANT (turn 1 step 42) · in 697 (cache 116736) out 1806
+    ▷ Excellent! Very revealing!
+    
+    In $0400-$04FF (page 4): only $04B0 (205→193, -12) and $04B2 (215→203, -12) changed over 24 frames. Both decreased by 12. Interesting: over 24 frames the Goomba moved... let's compute: over the 24-frame window, Goomba screen x went from ~202 to ~190 (from $03AE 202→190, -12). So $04B0 and $04B2 ALSO decreased by 12, exactly matching the Goomba's screen x! 
+    
+    So $04B0 and $04B2 are copies of the Goomba's screen x (two of them?). Hmm, but wait — $04B0/$04B2 are 2 bytes apart. Could be an array with stride 2? Like the OAM-ish "sprite x list". Hmm.
+    
+    But interesting: the Goomba's SCREEN x tracks the camera-relative x; if the camera is fixed, screen x change = level x change.
+    
+    In page $03: $03AE (202→190, -12) = the same value. So $03AE, $04B0, $04B2 all track the Goomba's screen x by -12.
+    
+    Hmm! Three copies. In page $00: $0087 (61→49, -12)! Also -12. So $0087 also tracks it. And $0057 1→0 (changed, not -12).
+    
+    Also $00F7/$00F8/$00F9 changed (animation/timers).
+    
+    So $0087, $03AE, $04B0, $04B2 all = Goomba screen x (with different offsets?). Let's check: at z0/x0/w0 (same moment): $0087=61, $03AE=202, $04B0=205, $04B2=215. Hmm, different absolute values. $0087=61 … [+3658 chars]
+    Very clean: over 24 idle frames only these track the Goomba's -12 px. Let me inspect the surrounding memory to see the array structure.
+    → read_memory {"address": 1200, "length": 32}
+    → read_memory {"address": 128, "length": 32}
+    → read_memory {"address": 928, "length": 32}
+    → read_memory {"address": 0, "length": 32}
+[ 336 18:02:54] RESULT read_memory
+    {"bytes":[193,198,203,204,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":1200,"mem_type":"cpuDebug"}
+[ 338 18:02:54] RESULT read_memory
+    {"bytes":[0,0,0,0,0,0,228,49,128,128,128,128,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":128,"mem_type":"cpuDebug"}
+[ 340 18:02:54] RESULT read_memory
+    {"bytes":[255,0,0,0,0,0,0,0,0,0,0,0,0,112,190,0,0,0,0,0,0,0,0,0,176,184,0,0,0,0,0,0],"address":928,"mem_type":"cpuDebug"}
+[ 342 18:02:54] RESULT read_memory
+    {"bytes":[0,79,208,1,0,112,32,0,5,140,0,0,0,0,8,1,0,0,0,0,0,0,6,0,0,0,0,0,0,0,0,0],"address":0,"mem_type":"cpuDebug"}
+[ 345 18:03:07] ASSISTANT (turn 1 step 43) · in 416 (cache 119168) out 2498
+    ▷ Let me analyze:
+    
+    $04B0 (1200): [193, 198, 203, 204, 0, 0, ...]. So $04B0=193, $04B1=198, $04B2=203, $04B3=204, rest 0. Hmm! So $04B0 and $04B2 aren't an array of x; rather $04B0..$04B3 = 193,198,203,204. Hmm, that's 4 consecutive values ~193-204.
+    
+    Hmm wait, these look like they could be "y positions"? Or OAM-ish.
+    
+    Hmm, but the diff said $04B0 old 205 new 193 and $04B2 old 215 new 203. Now reading $04B0-$04B3 = 193,198,203,204.
+    
+    Hmm, 24 frames ago: 205, ?, 215, ?. Now 193,198,203,204. So $04B0 205→193 (-12), $04B1 ?, $04B2 215→203 (-12), $04B3 ?
+    
+    This doesn't look like the enemy x.
+    
+    $0080 (128): [0,0,0,0,0,0,228,49,128,128,128,128,0,...]. So $0086=228, $0087=49, $0088..$008B = 128,128,128,128.
+    
+    Wait, $0086 = 228?? Earlier I read $0086 = 138 (0x8A) at Mario level x. Hmm, but now $0086=228 = 0xE4. And $0087=49.
+    
+    Hmm, hold on: address 128 = 0x80. bytes[6] = index 0x86 = 228. But earlier read_memory(134)=138 gave 138. Now 228?! The game moved? We're paused... wait, we ran 24 frames of no input, Mario should be static at 138.
+    
+    Hmm, 134 = 0x86. read_memory(134) earlier gave 138. Now read_memory(128,32)[6] = 0x86 = 228. Contradiction!
+    
+    Unless the Goomba collision happened and Mario died ag… [+5879 chars]
+    → screenshot {}
+    → list_sprites {}
+    → read_memory {"address": 1820, "length": 4}
+    → read_memory {"address": 1882, "length": 1}
+[ 347 18:03:07] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/6fac1c82255b.png
+[ 349 18:03:07] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 351 18:03:07] RESULT read_memory
+    {"bytes":[116,115,255,0],"address":1820,"mem_type":"cpuDebug"}
+[ 353 18:03:07] RESULT read_memory
+    {"bytes":[1],"address":1882,"mem_type":"cpuDebug"}
+[ 356 18:03:20] ASSISTANT (turn 1 step 44) · in 1441 (cache 121984) out 2329
+    ▷ Now: camera $071C = 116 (was 86). Wait, camera moved from 86 to 116? That's +30. Mario screen x = 112 though ($0086=228, camera 116 → 228-116=112 ✓).
+    
+    So Mario's level x went from 198 to 228 (+30) with NO input?! That means Mario walked right on his own? No — OH. I bet the "no input" play_input actually had Mario continue walking because of the previous Right press? No, empty buttons.
+    
+    Hmm, but wait: Mario's level x 198→228 (+30) and the camera 86→116 (+30). Mario screen x stayed 112. So Mario walked right 30 px over the... how many frames? Between a1 and now, the play_input ran 24 frames. But Mario can't walk without input.
+    
+    Unless... the game's demo/auto-walk? No.
+    
+    OR: the emulator was NOT paused during my snapshot/read calls and the game kept running with... no, without input Mario doesn't move.
+    
+    Hmm! Unless the Goomba PUSHED Mario? No.
+    
+    OR: the "empty" play_input didn't release the buttons? Hmm, in play_input the script [{buttons: [], frames: 24}] should release all.
+    
+    Hmm, OR: my earlier "40 frames right" run ended, and then during the "empty 40" run, the Right button state somehow persisted. Actually in the first empty-40 run (a0→a1), the Goomba moved 52 px and Mario stayed at… [+6632 chars]
+    Something is off — Mario/camera advanced with no input. Let me verify whether the emulator is really paused between calls.
+    → get_cpu_state {}
+    → read_memory {"address": 9, "length": 1}
+    → read_memory {"address": 1910, "length": 1}
+[ 358 18:03:20] RESULT get_cpu_state
+    {"a":144,"ppu_cycle":73,"x":5,"y":5,"scanline":240,"pc":32856,"sp":255,"cycle":909642943,"status":133}
+[ 360 18:03:20] RESULT read_memory
+    {"bytes":[140],"address":9,"mem_type":"cpuDebug"}
+[ 362 18:03:20] RESULT read_memory
+    {"bytes":[0],"address":1910,"mem_type":"cpuDebug"}
+[ 365 18:03:22] ASSISTANT (turn 1 step 45) · in 160 (cache 125696) out 143
+    ▷ $0009 = 140. cycle = 909642943. Let me call again in this same turn? No, calls within one message run in parallel/sequence quickly. Let me call get_cpu_state and read_memory(9) again now.
+    
+    Actually I already have one data point. Let me do a second round immediately in the next tool block.
+    → get_cpu_state {}
+    → read_memory {"address": 9, "length": 1}
+[ 367 18:03:22] RESULT get_cpu_state
+    {"a":144,"ppu_cycle":77,"x":5,"y":5,"scanline":240,"pc":32855,"sp":255,"cycle":909642945,"status":133}
+[ 369 18:03:22] RESULT read_memory
+    {"bytes":[140],"address":9,"mem_type":"cpuDebug"}
+[ 372 18:03:28] ASSISTANT (turn 1 step 46) · in 253 (cache 125824) out 1062
+    ▷ Cycle count barely changed (909642943 → 909642945 = +2 cycles) between two consecutive calls made back-to-back. So the emulator IS paused (just 2 cycles of the read). Good.
+    
+    But then how did Mario/camera move between a1 and z0/z1? Because between those calls, a play_input ran (empty 24). During that 24-frame run, Mario moved right 30px?! With empty buttons.
+    
+    Hmm, wait. Let me recount. Maybe the camera move happened during the "empty 40" (a0→a1) but the diff didn't show it because... hmm.
+    
+    Actually hold on: maybe the empty segment in play_input doesn't work as expected and the previous Right stayed held. Let's test: run play_input [{buttons: [], frames: 30}] and watch $0086 with sample_every 1. If Mario moves, the empty doesn't release.
+    
+    Let me do that. Also watch $071C.
+    
+    Actually, even more important: let me reconsider. Maybe the game state changes because play_input, when it runs, applies the buttons from the LAST segment of the previous call? The docs: "each segment holds exactly these buttons for that many frames". Empty should release.
+    
+    Hmm, but the fact that the camera moved +30 during the 24-frame window, and Mario +30, exactly matches a Right hold. So Right was held during t… [+2021 chars]
+    Paused confirmed (cycle count static). So the drift happened during a `play_input` run. Let me test whether an empty segment really releases the buttons.
+    → play_input {"script": [{"buttons": [], "frames": 30}], "watch": [134, 135, 109, 1820]}
+[ 374 18:03:29] RESULT play_input
+    {"sample_every":1,"frames":30,"was_paused":true,"paused":true,"segments":1,"frames_run":30,"port":0,"sample_frames":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30],"watch":[{"last":228,"values":[228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228,228],"address":134,"first":228,"address_hex":"0x0086"},{"last":34,"values":[49,48,48,47,47,46,46,45,45,44,44,43,43,42,42,41,41,40,40,39,39,38,38,37,37,36,36,35,35,34],"address":135,"first":49,"address_hex":"0x0087"},{"last":0,"values":[0,0,0,0,0,0,0,0,0,… [+519 chars]
+[ 377 18:03:47] ASSISTANT (turn 1 step 47) · in 547 (cache 127104) out 3669
+    ▷ Now with empty input: $0086 stays 228 (Mario idle), $071C stays 116. And $0087 decreases by exactly 1 every 2 frames: 49,48,48,47,47,46,46,... 34 after 30 frames. So $0087 decreases at 0.5 px/frame — that's the Goomba's walking speed! 
+    
+    $0087 = 49 → 34 in 30 frames = -15, i.e. 0.5 px/frame. 
+    
+    So $0087 IS the Goomba's x (related). Earlier the Goomba appeared to move 52 px in 40 frames = 1.3 px/frame — that was wrong because during that window something else happened (Mario moved due to stuck Right). Hmm.
+    
+    Now: $0087 = 34 at frame 30, camera 116. Goomba screen x = ? $03AE should be 190-ish minus 15 = 175.
+    
+    So $0087 ~ enemy x low byte. But is it level x or screen x? Camera is at 116 constant, Mario idle. So both would move the same.
+    
+    Value 34: Goomba level x? If Goomba screen x = 175 and camera 116 → level x = 291 = 0x123. $0087=34 = 0x22. Not matching.
+    
+    Hmm. But maybe $0087 is the enemy x within a "page" like Mario's $0086 with page $006D. Mario: $006D=0, $0086=228 → level x=228. Camera 116 → screen 112 ✓.
+    
+    If the enemy mirrors Mario's layout, the enemy x low byte would be at $0087 and its page at... $006E? Let me check $006E. Hmm, I read $006D=0.
+    
+    Goomba level x = 175+116 = 291 → pa… [+10647 chars]
+    $0087 falls exactly 1 px every 2 frames = the Goomba's walk speed, while Mario ($0086) stays put. Let me read the whole zero page around it to see the object layout.
+    → read_memory {"address": 96, "length": 64}
+    → read_memory {"address": 160, "length": 64}
+    → read_memory {"address": 224, "length": 32}
+[ 379 18:03:47] RESULT read_memory
+    {"bytes":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,228,34,128,128,128,128,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":96,"mem_type":"cpuDebug"}
+[ 381 18:03:47] RESULT read_memory
+    {"bytes":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,176,184,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":160,"mem_type":"cpuDebug"}
+[ 383 18:03:47] RESULT read_memory
+    {"bytes":[0,0,0,0,0,0,0,144,166,1,159,0,0,0,0,6,24,0,0,0,1,73,250,2,19,34,0,0,0,0,0,0],"address":224,"mem_type":"cpuDebug"}
+[ 386 18:04:19] ASSISTANT (turn 1 step 48) · in 507 (cache 131200) out 6500
+    ▷ Let me parse:
+    
+    $0060-$009F (address 96, 64 bytes):
+    indices: 0x60..0x9F.
+    values: [0]*14 at $60-$6D? Let me index carefully:
+    - $60=0,$61=0,$62=0,$63=0,$64=0,$65=0,$66=0,$67=0,$68=0,$69=0,$6A=0,$6B=0,$6C=0,$6D=0,
+    - $6E=0,$6F=0? wait the bytes list: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,0,...]
+    index 0→$60 ... index 13→$6D=0; index 14→$6E=1; index 15→$6F=2; index 16→$70=2; index 17→$71=2; index 18→$72=2; then zeros.
+    - index 38→$60+38=$86=228 ✓ (player x)
+    - index 39→$87=34 (enemy x)
+    - index 40→$88=128, index 41→$89=128, $8A=128, $8B=128.
+    - rest 0.
+    
+    $00A0-$00DF (address 160, 64 bytes):
+    - index 21→$A0+21=$B5=1; index 22→$B6=1; index 23→$B7=0.
+    - index 46→$A0+46=$CE=176 (player y) ✓
+    - index 47→$CF=184.
+    - rest 0.
+    
+    $00E0-$00FF (address 224, 32):
+    - $E0=0,... 
+    - index 7→$E7=144 (0x90); index8→$E8=166 (0xA6) → 0x90,0xA6 = $A690 layout pointer! ✓ (mapping says $E7/$E8 = $A690)
+    - index 9→$E9=1; index10→$EA=159 ($9F) → $9F01 enemy pointer ✓
+    - index 15→$EF=6; index16→$F0=24
+    - index 20→$F4=1; index21→$F5=73; index22→$F6=250; index23→$F7=2; index24→$F8=19; index25→$F9=34.
+    
+    Interesting. So $0087 is the enemy x and it sits right after player x ($0086). Hmm, but where are 6 slots? $0088-$008B = 128,128,1… [+18176 chars]
+    The Goomba's x byte is `$0087` (player x is `$0086`); y is likely `$00CF` (next to player y `$00CE`). Let me prove the x by writing it and stepping.
+    → save_state {"slot": 2}
+    → write_memory {"address": 135, "bytes": [240]}
+[ 388 18:04:19] RESULT save_state
+    {"action":"saved","slot":2,"paused":true,"stepped_frames":1,"bytes":5247}
+[ 390 18:04:19] RESULT write_memory
+    {"bytes_written":1,"address":135,"mem_type":"cpu","persistent":false}
+[ 393 18:04:21] ASSISTANT (turn 1 step 49) · in 161 (cache 138112) out 183
+    ▷ Now step 1 frame and list sprites + read $03AE.
+    
+    Wait — save_state "stepped_frames:1" means it advanced a frame while saving. That's fine (paused, one frame runs).
+    
+    Let me step_frame 1 and look.
+    → step_frame {"count": 1}
+    → read_memory {"address": 135, "length": 1}
+    → read_memory {"address": 942, "length": 1}
+[ 395 18:04:21] RESULT step_frame
+    {"stepped":1,"paused":true}
+[ 397 18:04:21] RESULT read_memory
+    {"bytes":[239],"address":135,"mem_type":"cpuDebug"}
+[ 399 18:04:21] RESULT read_memory
+    {"bytes":[124],"address":942,"mem_type":"cpuDebug"}
+[ 402 18:04:23] ASSISTANT (turn 1 step 50) · in 156 (cache 138368) out 187
+    ▷ $0087: 240 → 239 after 1 frame (the game decremented it by 1? or the enemy walked). It persists (240→239, not immediately reset to 34). And $03AE (derived enemy screen x) = 124 = 239 - 116 (camera) - ... 239-116 = 123. Hmm, 124. Close (there's a +1 offset).
+    
+    So writing $0087 moved the enemy. Let me verify with list_sprites/screenshot.
+    
+    Also note: the game decremented by 1 in one frame (not 0.5), because... hmm, maybe the write happened mid-frame. Anyway.
+    
+    Let me screenshot and list_sprites.
+    → screenshot {}
+    → list_sprites {}
+[ 404 18:04:24] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/943018734702.png
+[ 406 18:04:24] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 409 18:04:38] ASSISTANT (turn 1 step 51) · in 1375 (cache 138624) out 2833
+    ▷ Hmm! I wrote $0087=240, and expected the Goomba to jump to screen x=124. But list_sprites shows the Goomba at x=174/182 — the SAME place as before (before the write, the Goomba was at screen 190/198 when $0087 was 34 at camera 116... wait).
+    
+    Hold on. Let me recompute. At the moment before the write, $0087=34 and camera=116. The Goomba was at level x = 34? or 290?
+    
+    list_sprites after the write shows Goomba at screen 174/182. $03AE = 124. Hmm, $03AE read 124 but the Goomba sprite is at 174. Hmm!
+    
+    Wait: before the write, in the "empty 30" watch, $0087 went 49→34 and camera was 116; the Goomba would be at... we didn't list sprites then. The last list_sprites before that showed Goomba at 190/198 with $0087=61? no.
+    
+    Let me recompute using this data point: after writing $0087=240 and stepping 1 frame, $0087=239 and the Goomba sprite is at screen 174. $03AE=124.
+    
+    Hmm, so the Goomba's screen x (174) ≠ $0087 - camera (239-116=123). And $03AE=124 = 239-116+1. But the Goomba sprite is at 174, which is NOT 124.
+    
+    So the Goomba at screen 174 is NOT the one whose x is $0087! Either there are multiple Goombas, or $0087 is something else.
+    
+    Hmm! Look at the screenshot: there's a Goomba at ~180 and Ma… [+7428 chars]
+    Interesting — the write moved a derived screen-x (`$03AE`=124) but the visible Goomba stayed at 174. Let me pull the full picture.
+    → read_memory {"address": 128, "length": 16}
+    → read_memory {"address": 1818, "length": 4}
+    → read_memory {"address": 941, "length": 4}
+    → read_memory {"address": 96, "length": 24}
+[ 411 18:04:39] RESULT read_memory
+    {"bytes":[0,0,0,0,0,0,228,239,128,128,128,128,0,0,0,0],"address":128,"mem_type":"cpuDebug"}
+[ 413 18:04:39] RESULT read_memory
+    {"bytes":[0,1,116,115],"address":1818,"mem_type":"cpuDebug"}
+[ 415 18:04:39] RESULT read_memory
+    {"bytes":[112,124,0,0],"address":941,"mem_type":"cpuDebug"}
+[ 417 18:04:39] RESULT read_memory
+    {"bytes":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,0,0,0,0,0],"address":96,"mem_type":"cpuDebug"}
+[ 420 18:05:09] ASSISTANT (turn 1 step 52) · in 297 (cache 142720) out 6335
+    ▷ Data:
+    - $0080-$008F: [0,0,0,0,0,0,228,239,128,128,128,128,0,0,0,0]
+      → $0086=228 (player x), $0087=239, $0088-$008B=128.
+    - $071A-$071D: [$071A=0, $071B=1, $071C=116, $071D=115]
+      → camera page $071A=0, $071B=1 (hmm), $071C=116, $071D=115.
+    - $03AD-$03B0: [$03AD=112, $03AE=124, 0, 0]
+      → $03AD = player screen x = 112 ✓; $03AE = 124 (enemy screen x).
+    - $0060-$0077: [..., $006E=1, $006F=2, $0070=2, $0071=2, $0072=2, ...]
+    
+    So the game derived enemy screen x = 124 from $0087=239 and scroll 116 (239-116=123, +1 = 124). So $0087 IS the enemy's x and the engine thinks it's at screen x 124.
+    
+    But list_sprites shows the visible Goomba at x=174/182. So the visible Goomba is a DIFFERENT object from the one at $0087!
+    
+    Hmm, unless the Goomba at 174 has its own x variable and $0087 is a second enemy. Let me check: are there other candidate x arrays? $0088-$008B = 128 (inactive). Hmm.
+    
+    Wait — maybe the object at $0087 is not a Goomba but MARIO's... no, player x is $0086.
+    
+    Hmm, hold on! What if the visible "Goomba" at 174 is actually drawn from an x elsewhere, and $0087's enemy is drawn at screen 124 but is invisible because... hmm, list_sprites enumerates actual OAM entries; if the engine draws an o… [+19893 chars]
+    The write to `$0087` moved a derived value but not the sprite — there are several copies. Let me use `trace_writes` on the derived screen-x to find the routine (and the real x variable). First, restore and buy distance.
+    → load_state {"slot": 2}
+    → play_input {"script": [{"buttons": ["left"], "frames": 60}]}
+[ 422 18:05:09] RESULT load_state
+    {"action":"loaded","slot":2,"paused":true,"stepped_frames":1,"bytes":5247}
+[ 424 18:05:10] RESULT play_input
+    {"sample_every":1,"frames":60,"was_paused":true,"paused":true,"segments":1,"frames_run":60,"port":0,"sample_frames":[],"watch":[],"polls":60,"end_frame":186057,"start_frame":185997,"note":"Ran 60 frames of input on port 0. The game was paused before and is paused again now."}
+[ 427 18:05:12] ASSISTANT (turn 1 step 53) · in 236 (cache 149248) out 114
+    ▷ 
+    → list_sprites {}
+    → read_memory {"address": 134, "length": 2}
+    → read_memory {"address": 1818, "length": 6}
+[ 429 18:05:12] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":64,"behind_background":false,"chr_tile":252,"y":177,"x":52,"index":1,"height":8,"width":8,"flip_h":true,"tile":252,"flip_v":false},{"palette":4,"attr":64,"behind_background":false,"chr_tile":252,"y":177,"x":60,"index":2,"height":8,"width":8,"flip_h":true,"tile":252,"flip_v":false},{"palette":4,"attr":64,"behind_background":false,"chr_tile":252,"y":185,"x":52,"index":3,"height":8,"width":8,"flip_h":true,"tile":252,"… [+1814 chars]
+[ 431 18:05:12] RESULT read_memory
+    {"bytes":[167,4],"address":134,"mem_type":"cpuDebug"}
+[ 433 18:05:12] RESULT read_memory
+    {"bytes":[0,1,116,115,255,0],"address":1818,"mem_type":"cpuDebug"}
+[ 436 18:05:17] ASSISTANT (turn 1 step 54) · in 1091 (cache 149504) out 762
+    ▷ Now: Mario walked left to level x = 167? Wait $0086=167 and camera $071C=116 → screen x=51 ✓ (Mario at 52). $0087 = 4! Enemy x low = 4, page likely 1 → level 260? screen 260-116=144 ✓ (Goomba at 145!). 
+    
+    So $0087=4 → Goomba screen 145. Camera 116: 4+256=260 → 260-116=144. Yes, page=1.
+    
+    Now the Goomba is at level 260, Mario at 167 → gap 93. 
+    
+    Now let me trace. I'll do resume_emulator + trace_writes in one message.
+    
+    trace_writes on address 135 ($0087), mode write, frames 90. That will catch the enemy movement writer. OR trace on $03AE (942) to find the screen-x computation.
+    
+    Hmm, which is more informative? The writer of $0087 would be the enemy movement routine which likely does `LDA $0087,X` style... Actually if $0087 is the array element for slot X, the writer PC would do `STA $0086,X` or `STA $0087`. Disassembling reveals the base.
+    
+    Actually, the most informative single trace: on $03AE (the derived screen x), because the routine that computes it reads the enemy x base. But the routine might loop over all objects.
+    
+    Hmm, let me trace BOTH ranges? trace_writes takes one range. Let me trace $0086-$0087 (134, length 2). Writers: the player update (writes $0086) and the enemy update (wr… [+1001 chars]
+    Distance restored (Goomba level x≈260, Mario 167). Now `trace_writes` on the derived screen-x pair to catch the routine that reads the real enemy x — I'll resume and trace back-to-back.
+    → resume_emulator {}
+    → trace_writes {"address": 941, "length": 2, "frames": 120, "mode": "write"}
+[ 438 18:05:17] RESULT resume_emulator
+    {"resumed":true}
+[ 440 18:05:19] RESULT trace_writes
+    {"frames":120,"truncated":false,"mode":"write","address":941,"writers":[{"last_value":21,"last_frame":119,"count":360,"pc":61823,"origin":{"mem_type_id":45,"address":29055,"mem_type":"prgRom"},"last_address":941,"samples":[{"frame":0,"address":941,"value":46},{"frame":0,"address":942,"value":143},{"frame":0,"address":941,"value":46},{"frame":1,"address":941,"value":45},{"frame":1,"address":942,"value":142},{"frame":1,"address":941,"value":45},{"frame":2,"address":941,"value":44},{"frame":2,"address":942,"value":142}],"pc_hex":"0xF17F","origin_hex":"prgRom 0x717F"}],"total_accesses":360,"record… [+167 chars]
+[ 444 18:05:29] ASSISTANT (turn 1 step 55) · in 23062 (cache 151296) out 1818
+    ▷ The trace found ONE writer: PC $F17F (prgRom 0x717F), 360 writes (2 bytes × 120 frames × ... = 240? it says 360 = 3 writes per frame? Hmm, 120 frames × 3 = 360). Writer writes BOTH $03AD and $03AE and one more? Actually 360 accesses over 120 frames = 3 per frame for the 2-byte range... hmm, maybe it writes a table for multiple objects.
+    
+    The sample shows frame 0: $03AD=46, $03AE=143; frame 1: $03AD=45, $03AE=142; frame 2: 44,142. Both decreasing together (player and enemy screen x). 
+    
+    The routine at $F17F is the same one the mapping mentions: "ROM routine at CPU $F171 does LDA $0086,X / SEC / SBC $071C / STA $03AD,Y". So the routine iterates over objects X and writes $03AD,Y. The source base is $0086,X — wait, the mapping says `LDA $0086,X` for the player. If the routine loops with X over object indices, then the x array base is $0086 with X = object index, and the enemy is X=1 → $0087! So $0086 is indeed an ARRAY: $0086,X = object X's x low byte!
+    
+    And it wrote $03AD,Y where Y might equal X or be a different index. The samples show $03AD and $03AE both changing, consistent with a loop over 2 objects (player X=0 and enemy X=1).
+    
+    So the object x array base is $0086 (stride 1), with X … [+4108 chars]
+    The trace gives one writer, PC `$F17F` (`prgRom 0x717F`) — exactly the routine the mapping knows: it does `LDA $0086,X`. So `$0086` is an **array** indexed by object slot, with the player at slot 0 and the Goomba at slot 1 (`$0087`). Let me disassemble it and pause.
+    → pause_emulator {}
+    → disassemble {"address": 61809, "length": 64}
+[ 446 18:05:29] RESULT pause_emulator
+    {"paused":true}
+[ 448 18:05:29] RESULT disassemble
+    $f171: b5 ce       lda 0xce, x
+    $f173: 99 b8 03    sta 0x03b8, y
+    $f176: b5 86       lda 0x86, x
+    $f178: 38          sec 
+    $f179: ed 1c 07    sbc 0x071c
+    $f17c: 99 ad 03    sta 0x03ad, y
+    $f17f: 60          rts 
+    $f180: a2 00       ldx #0x00
+    $f182: a0 00       ldy #0x00
+    $f184: 4c c0 f1    jmp 0xf1c0
+    $f187: a0 00       ldy #0x00
+    $f189: 20 a8 f1    jsr 0xf1a8
+    $f18c: a0 02       ldy #0x02
+    $f18e: 4c c0 f1    jmp 0xf1c0
+    $f191: a0 01       ldy #0x01
+    $f193: 20 a8 f1    jsr 0xf1a8
+    $f196: a0 03       ldy #0x03
+    $f198: 4c c0 f1    jmp 0xf1c0
+    $f19b: a0 02       ldy #0x02
+    $f19d: 20 a8 f1    jsr 0xf1a8
+    $f1a0: a0 0… [+47 chars]
+[ 452 18:05:51] ASSISTANT (turn 1 step 56) · in 23199 (cache 176128) out 4078
+    ▷ The disassembly at $F171:
+    
+    ```
+    $F171: LDA $CE,X      ; object Y
+    $F173: STA $03B8,Y    ; store screen y? (Y = OAM index)
+    $F176: LDA $86,X      ; object X low
+    $F178: SEC
+    $F179: SBC $071C      ; minus scroll
+    $F17C: STA $03AD,Y
+    $F17F: RTS
+    ```
+    
+    So this is a helper called with X = object index, Y = destination index. It reads $CE,X (Y) and $86,X (X). So the object arrays:
+    - X position: base $0086, stride 1 (index = object slot)
+    - Y position: base $00CE, stride 1
+    - page: base $006D? Hmm, this routine doesn't read the page.
+    
+    Wait, but it does `LDA $86,X / SEC / SBC $071C / STA $03AD,Y` — only 8-bit subtraction, no page. So $03AD is x - scroll (mod 256).
+    
+    Hmm, and the player's page $006D is used elsewhere.
+    
+    Now, the important question: what is the object index of the Goomba? The routine is called with X=object index. The trace showed $03AD and $03AE both written, meaning calls with Y=0 and Y=1 (and X=0/1?). If X=1 for the Goomba, then the Goomba's x = $0087 and y = $00CF. And $03AE = its screen x.
+    
+    But earlier my write to $0087 did NOT move the Goomba sprite, yet $03AE followed $0087. Hmm! That contradicts: if $03AE is the Goomba's screen x and it followed my write, the Goomba should have m… [+11577 chars]
+    The disassembly is decisive: `$F171` is a two-object helper — `LDA $CE,X / STA $03B8,Y` (Y position, base `$00CE`) and `LDA $86,X / SEC / SBC $071C / STA $03AD,Y` (X position, base `$0086`). So slot 0 = player, slot 1 = the Goomba at `$0087`/`$00CF`. Let me check the current state, then trace the Goomba's x to find its movement routine (and the type array).
+    → read_memory {"address": 134, "length": 2}
+    → read_memory {"address": 110, "length": 1}
+    → read_memory {"address": 1820, "length": 1}
+    → list_sprites {}
+[ 454 18:05:51] RESULT read_memory
+    {"bytes":[40,96],"address":134,"mem_type":"cpuDebug"}
+[ 456 18:05:51] RESULT read_memory
+    {"bytes":[1],"address":110,"mem_type":"cpuDebug"}
+[ 458 18:05:51] RESULT read_memory
+    {"bytes":[0],"address":1820,"mem_type":"cpuDebug"}
+[ 460 18:05:51] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":40,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":48,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":40,"index":3,"height":8,"width":8,"flip_h":false,"tile":252,"… [+895 chars]
+[ 463 18:06:08] ASSISTANT (turn 1 step 57) · in 669 (cache 203392) out 3492
+    ▷ Now $0086=40 (Mario back at level start!), $0087=96, camera=0. Mario is at level 40 (screen 40). The camera reset to 0. So Mario died during the trace run (120 frames) and the level restarted. Now Goomba not on screen (list shows only Mario). $0087=96 — an enemy x left from before? Hmm, actually after restart, $0087=96 could be stale.
+    
+    Let me check $0770 and $075A. Actually, Mario's at the start and no Goomba. Let me just proceed: I want to spawn a Goomba again. But first, note: the game is paused now.
+    
+    Hmm, this is getting long. Let me step back and think about the most efficient way to finish.
+    
+    What I need:
+    1. Enemy X array: base $0086, stride 1, slots 0=player, 1..6 = enemies? Need to confirm count/slots and that slots ≥1 are enemies. Actually $0086 is the player-x array; the "enemy x array" would be the same array. Hmm, the task wants "each enemy slot's ... horizontal position". So the array is $0086 with stride 1, and enemy slots are 1..6 (6 slots). I should verify that multiple enemies occupy consecutive slots.
+    
+    2. Enemy Y array: base $00CE, stride 1, same slots.
+    
+    3. Enemy TYPE array: base unknown.
+    
+    So I still need the type array. Let me find it via the movement routine disas… [+10356 chars]
+    The write test needs to be cleaner. Let me restore the saved state and do a strict before/after on `$0087` while keeping the enemy on-screen.
+    → load_state {"slot": 2}
+    → read_memory {"address": 109, "length": 2}
+    → read_memory {"address": 134, "length": 2}
+    → read_memory {"address": 206, "length": 2}
+    → read_memory {"address": 941, "length": 2}
+[ 465 18:06:08] RESULT load_state
+    {"action":"loaded","slot":2,"paused":true,"stepped_frames":1,"bytes":5247}
+[ 467 18:06:08] RESULT read_memory
+    {"bytes":[0,1],"address":109,"mem_type":"cpuDebug"}
+[ 469 18:06:08] RESULT read_memory
+    {"bytes":[228,34],"address":134,"mem_type":"cpuDebug"}
+[ 471 18:06:08] RESULT read_memory
+    {"bytes":[176,184],"address":206,"mem_type":"cpuDebug"}
+[ 473 18:06:08] RESULT read_memory
+    {"bytes":[112,174],"address":941,"mem_type":"cpuDebug"}
+[ 476 18:06:11] ASSISTANT (turn 1 step 58) · in 202 (cache 207488) out 285
+    ▷ Confirmed: after load_state 2:
+    - $006D=0 (player page), $006E=1 (enemy page)
+    - $0086=228 (player x), $0087=34 (enemy x)
+    - $00CE=176 (player y), $00CF=184 (enemy y)
+    - $03AD=112 (player screen x), $03AE=174 (enemy screen x)
+    
+    Enemy level x = page $006E(1)*256 + $0087(34) = 290; screen = 290-116 = 174 ✓. 
+    
+    Now write $0087=100 → level x = 356 → screen = 240. Then step 1 and screenshot/list_sprites.
+    
+    Let me take a before screenshot too. Actually I have the state; let me do:
+    - write $0087=100
+    - step_frame 1
+    - read $0087, $006E
+    - list_sprites, screenshot
+    
+    Expected if $0087 is the Goomba's x: Goomba at screen 240.
+    
+    Let me do it.
+    → write_memory {"address": 135, "bytes": [100]}
+[ 478 18:06:11] RESULT write_memory
+    {"bytes_written":1,"address":135,"mem_type":"cpu","persistent":false}
+[ 481 18:06:14] ASSISTANT (turn 1 step 59) · in 135 (cache 207872) out 128
+    ▷ 
+    → step_frame {"count": 1}
+    → read_memory {"address": 135, "length": 1}
+    → read_memory {"address": 942, "length": 1}
+[ 483 18:06:14] RESULT step_frame
+    {"stepped":1,"paused":true}
+[ 485 18:06:14] RESULT read_memory
+    {"bytes":[99],"address":135,"mem_type":"cpuDebug"}
+[ 487 18:06:14] RESULT read_memory
+    {"bytes":[240],"address":942,"mem_type":"cpuDebug"}
+[ 490 18:06:16] ASSISTANT (turn 1 step 60) · in 203 (cache 208000) out 129
+    ▷ $0087 = 99 (the game decremented by 1), $03AE = 240 = (256+99)-116+1 = 240? (99-116 = -17 → +256 = 239; plus 1 = 240). So $03AE = 240, i.e. the Goomba's screen x should be 240.
+    
+    Now list_sprites: is the Goomba at 240? Let me check.
+    → list_sprites {}
+    → screenshot {}
+[ 492 18:06:16] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 494 18:06:16] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/943018734702.png
+[ 497 18:06:43] ASSISTANT (turn 1 step 61) · in 1364 (cache 208256) out 5425
+    ▷ Confirmed! The Goomba sprite did NOT move (still at 174/182) even though $0087=99 and $03AE=240. The screenshot is identical to the previous write-test screenshot (same sha 943018...).
+    
+    Hmm! So $0087 is NOT the drawn Goomba's x. But it moves at exactly the Goomba's speed and $03AE tracks it...
+    
+    Wait. Unless the drawn Goomba at 174 is a SECOND object. Let me count objects. $0087 is slot 1. If the drawn Goomba is slot... hmm.
+    
+    Hmm, hold on! Maybe the routine $F171 is called for the PLAYER with X=0 (writes $03AD) and for the ENEMY with X=1 (writes $03AE), but the enemy's x is at $0087 and the enemy's SPRITE is drawn from $03AE... then writing $0087 should move the sprite. It didn't.
+    
+    So either:
+    (a) The sprite at 174 is a different object (and $0087's object is invisible), or
+    (b) The sprite drawing doesn't use $03AE.
+    
+    Hmm, we can test (b): after my write, $03AE=240. If the sprite used $03AE, it'd be at 240. It's at 174. So the sprite uses something else.
+    
+    And the object at $0087 moved at exactly 0.5 px/frame left — same as the Goomba. And $00CF=184 = the Goomba's y-ish. So slot 1 has the Goomba's coordinates. Why isn't it drawn?
+    
+    OH!!! Maybe slot 1 IS the Goomba but the Goomba's OAM x … [+16824 chars]
+    The sprite didn't follow `$0087`, though the derived `$03AE` did. Let me step a few more frames and re-check — maybe the draw lags or uses another copy.
+    → step_frame {"count": 5}
+    → read_memory {"address": 134, "length": 3}
+    → read_memory {"address": 941, "length": 3}
+[ 499 18:06:43] RESULT step_frame
+    {"stepped":5,"paused":true}
+[ 501 18:06:43] RESULT read_memory
+    {"bytes":[228,99,128],"address":134,"mem_type":"cpuDebug"}
+[ 503 18:06:43] RESULT read_memory
+    {"bytes":[112,239,0],"address":941,"mem_type":"cpuDebug"}
+[ 506 18:06:51] ASSISTANT (turn 1 step 62) · in 209 (cache 214912) out 1337
+    ▷ After 5 more frames: $0087=99 (didn't move! because the game is paused and step_frame only renders? no, step_frame advances frames and the game logic runs). Hmm, $0087 stayed 99 over 5 frames — but earlier it decremented by 1 per frame (100→99). Now it stays 99 for 5 frames? That suggests the enemy's movement is not running... 
+    
+    Hmm! Wait, maybe the enemy object at slot 1 is INACTIVE (flag off) so its movement doesn't run — the decrement 100→99 might have been a one-time thing from the erase/collision logic.
+    
+    Hmm. Also $03AE = 239 (was 240) — changed by 1.
+    
+    And $0088=128 still.
+    
+    Hmm, so $0087 is stuck at 99. That means the "enemy" at slot 1 is not an active walking Goomba.
+    
+    Hmm, so maybe slot 1 USED to be a Goomba but is now inactive/erased, and the drawn Goomba is elsewhere. But then what wrote $0087 and moved it at 0.5 px/frame earlier? Hmm.
+    
+    Hmm, wait. Earlier (before this write test) $0087 was observed decreasing smoothly 49→34 over 30 frames. That was an ACTIVE object walking. Now after the write it's stuck. Confusing.
+    
+    Hmm, unless the object at slot 1 is the drawn Goomba and writing a large x made the engine "deactivate" it (off-screen right logic: if enemy x - camera > some … [+3032 chars]
+    Let me find the callers/users of this object helper to understand the slot layout.
+    → search_memory {"hex": "20 71 F1", "mem_type": "prgRom"}
+    → search_memory {"hex": "B5 86", "mem_type": "prgRom"}
+    → search_memory {"hex": "B5 CE", "mem_type": "prgRom"}
+[ 508 18:06:51] RESULT search_memory
+    {"memory_size":32768,"mem_type":"prgRom","pattern_length":3,"truncated":false,"start":0,"searched":32768,"offsets":[28994,29035],"offsets_hex":["0x7142","0x716B"]}
+[ 510 18:06:51] RESULT search_memory
+    {"memory_size":32768,"mem_type":"prgRom","pattern_length":2,"truncated":false,"start":0,"searched":32768,"offsets":[16188,25325,25641,29046],"offsets_hex":["0x3F3C","0x62ED","0x6429","0x7176"]}
+[ 512 18:06:51] RESULT search_memory
+    {"memory_size":32768,"mem_type":"prgRom","pattern_length":2,"truncated":false,"start":0,"searched":32768,"offsets":[25613,25636,29041],"offsets_hex":["0x640D","0x6424","0x7171"]}
+[ 515 18:06:54] ASSISTANT (turn 1 step 63) · in 244 (cache 216448) out 339
+    ▷ prgRom offsets (no header): the CPU address = prgRom offset + 0x8000 (for a 32KB PRG with no banks). So:
+    - JSR $F171 callers at prgRom 0x7142 and 0x716B → CPU $F142, $F16B.
+    - LDA $86,X users at prgRom 0x3F3C (CPU $BF3C), 0x62ED (CPU $E2ED), 0x6429 (CPU $E429), 0x7176 (the helper).
+    - LDA $CE,X users at prgRom 0x640D (CPU $E40D), 0x6424 (CPU $E424), 0x7171 (helper).
+    
+    Interesting: CPU $E40D/$E424 read $CE,X and $86,X — that's probably the sprite-drawing routine for enemies! Let me disassemble around CPU $E3E0-$E450.
+    
+    Also CPU $BF3C reads $86,X (player movement) and $E2ED reads $86,X.
+    
+    Let me disassemble CPU $E3E0 (prgRom 0x63E0) length 96.
+    
+    This should reveal the enemy sprite handler and which arrays it uses (x,y,type).
+    → disassemble {"address": 58336, "length": 112}
+[ 517 18:06:54] RESULT disassemble
+    $e3e0: 18          clc 
+    $e3e1: 18          clc 
+[ 520 18:06:57] ASSISTANT (turn 1 step 64) · in 233 (cache 216832) out 181
+    ▷ Hmm, the disassembly at 58336 = 0xE3E0 gave only 2 instructions? That means the bytes are... weird. Maybe 0xE3E0 is data. Let me disassemble at $E400 (58368) length 96.
+    
+    Actually the reads: LDA $CE,X at prgRom 0x640D → CPU $E40D; LDA $86,X at 0x6429 → CPU $E429. Let me disassemble CPU $E3F0 length 96, i.e. address 58352.
+    → disassemble {"address": 58352, "length": 112}
+[ 522 18:06:57] RESULT disassemble
+    $e3f0: 48          pha 
+    $e3f1: 84 04       sty 0x04
+    $e3f3: b9 b0 e3    lda 0xe3b0, y
+    $e3f6: 18          clc 
+    $e3f7: 75 86       adc 0x86, x
+    $e3f9: 85 05       sta 0x05
+    $e3fb: b5 6d       lda 0x6d, x
+    $e3fd: 69 00       adc #0x00
+    $e3ff: 29 01       and #0x01
+    $e401: 4a          lsr a
+    $e402: 05 05       ora 0x05
+    $e404: 6a          ror a
+    $e405: 4a          lsr a
+    $e406: 4a          lsr a
+    $e407: 4a          lsr a
+    $e408: 20 e1 9b    jsr 0x9be1
+    $e40b: a4 04       ldy 0x04
+    $e40d: b5 ce       lda 0xce, x
+    $e40f: 18          clc 
+    $e410: 79 cc e3    adc 0xe3cc, y
+    $e413: 29 f0       and #0xf0
+    $e415: 38      … [+433 chars]
+[ 525 18:07:01] ASSISTANT (turn 1 step 65) · in 619 (cache 217216) out 579
+    ▷ This is the enemy/metatile collision routine ("BlockBuffer") at CPU $E3F0: it reads $86,X and $6d,X (page) and $ce,X (y) to compute a metatile location — used for collision with blocks. So this confirms the same arrays but for collision, not drawing.
+    
+    So $0086/$006D/$00CE are indeed the object position arrays used for collision.
+    
+    Now, the enemy DRAWING routine must read the same arrays (or the $03AD copies). The drawn Goomba at 174 = slot 1's position. So drawing uses slot 1's position.
+    
+    But writing $0087 didn't move the sprite! Unless the sprite drawing happens from a DIFFERENT variable that is a copy.
+    
+    Hmm, wait: maybe the drawn Goomba is NOT slot 1. Let me determine which slot the drawn Goomba corresponds to by checking the screen-x copies: $03AD=112 (player), and the trace showed 3 writes/frame → 3 objects: slots 0,1,2 → $03AD,$03AE,$03AF. What are their values now? Let me read $03AD-$03B8 (the screen x array) and the y array $03B8-ish.
+    
+    Actually the helper writes y to $03B8,Y and x to $03AD,Y. So the arrays are $03AD (x, stride 1) and $03B8 (y, stride 1). Let me read $03AD-$03B0 and $03B8-$03BB.
+    
+    $03AE=239 currently (slot 1). And the drawn Goomba at 174. So slot 1's screen x i… [+378 chars]
+    → read_memory {"address": 941, "length": 12}
+    → read_memory {"address": 952, "length": 24}
+[ 527 18:07:01] RESULT read_memory
+    {"bytes":[112,237,0,0,0,0,0,0,0,0,0,176],"address":941,"mem_type":"cpuDebug"}
+[ 529 18:07:01] RESULT read_memory
+    {"bytes":[176,184,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":952,"mem_type":"cpuDebug"}
+[ 532 18:07:11] ASSISTANT (turn 1 step 66) · in 164 (cache 218368) out 1929
+    ▷ $03AD-$03B8: [112, 237, 0,0,0,0,0,0,0,0,0, 176]
+    So $03AD=112 (player x), $03AE=237 (slot1 x), then $03AF-$03B7=0, and $03B8=176 (player y).
+    
+    $03B8-$03CF: [176, 184, 0, ...] → $03B8=176 (player y), $03B9=184 (slot1 y).
+    
+    So slot 1's screen x = 237, screen y = 184. But the drawn Goomba is at screen (174, 185). So slot 1 (screen 237) is NOT the drawn Goomba at 174!
+    
+    And there are only 2 slots being written (player and slot 1) — so the trace's 3 writes/frame was maybe the helper writing $03B8 and $03AD (2 per call) or something. Actually I traced $03AD-$03AE (2 bytes, addresses 941-942). If the helper is called twice (player X=0,Y=0 and enemy X=?,Y=1), that's 2 writes to the traced range per frame → 240 total, not 360. The trace said count 360 = 3/frame. Hmm, maybe it writes $03AD twice for the same object? Or 3 objects where slot 2's x went to $03AF (not traced). But $03AF=0.
+    
+    Hmm, whatever.
+    
+    KEY: slot 1 is at screen 237 — off-screen right (the Goomba I moved with my write!). And the DRAWN Goomba at 174. So there ARE two enemies: one at slot 1 (which I wrote to, screen 237) and the drawn one at 174 whose x is stored... somewhere else, and whose $03xx entry should be 174 but isn't among… [+4660 chars]
+    Slot 1's derived screen-x is now 237, yet the drawn Goomba stayed at 174 — so the drawn enemy is a different object/copy. Let me restore and test the other candidate (`$04B0`).
+    → load_state {"slot": 2}
+[ 534 18:07:11] RESULT load_state
+    {"action":"loaded","slot":2,"paused":true,"stepped_frames":1,"bytes":5247}
+[ 537 18:07:14] ASSISTANT (turn 1 step 67) · in 210 (cache 220288) out 146
+    ▷ 
+    → read_memory {"address": 1200, "length": 8}
+    → read_memory {"address": 136, "length": 4}
+    → read_memory {"address": 941, "length": 2}
+[ 539 18:07:14] RESULT read_memory
+    {"bytes":[177,198,187,204,0,0,0,0],"address":1200,"mem_type":"cpuDebug"}
+[ 541 18:07:14] RESULT read_memory
+    {"bytes":[128,128,128,128],"address":136,"mem_type":"cpuDebug"}
+[ 543 18:07:14] RESULT read_memory
+    {"bytes":[112,174],"address":941,"mem_type":"cpuDebug"}
+[ 546 18:07:17] ASSISTANT (turn 1 step 68) · in 196 (cache 220544) out 425
+    ▷ $04B0-$04B3 = [177, 198, 187, 204]. 
+    $03AD/03AE = [112, 174]. Drawn Goomba at 174 → $03AE matches!
+    
+    But earlier after my write, $03AE was 237 and the drawn Goomba stayed 174. Hmm, so $03AE matched before but the sprite didn't follow the change.
+    
+    $04B0=177, $04B2=187. The drawn Goomba is at 174. Hmm, $04B0=177 is close to 174 (3 off). $04B2=187.
+    
+    Hmm, $04B0=177 and $04B2=187 differ by 10. The Goomba's two columns are at 174 and 182 (8 apart). Hmm.
+    
+    Let me think: for the Goomba at screen x 174, the OAM entries are at x=174 (left column) and 182 (right column). $04B0=177, $04B2=187 — offsets +3/+5.
+    
+    Hmm, maybe $04B0/$04B2 are the x of the two 8x8 halves including a +? Hmm.
+    
+    Actually! Maybe $04B0/$04B2 are the OAM x for the Goomba computed with the "sprite offset" and both decrease with it.
+    
+    Whatever — the key question is which variable, if written, moves the drawn Goomba. Let me test $04B0.
+    
+    Write $04B0 = 210 (from 177), step 1, list_sprites. If the Goomba's OAM x becomes ~210, then $04B0 drives the drawing.
+    
+    Let me do that.
+    → write_memory {"address": 1200, "bytes": [210]}
+[ 548 18:07:17] RESULT write_memory
+    {"bytes_written":1,"address":1200,"mem_type":"cpu","persistent":false}
+[ 551 18:07:20] ASSISTANT (turn 1 step 69) · in 142 (cache 221056) out 97
+    ▷ 
+    → step_frame {"count": 1}
+    → list_sprites {}
+    → read_memory {"address": 1200, "length": 4}
+[ 553 18:07:20] RESULT step_frame
+    {"stepped":1,"paused":true}
+[ 555 18:07:20] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 557 18:07:20] RESULT read_memory
+    {"bytes":[177,198,187,204],"address":1200,"mem_type":"cpuDebug"}
+[ 560 18:07:33] ASSISTANT (turn 1 step 70) · in 1097 (cache 221184) out 2479
+    ▷ Writing $04B0=210 had NO effect: $04B0 read back 177 and the Goomba stayed at 174. So $04B0 is rewritten every frame from something else (a derived value).
+    
+    So $04B0 is not the source.
+    
+    I'm now quite puzzled about which variable drives the drawn Goomba. Let me use trace_writes in READ mode on $0087 to see all readers, and also on $03AE.
+    
+    Actually, WAIT. Let me reconsider. Maybe the drawn Goomba at 174 is NOT slot 1. Let me check: before my write, slot 1's screen x ($03AE) = 174 AND the drawn Goomba is at 174. After my write to $0087, $03AE=237 but the drawn Goomba stayed at 174.
+    
+    What if the enemy sprite is drawn from $03AE only when the enemy's "active/on-screen" flag says so, and writing $0087 made the *page-based* position off... no.
+    
+    Hmm, hold on. What if there are TWO Goombas, both drawn, but list_sprites shows only one cluster because they overlap? The OAM has 9 Mario+HUD entries + 6 Goomba entries = 15. If there were 2 Goombas, we'd have 24 entries. list_sprites count=15. So ONE Goomba drawn.
+    
+    Hmm. So slot 1's derived x ($03AE=237) doesn't correspond to any drawn sprite. And the drawn Goomba (174) has no corresponding array entry.
+    
+    Unless the drawn Goomba's x is in a DIFFERE… [+6926 chars]
+    `$04B0` is also just a derived copy. Let me test the Y side: write slot 1's Y (`$00CF`) and see if the drawn Goomba moves.
+    → write_memory {"address": 207, "bytes": [150]}
+[ 562 18:07:33] RESULT write_memory
+    {"bytes_written":1,"address":207,"mem_type":"cpu","persistent":false}
+[ 565 18:07:35] ASSISTANT (turn 1 step 71) · in 152 (cache 224640) out 96
+    ▷ 
+    → step_frame {"count": 1}
+    → list_sprites {}
+    → read_memory {"address": 206, "length": 2}
+[ 567 18:07:35] RESULT step_frame
+    {"stepped":1,"paused":true}
+[ 569 18:07:35] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 571 18:07:35] RESULT read_memory
+    {"bytes":[176,150],"address":206,"mem_type":"cpuDebug"}
+[ 574 18:07:45] ASSISTANT (turn 1 step 72) · in 1101 (cache 224768) out 1711
+    ▷ Writing $00CF=150: $00CF stayed 150 (not rewritten), but the Goomba stayed at y=185. So slot 1's Y also doesn't drive the drawn Goomba!!
+    
+    So the drawn Goomba at (174,185) is NOT slot 1 (whose x/y I can freely change without moving it).
+    
+    So slot 1 is an object at level x 290, y 150 (now), which is NOT drawn. Hmm! And the drawn Goomba at (174,185) has its own variables somewhere.
+    
+    Hmm, so slot 1's object is invisible. What is it? Its position (290, 184) coincided with the Goomba. Hmm...
+    
+    Unless the drawn Goomba IS slot 1 but the drawing uses a CACHED/other copy set at spawn, and the game compares... no, that makes no sense.
+    
+    Wait wait wait. Let me reconsider: maybe the drawn "Goomba" at 174 is not a Goomba at all but the **Goomba that has been stomped / or the level's static object**? No, it's palette 7 with Goomba tiles.
+    
+    Hmm, hold on! Maybe the drawn Goomba at 174 is actually made of *background* sprites? No, list_sprites decodes OAM.
+    
+    OK, so there's an OAM Goomba at (174,185). list_sprites says OAM indices 52-57 at x=174/182, y=185/193/201.
+    
+    And slot 1's arrays are at (290-116=174 screen, y 184ish). So slot 1's screen x = 174 and y = 184 — matching the drawn Goomba's screen positi… [+4473 chars]
+    `$00CF` doesn't drive it either — the drawn Goomba is a different object. Now that `step_frame` gives me exact controlled advancement, let me diff a 24-frame Goomba walk.
+    → load_state {"slot": 2}
+[ 576 18:07:45] RESULT load_state
+    {"action":"loaded","slot":2,"paused":true,"stepped_frames":1,"bytes":5247}
+[ 579 18:07:47] ASSISTANT (turn 1 step 73) · in 161 (cache 227456) out 41
+    ▷ 
+    → snapshot_memory {"name": "p0"}
+[ 581 18:07:47] RESULT snapshot_memory
+    {"name":"p0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:07:47.728Z","checksum":"ebb62204","snapshots":["g0","g1","h0","h1","a0","a1","z0","y0","x0","w0","v0","z1","y1","x1","w1","v1","p0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 584 18:07:50] ASSISTANT (turn 1 step 74) · in 214 (cache 227584) out 38
+    ▷ 
+    → step_frame {"count": 24}
+[ 586 18:07:50] RESULT step_frame
+    {"stepped":24,"paused":true}
+[ 589 18:07:52] ASSISTANT (turn 1 step 75) · in 146 (cache 227712) out 121
+    ▷ 
+    → snapshot_memory {"name": "p1"}
+    → diff_memory {"a": "p0", "b": "p1", "filter": "changed", "name": "q1"}
+[ 591 18:07:52] RESULT snapshot_memory
+    {"name":"p1","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T23:07:52.805Z","checksum":"9b563efa","snapshots":["g0","g1","h0","h1","a0","a1","z0","y0","x0","w0","v0","z1","y1","x1","w1","v1","p0","p1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 593 18:07:52] RESULT diff_memory
+    {"a":"p0","b":"p1","filter":"changed","considered":2048,"matched":104,"hits":[{"address":0,"old":0,"new":255,"address_hex":"0x0000"},{"address":9,"old":171,"new":184,"address_hex":"0x0009"},{"address":135,"old":34,"new":27,"address_hex":"0x0087"},{"address":494,"old":18,"new":17,"address_hex":"0x01EE"},{"address":496,"old":1,"new":0,"address_hex":"0x01F0"},{"address":562,"old":67,"new":3,"address_hex":"0x0232"},{"address":563,"old":175,"new":169,"address_hex":"0x0233"},{"address":566,"old":67,"new":3,"address_hex":"0x0236"},{"address":567,"old":183,"new":177,"address_hex":"0x0237"},{"address":… [+3304 chars]
+[ 596 18:08:04] ASSISTANT (turn 1 step 76) · in 1640 (cache 227968) out 2058
+    ▷ Now the Goomba walked: the OAM x entries went 174→168 (23x, 28x, 2Dx entries), i.e. the drawn Goomba moved from 174 to 168 (-6 over 24 frames = 0.25/frame? Hmm, 174→168 = -6 in 24 frames = 0.25/frame). Hmm, earlier I measured 0.5/frame. Whatever.
+    
+    Key observations:
+    - $0087: 34 → 27 (-7). Hmm, the Goomba moved -6 (OAM 174→168) but $0087 moved -7 (34→27). Close (one frame extra).
+    - $03AE: 174 → 168 (-6). Matches the OAM exactly!
+    - OAM entries: $0233 175→169, $028B 174→168, etc.
+    
+    So $03AE tracks the drawn Goomba's OAM x exactly (174→168). And $0087 = 34→27 (its level x low byte). 
+    
+    So slot 1 IS the drawn Goomba. $03AE matches.
+    
+    But when I wrote $0087=99, $03AE became 239 yet the OAM stayed at 174?! That's bizarre. Let me reconsider that experiment...
+    
+    OH WAIT. I think I understand now!!! When I wrote $0087=99, the game's NEXT frame: the enemy movement routine ran and DECREMENTED $0087 (100→99). Then the collision/drawing computed $03AE = 239 and drew... but the OAM I read showed 174.
+    
+    Hmm, unless the OAM entries I read at 174 were from a DIFFERENT object and the Goomba slot-1's OAM entries were at 239 but I misread. Let me re-look at that list_sprites: it showed Goomba entries at x=17… [+5273 chars]
+    The 24-frame walk confirms slot 1 tracks the drawn Goomba exactly (`$03AE` 174→168 = OAM 174→168). Let me redo the write test cleanly, with a value that keeps it on-screen, and step 3 frames.
+    → write_memory {"address": 135, "bytes": [80]}
+[ 598 18:08:04] RESULT write_memory
+    {"bytes_written":1,"address":135,"mem_type":"cpu","persistent":false}
+[ 601 18:08:06] ASSISTANT (turn 1 step 77) · in 146 (cache 231552) out 141
+    ▷ 
+    → step_frame {"count": 3}
+    → read_memory {"address": 134, "length": 3}
+    → read_memory {"address": 941, "length": 3}
+    → list_sprites {}
+[ 603 18:08:06] RESULT step_frame
+    {"stepped":3,"paused":true}
+[ 605 18:08:06] RESULT read_memory
+    {"bytes":[228,79,128],"address":134,"mem_type":"cpuDebug"}
+[ 607 18:08:06] RESULT read_memory
+    {"bytes":[112,219,0],"address":941,"mem_type":"cpuDebug"}
+[ 609 18:08:06] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 612 18:08:14] ASSISTANT (turn 1 step 78) · in 1041 (cache 231808) out 1295
+    ▷ NOW it worked! Writing $0087=80 moved the Goomba to screen x=219! (Expected 256+79-116 = 219 ✓.)
+    
+    So the earlier failures were an artifact: I had stepped only 1 frame in the first tests and the OAM build may lag by more than 1 frame (or the write coincided with a frame where the OAM was already built). With 3 frames it works.
+    
+    Actually, in the earlier tests I stepped 1 frame and the Goomba stayed at 174 with $03AE updated. Now with 3 frames it moved. So the OAM build for enemies happens on a cadence (maybe every other frame or with a delay). Fine.
+    
+    Also note: the Goomba sprite tiles are now UNFLIPPED (attr=3, tile order 112/113) vs before (attr=67, flipped) — because moving it changed its facing? Hmm, interesting, but fine.
+    
+    GREAT. So:
+    - **Enemy X position array: base $0086, stride 1, slot 0 = player, slot 1.. = enemies.** $0087 = first enemy's x low byte. Confirmed by write + screenshot (Goomba moved from 174 to 219).
+    - **Enemy X page array: base $006D** (player page) → $006E for enemy 1. (Level x = page*256 + low.)
+    - **Enemy Y position array: base $00CE** → $00CF for enemy 1. But my earlier write to $00CF=150 with step 1 frame didn't move it. Let me redo with step 3 frames!
+    
+    Let … [+2944 chars]
+    **Confirmed:** writing `$0087` moved the drawn Goomba from x=174 to x=219 (expected 256+79−116=219). Slot 1 of `$0086` is the enemy's x. Now let me find the spawner, which writes the enemy *type* into its slot.
+    → disassemble {"address": 49456, "length": 128}
+[ 614 18:08:14] RESULT disassemble
+    $c130: cd 06 f0    cmp 0xf006
+    $c133: 10 95       bpl 0x0000
+    $c135: 16 a9       asl 0xa9, x
+    $c137: 01 95       ora (0x95, x)
+[ 617 18:08:16] ASSISTANT (turn 1 step 79) · in 238 (cache 233984) out 148
+    ▷ The disassembly at $C130 (49456 = 0xC130) is garbage — that region might be data. The spawner at CPU $C147 per the mapping. Let me disassemble at $C140 (49472).
+    
+    Actually the mapping says spawner PCs CPU $C149/$C15D/$C17B/$C18C/$C1B2. Let me disassemble CPU $C140 length 128.
+    → disassemble {"address": 49472, "length": 160}
+[ 619 18:08:16] RESULT disassemble
+    $c140: 06 4c       asl 0x4c
+    $c142: 26 c2       rol 0xc2
+    $c144: ac 39 07    ldy 0x0739
+    $c147: b1 e9       lda (0xe9), y
+    $c149: c9 ff       cmp #0xff
+    $c14b: d0 03       bne 0x0000
+    $c14d: 4c 16 c2    jmp 0xc216
+    $c150: 29 0f       and #0x0f
+    $c152: c9 0e       cmp #0x0e
+    $c154: f0 0e       beq 0x0000
+    $c156: e0 05       cpx #0x05
+    $c158: 90 0a       bcc 0x0000
+    $c15a: c8          iny 
+    $c15b: b1 e9       lda (0xe9), y
+    $c15d: 29 3f       and #0x3f
+    $c15f: c9 2e       cmp #0x2e
+    $c161: f0 01       beq 0x0000
+    $c163: 60          rts 
+    $c164: ad 1d 07    lda 0x071d
+    $c167: 18          clc 
+    $c168: 69 30       adc… [+1620 chars]
+[ 622 18:08:19] ASSISTANT (turn 1 step 80) · in 1330 (cache 234368) out 205
+    ▷ This is the enemy spawner. Key lines:
+    - $C1AB: LDA $073A / STA $6E,X — sets the enemy's PAGE (array $006D,X, so slot X page).
+    - $C1B0: LDA ($E9),Y / AND #$F0 / STA $87,X — sets the enemy's X low byte (array $0086,X).
+    - So the x page array is $006D,X and x low is $0086,X ✓ (enemy at X).
+    
+    Continue reading the spawner for the type write. Let me disassemble $C1DE-$C250.
+    
+    Let me disassemble CPU $C1D0 length 128.
+    → disassemble {"address": 49616, "length": 144}
+[ 624 18:08:19] RESULT disassemble
+    $c1d0: 06 f5       asl 0xf5
+    $c1d2: 6e 90 41    ror 0x4190
+    $c1d5: a9 01       lda #0x01
+    $c1d7: 95 b6       sta 0xb6, x
+    $c1d9: b1 e9       lda (0xe9), y
+    $c1db: 0a          asl a
+    $c1dc: 0a          asl a
+    $c1dd: 0a          asl a
+    $c1de: 0a          asl a
+    $c1df: 95 cf       sta 0xcf, x
+    $c1e1: c9 e0       cmp #0xe0
+    $c1e3: f0 4c       beq 0x0000
+    $c1e5: c8          iny 
+    $c1e6: b1 e9       lda (0xe9), y
+    $c1e8: 29 40       and #0x40
+    $c1ea: f0 05       beq 0x0000
+    $c1ec: ad cc 06    lda 0x06cc
+    $c1ef: f0 6d       beq 0x0000
+    $c1f1: b1 e9       lda (0xe9), y
+    $c1f3: 29 3f       and #0x3f
+    $c1f5: c9 37       cm… [+1483 chars]
+[ 627 18:08:41] ASSISTANT (turn 1 step 81) · in 1349 (cache 235776) out 4511
+    ▷ Excellent! Now the spawner reveals the enemy object fields:
+    
+    - $C1DF: `STA $CF,X` — writes the enemy's Y position! (base $00CE,X) ✓ (note $CF = $CE+1, and X is the slot index... wait, `STA $CF,X`? Hmm, base $CF? Let me re-read: `95 cf  sta $0xcf, x`. Hmm, that's $00CF + X. Hmm! If the base were $00CE, it'd be `STA $CE,X` = `95 CE`. It's `95 CF` = $CF,X.
+    
+    Hmm! So the y array base might be $00CF?? But the helper read `B5 CE` = LDA $CE,X. So for slot 1, the helper reads $00CF. And the spawner writes $00CF,X for slot 0?? 
+    
+    Hmm, let me think: if X is the slot index and the base is $00CE, then slot 0 → $00CE, slot 1 → $00CF. The spawner writes at slot X, using `STA $CF,X` means base $00CF: slot 0 → $00CF, slot 1 → $00D0. That's inconsistent with the helper.
+    
+    Unless the spawner's X is one less (the spawner uses X = the slot index but the enemy is at X+1?). Hmm. Or maybe the spawner's X is the slot and the y base is genuinely $00CF (so base = $00CE+1?). Hmm.
+    
+    Hold on. Let's reconsider: maybe the object arrays have the PLAYER at index 0 with base $00CE, but the spawner uses X = slot index where enemies start at index 0? Then the enemy at spawner X=0 → $00CF. Hmm, that would mean the player … [+11931 chars]
+    The spawner reveals the object fields: `STA $6E,X` (page, base `$006D`), `STA $87,X` (x low, base `$0086`), `STA $CF,X` (y, base `$00CE`), and `STA $16,X` for the type. Let me prove the type array at `$0016` by writing it.
+    → save_state {"slot": 3}
+    → write_memory {"address": 22, "bytes": [0]}
+[ 629 18:08:41] RESULT save_state
+    {"action":"saved","slot":3,"paused":true,"stepped_frames":1,"bytes":5254}
+[ 631 18:08:41] RESULT write_memory
+    {"bytes_written":1,"address":22,"mem_type":"cpu","persistent":false}
+[ 634 18:08:43] ASSISTANT (turn 1 step 82) · in 166 (cache 241536) out 96
+    ▷ 
+    → step_frame {"count": 3}
+    → list_sprites {}
+    → read_memory {"address": 22, "length": 1}
+[ 636 18:08:43] RESULT step_frame
+    {"stepped":3,"paused":true}
+[ 638 18:08:43] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 640 18:08:43] RESULT read_memory
+    {"bytes":[0],"address":22,"mem_type":"cpuDebug"}
+[ 643 18:08:52] ASSISTANT (turn 1 step 83) · in 985 (cache 241792) out 1852
+    ▷ Writing $0016=0: $0016 stays 0, and the Goomba is STILL a Goomba (tiles 112-115, palette 7, walking). So $0016=0 also renders a Goomba.
+    
+    Hmm! So either $0016 is not the type (maybe it's a "state" where 0 and 6 both mean walking), or type 0 is also a Goomba.
+    
+    Hmm. Actually, in SMB, the enemy ID for Goomba might be 0 AND 6? Hmm no.
+    
+    Wait — maybe $0016 is the enemy's "state" (like moving direction/anim), not the type. Hmm. But the spawner wrote $02 and $2F to it for special cases.
+    
+    Hmm, actually! In smbdis, I now recall:
+    - `Enemy_ID` is where the enemy "type" is, but there's also `Enemy_State` (at $001E?) and `Enemy_Flag` (at $000F?).
+    
+    Look at the spawner: `$C226: LDA #$00 / STA $1E,X` — that's Enemy_State = 0 probably. And `STA $16,X` is Enemy_ID.
+    
+    But writing $0016=0 kept it a Goomba. Maybe the Goomba ID IS 0, and the value 6 I saw was something else (maybe $0016 isn't the Goomba's slot!).
+    
+    Hmm! Wait: the enemy I'm manipulating is at spawner slot X=0 → $0016 (type), $006E (page), $0087 (x), $00CF (y). But maybe the drawn Goomba is at slot X=1 → $0017 (type), $006F (page), $0088 (x), $00D0 (y)?!
+    
+    Earlier I confirmed writing $0087 (slot 0's x per spawner, slot 1's x per helper) moved … [+3732 chars]
+    Writing `$0016` didn't change the Goomba. Let me look at all the slot arrays at once to see the layout.
+    → read_memory {"address": 21, "length": 8}
+    → read_memory {"address": 110, "length": 8}
+    → read_memory {"address": 135, "length": 8}
+    → read_memory {"address": 207, "length": 8}
+[ 645 18:08:52] RESULT read_memory
+    {"bytes":[0,0,0,0,0,0,0,0],"address":21,"mem_type":"cpuDebug"}
+[ 647 18:08:52] RESULT read_memory
+    {"bytes":[1,2,2,2,2,0,0,0],"address":110,"mem_type":"cpuDebug"}
+[ 649 18:08:52] RESULT read_memory
+    {"bytes":[76,128,128,128,128,0,0,0],"address":135,"mem_type":"cpuDebug"}
+[ 651 18:08:52] RESULT read_memory
+    {"bytes":[184,0,0,0,0,0,0,0],"address":207,"mem_type":"cpuDebug"}
+[ 654 18:08:58] ASSISTANT (turn 1 step 84) · in 173 (cache 244608) out 996
+    ▷ Now:
+    - $0015-$001C = [0,0,0,0,0,0,0,0] — all zero (I wrote $0016=0).
+    - $006E-$0075 = [1,2,2,2,2,0,0,0] — pages: slot0 page=1, slots1-4 page=2, slot5=0.
+    - $0087-$008E = [76,128,128,128,128,0,0,0] — x: slot0 x=76 (the Goomba I moved), slots1-4 x=128, slot5=0.
+    - $00CF-$00D6 = [184,0,0,0,0,0,0,0] — y: slot0 y=184, others 0.
+    
+    So only ONE enemy: slot 0. Its page=1, x=76, y=184. Level x = 256+76 = 332 → screen 216 (list showed 218). ✓
+    
+    And its type at $0016 = 0 now (I wrote it). Before my write it was 6.
+    
+    Hmm, so the Goomba's type byte was 6 and is now 0, with no visible change. Hmm.
+    
+    Wait — maybe $0016 isn't the type but "Enemy_State"? Hmm.
+    
+    Hmm, actually! Maybe the enemy ID is 6 for a Goomba and the game uses a table where ID 0 = "nothing"? But then ID 0 would break the Goomba. Unless the drawing uses a *different* variable and $0016 is something else (e.g., the "enemy's horizontal speed" or "animation frame"?). Hmm, but the spawner writes it for power-ups ($2F).
+    
+    Hmm. Hold on: let me reconsider. The spawner at $C206 writes `$02` to $16,X and at $C222 writes `$2F` to $16,X. In SMB, when a power-up emerges from a block, the object ID is $2F? Hmm, actually I recall the SMB "PowerUp" objec… [+1190 chars]
+    → search_memory {"hex": "B5 16", "mem_type": "prgRom"}
+    → search_memory {"hex": "B5 0F", "mem_type": "prgRom"}
+    → search_memory {"hex": "B5 1E", "mem_type": "prgRom"}
+[ 656 18:08:58] RESULT search_memory
+    {"memory_size":32768,"mem_type":"prgRom","pattern_length":2,"truncated":false,"start":0,"searched":32768,"offsets":[1283,14425,14874,17004,17504,18336,18693,18818,19111,19183,19541,19854,20359,20417,20463,22138,22268,22346,22354,22421,22733,22783,22889,22899,23101,23134,23235,23324,23379,24585,24635,24660,24741,24802,24881,26777,26800,27546],"offsets_hex":["0x503","0x3859","0x3A1A","0x426C","0x4460","0x47A0","0x4905","0x4982","0x4AA7","0x4AEF","0x4C55","0x4D8E","0x4F87","0x4FC1","0x4FEF","0x567A","0x56FC","0x574A","0x5752","0x5795","0x58CD","0x58FF","0x5969","0x5973","0x5A3D","0x5A5E","0x5AC3"… [+101 chars]
+[ 658 18:08:58] RESULT search_memory
+    {"memory_size":32768,"mem_type":"prgRom","pattern_length":2,"truncated":false,"start":0,"searched":32768,"offsets":[6477,14789,14883,15017,16455,16913,17354,18263,22264,22339,23130],"offsets_hex":["0x194D","0x39C5","0x3A23","0x3AA9","0x4047","0x4211","0x43CA","0x4757","0x56F8","0x5743","0x5A5A"]}
+[ 660 18:08:58] RESULT search_memory
+    {"memory_size":32768,"mem_type":"prgRom","pattern_length":2,"truncated":false,"start":0,"searched":32768,"offsets":[1309,14904,14954,16229,18904,18945,18962,19001,19065,19071,19076,19082,19101,19337,19510,19530,20191,20264,20273,20471,20581,20889,20930,21027,21424,21563,22204,22258,22282,22436,22632,22720,22725,22743,23169,23229,23375,23385,24513,24623,24688,24694,24702,24714,24784,24795,24808,24812,24818,24872,24987,24999,26793,26886],"offsets_hex":["0x51D","0x3A38","0x3A6A","0x3F65","0x49D8","0x4A01","0x4A12","0x4A39","0x4A79","0x4A7F","0x4A84","0x4A8A","0x4A9D","0x4B89","0x4C36","0x4C4A","0… [+341 chars]
+[ 663 18:09:08] ASSISTANT (turn 1 step 85) · in 1072 (cache 245760) out 1971
+    ▷ Many hits. This is the entire SMB object system — all object variables use these bases. Hmm.
+    
+    OK, let me step back and think about the SMB RAM map that I can now reconstruct from the spawner:
+    
+    The object variables (per the spawner):
+    - `$0F,X` — Enemy_Flag (at $C20C: LDA #$01 / STA $0F,X sets flag=1)
+    - `$16,X` — Enemy_ID/type
+    - `$1E,X` — Enemy_State? (cleared to 0 at $C226)
+    - `$6E,X` — page
+    - `$87,X` — x
+    - `$B6,X` — ? (=1)
+    - `$CF,X` — y
+    
+    And the helper uses `$86,X` and `$CE,X` (one less) — so the helper's X = spawner's X + 1.
+    
+    Hmm! Now I remember: in SMB1, the enemy arrays are indexed by X = 1..6, and the code often does `LDX Enemy_Flag` etc. Actually, the SMB disassembly uses `Enemy_Flag = $0F` with `LDA Enemy_Flag,X` where X = 1..6? Hmm, no.
+    
+    Hmm, actually, I recall now: SMB1's enemy object variables have the enemies at indices 1-6 and index 0 is the player. E.g.:
+    ```
+    Enemy_Flag = $0F
+    Enemy_ID = $16
+    Enemy_State = $1E? 
+    Enemy_X_Position = $6E
+    Enemy_PageLoc = $6D
+    Enemy_Y_Position = $CF
+    ```
+    Hmm, that matches the spawner's literal operands: `STA $6E,X`, `STA $87,X`, `STA $CF,X`, `STA $16,X`, `STA $0F,X`. Hmm, but $6E and $87 and $CF are "Player_..._+1". 
+    
+    Hmm. Whatever — the empirical… [+4656 chars]
+    Let me read the full spawner including its `$C0CC` entry to see where the normal type is stored.
+    → disassemble {"address": 49344, "length": 144}
+[ 665 18:09:09] RESULT disassemble
+    $c0c0: 39 07 8d    and 0x8d07, y
+[ 668 18:09:11] ASSISTANT (turn 1 step 86) · in 261 (cache 248576) out 107
+    ▷ $C0C0 is data. Let me disassemble at $C0CC (49356) length 128. Actually 49344 = 0xC0C0. Let me try 49356 = 0xC0CC.
+    → disassemble {"address": 49356, "length": 144}
+[ 670 18:09:11] RESULT disassemble
+    $c0cc: ad 45 07    lda 0x0745
+    $c0cf: f0 5e       beq 0x0000
+    $c0d1: ad 26 07    lda 0x0726
+    $c0d4: d0 59       bne 0x0000
+    $c0d6: a0 0b       ldy #0x0b
+    $c0d8: 88          dey 
+    $c0d9: 30 54       bmi 0x0000
+    $c0db: ad 5f 07    lda 0x075f
+    $c0de: d9 6b c0    cmp 0xc06b, y
+    $c0e1: d0 f5       bne 0x0000
+    $c0e3: ad 25 07    lda 0x0725
+    $c0e6: d9 76 c0    cmp 0xc076, y
+    $c0e9: d0 ed       bne 0x0000
+    $c0eb: a5 ce       lda 0xce
+    $c0ed: d9 81 c0    cmp 0xc081, y
+    $c0f0: d0 23       bne 0x0000
+    $c0f2: a5 1d       lda 0x1d
+    $c0f4: c9 00       cmp #0x00
+    $c0f6: d0 1d       bne 0x0000
+    $c0f8: ad 5f 07    lda 0x075f
+    $c0… [+1214 chars]
+[ 673 18:09:20] ASSISTANT (turn 1 step 87) · in 1223 (cache 248832) out 1648
+    ▷ At $C12F-$C13C: 
+    ```
+    LDA $06CD
+    BEQ ...
+    STA $16,X      ; Enemy_ID = $06CD
+    LDA #$01
+    STA $0F,X      ; Enemy_Flag = 1
+    LDA #$00
+    STA $1E,X      ; Enemy_State = 0
+    STA $06CD
+    ```
+    So $0016,X IS Enemy_ID (type), set from $06CD (a "queued enemy ID"). 
+    
+    So $0016 = the enemy type. And my write of 0 to $0016 kept the Goomba looking like a Goomba?! 
+    
+    Hmm. Unless the drawn Goomba's slot is NOT 0. Let me reconsider: maybe the drawn Goomba's Enemy_Flag is at a different slot, and my $0087 write moved it because... hmm no.
+    
+    Hmm wait, maybe the enemy's ID at $0016 is only used at spawn time to set up the enemy, and then the enemy's *behavior* uses another field ($001E state / a "type" copy). Hmm.
+    
+    Hmm, but $0016 read 6 earlier and 0 now, with no change in behavior. Let me test more definitively: write $0016 = 0x0B and see if the Goomba becomes a Koopa.
+    
+    Hmm, actually, let me reconsider: maybe I wrote to the WRONG slot. Slot 0 of the enemy arrays (spawner X=0) — but maybe the Goomba is at spawner X=4 or 5! Because the spawner picks a free slot by X scanning; the FIRST enemy might use the LAST slot or a rotating one.
+    
+    But we confirmed: the Goomba's x = $0087 (since writing $0087 moved it) and $0087 = spa… [+3781 chars]
+    `$C12F` confirms it: `LDA $06CD / STA $16,X / STA $0F,X=1` — `$0016` is the enemy ID/type array. Writing 0 kept a Goomba, so let me try a distinct ID.
+    → write_memory {"address": 22, "bytes": [11]}
+[ 675 18:09:20] RESULT write_memory
+    {"bytes_written":1,"address":22,"mem_type":"cpu","persistent":false}
+[ 678 18:09:22] ASSISTANT (turn 1 step 88) · in 215 (cache 251520) out 63
+    ▷ 
+    → step_frame {"count": 3}
+    → list_sprites {}
+    → screenshot {}
+[ 680 18:09:22] RESULT step_frame
+    {"stepped":3,"paused":true}
+[ 682 18:09:22] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 684 18:09:22] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/b5b32d016920.png
+[ 687 18:09:29] ASSISTANT (turn 1 step 89) · in 1328 (cache 251776) out 1225
+    ▷ The Goomba became a **red Koopa Troopa**! Tiles 165-169, palette 5, and the screenshot shows a red Koopa (white belly, red shell) at x~217.
+    
+    So **$0016 = enemy ID/type array**, and:
+    - ID 11 = red Koopa Troopa? (or Koopa)
+    - ID 6 = Goomba? Hmm, wait: the Goomba before had ID 6, and I wrote 0 and it stayed a Goomba. Hmm! But maybe writing 0 made it a Goomba and the previous 6 was... hmm.
+    
+    Hmm, wait. Let me re-examine: before my write of 0, $0016=6 and the Goomba. After writing 0, still a Goomba. After writing 11, a Koopa.
+    
+    So both 6 and 0 render a Goomba?? Hmm. Unless the value 6 wasn't the Goomba's ID. Hmm.
+    
+    Hmm, actually maybe the Goomba's ID is 0 (Goomba = 0) and the 6 I saw earlier was for a different slot/object. Let me check: at the first read, $0016=6. Hmm, but maybe at that time the Goomba hadn't spawned yet and $0016 held a stale value from a Koopa in the demo? The first read was at the very start (attract demo). Hmm.
+    
+    Actually, in SMB1 the enemy IDs (from smbdis) are:
+    - $00 = Green Koopa? no...
+    
+    Hmm, empirically: ID 11 = red Koopa; ID 0 = Goomba; ID 6 = ? (we saw 6 at some earlier time, maybe a Goomba too or something else).
+    
+    Actually, hold on: maybe the Goomba's ID is 6 and… [+2376 chars]
+    The enemy became a **red Koopa Troopa** (tiles 165-169, palette 5) — `$0016` is proven as the enemy type array. Let me restore the saved state and read the Goomba's true ID, then prove the Y array.
+    → load_state {"slot": 3}
+[ 689 18:09:30] RESULT load_state
+    {"action":"loaded","slot":3,"paused":true,"stepped_frames":1,"bytes":5254}
+[ 692 18:09:32] ASSISTANT (turn 1 step 90) · in 158 (cache 254208) out 190
+    ▷ 
+    → read_memory {"address": 15, "length": 8}
+    → read_memory {"address": 22, "length": 1}
+    → read_memory {"address": 207, "length": 1}
+    → read_memory {"address": 135, "length": 1}
+[ 694 18:09:32] RESULT read_memory
+    {"bytes":[1,0,0,0,0,0,0,6],"address":15,"mem_type":"cpuDebug"}
+[ 696 18:09:32] RESULT read_memory
+    {"bytes":[6],"address":22,"mem_type":"cpuDebug"}
+[ 698 18:09:32] RESULT read_memory
+    {"bytes":[184],"address":207,"mem_type":"cpuDebug"}
+[ 700 18:09:32] RESULT read_memory
+    {"bytes":[78],"address":135,"mem_type":"cpuDebug"}
+[ 703 18:09:41] ASSISTANT (turn 1 step 91) · in 202 (cache 254464) out 1656
+    ▷ State 3 restored: $0016=6 (the Goomba's ID = 6 ✓), $00CF=184 (y), $0087=78 (x), $000F-$0015 = [1,0,0,0,0,0,0] → $000F=1 (the Goomba's Enemy_Flag=1).
+    
+    So Goomba ID = 6. And when I wrote 0, it stayed a Goomba?! Hmm, that contradicts... unless ID 0 is ALSO a Goomba-like or the game ignores 0.
+    
+    Hmm, wait: maybe writing 0 caused it to be treated as "no enemy" and the game... but it kept walking and rendering as a Goomba. Hmm.
+    
+    Hmm, whatever — maybe the enemy handler for ID 0 is "Goomba" too (some SMB versions have Goomba=0? no).
+    
+    Hmm, actually, hold on: maybe the value I wrote (0) got overwritten to 6 by the game before the frame? But I read $0016=0 after 3 frames. Hmm, so it stayed 0. And the sprite stayed a Goomba.
+    
+    Hmm! Unless the drawn Goomba's tiles are driven by a *different* slot and the Enemy_Flag... ugh.
+    
+    OK, actually, maybe there's a subtlety: SMB's enemy handler dispatches on ID at spawn, and each enemy's "handler address" is stored per-slot (there is a `Enemy_Data`/pointer?). Hmm, no.
+    
+    Hmm, but writing 11 DID change it to a Koopa immediately (within 3 frames). So the handler reads $0016 every frame. Then writing 0 should also change it (to whatever ID 0 is — apparently also … [+3754 chars]
+    `$0016` = 6 for the Goomba. Now prove the Y array (`$00CF`) with a write.
+    → write_memory {"address": 207, "bytes": [140]}
+[ 705 18:09:41] RESULT write_memory
+    {"bytes_written":1,"address":207,"mem_type":"cpu","persistent":false}
+[ 708 18:09:44] ASSISTANT (turn 1 step 92) · in 226 (cache 256128) out 96
+    ▷ 
+    → step_frame {"count": 3}
+    → list_sprites {}
+    → read_memory {"address": 207, "length": 1}
+[ 710 18:09:44] RESULT step_frame
+    {"stepped":3,"paused":true}
+[ 712 18:09:44] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 714 18:09:44] RESULT read_memory
+    {"bytes":[140],"address":207,"mem_type":"cpuDebug"}
+[ 717 18:09:50] ASSISTANT (turn 1 step 93) · in 1045 (cache 256384) out 1015
+    ▷ Writing $00CF=140: the value stayed 140, but the Goomba's OAM y stayed at 185/193/201. Hmm! So the Y write didn't move the sprite either.
+    
+    Hmm! So $00CF is NOT the sprite y? But it read 184 and the Goomba is at y=185 (OAM y = screen y). Hmm.
+    
+    Hmm, wait: the Goomba's OAM y entries are 185, 193, 201 (top of the 3-row sprite box). The enemy's stored y = 184 = OAM y - 1. So $00CF=184 ↔ OAM y=185. So it IS the y.
+    
+    Writing 140 → expected OAM y ~141. It stayed 185.
+    
+    Hmm! So the sprite's y is NOT driven by $00CF. But x WAS driven by $0087.
+    
+    Hmm, so the sprite position uses x from the object array but y from elsewhere?
+    
+    Hmm, wait: maybe there's a per-frame "y offset" computed from the enemy's y plus gravity/collision, and when I write y=140, the engine's "on ground" logic snaps it back to 184 before drawing? But reading $00CF after 3 frames shows 140 (not snapped). Hmm.
+    
+    Hmm! Unless there are two y variables: $00CF (the AI y, updated by physics) and a separate "sprite y". Hmm.
+    
+    Hmm, actually, maybe the sprite y comes from a *screen y copy* array (like $03B9). Let me check: $03B9 = the helper's $03B8,Y for the enemy. In the p0/p1 diff, $03B9 wasn't listed (y doesn't change). Let me read $03B… [+1674 chars]
+    → read_memory {"address": 952, "length": 8}
+    → read_memory {"address": 940, "length": 8}
+[ 719 18:09:50] RESULT read_memory
+    {"bytes":[176,140,0,0,0,0,0,0],"address":952,"mem_type":"cpuDebug"}
+[ 721 18:09:50] RESULT read_memory
+    {"bytes":[0,112,217,0,0,0,0,0],"address":940,"mem_type":"cpuDebug"}
+[ 724 18:09:54] ASSISTANT (turn 1 step 94) · in 218 (cache 258304) out 531
+    ▷ $03B8-$03BF = [176, 140, 0,...] → $03B9 = 140. So the helper DID update the enemy's screen y to 140. And $03AD-$03AE = [112, 217] ($03AE = 217; the enemy x screen).
+    
+    So $03B9=140, yet the OAM Goomba y stayed 185.
+    
+    So the sprite drawing does NOT use $03B9 either?! But it DOES use the x (218 from $0087).
+    
+    Wait... maybe the OAM I'm seeing is stale because the OAM is only rebuilt when... hmm, but the OAM x followed my x write.
+    
+    Hmm! Unless the enemy's *drawn* y is derived from the enemy's y plus a "sprite y offset" table per enemy type. Hmm.
+    
+    Hmm, hold on. Let me reconsider: after writing $00CF=140, the OAM Goomba is at y=185. But maybe the game moved the enemy back onto the ground *for drawing* using collision, and the y I read (140) is the physics y which is being "corrected" each frame by the gravity routine... but then it'd eventually be 184.
+    
+    Let me step more frames (say 10) and see if the OAM y changes and whether $00CF changes.
+    
+    Actually, the enemy's position physics: if the enemy is in the air, gravity applies and it falls. Writing y=140 puts it in the air; over frames it should fall to 184 (y increases). The read after 3 frames showed 140 — maybe gravity hadn't applied yet (or… [+132 chars]
+    → step_frame {"count": 10}
+    → read_memory {"address": 207, "length": 1}
+    → read_memory {"address": 953, "length": 1}
+    → list_sprites {}
+[ 726 18:09:54] RESULT step_frame
+    {"stepped":10,"paused":true}
+[ 728 18:09:54] RESULT read_memory
+    {"bytes":[141],"address":207,"mem_type":"cpuDebug"}
+[ 730 18:09:54] RESULT read_memory
+    {"bytes":[141],"address":953,"mem_type":"cpuDebug"}
+[ 732 18:09:54] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 735 18:10:09] ASSISTANT (turn 1 step 95) · in 1111 (cache 258944) out 3115
+    ▷ Now the Goomba's OAM y = 142, 150, 158 → the sprite moved up (y=142 top). $00CF=141, $03B9=141. So writing $00CF=140 DID lift the Goomba; it just took more frames (the draw/OAM update lagged). And the enemy is falling (y 140→141 with gravity).
+    
+    So the Y array is proven too: **$00CF = enemy screen y** (write 140 lifted the Goomba from y=185 to y=142).
+    
+    Also note it's now floating/falling.
+    
+    So all three arrays are proven:
+    - Type: $0016 (stride 1, 6 slots) — writing 11 turned the Goomba into a red Koopa.
+    - X: $0087 (stride 1, 6 slots; array base $0086 with player at index 0) — writing 80/78 moved it.
+    - Y: $00CF (stride 1, 6 slots; base $00CE with player at index 0) — writing 140 lifted it.
+    
+    Also confirmed supporting: page array base $006E, and the flag array $000F.
+    
+    Hmm, but wait: I should double check the X array base/count claim. The spawner's `STA $87,X` with X = slot 0..5 → $0087..$008C (6 slots). But is X really 0..5 for enemies? At $C156 `CPX #$05 / BCC` suggests the spawner scans X from 0 to 5. So yes, 6 enemy slots.
+    
+    But hmm — the helper's X for the first enemy was 1. So there are two conventions. For a hacker, the enemy-only base is $0087 and 6 slots.
+    
+    Hmm, actually, one thin… [+8699 chars]
+    **Y proven too:** writing `$00CF`=140 lifted the Goomba's sprite from y=185 to y=142. All three arrays are confirmed. Let me do one quick check that a second enemy lands in the adjacent slot.
+    → load_state {"slot": 2}
+    → play_input {"script": [{"buttons": ["right"], "frames": 15}, {"buttons": ["right", "a"], "frames": 30}, {"buttons": ["right"], "frames": 110}]}
+[ 737 18:10:09] RESULT load_state
+    {"action":"loaded","slot":2,"paused":true,"stepped_frames":1,"bytes":5247}
+[ 739 18:10:12] RESULT play_input
+    {"sample_every":3,"frames":155,"was_paused":true,"paused":true,"segments":3,"frames_run":155,"port":0,"sample_frames":[],"watch":[],"polls":155,"end_frame":187014,"start_frame":186859,"note":"Ran 155 frames of input on port 0. The game was paused before and is paused again now."}
+[ 742 18:10:15] ASSISTANT (turn 1 step 96) · in 134 (cache 263168) out 203
+    ▷ 
+    → read_memory {"address": 15, "length": 12}
+    → read_memory {"address": 110, "length": 8}
+    → read_memory {"address": 135, "length": 8}
+    → read_memory {"address": 207, "length": 8}
+    → list_sprites {}
+[ 744 18:10:15] RESULT read_memory
+    {"bytes":[1,0,0,0,0,0,0,6,0,0,0,0],"address":15,"mem_type":"cpuDebug"}
+[ 746 18:10:15] RESULT read_memory
+    {"bytes":[0,2,2,2,2,0,0,0],"address":110,"mem_type":"cpuDebug"}
+[ 748 18:10:15] RESULT read_memory
+    {"bytes":[212,128,128,128,128,0,0,0],"address":135,"mem_type":"cpuDebug"}
+[ 750 18:10:15] RESULT read_memory
+    {"bytes":[184,0,0,0,0,0,0,0],"address":207,"mem_type":"cpuDebug"}
+[ 752 18:10:15] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":114,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":122,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":114,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+903 chars]
+[ 755 18:10:32] ASSISTANT (turn 1 step 97) · in 821 (cache 263424) out 3245
+    ▷ Hmm: $000F=1, $0016=6 (slot 0's flag/type), and slot 1's flag $0010=0, type $0017=0. So only ONE enemy active. $0087=212 (slot 0 x), slot 1 x=$0088=128. $006E=0?? Wait, read at 110 length 8: [0,2,2,2,2,0,0,0] → $006E=0, $006F=2,... Hmm, earlier $006E was 1. Now 0. Hmm! The page reset?
+    
+    Hmm, $0087=212 with page $006E=0 → level x=212. Camera? Let me not worry.
+    
+    And no Goomba on screen (list shows only Mario). Hmm — the Goomba went off... wait, $0087=212 and page 0 → level 212. Camera is now ~? Mario at screen 114. If camera ~100, the Goomba at level 212 would be at screen 112 — right on Mario! But no Goomba sprite. Hmm, maybe it's behind/hidden or died.
+    
+    Hmm, actually the run: Mario jumped over the Goomba and walked right 155 frames → camera advanced. The Goomba would have been left behind (off-screen left) and erased. Then no enemy.
+    
+    Hmm, but $0087=212 and slot 0 flag=1 — the enemy is still active. And page $006E=0. So level x 212 with camera maybe 200+ → screen ~12? Off-screen? list_sprites shows none. Hmm.
+    
+    So the second Goomba didn't spawn. The 2nd enemy in 1-1 is further right.
+    
+    OK, I'll skip the two-slot emulator demo. The array structure is well-proven by:
+    1. The disassembly o… [+9697 chars]
+    All three arrays are proven. Let me also capture the page byte's rollover with a watch (the Goomba walks left across a page boundary).
+    → load_state {"slot": 2}
+    → play_input {"script": [{"buttons": [], "frames": 110}], "watch": [135, 110]}
+[ 757 18:10:32] RESULT load_state
+    {"action":"loaded","slot":2,"paused":true,"stepped_frames":1,"bytes":5247}
+[ 759 18:10:33] RESULT play_input
+    {"sample_every":2,"frames":110,"was_paused":true,"paused":true,"segments":1,"frames_run":110,"port":0,"sample_frames":[2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90,92,94,96,98,100,102,104,106,108,110],"watch":[{"last":238,"values":[33,32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,255,254,253,252,251,250,249,248,247,246,245,244,243,242,241,240,239,238,238,238,238],"address":135,"first":33,"address_hex":"0x0087"},{"last":0,"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,… [+359 chars]
+[ 762 18:10:42] ASSISTANT (turn 1 step 98) · in 624 (cache 267392) out 1419
+    ▷ The watch is decisive:
+    - $0087 (enemy x low): 33,32,...,1,0 then wraps to 255,254,...,238.
+    - $006E (enemy x page): 1 throughout, then flips to 0 exactly at the sample where $0087 wrapped 0→255.
+    
+    Sample index 33 = frame 66: $0087=0, $006E=1. Sample 34 (frame 68): $0087=255, $006E=0. So the page decremented exactly when the low byte wrapped. 
+    
+    **$006E = enemy x page (high byte), proven by the rollover watch.**
+    
+    Also note the Goomba stopped at 238 at the end (samples 51-55 constant) — probably hit Mario or stopped. Fine.
+    
+    Now I have everything:
+    1. Enemy type/ID array: $0016, stride 1, 6 slots. Goomba=6. Proof: write 11 → red Koopa.
+    2. Enemy x position (low byte): $0087, stride 1, 6 slots. Proof: write 80 → Goomba moved from screen 174 to 219.
+    3. Enemy x page: $006E, stride 1, 6 slots. Proof: rollover watch 1→0 when $0087 wrapped.
+    4. Enemy y position: $00CF, stride 1, 6 slots. Proof: write 140 → Goomba sprite lifted from y=185 to y=142.
+    Supporting: $000F enemy active flag (1 for the live Goomba); $001E state.
+    
+    Hmm, one more: I should double-check the exact count of slots. Let me get it from the code: the spawner loop. Hmm. I'll state 6 (the flag array $000F-$0014 is 6 bytes; the spawne… [+2868 chars]
+    Decisive rollover: `$0087` went 0→255 and `$006E` flipped 1→0 on the same frame — the page array is proven. Let me check the object-loop bounds to state the slot count exactly.
+    → disassemble {"address": 61728, "length": 82}
+[ 764 18:10:42] RESULT disassemble
+    $f120: 1e 02 29    asl 0x2902, x
+[ 767 18:10:44] ASSISTANT (turn 1 step 99) · in 155 (cache 269312) out 172
+    ▷ $F120 is data. The helper is at $F171 and the callers at $F142/$F16B. Let me disassemble $F140 (61760) length 60.
+    
+    Hmm, 61728 = 0xF120. Let me try 61760 = 0xF160 → that gave the helper earlier. Let me disassemble from $F100 = 61696, length 128 → covers $F100-$F17F.
+    
+    Hmm, the tool may stop at data. Let me try $F100.
+    → disassemble {"address": 61696, "length": 128}
+[ 769 18:10:44] RESULT disassemble
+    $f100: 16 c9       asl 0xc9, x
+    $f102: c8          iny 
+    $f103: d0 24       bne 0x0000
+    $f105: b9 12 02    lda 0x0212, y
+    $f108: 29 3f       and #0x3f
+    $f10a: 99 12 02    sta 0x0212, y
+    $f10d: b9 16 02    lda 0x0216, y
+    $f110: 29 3f       and #0x3f
+    $f112: 09 40       ora #0x40
+    $f114: 99 16 02    sta 0x0216, y
+    $f117: b9 1a 02    lda 0x021a, y
+    $f11a: 29 3f       and #0x3f
+    $f11c: 99 1a 02    sta 0x021a, y
+    $f11f: b9 1e 02    lda 0x021e, y
+    $f122: 29 3f       and #0x3f
+    $f124: 09 40       ora #0x40
+    $f126: 99 1e 02    sta 0x021e, y
+    $f129: 60          rts 
+    $f12a: a2 00       ldx #0x00
+    $f12c: a0 00       ldy #… [+1109 chars]
+[ 772 18:10:59] ASSISTANT (turn 1 step 100) · in 1065 (cache 269568) out 2987
+    ▷ This routine at $F100+ is a dispatcher that sets X (object index) and Y (OAM/slot index) and calls the helper $F171.
+    
+    Key: $F165-$F16B:
+    ```
+    $F159: LDA #$09
+    $F15B: LDY #$04
+    $F15D: JSR $F165
+    $F160: INX
+    $F161: INX
+    $F162: LDA #$09
+    $F164: INY
+    $F165: STX $00
+    $F167: CLC
+    $F168: ADC $00
+    $F16A: TAX
+    $F16B: JSR $F171
+    $F16E: LDX $08
+    $F170: RTS
+    ```
+    So X is the object index and Y the output index. The values used: LDX from various (0, 1, 3...), and X += 2, Y += 1 for the second object.
+    
+    Also there's this routine's structure: it's a per-object-state routine. The important bit: object indices used include 0 and 1 (player=0, enemy=1). And $F152: LDA #$01 / LDY #$01 → object X=1 → Y=1. $F159: LDA #$09 / LDY #$04 then X+=2/Y+=1 → a second object.
+    
+    Hmm, this suggests the x array's object index X goes 0,1,2,... and the outputs are at Y=1,2,...
+    
+    Hmm, this doesn't definitively give the count. But the spawner's `CPX #$05` suggests 6 slots (0-5).
+    
+    Hmm. I'll state 6 slots (indices 0-5) for the arrays based at $0016/$0087/$00CF, and note the player shares the same array at index 0 for the x/y arrays (i.e., base $0086/$00CE with the player at 0). Wait, careful:
+    
+    - Type array: spawner's X=0 → $0016. So the enem… [+8569 chars]
+    Now a clean before/after screenshot pair for the x proof.
+    → load_state {"slot": 2}
+[ 774 18:10:59] RESULT load_state
+    {"action":"loaded","slot":2,"paused":true,"stepped_frames":1,"bytes":5247}
+[ 777 18:11:01] ASSISTANT (turn 1 step 101) · in 249 (cache 273408) out 80
+    ▷ 
+    → screenshot {}
+    → read_memory {"address": 135, "length": 1}
+    → list_sprites {}
+[ 779 18:11:01] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/fd2bbddf14fd.png
+[ 781 18:11:01] RESULT read_memory
+    {"bytes":[34],"address":135,"mem_type":"cpuDebug"}
+[ 783 18:11:01] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 786 18:11:04] ASSISTANT (turn 1 step 102) · in 1390 (cache 273664) out 126
+    ▷ Before: Goomba at screen x=175/183, $0087=34 (page 1 → level 290, screen 174/175 ✓).
+    
+    Now write $0087 = 100 → screen (256+100)-116 = 240. Step 4 frames, screenshot + list_sprites.
+    
+    Let me do it.
+    → write_memory {"address": 135, "bytes": [100]}
+[ 788 18:11:04] RESULT write_memory
+    {"bytes_written":1,"address":135,"mem_type":"cpu","persistent":false}
+[ 791 18:11:07] ASSISTANT (turn 1 step 103) · in 140 (cache 275072) out 63
+    ▷ 
+    → step_frame {"count": 4}
+    → screenshot {}
+    → list_sprites {}
+[ 793 18:11:07] RESULT step_frame
+    {"stepped":4,"paused":true}
+[ 795 18:11:07] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1749-sheet3-engine-input-enemies/images/task-3/943018734702.png
+[ 797 18:11:07] RESULT list_sprites
+    {"sprites":[{"palette":7,"attr":35,"behind_background":true,"chr_tile":255,"y":25,"x":88,"index":0,"height":8,"width":8,"flip_h":false,"tile":255,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":112,"index":1,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":177,"x":120,"index":2,"height":8,"width":8,"flip_h":false,"tile":252,"flip_v":false},{"palette":4,"attr":0,"behind_background":false,"chr_tile":252,"y":185,"x":112,"index":3,"height":8,"width":8,"flip_h":false,"tile":25… [+1822 chars]
+[ 800 18:11:22] ASSISTANT (turn 1 step 104) · in 1381 (cache 275200) out 3528
+    ▷ After writing $0087=100 and stepping 4: Goomba at screen x=240/248 (was 175/183). The screenshot shows the Goomba at the right edge (x~240). ✓ x proof complete.
+    
+    Hmm, the screenshot sha is 943018... which was also the sha for an earlier screenshot. Hmm, that earlier screenshot was also after writing $0087 and showed the Goomba at 174? Let me look: the screenshot I'm seeing now — the Goomba is at the right (x~240), and the earlier 943018 screenshot I described also had the Goomba near the right edge. Hmm, earlier I said "Goomba at ~180" for 943018. Hmm. The image now shows the Goomba at the far right (x~240). OK, I'll trust list_sprites: 240. Good.
+    
+    Now everything is proven. Let me record the mappings and promote.
+    
+    Mappings to record:
+    
+    1. type:
+    ```
+    record_mapping(mapping_type="address", id="0x0016", name="enemy_type", category="enemy", group="enemy_object", stride=1, count=6, format="binary enemy ID (Goomba = 6)", source="differential search", notes="...")
+    ```
+    
+    2. x:
+    ```
+    id="0x0087", name="enemy_x_position", stride=1, count=6, format="binary, low byte of level x (0-255); absolute level x = 0x006E*256 + 0x0087 for the first enemy", ...
+    ```
+    
+    3. page:
+    ```
+    id="0x006E", name="enemy_x_pag… [+3757 chars]
+    The x proof is clean: with `$0087`=100 the Goomba's OAM jumped from x=175 to x=240. Time to record everything.
+    → record_mapping {"mapping_type": "address", "id": "0x0016", "name": "enemy_type", "category": "enemy", "group": "enemy_object", "stride": 1, "count": 6, "format": "binary enemy ID (World 1-1 Goomba holds 6; 11 = red Koopa Troopa)", "source": "differential search", "notes": "Enemy object TYPE/ID array, one byte per slot: $0016-$001B = enemy slots 0-5 (stride 1, count 6; slot 0 is the first enemy). The enemy spawne… [+826 chars]
+    → record_mapping {"mapping_type": "address", "id": "0x0087", "name": "enemy_x_position", "category": "enemy", "group": "enemy_object", "stride": 1, "count": 6, "format": "binary, low byte of the enemy's level x (0-255); absolute level x = 0x006E*256 + 0x0087", "source": "differential search", "notes": "Enemy object HORIZONTAL POSITION (low byte of level x), one byte per slot: $0087-$008C = enemy slots 0-5 (stride … [+1013 chars]
+    → record_mapping {"mapping_type": "address", "id": "0x006E", "name": "enemy_x_page", "category": "enemy", "group": "enemy_object", "stride": 1, "count": 6, "format": "binary page / high byte of the enemy's level x; absolute level x = 0x006E*256 + 0x0087", "source": "differential search", "notes": "Enemy object level-x PAGE (high byte), one byte per slot: $006E-$0073 = enemy slots 0-5 (stride 1, count 6; the player… [+633 chars]
+    → record_mapping {"mapping_type": "address", "id": "0x00CF", "name": "enemy_y_position", "category": "enemy", "group": "enemy_object", "stride": 1, "count": 6, "format": "binary screen y (0 = top, larger = lower); OAM y = value + 1", "source": "differential search", "notes": "Enemy object VERTICAL POSITION, one byte per slot: $00CF-$00D4 = enemy slots 0-5 (stride 1, count 6). The array starts one byte earlier at $… [+720 chars]
+[ 802 18:11:22] RESULT record_mapping
+    {"mapping_type":"address","id":"0x0016","name":"enemy_type","stride":1,"count":6,"format":"binary enemy ID (World 1-1 Goomba holds 6; 11 = red Koopa Troopa)","category":"enemy","group":"enemy_object","notes":"Enemy object TYPE/ID array, one byte per slot: $0016-$001B = enemy slots 0-5 (stride 1, count 6; slot 0 is the first enemy). The enemy spawner at CPU $C12F-$C13C does LDA $06CD / STA $16,X (type), then LDA #$01 / STA $0F,X (Enemy_Flag) and LDA #$00 / STA $1E,X (state), so the same per-slot index X addresses this array, the x low byte at $87,X, the page at $6E,X, the y at $CF,X and the act… [+672 chars]
+[ 804 18:11:22] RESULT record_mapping
+    {"mapping_type":"address","id":"0x0087","name":"enemy_x_position","stride":1,"count":6,"format":"binary, low byte of the enemy's level x (0-255); absolute level x = 0x006E*256 + 0x0087","category":"enemy","group":"enemy_object","notes":"Enemy object HORIZONTAL POSITION (low byte of level x), one byte per slot: $0087-$008C = enemy slots 0-5 (stride 1, count 6). The same contiguous array starts one byte earlier at $0086 with the player at index 0, so enemy 1 = $0086+1 = $0087; the routine at CPU $F171 (prgRom 0x717F) does LDA $86,X / SEC / SBC $071C (scroll) / STA $03AD,Y, so the on-screen x = (… [+859 chars]
+[ 806 18:11:22] RESULT record_mapping
+    {"mapping_type":"address","id":"0x006E","name":"enemy_x_page","stride":1,"count":6,"format":"binary page / high byte of the enemy's level x; absolute level x = 0x006E*256 + 0x0087","category":"enemy","group":"enemy_object","notes":"Enemy object level-x PAGE (high byte), one byte per slot: $006E-$0073 = enemy slots 0-5 (stride 1, count 6; the player's page is the byte before it at $006D). The spawner stores it with STA $6E,X at CPU $C1AB from $073A, i.e. the same slot pairing as $0016/$0087/$00CF. PROOF (play_input watch, no reference): a 110-frame no-input run with the World 1-1 Goomba walking… [+479 chars]
+[ 808 18:11:22] RESULT record_mapping
+    {"mapping_type":"address","id":"0x00CF","name":"enemy_y_position","stride":1,"count":6,"format":"binary screen y (0 = top, larger = lower); OAM y = value + 1","category":"enemy","group":"enemy_object","notes":"Enemy object VERTICAL POSITION, one byte per slot: $00CF-$00D4 = enemy slots 0-5 (stride 1, count 6). The array starts one byte earlier at $00CE with the player's y at index 0 and enemy 1 = $00CE+1 = $00CF; the routine at CPU $F171 does LDA $CE,X / STA $03B8,Y, so this is the screen y of the enemy's sprite (the Goomba's OAM y entries were 185/193/201 while $00CF read 184). PROOF (write_m… [+566 chars]
+[ 811 18:11:25] ASSISTANT (turn 1 step 105) · in 1607 (cache 280064) out 218
+    ▷ All four recorded. Now call promote_mappings once. Then report.
+    
+    Also, the emulator is left with a modified RAM state (Goomba moved). I should probably restore a sensible state or leave it. The task doesn't require it. I could load_state 2 or just leave it. Hmm, the user might want the game playable. Let me load_state 2 to put the Goomba back... actually state 2 has the Goomba at 174 with Mario at 228. That's fine. Or resume the emulator. Let me just restore state 2 and leave paused? Hmm. The session was in gameplay; I'll leave it as is or resume. I'll load_state 2 and resume so the user sees normal play. Hmm, resuming will have the Goomba approach and kill Mario. Whatever.
+    
+    Actually, let me not fuss. I'll just promote and report.
+    
+    Let me call promote_mappings.
+    → promote_mappings {}
+[ 813 18:11:25] RESULT promote_mappings
+    Promoted 4 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 14 tiles, 7 palettes, 1 sprites, 23 addresses. 0 hypotheses skipped.
+[ 817 18:11:29] ASSISTANT (turn 1 step 106) · in 24209 (cache 281856) out 239
+    ▷ All 4 promoted. Now let me finish: restore a sane game state (load_state 2 undone the moved Goomba? Actually current state has the Goomba moved to 240 via my write). I could load_state 2 and resume to leave the game running normally. Let me do that, then report.
+    
+    Actually, the emulator is paused with a modified RAM state. Let me resume so the user can play. Or load_state 2 first (Goomba at 174) then resume. load_state 2 restores; then resume.
+    
+    Let me do load_state 2 + resume_emulator.
+    
+    Then write the final report.
+    
+    Let me also mark the goal complete.
+    
+    Final report content:
+    - Arrays and encodings + evidence.
+    
+    Also mention the fix: I had to keep the emulator paused between steps (the game free-runs otherwise).
+    
+    Let me do the state restore and then the report.
+    → load_state {"slot": 2}
+    → resume_emulator {}
+[ 819 18:11:29] RESULT load_state
+    {"action":"loaded","slot":2,"paused":true,"stepped_frames":1,"bytes":5247}
+[ 821 18:11:29] RESULT resume_emulator
+    {"resumed":true}
+[ 825 18:11:31] ASSISTANT (turn 1 step 107) · in 24139 (cache 306304) out 145
+    ▷ Now report. Also mark the goal complete.
+    
+    Let me get the goal id/revision to complete it. get_goal first. Actually I can call update_goal but need the revision. Let me call get_goal then update_goal complete. Or the continuation rounds will handle it. Let me just do get_goal + update_goal in sequence.
+    
+    Actually, the objective is achieved. Let me call get_goal, then update_goal complete. But I should report first or together. Let me get_goal now and then report.
+    
+    Let me do get_goal (needed for revision).
+    → get_goal {}
+[ 827 18:11:31] RESULT get_goal
+    {"goal":{"id":"goal-8faebb55-b018-466e-8a40-056200319cd7","revision":1,"objective":"Find and prove the SMB1 World 1-1 RAM arrays holding on-screen enemies: each slot's type, horizontal position, and vertical position. Prove each address by write_memory + screenshot, or by a play_input watch whose samples follow the action for per-frame-rewritten values. record_mapping each (address, stride/count, source 'differential search') and call promote_mappings once at the end. Report each address, encoding, and evidence.","phase":"active","roundsStarted":0,"maxGoalRounds":40},"activation":"armed"}
+[ 830 18:11:34] ASSISTANT (turn 1 step 108) · in 257 (cache 330496) out 93
+    ▷ 
+    → update_goal {"goal_id": "goal-8faebb55-b018-466e-8a40-056200319cd7", "revision": 1, "action": "complete"}
+[ 833 18:11:34] RESULT update_goal
+    {"goal":{"id":"goal-8faebb55-b018-466e-8a40-056200319cd7","revision":2,"objective":"Find and prove the SMB1 World 1-1 RAM arrays holding on-screen enemies: each slot's type, horizontal position, and vertical position. Prove each address by write_memory + screenshot, or by a play_input watch whose samples follow the action for per-frame-rewritten values. record_mapping each (address, stride/count, source 'differential search') and call promote_mappings once at the end. Report each address, encoding, and evidence.","phase":"complete","roundsStarted":0,"maxGoalRounds":40},"activation":"disarmed"}
+[ 836 18:11:41] ASSISTANT (turn 1 step 109) · in 260 (cache 330752) out 1407
+    ▷ Now write the final report concisely.
+    
+    Key: mention the pitfall found (game free-runs between calls; keep it paused, use step_frame) and the arrays.
+    
+    Report:
+    
+    Sheet 3 — enemy slot arrays, SMB1 World 1-1.
+    
+    | what | address (slot 0) | array | encoding |
+    | type/ID | $0016 | $0016-$001B (stride 1, 6 slots) | enemy ID, Goomba = $06, $0B = red Koopa Troopa |
+    | x low | $0087 | $0087-$008C (stride 1, 6) | low byte of level x; absolute = $006E*256 + $0087 |
+    | x page | $006E | $006E-$0073 (stride 1, 6) | high byte |
+    | y | $00CF | $00CF-$00D4 (stride 1, 6) | screen y |
+    
+    Note the player is one byte before each (x $0086, y $00CE, page $006D), because the object engine indexes these arrays with X=0 for the player; the spawner writes enemies at X=0 with the enemy-only bases.
+    
+    Evidence bullets.
+    
+    Also mention supporting: $000F flag, $001E state, $03AE derived screen x.
+    
+    Write concisely.
+    Done — four arrays found, proven, recorded, and promoted (23 addresses now in the ROM mapping).
+    
+    ## Sheet 3 result: SMB1 World 1-1 enemy-slot arrays
+    
+    The object engine keeps the player and the enemies in the **same** zero-page arrays, indexed by slot, stride 1: **index 0 = player, indices 1–6 = enemies** (the spawner uses the enemy-only base, i.e. `STA $87,X` with X=0 = the first enemy, which is `$0086+1`). The routine at CPU `$F171` is the giveaway: `LDA $CE,X / STA $03B8,Y` (y) and `LDA $86,X / SEC / SBC $071C / STA $03AD,Y` (x).
+    
+    | what | address (first enemy slot) | array | encoding |
+    |---|---|---|---|
+    | **type / ID** | **`$0016`** | `$0016`–`$001B`, stride 1, count 6 | enemy ID; World 1-1 Goomba = `$06`, `$0B` = red Koopa Troopa |
+    | **horizontal** (low byte) | **`$0087`** | `$0087`–`$008C`, stride 1, count 6 | low byte of level x; absolute level x = `$006E`*256 + `$0087` |
+    | **horizontal** (page) | **`$006E`** | `$006E`–`$0073`, stride 1, count 6 | high byte of level x |
+    | **vertical** | **`$00CF`** | `$00CF`–`$00D4`, stride 1, count 6 | screen y of the enemy sprite (OAM y = value + 1) |
+    
+    Supporting bytes in the same slot struct: `$000F` = active flag (the live Goomba read 1), `$001E` = state, `$03AE` = derived on-screen x.
+    
+    **Evidence**
+    - **x — write proven.** Goomba slot read `$0087`=34, page 1 (level x 290, screen x 174). `write_memory $0087=100` + `step_frame 4` moved the drawn Goomba's OAM x from **175 → 240/248** (screenshot: it jumped to the right edge while Mario stayed at 112); a second write of 80 put it at 219 = 256+79−116. (Note: the draw lags a frame or two — a 1-frame step made it look as if the write did nothing.)
+    - **y — write proven.** `$00CF`=184 on the ground; `write_memory $00CF=140` + `step_frame 13` lifted the Goomba to OAM y **142/150/158**, with its own gravity step 140→141.
+    - **type — write proven.** `$0016`=6 for the Goomba; `write_memory $0016=11` + `step_frame 3` turned it into a **red Koopa Troopa** (`list_sprites`: palette 5, CHR tiles 165–169 instead of palette 7 / 112–115; screenshot shows the red shell).
+    - **page — watch proven.** A 110-frame no-input run sampling every 2 frames read `$0087` = 33,32,…,1,0 then 255,254,…,238 while `$006E` held 1 through frame 66 and flipped to 0 at the frame-68 sample — exactly the frame the low byte wrapped 0→255.
+    - The spawner at `$C12F`–`$C13D` writes `STA $16,X` (type from `$06CD`), `STA $0F,X`=1 (flag), `STA $1E,X`=0 (state); `$C1AB` `STA $6E,X`; `$C1B4` `STA $87,X`; `$C1DF` `STA $CF,X` — one per-slot X across all these bases.
+    
+    **Method note:** with no reference I first used differential search (a 24-frame idle diff over the 2 KB left only `$0087`, `$03AE` and the OAM entries as movers), then `trace_writes` on the derived screen-x pointed straight at `$F171`, and the spawner disassembly named the field bases, each then proven by write. One practical trap worth remembering: the game free-runs between tool calls, so snapshots/diffs must be taken with the emulator paused and frames advanced only with `step_frame`/`play_input` — my first two windows were ruined by deaths that happened while I was reading.
+    
+    `promote_mappings` wrote all four to `mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json` (0 hypotheses skipped). The emulator is back in World 1-1 and running.
+[ 838 18:11:41] ─── turn 1 end: {"kind":"completed"}
+

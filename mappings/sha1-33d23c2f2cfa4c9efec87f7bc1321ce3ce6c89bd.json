@@ -1,7 +1,7 @@
 {
   "rom_sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
   "rom_name": "Super Mario Bros. (World).nes",
-  "version": 13,
+  "version": 14,
   "schema": 3,
   "contributors": [],
   "description": "Auto-discovered mappings for Super Mario Bros. (World).nes",
@@ -257,6 +257,82 @@
       "length": 1,
       "format": "binary (index into $805A/$806D pointer tables)",
       "source": "trace and disassembly"
+    },
+    "0x0016": {
+      "address": "0x0016",
+      "mem_type": "cpu",
+      "description": "enemy_type: Enemy object TYPE/ID array, one byte per slot: $0016-$001B = enemy slots 0-5 (stride 1, count 6; slot 0 is the first enemy). The enemy spawner at CPU $C12F-$C13C does LDA $06CD / STA $16,X (type), then LDA #$01 / STA $0F,X (Enemy_Flag) and LDA #$00 / STA $1E,X (state), so the same per-slot index X addresses this array, the x low byte at $87,X, the page at $6E,X, the y at $CF,X and the active flag at $0F,X. In World 1-1 the live Goomba's slot held $06 (its $000F flag read 1). PROOF (write_memory + step_frame + list_sprites): while paused, write_memory $0016 = 11 and step_frame 3 turned the walking Goomba into a red Koopa Troopa - list_sprites returned sprite palette 5 with CHR tiles 165-169 (was palette 7, tiles 112-115) and the screenshot shows the red-shelled Koopa in the Goomba's place. (Writing 0 also left a Goomba on screen, so 0 and 6 both render a Goomba in this area.) Found with no reference: differential search plus disassembly of the spawner.",
+      "stride": 1,
+      "count": 6,
+      "format": "binary enemy ID (World 1-1 Goomba holds 6; 11 = red Koopa Troopa)",
+      "source": "differential search"
+    },
+    "0x0087": {
+      "address": "0x0087",
+      "mem_type": "cpu",
+      "description": "enemy_x_position: Enemy object HORIZONTAL POSITION (low byte of level x), one byte per slot: $0087-$008C = enemy slots 0-5 (stride 1, count 6). The same contiguous array starts one byte earlier at $0086 with the player at index 0, so enemy 1 = $0086+1 = $0087; the routine at CPU $F171 (prgRom 0x717F) does LDA $86,X / SEC / SBC $071C (scroll) / STA $03AD,Y, so the on-screen x = (low byte - scroll) mod 256 (the page at $006E carries the high byte). PROOF (write_memory + step_frame + list_sprites, no reference): in World 1-1 the first Goomba's slot read $0087 = 34 with page $006E = 1 (level x 290, screen x 174-175); while paused, write_memory $0087 = 100 and step_frame 4 moved the drawn Goomba's OAM x from 175 to 240/248 (screenshot: the Goomba jumped from mid-screen to the right edge while Mario stayed at x=112); a second test wrote 80 and it appeared at OAM x 219 = 256+79-116. The enemy spawner stores the low byte with STA $87,X at CPU $C1B4. Found with no reference by differential search (a 24-frame no-input diff left only $0087, its derived screen copy $03AE and OAM entries) plus the disassembly of $F171 and of the spawner.",
+      "stride": 1,
+      "count": 6,
+      "format": "binary, low byte of the enemy's level x (0-255); absolute level x = 0x006E*256 + 0x0087",
+      "source": "differential search"
+    },
+    "0x00CF": {
+      "address": "0x00CF",
+      "mem_type": "cpu",
+      "description": "enemy_y_position: Enemy object VERTICAL POSITION, one byte per slot: $00CF-$00D4 = enemy slots 0-5 (stride 1, count 6). The array starts one byte earlier at $00CE with the player's y at index 0 and enemy 1 = $00CE+1 = $00CF; the routine at CPU $F171 does LDA $CE,X / STA $03B8,Y, so this is the screen y of the enemy's sprite (the Goomba's OAM y entries were 185/193/201 while $00CF read 184). PROOF (write_memory + step_frame + list_sprites, no reference): in World 1-1 the first Goomba's slot read $00CF = 184; while paused, write_memory $00CF = 140 and step_frame 13 lifted the drawn Goomba to OAM y 142/150/158 (screenshot/list_sprites: it floats above the ground instead of standing), and the value then took its own gravity step 140->141. The enemy spawner stores it with STA $CF,X at CPU $C1DF. Found with no reference by differential search plus the $F171 disassembly.",
+      "stride": 1,
+      "count": 6,
+      "format": "binary screen y (0 = top, larger = lower); OAM y = value + 1",
+      "source": "differential search"
+    },
+    "0x0009": {
+      "address": "0x0009",
+      "mem_type": "cpu",
+      "description": "frame_counter: The global frame counter: it is incremented by exactly 1 every frame and wraps at 256. Writer: INC $0009 at CPU $8119 (prgRom 0x119), inside the NMI ($8082-$8181) in the per-frame timer block ($8100: DEC $077F / reload at $14, DEC $0780,X loop, then INC $0009). Proof (the game rewrites it every frame, so a write cannot stick): a play_input watch of $0009 with sample_every 1 over a 60-frame run read 151,152,153,...,210 - exactly +1 per sample; trace_writes on $0009 for 60 frames reported 120 accesses (INC is a read-modify-write counted twice) from PC $811B, the address just after the 2-byte INC $09 at $8119. Found with no reference by differential search (snapshot f0/f1 across gameplay left 53 movers; the watch isolated the only one stepping by 1/frame).",
+      "length": 1,
+      "format": "binary",
+      "source": "differential search"
+    },
+    "0x0770": {
+      "address": "0x0770",
+      "mem_type": "cpu",
+      "description": "game_mode: Game mode / which screen the game is running: 0 = title screen or attract demo, 1 = playing a level, 2 = victory (castle), 3 = game over. Proof (differential + per-frame watch + screenshots): on the title screen $0770 read 0; after pressing Start it read 1 and World 1-1 began (before/after screenshots). A sample_every-1 watch over a 60-frame run (10 frames idle, then Start held 5 frames) recorded $0770 = 0 for frames 1-10 and 1 from frame 11 onward - the flip lands exactly on the frame the Start press was applied and stays 1. A snapshot diff across the title -> World 1-1 transition showed 0x0770 0->1. Corroborated by the dispatcher: the NMI at CPU $8175 does JSR $8212, which is LDA $0770 / JSR $8E04 (jump engine) into the 4-entry target table at $8218 = $8231 (mode 0 title/attract), $AEDC (mode 1 game), $838B (mode 2 victory), $9218 (mode 3 game over). Found with no reference by differential search; writing $0770=0 while in a level moved the game onto the mode-0 (attract) handler, which auto-played the level.",
+      "length": 1,
+      "format": "binary",
+      "source": "differential search"
+    },
+    "0x0776": {
+      "address": "0x0776",
+      "mem_type": "cpu",
+      "description": "pause_flag: Pause flag: bit 0 is set (1) while the game is paused with Start and clear (0) while it runs. Proof (differential + write_memory, both directions): snapshot diff playing->paused showed 0x0776 0->1; while paused the TIME digits at $07F8-$07FA stayed frozen at 171 across a 120-frame run; pressing Start again gave 0x0776 1->0 and the timer resumed. Write proof: (a) with the game paused, write_memory $0776=0 resumed play (timer 171 -> 159 across 120 frames); (b) with the game running, write_memory $0776=1 froze the TIME display at 142 for 150 frames (screenshot showed TIME 142 static). Corroborated by the NMI at CPU $816F-$8175: LDA $0776 / LSR A / BCS skips JSR $8212, so bit 0 set halts the whole per-frame game engine. The Start handler at CPU $81A0-$81C5 (reached from the per-frame routine at $8182 when controller bit Start is pressed) sets $0777=$2B and toggles bit 0 / bit 7 of $0776. Found with no reference by differential search.",
+      "length": 1,
+      "format": "flags",
+      "source": "differential search"
+    },
+    "0x06FC": {
+      "address": "0x06FC",
+      "mem_type": "cpu",
+      "description": "player1_buttons: Controller 1's buttons for the current frame, stored by the joypad routine ReadJoypads at CPU $8E5C. Encoding (bit field): bit7=A($80), bit6=B($40), bit5=Select($20), bit4=Start($10), bit3=Up($08), bit2=Down($04), bit1=Left($02), bit0=Right($01); 0 = nothing pressed. X selects the player, so $06FC=player 1 and $06FD=player 2. ReadJoypads strobes $4016 (LDA #$01/STA $4016, then 0) and shifts 8 bits in from $4016+X, then does STA $06FC,X at CPU $8E7B. SMB edge-detects Start/Select: after storing, it ANDs #$30 with the previous-frame byte $074A,X and, on a repeat, re-stores with bits 4-5 cleared (AND #$CF at $8E87), so a held Start/Select shows for one frame only. PROOF (play_input watch, no reference): watching $06FC per frame while the script held nothing, then Right, Left, Right+A, B, Up, Down read exactly 0x00,0x01,0x02,0x81,0x40,0x08,0x04 in step with the script (one sample every 2 frames over 115 frames). A second run with per-frame samples caught Select and Start pulses: $06FC read 0x20 on frame 7 (first Select frame) and 0x10 on frame 14 (Start), with $074A reading 0x20/0x10 on those frames - i.e. the stored value tracks the actual button presses. Player 2's byte $06FD stayed 0 throughout.",
+      "format": "flags",
+      "source": "differential search"
+    },
+    "0x07A7": {
+      "address": "0x07A7",
+      "mem_type": "cpu",
+      "description": "rng_state: The game's pseudo-random number generator state: a 7-byte shift register at $07A7-$07AD (stride 1, count 7), updated exactly once every frame by the NMI, NOT gated by the pause flag $0776 (that check is later, at $8144). Encoding: at CPU $811F-$8130 (prgRom 0x11F) the feedback bit is computed as bit1($07A7) XOR bit1($07A8); then at CPU $8131-$8136 (prgRom 0x131) the loop does ROR $07A7,X for X=0..6 (BNE $8131), so the 56-bit register is rotated right by one, the feedback bit entering bit7 of $07A7 and the carry chaining byte to byte, with bit0 of $07AD discarded. PROOF (watch + trace + recurrence): (a) trace_writes write mode on $07A7-$07AD for 60 frames returned ONE writer, PC $8134 (the INX immediately after ROR $07A7,X), prgRom 0x134, 840 accesses = 7 bytes x 2 x 60 frames - i.e. the NMI updates all 7 bytes every frame. (b) A per-frame play_input watch (60 frames, sample_every 1) captured the sequence; starting from state [102,196,9,129,146,145,180] the documented recurrence reproduces it exactly: state2 [179,98,4,192,201,72,218] and state3 [89,177,2,96,100,164,109], matching the samples frame for frame (e.g. $07A7 102->179->89->44->22, $07AC 145->72->164->82). (c) trace_writes read mode over the range found the consumer at CPU $B9C9 `LDA $07A8,X` (X=2..4, so $07AA-$07AC, read every frame from prgRom 0x39CC = CPU $B9CC), which masks the random byte with the table at $B9BA and uses it to pick a branch - i.e. these bytes are consumed as the random value. Found with no reference by differential search: two idle snapshots diffed 'changed' left 14 movers; a per-frame watch showed $07A7-$07AD were the only ones running an LFSR (nonlinear, full 0-255 range) while the rest were plain counters (frame counter +1, $077F/$0787 countdowns). Hint: seeding/replacing the RNG means writing $07A7-$07AD (the state); the value the game actually consumes for random choices is read from $07AA-$07AC.",
+      "length": 7,
+      "count": 7,
+      "format": "binary (7-byte bit shift register)",
+      "source": "differential search"
+    },
+    "0x006E": {
+      "address": "0x006E",
+      "mem_type": "cpu",
+      "description": "enemy_x_page: Enemy object level-x PAGE (high byte), one byte per slot: $006E-$0073 = enemy slots 0-5 (stride 1, count 6; the player's page is the byte before it at $006D). The spawner stores it with STA $6E,X at CPU $C1AB from $073A, i.e. the same slot pairing as $0016/$0087/$00CF. PROOF (play_input watch, no reference): a 110-frame no-input run with the World 1-1 Goomba walking left, watching $0087 and $006E every 2 frames, read $0087 = 33,32,...,1,0 then 255,254,...,238 while $006E read 1 for every sample through frame 66 and flipped to 0 at the frame-68 sample - exactly the frame the low byte wrapped 0->255 - so the pair is a 16-bit level position and this is its high half. Found with no reference by differential search plus the spawner disassembly.",
+      "stride": 1,
+      "count": 6,
+      "format": "binary page / high byte of the enemy's level x; absolute level x = 0x006E*256 + 0x0087",
+      "source": "differential search"
     }
   },
   "notes": [

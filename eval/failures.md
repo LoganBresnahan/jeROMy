@@ -148,7 +148,9 @@ change bought; if the failure comes back, reopen it with the new run.
   `Name+offset:span` references (commit `7ec93e5`).
 - **Status:** `fixed` (both SMB runs regraded under v2). Seen again in
   `20261009-1428-sheet2-text-tiles` (B4.game_text accepted only the first of
-  the text table's nine labelled strings; spec v6).
+  the text table's nine labelled strings; spec v6) and in
+  `20261009-1749-sheet3-engine-input-enemies` (the enemy slot lines read the
+  equates as one byte; SMB has six slots; spec v9).
 - **A re-run checks:** when a proven claim grades `disagrees`, check the
   line against the source before calling the claim wrong, and record a
   spec change as a spec version, never silently.
