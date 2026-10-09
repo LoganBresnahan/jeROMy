@@ -2,7 +2,7 @@
   "game": "Super Mario Bros. (World)",
   "sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
   "rom_path": "C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes",
-  "spec_version": 2,
+  "spec_version": 3,
   "holdout": false,
   "mapper": "NROM",
   "prg_base": 32768,
@@ -10,187 +10,1802 @@
     "Instances of eval/spec/attributes.md for SMB (ADR-0020 section 1); replaces docs/plans/smb-map-coverage.md.",
     "match: a claim belongs to the line when every word of one group appears in the claim's name (words are lowercased, camelCase and punctuation split, plural s dropped; xpos becomes x pos). exclude: words that take a claim off the line. Matching is vocabulary, not the answer.",
     "ref: the reference symbols that grade the line (scripts/score-mapping.mjs). span: how many bytes from the symbol's address count as the same thing, when the reference gives no size (BCD digit runs). A run never sees this file: trio.sh voids a blind run whose shell reads eval/, hacks/ or mappings/.",
-    "Lines with grader claude are judged from the run's saved images; the scorer lists them as needs-judge."
+    "Lines with grader claude are judged from the run's saved images; the scorer lists them as needs-judge.",
+    "v3 (2026-10-09, before the first sheet-5 run): the coin and timer routine lines exclude helper vocabulary and the digit-helper line takes it, so a claim about SMB's shared BCD adder (DigitsMathRoutine, called by GiveOneCoin and RunGameTimer) is graded on the helper's line. Vocabulary only; no reference changed."
   ],
   "lines": [
-    { "id": "C1.lives", "class": "C1", "sheet": 3, "type": "address", "name": "lives counter",
-      "match": [["live"], ["life"]], "ref": ["NumberofLives"], "grader": "reference",
+    {
+      "id": "C1.lives",
+      "class": "C1",
+      "sheet": 3,
+      "type": "address",
+      "name": "lives counter",
+      "match": [
+        [
+          "live"
+        ],
+        [
+          "life"
+        ]
+      ],
+      "ref": [
+        "NumberofLives"
+      ],
+      "grader": "reference",
       "proof": "write, lose a life, look at the WORLD x N card",
-      "status": "promoted", "run": "pre-eval session b3d6d3a5 (2026-10-06)", "verdict": "agrees", "entry": "addresses.0x075A" },
-{ "id": "C1.coins", "class": "C1", "sheet": 3, "type": "address", "name": "coin count (the HUD's two BCD digits, or the binary tally behind 1-ups)",
-      "match": [["coin"]], "exclude": ["1up", "up", "offscreen", "offscr", "sprite", "sfx", "timer"], "ref": ["DisplayDigits+0x16:2", "CoinTally"], "grader": "reference",
-      "proof": "write, take a coin, look at the HUD coin count", "status": "promoted", "run": "20261009-1144-sheet3-hud-rerun", "verdict": "agrees", "entry": "addresses.0x07ED",
-      "notes": "spec v2 (2026-10-09, eval/runs/20261009-1144-sheet3-hud-rerun): SMB keeps two coin counts and the game increments both; v1 accepted only CoinTally. The HUD digits are DisplayDigits+$16 (OutputNumbers: StatusBarOffset $18 minus length 2), confirmed by that run's write of 55 at $07ED showing x56 after a coin." },
-    { "id": "C1.timer", "class": "C1", "sheet": 3, "type": "address", "name": "level timer (HUD TIME digits)",
-      "match": [["timer"], ["time"]], "exclude": ["star", "injury", "frame", "interval", "anim", "jump", "demo", "screen", "running", "setting", "ctrl"],
-      "ref": ["GameTimerDisplay"], "span": 3, "grader": "reference",
-      "proof": "write, look at the HUD TIME", "status": "promoted", "run": "20261009-1144-sheet3-hud-rerun", "verdict": "agrees", "entry": "addresses.0x07F8" },
-    { "id": "C1.score", "class": "C1", "sheet": 3, "type": "address", "name": "player score (HUD digits)",
-      "match": [["score"]], "exclude": ["top", "high", "flagpole", "floatey"], "ref": ["PlayerScoreDisplay"], "span": 6, "grader": "reference",
-      "proof": "write, look at the HUD score", "status": "attempted", "run": "20261009-1144-sheet3-hud-rerun", "verdict": "disagrees", "entry": "addresses.0x07DE",
-      "notes": "Six BCD digits $07DD-$07E2, millions down to tens; the ones place is a fixed 0 tile and the millions digit is blanked while zero. Measured by Claude 2026-10-09: $07DD-$07E3 = 1..7 drew '123456' then the fixed '0' (nametable $2062-$2068); $07E3 is not drawn." },
-    { "id": "C1.world", "class": "C1", "sheet": 3, "type": "address", "name": "world number",
-      "match": [["world"]], "exclude": ["select", "end", "continue", "offscreen", "offscr"], "ref": ["WorldNumber"], "grader": "reference",
-      "proof": "write, look at the HUD WORLD or the card", "status": "promoted", "run": "20261009-1135-sheet3-hud-position", "verdict": "agrees", "entry": "addresses.0x075F" },
-    { "id": "C1.level", "class": "C1", "sheet": 3, "type": "address", "name": "level number within the world",
-      "match": [["level"]], "exclude": ["world", "offscreen", "offscr", "area"], "ref": ["LevelNumber"], "grader": "reference",
-      "proof": "write, look at the HUD WORLD x-y or the card", "status": "promoted", "run": "20261009-1135-sheet3-hud-position", "verdict": "agrees", "entry": "addresses.0x075C" },
-    { "id": "C1.area", "class": "C1", "sheet": 3, "type": "address", "name": "area number / area type",
-      "match": [["area"]], "exclude": ["offscreen", "offscr", "music", "parser", "palette"], "ref": ["AreaNumber", "AreaType", "AreaPointer"], "grader": "reference",
-      "proof": "write, reset the area, look", "status": "open" },
-    { "id": "C2.player_x", "class": "C2", "sheet": 3, "type": "address", "name": "player x position within the page",
-      "match": [["player", "x"], ["mario", "x"]], "exclude": ["page", "screen", "rel", "speed", "relative", "scroll", "force"], "ref": ["Player_X_Position"], "grader": "reference",
-      "proof": "write, look: Mario moves", "status": "promoted", "run": "20261009-1135-sheet3-hud-position", "verdict": "agrees", "entry": "addresses.0x0086" },
-    { "id": "C2.player_x_page", "class": "C2", "sheet": 3, "type": "address", "name": "player x page (coarse x)",
-      "match": [["player", "page"], ["mario", "page"]], "ref": ["Player_PageLoc"], "grader": "reference",
-      "proof": "write, look", "status": "promoted", "run": "20261009-1144-sheet3-hud-rerun", "verdict": "agrees", "entry": "addresses.0x006D" },
-    { "id": "C2.player_screen_x", "class": "C2", "sheet": 3, "type": "address", "name": "player x on screen (relative)",
-      "match": [["player", "screen", "x"], ["player", "rel", "x"], ["player", "relative", "x"], ["mario", "screen", "x"]], "ref": ["Player_Rel_XPos"], "grader": "reference",
-      "proof": "watch while walking; a write is overwritten every frame", "status": "promoted", "run": "20261009-1135-sheet3-hud-position", "verdict": "agrees", "entry": "addresses.0x03AD",
-      "notes": "Candidate $03AD from a 2026-10-05 session (Player_Rel_XPos); not yet proven by write." },
-    { "id": "C2.player_y", "class": "C2", "sheet": 3, "type": "address", "name": "player y position",
-      "match": [["player", "y"], ["mario", "y"]], "exclude": ["speed", "high", "screen", "rel", "relative", "force", "velocity"], "ref": ["Player_Y_Position"], "grader": "reference",
-      "proof": "write, look: Mario moves vertically", "status": "promoted", "run": "20261009-1135-sheet3-hud-position", "verdict": "agrees", "entry": "addresses.0x00CE" },
-    { "id": "C2.player_y_high", "class": "C2", "sheet": 3, "type": "address", "name": "player y high byte (screen page)",
-      "match": [["player", "y", "high"]], "ref": ["Player_Y_HighPos"], "grader": "reference", "proof": "write, look", "status": "open" },
-    { "id": "C2.player_x_speed", "class": "C2", "sheet": 3, "type": "address", "name": "player horizontal speed",
-      "match": [["player", "x", "speed"], ["player", "horizontal", "speed"], ["mario", "x", "speed"]], "ref": ["Player_X_Speed"], "grader": "reference",
-      "proof": "watch while running", "status": "open" },
-    { "id": "C2.player_y_speed", "class": "C2", "sheet": 3, "type": "address", "name": "player vertical speed",
-      "match": [["player", "y", "speed"], ["player", "vertical", "speed"], ["mario", "y", "speed"]], "ref": ["Player_Y_Speed"], "grader": "reference",
-      "proof": "watch while jumping", "status": "open" },
-    { "id": "C2.facing", "class": "C2", "sheet": 3, "type": "address", "name": "player facing direction",
-      "match": [["facing"], ["face"]], "ref": ["PlayerFacingDir"], "grader": "reference", "proof": "write, look: Mario flips", "status": "open" },
-    { "id": "C2.power", "class": "C2", "sheet": 3, "type": "address", "name": "player power state (small, big, fire)",
-      "match": [["power"], ["player", "status"], ["player", "size"]], "exclude": ["object", "up", "type"], "ref": ["PlayerStatus", "PlayerSize"], "grader": "reference",
-      "proof": "write, look: Mario grows or turns fire", "status": "open" },
-    { "id": "C2.star", "class": "C2", "sheet": 3, "type": "address", "name": "star invincibility timer",
-      "match": [["star"], ["invincib"]], "exclude": ["flag"], "ref": ["StarInvincibleTimer"], "grader": "reference", "proof": "write, look: Mario flashes", "status": "open" },
-    { "id": "C2.crouch", "class": "C2", "sheet": 3, "type": "address", "name": "crouching flag",
-      "match": [["crouch"], ["duck"]], "ref": ["CrouchingFlag"], "grader": "reference", "proof": "watch while holding Down as big Mario", "status": "open" },
-    { "id": "C2.swim", "class": "C2", "sheet": 3, "type": "address", "name": "swimming flag",
-      "match": [["swim"]], "exclude": ["timer"], "ref": ["SwimmingFlag"], "grader": "reference", "proof": "watch in a water level", "status": "open" },
-    { "id": "C3.enemy_id", "class": "C3", "sheet": 3, "type": "address", "name": "enemy slot type array",
-      "match": [["enemy", "type"], ["enemy", "id"], ["object", "type"]], "ref": ["Enemy_ID"], "grader": "reference", "proof": "write a slot's type, look", "status": "open" },
-    { "id": "C3.enemy_flag", "class": "C3", "sheet": 3, "type": "address", "name": "enemy slot active flags",
-      "match": [["enemy", "flag"], ["enemy", "active"]], "ref": ["Enemy_Flag"], "grader": "reference", "proof": "write, look", "status": "open" },
-    { "id": "C3.enemy_x", "class": "C3", "sheet": 3, "type": "address", "name": "enemy slot x positions",
-      "match": [["enemy", "x"], ["goomba", "x"]], "exclude": ["page", "speed", "screen", "rel"], "ref": ["Enemy_X_Position"], "grader": "reference", "proof": "write, look", "status": "open" },
-    { "id": "C3.enemy_y", "class": "C3", "sheet": 3, "type": "address", "name": "enemy slot y positions",
-      "match": [["enemy", "y"], ["goomba", "y"]], "exclude": ["speed", "high", "screen", "rel"], "ref": ["Enemy_Y_Position"], "grader": "reference", "proof": "write, look", "status": "open" },
-    { "id": "C3.enemy_state", "class": "C3", "sheet": 3, "type": "address", "name": "enemy slot state",
-      "match": [["enemy", "state"]], "ref": ["Enemy_State"], "grader": "reference", "proof": "write, look", "status": "open" },
-    { "id": "C4.frame_counter", "class": "C4", "sheet": 3, "type": "address", "name": "frame counter",
-      "match": [["frame", "counter"], ["frame", "count"]], "ref": ["FrameCounter"], "grader": "reference",
-      "proof": "watch with play_input: +1 per frame", "status": "open",
-      "notes": "$09 seen counting once a frame in every trio play check (2026-10-05); not yet recorded." },
-    { "id": "C4.game_mode", "class": "C4", "sheet": 3, "type": "address", "name": "game mode (title, game, victory, game over)",
-      "match": [["game", "mode"], ["oper", "mode"], ["operating", "mode"]], "exclude": ["task", "value"], "ref": ["OperMode"], "grader": "reference",
-      "proof": "watch across Start", "status": "open" },
-    { "id": "C4.pause", "class": "C4", "sheet": 3, "type": "address", "name": "pause flag",
-      "match": [["pause"]], "exclude": ["sound", "timer", "music"], "ref": ["GamePauseStatus"], "grader": "reference", "proof": "watch across Start in game", "status": "open" },
-    { "id": "C4.scroll_x", "class": "C4", "sheet": 3, "type": "address", "name": "horizontal scroll",
-      "match": [["scroll"], ["camera"]], "exclude": ["lock", "amount", "fractional", "interval", "thirty", "vertical", "platform", "player"], "ref": ["HorizontalScroll", "ScreenLeft_X_Pos"], "grader": "reference",
-      "proof": "watch while walking", "status": "promoted", "run": "20261009-1135-sheet3-hud-position", "verdict": "agrees", "entry": "addresses.0x071C" },
-    { "id": "C4.joypad", "class": "C4", "sheet": 3, "type": "address", "name": "controller 1 state",
-      "match": [["joypad"], ["controller"], ["button"], ["input"]], "exclude": ["mask", "override", "2"], "ref": ["SavedJoypad1Bits"], "grader": "reference",
-      "proof": "watch with play_input", "status": "open" },
-    { "id": "C4.rng", "class": "C4", "sheet": 3, "type": "address", "name": "pseudo-random generator",
-      "match": [["random"], ["rng"]], "ref": ["PseudoRandomBitReg"], "span": 7, "grader": "reference", "proof": "watch", "status": "open" },
-
-    { "id": "A1.title", "class": "A1", "sheet": 1, "type": "picture", "name": "title screen scene", "grader": "claude", "proof": "screenshot in the scene, named", "status": "open" },
-    { "id": "A1.overworld", "class": "A1", "sheet": 1, "type": "picture", "name": "overworld scene (1-1)", "grader": "claude", "proof": "screenshot in the scene, named", "status": "open" },
-    { "id": "A1.underground", "class": "A1", "sheet": 1, "type": "picture", "name": "underground scene (1-2)", "grader": "claude", "proof": "screenshot in the scene, named", "status": "open" },
-    { "id": "A1.water", "class": "A1", "sheet": 1, "type": "picture", "name": "water scene (2-2)", "grader": "claude", "proof": "screenshot in the scene, named", "status": "open" },
-    { "id": "A1.castle", "class": "A1", "sheet": 1, "type": "picture", "name": "castle scene (1-4)", "grader": "claude", "proof": "screenshot in the scene, named", "status": "open" },
-    { "id": "A1.card", "class": "A1", "sheet": 1, "type": "picture", "name": "WORLD x-y lives card", "grader": "claude", "proof": "screenshot in the scene, named", "status": "open" },
-    { "id": "A3.brick", "class": "A3", "sheet": 1, "type": "picture", "name": "brick block metatile", "grader": "claude", "proof": "get_region object mode, named", "status": "open" },
-    { "id": "A3.question", "class": "A3", "sheet": 1, "type": "picture", "name": "question block metatile", "grader": "claude", "proof": "get_region object mode, named", "status": "recorded", "entry": "tiles.0x53-0x56" },
-    { "id": "A3.pipe", "class": "A3", "sheet": 1, "type": "picture", "name": "warp pipe", "grader": "claude", "proof": "get_region object mode, named", "status": "recorded", "entry": "tiles.0x60-0x6A" },
-    { "id": "A3.cloud", "class": "A3", "sheet": 1, "type": "picture", "name": "cloud", "grader": "claude", "proof": "get_region object mode, named", "status": "recorded", "entry": "tiles.0x35-0x3C" },
-    { "id": "A3.bush", "class": "A3", "sheet": 1, "type": "picture", "name": "bush", "grader": "claude", "proof": "get_region object mode, named", "status": "open" },
-    { "id": "A3.ground", "class": "A3", "sheet": 1, "type": "picture", "name": "ground block", "grader": "claude", "proof": "get_region object mode, named", "status": "open" },
-    { "id": "A3.hill", "class": "A3", "sheet": 1, "type": "picture", "name": "hill", "grader": "claude", "proof": "get_region object mode, named", "status": "open" },
-    { "id": "A3.flagpole", "class": "A3", "sheet": 1, "type": "picture", "name": "flagpole and flag", "grader": "claude", "proof": "get_region object mode, named", "status": "open" },
-    { "id": "A3.title_logo", "class": "A3", "sheet": 1, "type": "picture", "name": "title logo", "grader": "claude", "proof": "get_region object mode, named", "status": "open" },
-    { "id": "A4.small_mario", "class": "A4", "sheet": 1, "type": "picture", "name": "small Mario metasprite", "grader": "claude", "proof": "list_sprites hit, named", "status": "open" },
-    { "id": "A4.big_mario", "class": "A4", "sheet": 1, "type": "picture", "name": "big Mario metasprite", "grader": "claude", "proof": "list_sprites hit, named", "status": "recorded", "entry": "tiles.0x20-0x27" },
-    { "id": "A4.goomba", "class": "A4", "sheet": 1, "type": "picture", "name": "Goomba metasprite", "grader": "claude", "proof": "list_sprites hit, named", "status": "recorded", "entry": "tiles.0x70-0x73" },
-    { "id": "A4.koopa", "class": "A4", "sheet": 1, "type": "picture", "name": "Koopa Troopa metasprite", "grader": "claude", "proof": "list_sprites hit, named", "status": "open" },
-    { "id": "A4.mushroom", "class": "A4", "sheet": 1, "type": "picture", "name": "super mushroom", "grader": "claude", "proof": "list_sprites hit, named", "status": "open" },
-    { "id": "A4.fire_flower", "class": "A4", "sheet": 1, "type": "picture", "name": "fire flower", "grader": "claude", "proof": "list_sprites hit, named", "status": "open" },
-    { "id": "A4.star", "class": "A4", "sheet": 1, "type": "picture", "name": "starman", "grader": "claude", "proof": "list_sprites hit, named", "status": "open" },
-    { "id": "A4.coin", "class": "A4", "sheet": 1, "type": "picture", "name": "coin (block coin sprite)", "grader": "claude", "proof": "list_sprites hit, named", "status": "open" },
-    { "id": "A4.fireball", "class": "A4", "sheet": 1, "type": "picture", "name": "fireball", "grader": "claude", "proof": "list_sprites hit, named", "status": "open" },
-    { "id": "A5.overworld.bg0", "class": "A5", "sheet": 1, "type": "picture", "name": "overworld background palette 0 roles", "grader": "claude",
-      "proof": "write_palette, look, clear_palette_overrides", "status": "recorded", "notes": "slot 1 $29 is pipe/bush green (2026-10-05 persist-edit session)" },
-    { "id": "A5.overworld.bg1", "class": "A5", "sheet": 1, "type": "picture", "name": "overworld background palette 1 roles", "grader": "claude", "proof": "write_palette, look, clear_palette_overrides", "status": "open" },
-    { "id": "A5.overworld.bg2", "class": "A5", "sheet": 1, "type": "picture", "name": "overworld background palette 2 roles", "grader": "claude", "proof": "write_palette, look, clear_palette_overrides", "status": "open" },
-    { "id": "A5.overworld.bg3", "class": "A5", "sheet": 1, "type": "picture", "name": "overworld background palette 3 roles", "grader": "claude", "proof": "write_palette, look, clear_palette_overrides", "status": "open" },
-    { "id": "A5.overworld.sp0", "class": "A5", "sheet": 1, "type": "picture", "name": "Mario's sprite palette roles", "grader": "claude", "proof": "write_palette, look, clear_palette_overrides", "status": "open" },
-    { "id": "A6.hud", "class": "A6", "sheet": 1, "type": "picture", "name": "HUD row layout (MARIO, score, coins, WORLD, TIME)", "grader": "claude", "proof": "read_nametable against the screenshot", "status": "open" },
-    { "id": "A7.font", "class": "A7", "sheet": 1, "type": "picture", "name": "font tiles (digits and letters)", "grader": "claude", "proof": "read_tile against the screenshot", "status": "open" },
-
-    { "id": "B1.ground_palette", "class": "B1", "sheet": 2, "type": "origin", "name": "overworld palette table",
-      "match": [["palette"]], "exclude": ["water", "underground", "castle", "snow", "mushroom", "bowser"], "ref": ["GroundPaletteData"], "grader": "reference",
-      "proof": "ledgered write, reset_emulator, look", "status": "promoted", "run": "pre-eval 2026-10-05 persist-edit session", "notes": "PRG 0xCCB slot 1 $29 -> $16, red pipes after reset" },
-    { "id": "B1.underground_palette", "class": "B1", "sheet": 2, "type": "origin", "name": "underground palette table",
-      "match": [["underground", "palette"]], "ref": ["UndergroundPaletteData"], "grader": "reference", "proof": "ledgered write, reset_emulator, look", "status": "open" },
-    { "id": "B1.water_palette", "class": "B1", "sheet": 2, "type": "origin", "name": "water palette table",
-      "match": [["water", "palette"]], "ref": ["WaterPaletteData"], "grader": "reference", "proof": "ledgered write, reset_emulator, look", "status": "open" },
-    { "id": "B1.castle_palette", "class": "B1", "sheet": 2, "type": "origin", "name": "castle palette table",
-      "match": [["castle", "palette"]], "ref": ["CastlePaletteData"], "grader": "reference", "proof": "ledgered write, reset_emulator, look", "status": "open" },
-    { "id": "B2.metatiles", "class": "B2", "sheet": 2, "type": "origin", "name": "metatile tables",
-      "match": [["metatile"]], "ref": ["Palette0_MTiles", "Palette1_MTiles", "Palette2_MTiles", "Palette3_MTiles"], "grader": "reference",
-      "proof": "ledgered write of one tile id, reset, look", "status": "open" },
-    { "id": "B3.player_sprites", "class": "B3", "sheet": 2, "type": "origin", "name": "player sprite layout table",
-      "match": [["player", "sprite"], ["mario", "sprite"], ["player", "graphic"]], "ref": ["PlayerGraphicsTable"], "grader": "reference", "proof": "ledgered write, reset, look", "status": "open" },
-    { "id": "B3.enemy_sprites", "class": "B3", "sheet": 2, "type": "origin", "name": "enemy sprite layout table",
-      "match": [["enemy", "sprite"], ["enemy", "graphic"]], "ref": ["EnemyGraphicsTable"], "grader": "reference", "proof": "ledgered write, reset, look", "status": "open" },
-    { "id": "B4.game_text", "class": "B4", "sheet": 2, "type": "origin", "name": "game text strings (HUD labels, WORLD, GAME OVER)",
-      "match": [["text"], ["string"]], "ref": ["GameText"], "grader": "both", "proof": "ledgered write, reset, look", "status": "open" },
-    { "id": "B4.status_bar", "class": "B4", "sheet": 2, "type": "origin", "name": "status bar data",
-      "match": [["status", "bar"], ["hud"]], "ref": ["StatusBarData", "TopStatusBarLine"], "grader": "reference", "proof": "ledgered write, reset, look", "status": "open" },
-    { "id": "B5.chr", "class": "B5", "sheet": 2, "type": "picture", "name": "CHR origin of a tile (CHR-ROM: its own bytes)", "grader": "claude", "proof": "ledgered write_tile, reset, look", "status": "open" },
-
-    { "id": "D1.area_format", "class": "D1", "sheet": 4, "type": "routine", "name": "area object decoder",
-      "match": [["area", "decod"], ["area", "pars"], ["area", "data"]], "ref": ["ProcessAreaData", "AreaParserTaskControl"], "grader": "reference",
-      "proof": "one byte changed, reset, the level differs as predicted", "status": "open" },
-    { "id": "D2.area_pointers", "class": "D2", "sheet": 4, "type": "origin", "name": "area data pointer tables",
-      "match": [["area", "pointer"], ["area", "address"], ["level", "pointer"]], "ref": ["AreaDataAddrLow", "AreaDataAddrHigh", "AreaAddrOffsets", "WorldAddrOffsets", "AreaDataHOffsets"], "grader": "reference",
-      "proof": "redirect one entry, reset, a different area loads", "status": "open" },
-    { "id": "D2.enemy_pointers", "class": "D2", "sheet": 4, "type": "origin", "name": "enemy data pointer tables",
-      "match": [["enemy", "pointer"], ["enemy", "address"]], "ref": ["EnemyDataAddrLow", "EnemyDataAddrHigh", "EnemyAddrHOffsets"], "grader": "reference",
-      "proof": "redirect one entry, reset", "status": "open" },
-    { "id": "D3.1-1", "class": "D3", "sheet": 4, "type": "level", "name": "1-1 area and enemy data",
-      "match": [["1-1"], ["11"]], "ref": ["L_GroundArea6", "E_GroundArea6"], "grader": "reference", "proof": "one object byte changed, reset, look", "status": "open" },
-    { "id": "D3.1-2", "class": "D3", "sheet": 4, "type": "level", "name": "1-2 area and enemy data",
-      "match": [["1-2"], ["12"]], "ref": ["L_UndergroundArea1", "E_UndergroundArea1"], "grader": "reference", "proof": "one object byte changed, reset, look", "status": "open" },
-    { "id": "D4.timer_header", "class": "D4", "sheet": 4, "type": "origin", "name": "per-level timer setting table",
-      "match": [["timer"], ["time"]], "ref": ["GameTimerData"], "grader": "reference", "proof": "header byte changed, reset, look", "status": "open" },
-
-    { "id": "E1.reset", "class": "E1", "sheet": 5, "type": "routine", "name": "reset entry point",
-      "match": [["reset"], ["start"], ["entry"]], "ref": ["Start"], "grader": "reference", "proof": "read_memory at $FFFC, disassemble", "status": "open" },
-    { "id": "E1.nmi", "class": "E1", "sheet": 5, "type": "routine", "name": "NMI handler",
-      "match": [["nmi"], ["vblank"], ["non", "maskable"]], "ref": ["NonMaskableInterrupt"], "grader": "reference", "proof": "read_memory at $FFFA, disassemble", "status": "open" },
-    { "id": "E2.mode_dispatch", "class": "E2", "sheet": 5, "type": "routine", "name": "game-mode dispatch",
-      "match": [["mode", "dispatch"], ["oper", "mode"], ["mode", "table"]], "ref": ["OperModeExecutionTree", "JumpEngine"], "grader": "reference", "proof": "disassemble", "status": "open" },
-    { "id": "E3.palette_loader", "class": "E3", "sheet": 5, "type": "routine", "name": "area palette loader",
-      "match": [["palette", "load"], ["palette"]], "ref": ["GetAreaPalette", "AreaPalette"], "grader": "reference", "proof": "trace_writes on $2007 during an area load", "status": "open" },
-    { "id": "E3.scroll_split", "class": "E3", "sheet": 5, "type": "picture", "name": "scanline-31 scroll split (sprite 0)", "grader": "claude",
-      "proof": "capture_scroll_writes, note", "status": "open" },
-    { "id": "E4.area_loader", "class": "E4", "sheet": 5, "type": "routine", "name": "level loader",
-      "match": [["area", "load"], ["level", "load"], ["area", "pointer"]], "ref": ["LoadAreaPointer", "GetAreaDataAddrs", "InitializeArea"], "grader": "reference", "proof": "trace_writes mode read on the level range", "status": "open" },
-    { "id": "E5.lose_life", "class": "E5", "sheet": 5, "type": "routine", "name": "lives decrement",
-      "match": [["lose", "life"], ["live"], ["death"]], "ref": ["PlayerLoseLife"], "grader": "reference", "proof": "trace_writes on the lives address", "status": "open" },
-    { "id": "E5.coin", "class": "E5", "sheet": 5, "type": "routine", "name": "coin increment",
-      "match": [["coin"]], "ref": ["GiveOneCoin"], "grader": "reference", "proof": "trace_writes on the coin address", "status": "open" },
-    { "id": "E5.timer", "class": "E5", "sheet": 5, "type": "routine", "name": "timer countdown",
-      "match": [["timer"]], "ref": ["RunGameTimer"], "grader": "reference", "proof": "trace_writes on the timer digits", "status": "open" },
-    { "id": "E5.physics", "class": "E5", "sheet": 5, "type": "origin", "name": "physics constants (jump and fall force, max speeds)",
-      "match": [["jump"], ["fall"], ["gravity"], ["max", "speed"]], "ref": ["JumpMForceData", "FallMForceData", "MaxLeftXSpdData", "MaxRightXSpdData"], "grader": "reference",
-      "proof": "ledgered write of the constant, reset, play, look", "status": "open" },
-    { "id": "E5.digits", "class": "E5", "sheet": 5, "type": "routine", "name": "score/coin digit arithmetic",
-      "match": [["digit"], ["score", "add"], ["bcd"]], "ref": ["DigitsMathRoutine", "UpdateNumber"], "grader": "reference", "proof": "trace_writes on the score digits", "status": "open" }
+      "status": "promoted",
+      "run": "pre-eval session b3d6d3a5 (2026-10-06)",
+      "verdict": "agrees",
+      "entry": "addresses.0x075A"
+    },
+    {
+      "id": "C1.coins",
+      "class": "C1",
+      "sheet": 3,
+      "type": "address",
+      "name": "coin count (the HUD's two BCD digits, or the binary tally behind 1-ups)",
+      "match": [
+        [
+          "coin"
+        ]
+      ],
+      "exclude": [
+        "1up",
+        "up",
+        "offscreen",
+        "offscr",
+        "sprite",
+        "sfx",
+        "timer"
+      ],
+      "ref": [
+        "DisplayDigits+0x16:2",
+        "CoinTally"
+      ],
+      "grader": "reference",
+      "proof": "write, take a coin, look at the HUD coin count",
+      "status": "promoted",
+      "run": "20261009-1144-sheet3-hud-rerun",
+      "verdict": "agrees",
+      "entry": "addresses.0x07ED",
+      "notes": "spec v2 (2026-10-09, eval/runs/20261009-1144-sheet3-hud-rerun): SMB keeps two coin counts and the game increments both; v1 accepted only CoinTally. The HUD digits are DisplayDigits+$16 (OutputNumbers: StatusBarOffset $18 minus length 2), confirmed by that run's write of 55 at $07ED showing x56 after a coin."
+    },
+    {
+      "id": "C1.timer",
+      "class": "C1",
+      "sheet": 3,
+      "type": "address",
+      "name": "level timer (HUD TIME digits)",
+      "match": [
+        [
+          "timer"
+        ],
+        [
+          "time"
+        ]
+      ],
+      "exclude": [
+        "star",
+        "injury",
+        "frame",
+        "interval",
+        "anim",
+        "jump",
+        "demo",
+        "screen",
+        "running",
+        "setting",
+        "ctrl"
+      ],
+      "ref": [
+        "GameTimerDisplay"
+      ],
+      "span": 3,
+      "grader": "reference",
+      "proof": "write, look at the HUD TIME",
+      "status": "promoted",
+      "run": "20261009-1144-sheet3-hud-rerun",
+      "verdict": "agrees",
+      "entry": "addresses.0x07F8"
+    },
+    {
+      "id": "C1.score",
+      "class": "C1",
+      "sheet": 3,
+      "type": "address",
+      "name": "player score (HUD digits)",
+      "match": [
+        [
+          "score"
+        ]
+      ],
+      "exclude": [
+        "top",
+        "high",
+        "flagpole",
+        "floatey"
+      ],
+      "ref": [
+        "PlayerScoreDisplay"
+      ],
+      "span": 6,
+      "grader": "reference",
+      "proof": "write, look at the HUD score",
+      "status": "attempted",
+      "run": "20261009-1144-sheet3-hud-rerun",
+      "verdict": "disagrees",
+      "entry": "addresses.0x07DE",
+      "notes": "Six BCD digits $07DD-$07E2, millions down to tens; the ones place is a fixed 0 tile and the millions digit is blanked while zero. Measured by Claude 2026-10-09: $07DD-$07E3 = 1..7 drew '123456' then the fixed '0' (nametable $2062-$2068); $07E3 is not drawn."
+    },
+    {
+      "id": "C1.world",
+      "class": "C1",
+      "sheet": 3,
+      "type": "address",
+      "name": "world number",
+      "match": [
+        [
+          "world"
+        ]
+      ],
+      "exclude": [
+        "select",
+        "end",
+        "continue",
+        "offscreen",
+        "offscr"
+      ],
+      "ref": [
+        "WorldNumber"
+      ],
+      "grader": "reference",
+      "proof": "write, look at the HUD WORLD or the card",
+      "status": "promoted",
+      "run": "20261009-1135-sheet3-hud-position",
+      "verdict": "agrees",
+      "entry": "addresses.0x075F"
+    },
+    {
+      "id": "C1.level",
+      "class": "C1",
+      "sheet": 3,
+      "type": "address",
+      "name": "level number within the world",
+      "match": [
+        [
+          "level"
+        ]
+      ],
+      "exclude": [
+        "world",
+        "offscreen",
+        "offscr",
+        "area"
+      ],
+      "ref": [
+        "LevelNumber"
+      ],
+      "grader": "reference",
+      "proof": "write, look at the HUD WORLD x-y or the card",
+      "status": "promoted",
+      "run": "20261009-1135-sheet3-hud-position",
+      "verdict": "agrees",
+      "entry": "addresses.0x075C"
+    },
+    {
+      "id": "C1.area",
+      "class": "C1",
+      "sheet": 3,
+      "type": "address",
+      "name": "area number / area type",
+      "match": [
+        [
+          "area"
+        ]
+      ],
+      "exclude": [
+        "offscreen",
+        "offscr",
+        "music",
+        "parser",
+        "palette"
+      ],
+      "ref": [
+        "AreaNumber",
+        "AreaType",
+        "AreaPointer"
+      ],
+      "grader": "reference",
+      "proof": "write, reset the area, look",
+      "status": "open"
+    },
+    {
+      "id": "C2.player_x",
+      "class": "C2",
+      "sheet": 3,
+      "type": "address",
+      "name": "player x position within the page",
+      "match": [
+        [
+          "player",
+          "x"
+        ],
+        [
+          "mario",
+          "x"
+        ]
+      ],
+      "exclude": [
+        "page",
+        "screen",
+        "rel",
+        "speed",
+        "relative",
+        "scroll",
+        "force"
+      ],
+      "ref": [
+        "Player_X_Position"
+      ],
+      "grader": "reference",
+      "proof": "write, look: Mario moves",
+      "status": "promoted",
+      "run": "20261009-1135-sheet3-hud-position",
+      "verdict": "agrees",
+      "entry": "addresses.0x0086"
+    },
+    {
+      "id": "C2.player_x_page",
+      "class": "C2",
+      "sheet": 3,
+      "type": "address",
+      "name": "player x page (coarse x)",
+      "match": [
+        [
+          "player",
+          "page"
+        ],
+        [
+          "mario",
+          "page"
+        ]
+      ],
+      "ref": [
+        "Player_PageLoc"
+      ],
+      "grader": "reference",
+      "proof": "write, look",
+      "status": "promoted",
+      "run": "20261009-1144-sheet3-hud-rerun",
+      "verdict": "agrees",
+      "entry": "addresses.0x006D"
+    },
+    {
+      "id": "C2.player_screen_x",
+      "class": "C2",
+      "sheet": 3,
+      "type": "address",
+      "name": "player x on screen (relative)",
+      "match": [
+        [
+          "player",
+          "screen",
+          "x"
+        ],
+        [
+          "player",
+          "rel",
+          "x"
+        ],
+        [
+          "player",
+          "relative",
+          "x"
+        ],
+        [
+          "mario",
+          "screen",
+          "x"
+        ]
+      ],
+      "ref": [
+        "Player_Rel_XPos"
+      ],
+      "grader": "reference",
+      "proof": "watch while walking; a write is overwritten every frame",
+      "status": "promoted",
+      "run": "20261009-1135-sheet3-hud-position",
+      "verdict": "agrees",
+      "entry": "addresses.0x03AD",
+      "notes": "Candidate $03AD from a 2026-10-05 session (Player_Rel_XPos); not yet proven by write."
+    },
+    {
+      "id": "C2.player_y",
+      "class": "C2",
+      "sheet": 3,
+      "type": "address",
+      "name": "player y position",
+      "match": [
+        [
+          "player",
+          "y"
+        ],
+        [
+          "mario",
+          "y"
+        ]
+      ],
+      "exclude": [
+        "speed",
+        "high",
+        "screen",
+        "rel",
+        "relative",
+        "force",
+        "velocity"
+      ],
+      "ref": [
+        "Player_Y_Position"
+      ],
+      "grader": "reference",
+      "proof": "write, look: Mario moves vertically",
+      "status": "promoted",
+      "run": "20261009-1135-sheet3-hud-position",
+      "verdict": "agrees",
+      "entry": "addresses.0x00CE"
+    },
+    {
+      "id": "C2.player_y_high",
+      "class": "C2",
+      "sheet": 3,
+      "type": "address",
+      "name": "player y high byte (screen page)",
+      "match": [
+        [
+          "player",
+          "y",
+          "high"
+        ]
+      ],
+      "ref": [
+        "Player_Y_HighPos"
+      ],
+      "grader": "reference",
+      "proof": "write, look",
+      "status": "open"
+    },
+    {
+      "id": "C2.player_x_speed",
+      "class": "C2",
+      "sheet": 3,
+      "type": "address",
+      "name": "player horizontal speed",
+      "match": [
+        [
+          "player",
+          "x",
+          "speed"
+        ],
+        [
+          "player",
+          "horizontal",
+          "speed"
+        ],
+        [
+          "mario",
+          "x",
+          "speed"
+        ]
+      ],
+      "ref": [
+        "Player_X_Speed"
+      ],
+      "grader": "reference",
+      "proof": "watch while running",
+      "status": "open"
+    },
+    {
+      "id": "C2.player_y_speed",
+      "class": "C2",
+      "sheet": 3,
+      "type": "address",
+      "name": "player vertical speed",
+      "match": [
+        [
+          "player",
+          "y",
+          "speed"
+        ],
+        [
+          "player",
+          "vertical",
+          "speed"
+        ],
+        [
+          "mario",
+          "y",
+          "speed"
+        ]
+      ],
+      "ref": [
+        "Player_Y_Speed"
+      ],
+      "grader": "reference",
+      "proof": "watch while jumping",
+      "status": "open"
+    },
+    {
+      "id": "C2.facing",
+      "class": "C2",
+      "sheet": 3,
+      "type": "address",
+      "name": "player facing direction",
+      "match": [
+        [
+          "facing"
+        ],
+        [
+          "face"
+        ]
+      ],
+      "ref": [
+        "PlayerFacingDir"
+      ],
+      "grader": "reference",
+      "proof": "write, look: Mario flips",
+      "status": "open"
+    },
+    {
+      "id": "C2.power",
+      "class": "C2",
+      "sheet": 3,
+      "type": "address",
+      "name": "player power state (small, big, fire)",
+      "match": [
+        [
+          "power"
+        ],
+        [
+          "player",
+          "status"
+        ],
+        [
+          "player",
+          "size"
+        ]
+      ],
+      "exclude": [
+        "object",
+        "up",
+        "type"
+      ],
+      "ref": [
+        "PlayerStatus",
+        "PlayerSize"
+      ],
+      "grader": "reference",
+      "proof": "write, look: Mario grows or turns fire",
+      "status": "open"
+    },
+    {
+      "id": "C2.star",
+      "class": "C2",
+      "sheet": 3,
+      "type": "address",
+      "name": "star invincibility timer",
+      "match": [
+        [
+          "star"
+        ],
+        [
+          "invincib"
+        ]
+      ],
+      "exclude": [
+        "flag"
+      ],
+      "ref": [
+        "StarInvincibleTimer"
+      ],
+      "grader": "reference",
+      "proof": "write, look: Mario flashes",
+      "status": "open"
+    },
+    {
+      "id": "C2.crouch",
+      "class": "C2",
+      "sheet": 3,
+      "type": "address",
+      "name": "crouching flag",
+      "match": [
+        [
+          "crouch"
+        ],
+        [
+          "duck"
+        ]
+      ],
+      "ref": [
+        "CrouchingFlag"
+      ],
+      "grader": "reference",
+      "proof": "watch while holding Down as big Mario",
+      "status": "open"
+    },
+    {
+      "id": "C2.swim",
+      "class": "C2",
+      "sheet": 3,
+      "type": "address",
+      "name": "swimming flag",
+      "match": [
+        [
+          "swim"
+        ]
+      ],
+      "exclude": [
+        "timer"
+      ],
+      "ref": [
+        "SwimmingFlag"
+      ],
+      "grader": "reference",
+      "proof": "watch in a water level",
+      "status": "open"
+    },
+    {
+      "id": "C3.enemy_id",
+      "class": "C3",
+      "sheet": 3,
+      "type": "address",
+      "name": "enemy slot type array",
+      "match": [
+        [
+          "enemy",
+          "type"
+        ],
+        [
+          "enemy",
+          "id"
+        ],
+        [
+          "object",
+          "type"
+        ]
+      ],
+      "ref": [
+        "Enemy_ID"
+      ],
+      "grader": "reference",
+      "proof": "write a slot's type, look",
+      "status": "open"
+    },
+    {
+      "id": "C3.enemy_flag",
+      "class": "C3",
+      "sheet": 3,
+      "type": "address",
+      "name": "enemy slot active flags",
+      "match": [
+        [
+          "enemy",
+          "flag"
+        ],
+        [
+          "enemy",
+          "active"
+        ]
+      ],
+      "ref": [
+        "Enemy_Flag"
+      ],
+      "grader": "reference",
+      "proof": "write, look",
+      "status": "open"
+    },
+    {
+      "id": "C3.enemy_x",
+      "class": "C3",
+      "sheet": 3,
+      "type": "address",
+      "name": "enemy slot x positions",
+      "match": [
+        [
+          "enemy",
+          "x"
+        ],
+        [
+          "goomba",
+          "x"
+        ]
+      ],
+      "exclude": [
+        "page",
+        "speed",
+        "screen",
+        "rel"
+      ],
+      "ref": [
+        "Enemy_X_Position"
+      ],
+      "grader": "reference",
+      "proof": "write, look",
+      "status": "open"
+    },
+    {
+      "id": "C3.enemy_y",
+      "class": "C3",
+      "sheet": 3,
+      "type": "address",
+      "name": "enemy slot y positions",
+      "match": [
+        [
+          "enemy",
+          "y"
+        ],
+        [
+          "goomba",
+          "y"
+        ]
+      ],
+      "exclude": [
+        "speed",
+        "high",
+        "screen",
+        "rel"
+      ],
+      "ref": [
+        "Enemy_Y_Position"
+      ],
+      "grader": "reference",
+      "proof": "write, look",
+      "status": "open"
+    },
+    {
+      "id": "C3.enemy_state",
+      "class": "C3",
+      "sheet": 3,
+      "type": "address",
+      "name": "enemy slot state",
+      "match": [
+        [
+          "enemy",
+          "state"
+        ]
+      ],
+      "ref": [
+        "Enemy_State"
+      ],
+      "grader": "reference",
+      "proof": "write, look",
+      "status": "open"
+    },
+    {
+      "id": "C4.frame_counter",
+      "class": "C4",
+      "sheet": 3,
+      "type": "address",
+      "name": "frame counter",
+      "match": [
+        [
+          "frame",
+          "counter"
+        ],
+        [
+          "frame",
+          "count"
+        ]
+      ],
+      "ref": [
+        "FrameCounter"
+      ],
+      "grader": "reference",
+      "proof": "watch with play_input: +1 per frame",
+      "status": "open",
+      "notes": "$09 seen counting once a frame in every trio play check (2026-10-05); not yet recorded."
+    },
+    {
+      "id": "C4.game_mode",
+      "class": "C4",
+      "sheet": 3,
+      "type": "address",
+      "name": "game mode (title, game, victory, game over)",
+      "match": [
+        [
+          "game",
+          "mode"
+        ],
+        [
+          "oper",
+          "mode"
+        ],
+        [
+          "operating",
+          "mode"
+        ]
+      ],
+      "exclude": [
+        "task",
+        "value"
+      ],
+      "ref": [
+        "OperMode"
+      ],
+      "grader": "reference",
+      "proof": "watch across Start",
+      "status": "open"
+    },
+    {
+      "id": "C4.pause",
+      "class": "C4",
+      "sheet": 3,
+      "type": "address",
+      "name": "pause flag",
+      "match": [
+        [
+          "pause"
+        ]
+      ],
+      "exclude": [
+        "sound",
+        "timer",
+        "music"
+      ],
+      "ref": [
+        "GamePauseStatus"
+      ],
+      "grader": "reference",
+      "proof": "watch across Start in game",
+      "status": "open"
+    },
+    {
+      "id": "C4.scroll_x",
+      "class": "C4",
+      "sheet": 3,
+      "type": "address",
+      "name": "horizontal scroll",
+      "match": [
+        [
+          "scroll"
+        ],
+        [
+          "camera"
+        ]
+      ],
+      "exclude": [
+        "lock",
+        "amount",
+        "fractional",
+        "interval",
+        "thirty",
+        "vertical",
+        "platform",
+        "player"
+      ],
+      "ref": [
+        "HorizontalScroll",
+        "ScreenLeft_X_Pos"
+      ],
+      "grader": "reference",
+      "proof": "watch while walking",
+      "status": "promoted",
+      "run": "20261009-1135-sheet3-hud-position",
+      "verdict": "agrees",
+      "entry": "addresses.0x071C"
+    },
+    {
+      "id": "C4.joypad",
+      "class": "C4",
+      "sheet": 3,
+      "type": "address",
+      "name": "controller 1 state",
+      "match": [
+        [
+          "joypad"
+        ],
+        [
+          "controller"
+        ],
+        [
+          "button"
+        ],
+        [
+          "input"
+        ]
+      ],
+      "exclude": [
+        "mask",
+        "override",
+        "2"
+      ],
+      "ref": [
+        "SavedJoypad1Bits"
+      ],
+      "grader": "reference",
+      "proof": "watch with play_input",
+      "status": "open"
+    },
+    {
+      "id": "C4.rng",
+      "class": "C4",
+      "sheet": 3,
+      "type": "address",
+      "name": "pseudo-random generator",
+      "match": [
+        [
+          "random"
+        ],
+        [
+          "rng"
+        ]
+      ],
+      "ref": [
+        "PseudoRandomBitReg"
+      ],
+      "span": 7,
+      "grader": "reference",
+      "proof": "watch",
+      "status": "open"
+    },
+    {
+      "id": "A1.title",
+      "class": "A1",
+      "sheet": 1,
+      "type": "picture",
+      "name": "title screen scene",
+      "grader": "claude",
+      "proof": "screenshot in the scene, named",
+      "status": "open"
+    },
+    {
+      "id": "A1.overworld",
+      "class": "A1",
+      "sheet": 1,
+      "type": "picture",
+      "name": "overworld scene (1-1)",
+      "grader": "claude",
+      "proof": "screenshot in the scene, named",
+      "status": "open"
+    },
+    {
+      "id": "A1.underground",
+      "class": "A1",
+      "sheet": 1,
+      "type": "picture",
+      "name": "underground scene (1-2)",
+      "grader": "claude",
+      "proof": "screenshot in the scene, named",
+      "status": "open"
+    },
+    {
+      "id": "A1.water",
+      "class": "A1",
+      "sheet": 1,
+      "type": "picture",
+      "name": "water scene (2-2)",
+      "grader": "claude",
+      "proof": "screenshot in the scene, named",
+      "status": "open"
+    },
+    {
+      "id": "A1.castle",
+      "class": "A1",
+      "sheet": 1,
+      "type": "picture",
+      "name": "castle scene (1-4)",
+      "grader": "claude",
+      "proof": "screenshot in the scene, named",
+      "status": "open"
+    },
+    {
+      "id": "A1.card",
+      "class": "A1",
+      "sheet": 1,
+      "type": "picture",
+      "name": "WORLD x-y lives card",
+      "grader": "claude",
+      "proof": "screenshot in the scene, named",
+      "status": "open"
+    },
+    {
+      "id": "A3.brick",
+      "class": "A3",
+      "sheet": 1,
+      "type": "picture",
+      "name": "brick block metatile",
+      "grader": "claude",
+      "proof": "get_region object mode, named",
+      "status": "open"
+    },
+    {
+      "id": "A3.question",
+      "class": "A3",
+      "sheet": 1,
+      "type": "picture",
+      "name": "question block metatile",
+      "grader": "claude",
+      "proof": "get_region object mode, named",
+      "status": "recorded",
+      "entry": "tiles.0x53-0x56"
+    },
+    {
+      "id": "A3.pipe",
+      "class": "A3",
+      "sheet": 1,
+      "type": "picture",
+      "name": "warp pipe",
+      "grader": "claude",
+      "proof": "get_region object mode, named",
+      "status": "recorded",
+      "entry": "tiles.0x60-0x6A"
+    },
+    {
+      "id": "A3.cloud",
+      "class": "A3",
+      "sheet": 1,
+      "type": "picture",
+      "name": "cloud",
+      "grader": "claude",
+      "proof": "get_region object mode, named",
+      "status": "recorded",
+      "entry": "tiles.0x35-0x3C"
+    },
+    {
+      "id": "A3.bush",
+      "class": "A3",
+      "sheet": 1,
+      "type": "picture",
+      "name": "bush",
+      "grader": "claude",
+      "proof": "get_region object mode, named",
+      "status": "open"
+    },
+    {
+      "id": "A3.ground",
+      "class": "A3",
+      "sheet": 1,
+      "type": "picture",
+      "name": "ground block",
+      "grader": "claude",
+      "proof": "get_region object mode, named",
+      "status": "open"
+    },
+    {
+      "id": "A3.hill",
+      "class": "A3",
+      "sheet": 1,
+      "type": "picture",
+      "name": "hill",
+      "grader": "claude",
+      "proof": "get_region object mode, named",
+      "status": "open"
+    },
+    {
+      "id": "A3.flagpole",
+      "class": "A3",
+      "sheet": 1,
+      "type": "picture",
+      "name": "flagpole and flag",
+      "grader": "claude",
+      "proof": "get_region object mode, named",
+      "status": "open"
+    },
+    {
+      "id": "A3.title_logo",
+      "class": "A3",
+      "sheet": 1,
+      "type": "picture",
+      "name": "title logo",
+      "grader": "claude",
+      "proof": "get_region object mode, named",
+      "status": "open"
+    },
+    {
+      "id": "A4.small_mario",
+      "class": "A4",
+      "sheet": 1,
+      "type": "picture",
+      "name": "small Mario metasprite",
+      "grader": "claude",
+      "proof": "list_sprites hit, named",
+      "status": "open"
+    },
+    {
+      "id": "A4.big_mario",
+      "class": "A4",
+      "sheet": 1,
+      "type": "picture",
+      "name": "big Mario metasprite",
+      "grader": "claude",
+      "proof": "list_sprites hit, named",
+      "status": "recorded",
+      "entry": "tiles.0x20-0x27"
+    },
+    {
+      "id": "A4.goomba",
+      "class": "A4",
+      "sheet": 1,
+      "type": "picture",
+      "name": "Goomba metasprite",
+      "grader": "claude",
+      "proof": "list_sprites hit, named",
+      "status": "recorded",
+      "entry": "tiles.0x70-0x73"
+    },
+    {
+      "id": "A4.koopa",
+      "class": "A4",
+      "sheet": 1,
+      "type": "picture",
+      "name": "Koopa Troopa metasprite",
+      "grader": "claude",
+      "proof": "list_sprites hit, named",
+      "status": "open"
+    },
+    {
+      "id": "A4.mushroom",
+      "class": "A4",
+      "sheet": 1,
+      "type": "picture",
+      "name": "super mushroom",
+      "grader": "claude",
+      "proof": "list_sprites hit, named",
+      "status": "open"
+    },
+    {
+      "id": "A4.fire_flower",
+      "class": "A4",
+      "sheet": 1,
+      "type": "picture",
+      "name": "fire flower",
+      "grader": "claude",
+      "proof": "list_sprites hit, named",
+      "status": "open"
+    },
+    {
+      "id": "A4.star",
+      "class": "A4",
+      "sheet": 1,
+      "type": "picture",
+      "name": "starman",
+      "grader": "claude",
+      "proof": "list_sprites hit, named",
+      "status": "open"
+    },
+    {
+      "id": "A4.coin",
+      "class": "A4",
+      "sheet": 1,
+      "type": "picture",
+      "name": "coin (block coin sprite)",
+      "grader": "claude",
+      "proof": "list_sprites hit, named",
+      "status": "open"
+    },
+    {
+      "id": "A4.fireball",
+      "class": "A4",
+      "sheet": 1,
+      "type": "picture",
+      "name": "fireball",
+      "grader": "claude",
+      "proof": "list_sprites hit, named",
+      "status": "open"
+    },
+    {
+      "id": "A5.overworld.bg0",
+      "class": "A5",
+      "sheet": 1,
+      "type": "picture",
+      "name": "overworld background palette 0 roles",
+      "grader": "claude",
+      "proof": "write_palette, look, clear_palette_overrides",
+      "status": "recorded",
+      "notes": "slot 1 $29 is pipe/bush green (2026-10-05 persist-edit session)"
+    },
+    {
+      "id": "A5.overworld.bg1",
+      "class": "A5",
+      "sheet": 1,
+      "type": "picture",
+      "name": "overworld background palette 1 roles",
+      "grader": "claude",
+      "proof": "write_palette, look, clear_palette_overrides",
+      "status": "open"
+    },
+    {
+      "id": "A5.overworld.bg2",
+      "class": "A5",
+      "sheet": 1,
+      "type": "picture",
+      "name": "overworld background palette 2 roles",
+      "grader": "claude",
+      "proof": "write_palette, look, clear_palette_overrides",
+      "status": "open"
+    },
+    {
+      "id": "A5.overworld.bg3",
+      "class": "A5",
+      "sheet": 1,
+      "type": "picture",
+      "name": "overworld background palette 3 roles",
+      "grader": "claude",
+      "proof": "write_palette, look, clear_palette_overrides",
+      "status": "open"
+    },
+    {
+      "id": "A5.overworld.sp0",
+      "class": "A5",
+      "sheet": 1,
+      "type": "picture",
+      "name": "Mario's sprite palette roles",
+      "grader": "claude",
+      "proof": "write_palette, look, clear_palette_overrides",
+      "status": "open"
+    },
+    {
+      "id": "A6.hud",
+      "class": "A6",
+      "sheet": 1,
+      "type": "picture",
+      "name": "HUD row layout (MARIO, score, coins, WORLD, TIME)",
+      "grader": "claude",
+      "proof": "read_nametable against the screenshot",
+      "status": "open"
+    },
+    {
+      "id": "A7.font",
+      "class": "A7",
+      "sheet": 1,
+      "type": "picture",
+      "name": "font tiles (digits and letters)",
+      "grader": "claude",
+      "proof": "read_tile against the screenshot",
+      "status": "open"
+    },
+    {
+      "id": "B1.ground_palette",
+      "class": "B1",
+      "sheet": 2,
+      "type": "origin",
+      "name": "overworld palette table",
+      "match": [
+        [
+          "palette"
+        ]
+      ],
+      "exclude": [
+        "water",
+        "underground",
+        "castle",
+        "snow",
+        "mushroom",
+        "bowser"
+      ],
+      "ref": [
+        "GroundPaletteData"
+      ],
+      "grader": "reference",
+      "proof": "ledgered write, reset_emulator, look",
+      "status": "promoted",
+      "run": "pre-eval 2026-10-05 persist-edit session",
+      "notes": "PRG 0xCCB slot 1 $29 -> $16, red pipes after reset"
+    },
+    {
+      "id": "B1.underground_palette",
+      "class": "B1",
+      "sheet": 2,
+      "type": "origin",
+      "name": "underground palette table",
+      "match": [
+        [
+          "underground",
+          "palette"
+        ]
+      ],
+      "ref": [
+        "UndergroundPaletteData"
+      ],
+      "grader": "reference",
+      "proof": "ledgered write, reset_emulator, look",
+      "status": "open"
+    },
+    {
+      "id": "B1.water_palette",
+      "class": "B1",
+      "sheet": 2,
+      "type": "origin",
+      "name": "water palette table",
+      "match": [
+        [
+          "water",
+          "palette"
+        ]
+      ],
+      "ref": [
+        "WaterPaletteData"
+      ],
+      "grader": "reference",
+      "proof": "ledgered write, reset_emulator, look",
+      "status": "open"
+    },
+    {
+      "id": "B1.castle_palette",
+      "class": "B1",
+      "sheet": 2,
+      "type": "origin",
+      "name": "castle palette table",
+      "match": [
+        [
+          "castle",
+          "palette"
+        ]
+      ],
+      "ref": [
+        "CastlePaletteData"
+      ],
+      "grader": "reference",
+      "proof": "ledgered write, reset_emulator, look",
+      "status": "open"
+    },
+    {
+      "id": "B2.metatiles",
+      "class": "B2",
+      "sheet": 2,
+      "type": "origin",
+      "name": "metatile tables",
+      "match": [
+        [
+          "metatile"
+        ]
+      ],
+      "ref": [
+        "Palette0_MTiles",
+        "Palette1_MTiles",
+        "Palette2_MTiles",
+        "Palette3_MTiles"
+      ],
+      "grader": "reference",
+      "proof": "ledgered write of one tile id, reset, look",
+      "status": "open"
+    },
+    {
+      "id": "B3.player_sprites",
+      "class": "B3",
+      "sheet": 2,
+      "type": "origin",
+      "name": "player sprite layout table",
+      "match": [
+        [
+          "player",
+          "sprite"
+        ],
+        [
+          "mario",
+          "sprite"
+        ],
+        [
+          "player",
+          "graphic"
+        ]
+      ],
+      "ref": [
+        "PlayerGraphicsTable"
+      ],
+      "grader": "reference",
+      "proof": "ledgered write, reset, look",
+      "status": "open"
+    },
+    {
+      "id": "B3.enemy_sprites",
+      "class": "B3",
+      "sheet": 2,
+      "type": "origin",
+      "name": "enemy sprite layout table",
+      "match": [
+        [
+          "enemy",
+          "sprite"
+        ],
+        [
+          "enemy",
+          "graphic"
+        ]
+      ],
+      "ref": [
+        "EnemyGraphicsTable"
+      ],
+      "grader": "reference",
+      "proof": "ledgered write, reset, look",
+      "status": "open"
+    },
+    {
+      "id": "B4.game_text",
+      "class": "B4",
+      "sheet": 2,
+      "type": "origin",
+      "name": "game text strings (HUD labels, WORLD, GAME OVER)",
+      "match": [
+        [
+          "text"
+        ],
+        [
+          "string"
+        ]
+      ],
+      "ref": [
+        "GameText"
+      ],
+      "grader": "both",
+      "proof": "ledgered write, reset, look",
+      "status": "open"
+    },
+    {
+      "id": "B4.status_bar",
+      "class": "B4",
+      "sheet": 2,
+      "type": "origin",
+      "name": "status bar data",
+      "match": [
+        [
+          "status",
+          "bar"
+        ],
+        [
+          "hud"
+        ]
+      ],
+      "ref": [
+        "StatusBarData",
+        "TopStatusBarLine"
+      ],
+      "grader": "reference",
+      "proof": "ledgered write, reset, look",
+      "status": "open"
+    },
+    {
+      "id": "B5.chr",
+      "class": "B5",
+      "sheet": 2,
+      "type": "picture",
+      "name": "CHR origin of a tile (CHR-ROM: its own bytes)",
+      "grader": "claude",
+      "proof": "ledgered write_tile, reset, look",
+      "status": "open"
+    },
+    {
+      "id": "D1.area_format",
+      "class": "D1",
+      "sheet": 4,
+      "type": "routine",
+      "name": "area object decoder",
+      "match": [
+        [
+          "area",
+          "decod"
+        ],
+        [
+          "area",
+          "pars"
+        ],
+        [
+          "area",
+          "data"
+        ]
+      ],
+      "ref": [
+        "ProcessAreaData",
+        "AreaParserTaskControl"
+      ],
+      "grader": "reference",
+      "proof": "one byte changed, reset, the level differs as predicted",
+      "status": "open"
+    },
+    {
+      "id": "D2.area_pointers",
+      "class": "D2",
+      "sheet": 4,
+      "type": "origin",
+      "name": "area data pointer tables",
+      "match": [
+        [
+          "area",
+          "pointer"
+        ],
+        [
+          "area",
+          "address"
+        ],
+        [
+          "level",
+          "pointer"
+        ]
+      ],
+      "ref": [
+        "AreaDataAddrLow",
+        "AreaDataAddrHigh",
+        "AreaAddrOffsets",
+        "WorldAddrOffsets",
+        "AreaDataHOffsets"
+      ],
+      "grader": "reference",
+      "proof": "redirect one entry, reset, a different area loads",
+      "status": "open"
+    },
+    {
+      "id": "D2.enemy_pointers",
+      "class": "D2",
+      "sheet": 4,
+      "type": "origin",
+      "name": "enemy data pointer tables",
+      "match": [
+        [
+          "enemy",
+          "pointer"
+        ],
+        [
+          "enemy",
+          "address"
+        ]
+      ],
+      "ref": [
+        "EnemyDataAddrLow",
+        "EnemyDataAddrHigh",
+        "EnemyAddrHOffsets"
+      ],
+      "grader": "reference",
+      "proof": "redirect one entry, reset",
+      "status": "open"
+    },
+    {
+      "id": "D3.1-1",
+      "class": "D3",
+      "sheet": 4,
+      "type": "level",
+      "name": "1-1 area and enemy data",
+      "match": [
+        [
+          "1-1"
+        ],
+        [
+          "11"
+        ]
+      ],
+      "ref": [
+        "L_GroundArea6",
+        "E_GroundArea6"
+      ],
+      "grader": "reference",
+      "proof": "one object byte changed, reset, look",
+      "status": "open"
+    },
+    {
+      "id": "D3.1-2",
+      "class": "D3",
+      "sheet": 4,
+      "type": "level",
+      "name": "1-2 area and enemy data",
+      "match": [
+        [
+          "1-2"
+        ],
+        [
+          "12"
+        ]
+      ],
+      "ref": [
+        "L_UndergroundArea1",
+        "E_UndergroundArea1"
+      ],
+      "grader": "reference",
+      "proof": "one object byte changed, reset, look",
+      "status": "open"
+    },
+    {
+      "id": "D4.timer_header",
+      "class": "D4",
+      "sheet": 4,
+      "type": "origin",
+      "name": "per-level timer setting table",
+      "match": [
+        [
+          "timer"
+        ],
+        [
+          "time"
+        ]
+      ],
+      "ref": [
+        "GameTimerData"
+      ],
+      "grader": "reference",
+      "proof": "header byte changed, reset, look",
+      "status": "open"
+    },
+    {
+      "id": "E1.reset",
+      "class": "E1",
+      "sheet": 5,
+      "type": "routine",
+      "name": "reset entry point",
+      "match": [
+        [
+          "reset"
+        ],
+        [
+          "start"
+        ],
+        [
+          "entry"
+        ]
+      ],
+      "ref": [
+        "Start"
+      ],
+      "grader": "reference",
+      "proof": "read_memory at $FFFC, disassemble",
+      "status": "open"
+    },
+    {
+      "id": "E1.nmi",
+      "class": "E1",
+      "sheet": 5,
+      "type": "routine",
+      "name": "NMI handler",
+      "match": [
+        [
+          "nmi"
+        ],
+        [
+          "vblank"
+        ],
+        [
+          "non",
+          "maskable"
+        ]
+      ],
+      "ref": [
+        "NonMaskableInterrupt"
+      ],
+      "grader": "reference",
+      "proof": "read_memory at $FFFA, disassemble",
+      "status": "open"
+    },
+    {
+      "id": "E2.mode_dispatch",
+      "class": "E2",
+      "sheet": 5,
+      "type": "routine",
+      "name": "game-mode dispatch",
+      "match": [
+        [
+          "mode",
+          "dispatch"
+        ],
+        [
+          "oper",
+          "mode"
+        ],
+        [
+          "mode",
+          "table"
+        ]
+      ],
+      "ref": [
+        "OperModeExecutionTree",
+        "JumpEngine"
+      ],
+      "grader": "reference",
+      "proof": "disassemble",
+      "status": "open"
+    },
+    {
+      "id": "E3.palette_loader",
+      "class": "E3",
+      "sheet": 5,
+      "type": "routine",
+      "name": "area palette loader",
+      "match": [
+        [
+          "palette",
+          "load"
+        ],
+        [
+          "palette"
+        ]
+      ],
+      "ref": [
+        "GetAreaPalette",
+        "AreaPalette"
+      ],
+      "grader": "reference",
+      "proof": "trace_writes on $2007 during an area load",
+      "status": "open"
+    },
+    {
+      "id": "E3.scroll_split",
+      "class": "E3",
+      "sheet": 5,
+      "type": "picture",
+      "name": "scanline-31 scroll split (sprite 0)",
+      "grader": "claude",
+      "proof": "capture_scroll_writes, note",
+      "status": "open"
+    },
+    {
+      "id": "E4.area_loader",
+      "class": "E4",
+      "sheet": 5,
+      "type": "routine",
+      "name": "level loader",
+      "match": [
+        [
+          "area",
+          "load"
+        ],
+        [
+          "level",
+          "load"
+        ],
+        [
+          "area",
+          "pointer"
+        ]
+      ],
+      "ref": [
+        "LoadAreaPointer",
+        "GetAreaDataAddrs",
+        "InitializeArea"
+      ],
+      "grader": "reference",
+      "proof": "trace_writes mode read on the level range",
+      "status": "open"
+    },
+    {
+      "id": "E5.lose_life",
+      "class": "E5",
+      "sheet": 5,
+      "type": "routine",
+      "name": "lives decrement",
+      "match": [
+        [
+          "lose",
+          "life"
+        ],
+        [
+          "live"
+        ],
+        [
+          "death"
+        ]
+      ],
+      "ref": [
+        "PlayerLoseLife"
+      ],
+      "grader": "reference",
+      "proof": "trace_writes on the lives address",
+      "status": "open"
+    },
+    {
+      "id": "E5.coin",
+      "class": "E5",
+      "sheet": 5,
+      "type": "routine",
+      "name": "coin increment",
+      "match": [
+        [
+          "coin"
+        ]
+      ],
+      "exclude": [
+        "digit",
+        "bcd",
+        "helper",
+        "shared",
+        "math",
+        "arithmetic"
+      ],
+      "ref": [
+        "GiveOneCoin"
+      ],
+      "grader": "reference",
+      "proof": "trace_writes on the coin address",
+      "status": "open"
+    },
+    {
+      "id": "E5.timer",
+      "class": "E5",
+      "sheet": 5,
+      "type": "routine",
+      "name": "timer countdown",
+      "match": [
+        [
+          "timer"
+        ]
+      ],
+      "exclude": [
+        "digit",
+        "bcd",
+        "helper",
+        "shared",
+        "math",
+        "arithmetic"
+      ],
+      "ref": [
+        "RunGameTimer"
+      ],
+      "grader": "reference",
+      "proof": "trace_writes on the timer digits",
+      "status": "open"
+    },
+    {
+      "id": "E5.physics",
+      "class": "E5",
+      "sheet": 5,
+      "type": "origin",
+      "name": "physics constants (jump and fall force, max speeds)",
+      "match": [
+        [
+          "jump"
+        ],
+        [
+          "fall"
+        ],
+        [
+          "gravity"
+        ],
+        [
+          "max",
+          "speed"
+        ]
+      ],
+      "ref": [
+        "JumpMForceData",
+        "FallMForceData",
+        "MaxLeftXSpdData",
+        "MaxRightXSpdData"
+      ],
+      "grader": "reference",
+      "proof": "ledgered write of the constant, reset, play, look",
+      "status": "open"
+    },
+    {
+      "id": "E5.digits",
+      "class": "E5",
+      "sheet": 5,
+      "type": "routine",
+      "name": "score/coin digit arithmetic",
+      "match": [
+        [
+          "digit"
+        ],
+        [
+          "score",
+          "add"
+        ],
+        [
+          "bcd"
+        ],
+        [
+          "helper"
+        ],
+        [
+          "shared"
+        ],
+        [
+          "math"
+        ],
+        [
+          "arithmetic"
+        ]
+      ],
+      "ref": [
+        "DigitsMathRoutine",
+        "UpdateNumber"
+      ],
+      "grader": "reference",
+      "proof": "trace_writes on the score digits",
+      "status": "open"
+    }
   ]
 }
