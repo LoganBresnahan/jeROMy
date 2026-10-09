@@ -64,6 +64,41 @@ afterwards (`NumberofLives`).
    it; a disagreement is worth a sentence in the notes. `promote_mappings`
    when the user wants it shared.
 
+## When play cannot change the value
+
+Some values do not move in a minute of play: the world and level, a count
+that starts at zero with nothing nearby to collect, a power state you have
+not earned. Do not guess a block of RAM from what games usually do; search
+by the value you can see, then let the screen pick the byte.
+
+1. **Narrow by the shown value.** Note what the screen shows (`WORLD 1-1`,
+   `x0`). Snapshot twice across some unrelated play (walk, wait) and diff
+   with `filter: "unchanged"`, then `filter: "equals"` with the value the
+   byte most likely holds; try the shown number and the shown number minus
+   one (games often count from zero). Name each diff and narrow with `from`,
+   adding `unchanged` rounds across more varied play (walk, jump, lose a
+   life), until `diff_memory` lists every survivor (64 or fewer): bisect only
+   what you can see.
+2. **Make the display redraw on demand.** Find an event that redraws the
+   number from RAM: a lost life (the WORLD card), a screen change, a pause
+   menu. You will cause it once per test.
+3. **Bisect with save states.** `save_state` first. Write a distinctive
+   value (one the screen can show, e.g. 4 for a world) to half of the
+   survivors at once (`write_memory` writes one run of bytes, so each
+   scattered survivor is its own call; neighbours share one), cause the
+   redraw, screenshot, `load_state`. If the
+   number changed, the byte is in that half; otherwise in the other half.
+   Halve again until one byte is left; about six rounds for 64
+   survivors. If the game misbehaves after a write (a crash, a strange
+   screen), `load_state` and split that half smaller: some of those bytes
+   are not safe to write together.
+4. **Prove the last byte alone**: write it on its own, redraw, screenshot
+   the number; then record it as usual. A byte found this way came out of
+   your own search, so say so in the notes ("equals 0 across play, then
+   bisected with writes"). Written from eval/runs/20261009-1135 (world and
+   level found by guessing a block) and eval/runs/20261009-1209 (Zelda
+   counts that start at zero; ledger F2).
+
 ## Report shape
 
 Say the address, the encoding ("stores lives minus one"), how many
