@@ -45,7 +45,7 @@ gate is `docs/plans/mapping-campaign.md`; its first step, reference import
 (ADR-0017: disassemblies imported into `hacks/`, never vendored or fetched;
 `lookup_symbol`), shipped the same evening. The plain-language tour of ROM,
 disassembly, mapping, hack and patch is `docs/guide/rom-hacking-with-jeromy.md`;
-ADR-0018 (named hacks in the person's own repo, one active hack, boot-time apply) shipped as roadmap item 19 the same night: `HackStore.open` migrates the old single ledger into `default/`, `use_hack` swaps the emulator's bytes, exports are `<hack>-v<N>.bps`. Logan then set the direction that most games have no disassembly, so discovery must work blind (ADR-0019, roadmap item 22): `play_input` (a bounded button script from an `inputPolled` callback, the fourth thing that runs frames), `snapshot_memory`/`diff_memory` on the TypeScript side, the `find-variable` skill, and `scripts/score-mapping.mjs` to grade a blind SMB run against the imported reference. Proven 2026-10-06: a blind session found the lives counter at `$075A` in two diff rounds and the reference agreed; `scripts/trio.sh --blind variable` repeats it. Coverage for the gate is ticked in `docs/plans/smb-map-coverage.md`. Build order: `docs/roadmap.md`;
+ADR-0018 (named hacks in the person's own repo, one active hack, boot-time apply) shipped as roadmap item 19 the same night: `HackStore.open` migrates the old single ledger into `default/`, `use_hack` swaps the emulator's bytes, exports are `<hack>-v<N>.bps`. Logan then set the direction that most games have no disassembly, so discovery must work blind (ADR-0019, roadmap item 22): `play_input` (a bounded button script from an `inputPolled` callback, the fourth thing that runs frames), `snapshot_memory`/`diff_memory` on the TypeScript side, the `find-variable` skill, and `scripts/score-mapping.mjs` to grade a blind SMB run against the imported reference. Proven 2026-10-06: a blind session found the lives counter at `$075A` in two diff rounds and the reference agreed; `scripts/trio.sh --blind variable` repeats it. Coverage for the gate is ticked in `docs/plans/smb-map-coverage.md`. On 2026-10-09 Logan changed the process (ADR-0020, roadmap item 23): jeROMy is now built by an eval loop. `eval/README.md` is the operating manual, `eval/spec/attributes.md` the draft of what "mapped" means; runs are recorded under `eval/runs/`; Claude runs it unattended, commits when verified, spends the balance, judges picture claims from images; a holdout game is never tuned against. Build order: `docs/roadmap.md`;
 the overnight log: `docs/plans/overnight-2026-10-05.md`.
 
 ## Stack
@@ -152,6 +152,11 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
   via `scripts/dsh-log.mjs` (ADR-0011). Run after every trio, web session
   or loop iteration; judge the tool trace and the images, not the final
   text.
+- **The eval loop** (ADR-0020) — `eval/README.md`: pick lines from
+  `eval/spec/<game>.json`, write `config.md`, `scripts/trio.sh --blind
+  --task`, grade (`score-mapping.mjs` for what the reference answers,
+  Claude from the saved images for pictures), `report.md` with the
+  distribution, one change, verify, commit, push; holdout at milestones.
 - `adr-plan` workflow (`.claude/workflows/adr-plan.js`) — decompose an
   accepted ADR into an effort-ranked, dependency-ordered build checklist
   before implementing it. Output goes to `docs/plans/adr-NNNN-<topic>-build-plan.md`.

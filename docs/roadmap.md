@@ -242,6 +242,25 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       change, records it with `source: "differential search"`, and the
       score script confirms `$075A`.
 
+- [ ] **23. The eval loop** (ADR-0020; Logan's direction 2026-10-09: define
+      "mapped", send DeepSeek, grade against the SMB answer key, let Claude
+      judge pictures from images, run very autonomously on the whole
+      balance). Documented first: `eval/README.md` (the operating manual),
+      `eval/spec/attributes.md` (the draft attribute classes, for Logan to
+      ratify). Build order: (a) `eval/spec/smb.json` from the attribute
+      list and `docs/plans/smb-map-coverage.md`, which it retires; (b)
+      `score-mapping.mjs` extended to origins, level ranges and routines,
+      with falsification fixtures and a unit test (ADR-0020 §7) before any
+      grade is trusted; (c) the schema changes the spec marks `[schema]`
+      (`note`, a pattern-table-aware tile key, `scene`, `level`, `routine`,
+      array/format fields), one ADR; (d) a `scripts/eval-run.sh` wrapper
+      that writes `config.md`, runs the tasks, saves images and the scorer's
+      JSON into `eval/runs/<id>/`; (e) the first graded run on sheet 3
+      (coins, timer, score, world/level, player x/y) as the loop's smoke
+      test; (f) the holdout game's reference import and spec, before SMB
+      tuning continues. Item 18's sheets then proceed through runs, each
+      recorded under `eval/runs/`.
+
 ## Next
 
 - [x] **12. Click correctness** (ADR-0010). Done 2026-10-05 in four

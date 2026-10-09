@@ -113,3 +113,12 @@ Everything else on the roadmap serves one of these two.
 - Emulators other than Mesen2.
 - Running without a debugging emulator (static ROM analysis only).
 - A hosted or multi-user service. This is a local tool.
+
+## How it is built (Logan, 2026-10-09)
+
+By an eval loop, not by hand (ADR-0020). `eval/spec/` says what "mapped"
+means; DeepSeek runs blind mapping sessions; the imported reference grades
+what it can and Claude judges pictures from the screenshots; every run is
+recorded under `eval/runs/`; a holdout game measures whether a change
+generalises. Claude runs it unattended and commits verified changes. Logan
+reads the records and overturns judged verdicts he disagrees with.
