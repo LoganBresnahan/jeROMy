@@ -1,0 +1,48 @@
+// ADR-0022: the campaign mapping takes a line only from runs that graded it right, by majority;
+// a majority-wrong line removes the mapping's same wrong entry; side discoveries fill gaps.
+import { describe, expect, it } from "vitest";
+import { apply, decide } from "./eval-promote.mjs";
+
+const row = (line, id, final, proof = "write+look") => ({ line, kind: "address", id, final, proof });
+const copy = (entries) => ({ addresses: entries, notes: [] });
+
+describe("eval-promote", () => {
+  it("replaces a line's wrong entry when two of three repeats graded it right", () => {
+    const spec = { lines: [{ id: "score", entry: "addresses.0x07DE" }] };
+    const runs = [
+      { id: "r1", rows: [row("score", "0x07DD", "agrees")], copy: copy({ "0x07DD": { description: "score r1" } }) },
+      { id: "r2", rows: [row("score", "0x07DE", "disagrees")], copy: copy({ "0x07DE": { description: "score r2" } }) },
+      { id: "r3", rows: [row("score", "0x07DD", "agrees")], copy: copy({ "0x07DD": { description: "score r3" } }) },
+    ];
+    const mapping = { version: 3, addresses: { "0x07DE": { description: "old wrong" } }, notes: [] };
+    const d = decide(spec.lines, runs);
+    expect(d[0]).toMatchObject({ action: "replace", key: "0x07DD", from: "r1", votes: "2/3 right" });
+    apply(mapping, spec, d, runs);
+    expect(Object.keys(mapping.addresses)).toEqual(["0x07DD"]);
+    expect(mapping.addresses["0x07DD"].description).toBe("score r1");
+    expect(spec.lines[0]).toMatchObject({ entry: "addresses.0x07DD", status: "promoted", run: "r1" });
+    expect(mapping.version).toBe(4);
+  });
+
+  it("removes the mapping's entry when a majority grades that same claim wrong, and never promotes an unproven right", () => {
+    const spec = { lines: [{ id: "score", entry: "addresses.0x07DE" }, { id: "coins" }] };
+    const runs = [
+      { id: "r1", rows: [row("score", "0x07DE", "disagrees"), row("coins", "0x07ED", "agrees", null)], copy: copy({}) },
+    ];
+    const mapping = { addresses: { "0x07DE": { description: "old wrong" } }, notes: [] };
+    const d = decide(spec.lines, runs);
+    expect(d.map((x) => x.action)).toEqual(["remove-if-same", "none"]);
+    apply(mapping, spec, d, runs);
+    expect(mapping.addresses).toEqual({});
+    expect(spec.lines[0].entry).toBeUndefined();
+  });
+
+  it("adds side discoveries only where the mapping has nothing", () => {
+    const spec = { lines: [{ id: "x" }] };
+    const runs = [{ id: "r1", rows: [], copy: copy({ "0x03AD": { description: "new" }, "0x075A": { description: "lives from run" } }) }];
+    const mapping = { addresses: { "0x075A": { description: "lives" } }, notes: [] };
+    apply(mapping, spec, decide(spec.lines, runs), runs);
+    expect(mapping.addresses["0x03AD"].description).toBe("new");
+    expect(mapping.addresses["0x075A"].description).toBe("lives");
+  });
+});

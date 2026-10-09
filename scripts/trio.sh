@@ -12,7 +12,7 @@
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 DSH_SRC="$(cd "${DSH_SRC:-$REPO/../deepseek-harness}" && pwd)"
-PATCH="$REPO/.dsh-dev/cordis.yml"
+PATCH="${TRIO_PATCH:-$REPO/.dsh-dev/cordis.yml}"   # eval-run.sh passes a per-run copy (ADR-0022: the run's own mappingsDir)
 OUT="$REPO/.chat-out/trio-$(date +%Y%m%d-%H%M%S)"
 WORK="${XDG_CACHE_HOME:-$HOME/.cache}/jeromy/headless-cwd"   # outside the repo: dsh walks up from cwd for AGENTS.md/CLAUDE.md
 mkdir -p "$OUT" "$WORK"

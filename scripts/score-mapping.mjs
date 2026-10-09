@@ -235,7 +235,7 @@ export function claimsFromStream(text, label = "stream") {
 /**
  * Did the address come out of the session's own search before it was
  * recorded? True when a diff_memory result listed it (or search_memory, for
- * a ROM origin). The worker model has read SMB's RAM map in training
+ * a ROM origin; for a routine, a trace_writes writer PC inside it). The worker model has read SMB's RAM map in training
  * (eval/runs/20261009-1135-sheet3-hud-position), so a proven claim it never
  * derived measures its memory, not the method.
  */
@@ -250,6 +250,21 @@ export function derivedFor(claim, before) {
   };
   if (claim.kind === "address") return before.some((c) => c.ok && listed(c, claim.address, claim.address + Math.max(1, claim.length ?? 1)));
   if (claim.kind === "origin" || claim.kind === "level") return before.some((c) => c.ok && c.tool === "search_memory" && listed(c, claim.offset, claim.offset + Math.max(1, claim.length ?? 1)));
+  if (claim.kind === "routine") {
+    const hi = claim.address + Math.max(1, claim.length ?? 0x100);
+    const inside = (pc) => pc >= claim.address && pc < hi;
+    return before.some((c) => {
+      if (!c.ok) return false;
+      try {
+        const r = JSON.parse(c.result ?? "");
+        if (c.tool === "trace_writes") return (r.writers ?? []).some((w) => inside(w.pc));
+        // A caller search (JSR $xxxx as bytes) hit inside the routine; PRG offset to CPU assumes a fixed 32 KiB PRG
+        // at $8000 or a mirrored 16 KiB one. A banked game's search hit needs its bank before it can count.
+        if (c.tool === "search_memory" && r.mem_type === "prgRom") return (r.offsets ?? []).some((o) => inside(0x8000 + o) || inside(0xc000 + (o % 0x4000)));
+      } catch { /* a non-JSON result names nothing */ }
+      return false;
+    });
+  }
   return null;
 }
 

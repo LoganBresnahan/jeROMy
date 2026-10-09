@@ -70,10 +70,17 @@ eval/
 7. **Decide the change.** One thing: a tool, a skill step, a prompt line, a
    schema field. A decision gets an ADR; a prompt or skill edit cites the run
    that motivated it (`eval/runs/<run>`) in its commit subject.
-8. **Verify, commit, push.** Tests twice, `npx tsc --noEmit`, `/verify` when
+8. **Promote what graded right** (ADR-0022). A run starts from the mapping
+   minus its own lines and promotes only into `<run>/mapping-in/`.
+   `scripts/eval-promote.mjs <run> [<run> <run>]` (all three repeats of a
+   re-run together) puts each line graded right and proven into
+   `mappings/`, replacing that line's old entry, removes an entry a
+   majority graded wrong, fills gaps with side discoveries, and updates the
+   spec lines' `status`, `run` and `entry`.
+9. **Verify, commit, push.** Tests twice, `npx tsc --noEmit`, `/verify` when
    the emulator-facing code changed, the run directory included. Subject:
    `eval <run-slug>: <what changed> (ADR-NNNN)`.
-9. **Holdout at milestones.** After a new skill, a schema change, or every
+10. **Holdout at milestones.** After a new skill, a schema change, or every
    five SMB runs: the same sheet's task on the holdout game, graded the same
    way, recorded under `runs/` with `holdout: true` in its config. Nothing is
    tuned from its grades; its report says only whether the SMB gain carried.
@@ -105,6 +112,12 @@ meant to fix why they failed. It is how a change earns `fixed` in
    ledger with the run.
 6. **A `worse` line stops the loop** (Stop conditions) unless the replay
    explains it; the question goes at the top of the report.
+7. **Three repeats** (Logan, 2026-10-09). A run is one sample of a model
+   that varies, so every re-run is run three times, each its own record
+   (`<slug>-r1`, `-r2`, `-r3`, all `--rerun-of` the same run). The third
+   one's report holds the series: per line, the three outcomes. A ledger
+   check passes when it passed in at least two of three; a line is `worse`
+   only when it is worse in at least two of three.
 
 A first run of a line is not a re-run, but it still reads the ledger: an
 `open` entry that hits the line is a known risk, and the report says

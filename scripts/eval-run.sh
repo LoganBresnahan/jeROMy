@@ -63,6 +63,24 @@ f, i, spec, lines, cap, before, commit, holdout, rerun = sys.argv[1:]
 json.dump({"id": i, "spec": spec, "lines": lines.split(","), "cap_usd": float(cap), "balance_before": float(before), "commit": commit, "holdout": holdout == "true", **({"rerun_of": rerun} if rerun else {}), "started": time.time(), "tasks": []}, open(f, "w"), indent=2)
 PY
 
+# ADR-0022: the run starts from the mapping minus its own lines and promotes into that copy, never into mappings/.
+node scripts/eval-mapping-in.mjs "$SPEC" "$LINES" "$RUN/mapping-in" | tee -a "$RUN/config.md"
+export TRIO_PATCH="$REPO/.chat-out/eval-$ID-cordis.yml"
+mkdir -p "$REPO/.chat-out"
+python3 - "$REPO/.dsh-dev/cordis.yml" "$TRIO_PATCH" "$REPO/$RUN/mapping-in" <<'PY'
+import sys
+src, dst, mdir = sys.argv[1:]
+out, done = [], False
+for line in open(src):
+    out.append(line)
+    # The jeromy plugin row's config: viewFps is its last key; mappingsDir goes beside it.
+    if not done and line.strip().startswith("viewFps:"):
+        out.append(line[: len(line) - len(line.lstrip())] + f"mappingsDir: '{mdir}'\n"); done = True
+if not done: sys.exit("no viewFps key in the jeromy plugin row; cannot set mappingsDir")
+open(dst, "w").write("".join(out))
+PY
+[ $? -eq 0 ] || { echo "[eval-run] could not write the run's patch; stop" >&2; exit 1; }
+
 # The view only reports the ROM name; a handoff does not refresh the plugin's ROM identity (docs/issues.md), so a different game means a full down/up.
 want="$(basename "${ROM//\\//}")"
 have="$(curl -sf --max-time 3 http://127.0.0.1:9002/status | python3 -c 'import sys,json; print(json.load(sys.stdin).get("rom") or "")' 2>/dev/null)"

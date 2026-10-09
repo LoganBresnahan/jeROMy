@@ -1,7 +1,7 @@
 {
   "rom_sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
   "rom_name": "Super Mario Bros. (World).nes",
-  "version": 4,
+  "version": 5,
   "schema": 3,
   "contributors": [],
   "description": "Auto-discovered mappings for Super Mario Bros. (World).nes",
@@ -214,10 +214,44 @@
       "description": "player_x_page: Page byte (high byte) of Mario's horizontal position in the level. Encoding: Mario's absolute level x = 0x006D*256 + 0x0086, where 0x0086 is the low byte (the byte that wraps at 256); each unit of 0x006D is one 256-pixel screen. Found with no reference by differential search. Watching memory while holding Right: as 0x0086 ran 249,250,252,253,255,0,2,3 the byte 0x006D went 0,0,0,0,0,1,1,1 - it increments on exactly the frame 0x0086 wraps 255->0. Walking back left, 0x0086 went ...1,0,255,254... and 0x006D went 1->0 on the same wrap frame. snapshot_memory/diff_memory across one crossing (a->b) kept 54 'increased' survivors including 0x006D (old 0, new 1); the reverse crossing (d->e, filter 'decreased' from d1) narrowed to 24 survivors with 0x006D (old 1, new 0). Disassembly confirms it is not the scroll: the player-position update at CPU $BF40-$BF46 is STA $0086,X ; LDA $006D,X ; ADC $02 ; STA $006D,X (carry added into the page byte), and the left-edge clamp at CPU $B013-$B021 copies the camera's 16-bit position into $0086/$006D (camera high at $071A, low at $071C). Proof by write: with Mario mid-level (0x0086=205, camera $071C=93) I paused, wrote 0x006D=1 and 0x0086=5; after stepping frames RAM still held 0x006D=1 (not zeroed) with 0x0086=5 and camera 98, i.e. absolute x 261, and the screenshot showed Mario at on-screen x~163 (right-hand side, by the hill/Goomba) rather than the left edge, where a page-0 value (abs 5 - camera 98 = -93) would be clamped. Writing 0x006D alone while it leaves Mario off-screen makes the game's clamp rewrite 0x0086=scroll and 0x006D=0, so the low byte must be written to match. This corrects the older 0x0086 entry's claim that 'no separate player page byte was found': 0x006D is that byte. Companion low byte: 0x0086.",
       "format": "binary, 0-255 (one unit = 256 px)",
       "source": "differential search"
+    },
+    "0x075E": {
+      "address": "0x075E",
+      "mem_type": "cpu",
+      "description": "coin_count_binary (0-99; reaching 100 gives a 1-UP): Binary coin counter, separate from the two BCD HUD coin digits at $07ED/$07EE. The coin routine $BBFE does INC $075E at $BC0C, LDA $075E / CMP #$64 at $BC0F-$BC14, and if it reaches 100 does STA $075E=0 / INC $075A ($BC16-$BC1B) to grant an extra life. Observed: after one ? block coin, $075E=1 while $07EE=1. Found by disassembling the routine reached from the coin caller; the only PRG operands referencing $075E are inside $BBFE.",
+      "length": 1,
+      "format": "binary",
+      "source": "trace and disassembly"
     }
   },
   "notes": [
     "SMB splits the scroll at scanline 31: the HUD above is fixed, the playfield below scrolls (recorded 2026-10-05 as an address entry by mistake; moved here by hand).",
     "player_horizontal_position_pair: Mario's level x is 16-bit: page 0x006D + low 0x0086: Correction to the existing 0x0086 'player_x_position' entry, which says 'no separate player page byte was found'. There IS one: 0x006D is the page/high byte and 0x0086 is the low byte; absolute level x = 0x006D*256 + 0x0086. Evidence (differential search, no reference): 0x006D 0->1 on the exact frame 0x0086 wrapped 255->0 walking right, and 1->0 on the reverse crossing; the player update at CPU $BF40-$BF46 adds the carry into 0x006D; and writing 0x006D=1 with 0x0086=5 moved Mario to absolute x 261 (screenshot screen x~163). Also note the game clamps: if a page edit leaves Mario off the visible screen, CPU $B013-$B021 rewrites 0x0086 and 0x006D from the camera's 16-bit position ($071A high, $071C low)."
-  ]
+  ],
+  "routines": {
+    "0x91CD": {
+      "name": "LoseLife - take a life away when Mario dies",
+      "notes": "Found with no reference by trace_writes on the lives counter $075A while holding Right from the start of 1-1 into the first Goomba: the ONLY writer was PC $91DC (prgRom 0x11DC) with value going 2 -> 1 - that PC is the BPL immediately after DEC $075A at $91D9. Disassembling backwards, the previous RTS is at $91BC and $91BD-$91CC is a data/jump-table region, so the routine's first instruction is $91CD: INC $0774 ; LDA #$00 / STA $0722 ; LDA #$80 / STA $FC ; DEC $075A. The instruction that does the job is DEC $075A at $91D9. On the path where Mario still has lives the BPL at $91DC branches forward to $91E9 (the world/level setup that draws the next life); if the byte underflows (game over) $91DE-$91E8 clears $0772=0 and sets $0770=3 then RTS. No direct JSR/JMP targets $91CD (searches for '20 CD 91', '4C CD 91', 'CD 91' and '91 CD' found no call/pointer; the one 'CD 91' byte pair at CPU $B05B is inside a data table), so the caller was not pinned down - it is reached by the game's indirect dispatch. Proven: after the trace RAM $075A read 1 and the following screenshot showed Mario respawned at the start of 1-1.",
+      "length": 28,
+      "source": "trace and disassembly"
+    },
+    "0xBBFE": {
+      "name": "AddCoin - collect a coin (coin count + coin digits, +200 score, 1-UP at 100)",
+      "notes": "Entry $BBFE, RTS at $BC48 (0x4B bytes). Found with no reference: the mapping's coin digits $07ED/$07EE have NO direct PRG operand anywhere, so the increment had to be through a helper; searching PRG found the block/coin caller's JSR $BBFE at CPU $BB7D (prgRom 0x3B7D) and a free-coin JMP $BBFE at CPU $DE0B (prgRom 0x5E0B, from the coin-collect routine $DE03), and disassembling confirmed the code. What it does: $BBFE LDA #$01 / $BC00 STA $0139 sets the BCD operand's ones digit to 1; $BC03 LDX $0753 / $BC06 LDY $BBF8,X loads Y=$17 when $0753=0 (table $BBF8 = $17,$1D); $BC09 JSR $8F5F (the shared digit helper) adds 1 to the 6-digit counter $07D7+Y, target $07E9-$07EE, so it increments the coin ones digit $07EE with carry into the tens $07ED. $BC0C INC $075E is the binary coin counter; $BC0F-$BC14 LDA $075E / CMP #$64; at $BC16 STA $075E=0 and $BC1B INC $075A grants the extra life at 100 coins. $BC22 LDA #$02 / $BC24 STA $0138 and $BC2D JSR $8F5F add 200 to the score; $BC36 JSR $8F06 plays the coin sound; $BC39-$BC43 spawn the floating '200' popup at $02FB. Proven in the emulator: a jump into the first 1-1 ? block gave score 000200 (digit '2' at $07E1), coin count $075E=1 and coin digits $07ED/$07EE = [0,1] (HUD 'x01'). The write PC for the digit update is inside the helper (see $8F5F), not in this routine, because the coin digits are written by the shared helper.",
+      "length": 75,
+      "source": "trace and disassembly"
+    },
+    "0xB74F": {
+      "name": "DecrementTimer - count the level TIME down",
+      "notes": "Found with no reference from the mapping's timer digits $07F8-$07FA. trace_writes on the BCD operand byte $0139 for 300 frames returned writes of $FF from PC $B792 (plus $8F83, the helper clearing the operand) exactly 12 times in 300 frames - one tick every ~24 frames, matching the visible countdown. $B792 is the JSR that follows STA $0139 at $B78F. Disassembly gives the routine entry $B74F (the JSR at $AF35 calls it; searching PRG for JSR $B7xx found that call site - the bytes at $B74B-$B74E are data, and $B74F is LDA $0770). What it does: LDA $0770 / BEQ $B7A3 (returns unless $0770 != 0); checks game mode $0E >= 8 and != $0B and $B5 < 2; returns while the divider $0787 != 0, otherwise sets $0787 = $18 (24) - this is the 24-frame tick divider; then LDY #$23 / LDA #$FF / STA $0139 / JSR $8F5F. The instruction that does the job is STA $0139 = $FF at $B78F: it loads the shared digit helper $8F5F with operand $FF (signed -1) and Y=$23, so the helper subtracts 1 from the 6-digit counter based at $07D7+$23, i.e. the timer digits $07F8/$07F9/$07FA. The caller is the JSR $B74F at CPU $AF35 (prgRom 0x2F35). When the timer reaches zero it runs the time-up path at $B79A: STA $0756 ; JSR $D931 ; INC $0759.",
+      "length": 85,
+      "source": "trace and disassembly"
+    },
+    "0x8F5F": {
+      "name": "AddBCD - shared signed-digit adder for the HUD counters (coin/timer/score)",
+      "notes": "Entry $8F5F, main RTS at $8F86 (40 bytes; carry tail through $8F95). Found by trace_writes: watching the self-ticking timer digits $07F8-$07FA for 400 frames returned exactly one writer, PC $8F78 (prgRom 0x0F78) with 51 writes - that PC is the DEY immediately after the STA $07D7,Y at $8F75, i.e. this routine. What it does: it adds the 6-byte operand at $0134-$0139 (most-significant first, ones digit at $0139) to the 6-byte counter based at $07D7 whose ones digit is $07D7+Y (the caller passes Y, so the target range is $07D7+(Y-5)..$07D7+Y). $8F6C ADC $07D7,Y / $8F75 STA $07D7,Y do the work; digits are signed so $FF acts as -1 (borrow: $8F87 DEC $0133,X / LDA #$09) and a sum >= $0A carries (SEC / SBC #$0A / INC $0133,X / JMP $8F75 at $8F8E). $8F7C-$8F86 clears the operand $0133-$0139 (plus a guard on $0770). Callers found by searching PRG for JSR $8F5F: CPU $B792 (timer/hurry; LDY #$23 then STA $0139=$FF so it SUBTRACTS 1 from the timer, target $07D7+$1E..$23 = $07F5-$07FA, the timer digits $07F8/$07F9/$07FA at the top), CPU $BC09 and $BC2D (coin routine $BBFE - Y from table $BBF8=$17 for $0753=0 targets $07E9-$07EE, so the coin digits are updated here, and Y from $BBFA=$0B adds the 200 score), and CPU $D32E/$D33F (time-up bonus). Because the coin routine, the timer and the score all call this one routine with different Y offsets, it is the helper shared by several counters.",
+      "length": 40,
+      "source": "trace and disassembly"
+    }
+  }
 }

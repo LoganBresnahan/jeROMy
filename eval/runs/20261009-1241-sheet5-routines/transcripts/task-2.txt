@@ -1,0 +1,865 @@
+# session-8a58e3c4-dcc2-433d-a6e7-cfbee5d2b2ec · Super Mario Bros. life and timer routines
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-09T17:54:05.962Z
+
+[   3 12:54:05] QUEUED <user> for next-turn: Mapping sheet 5 (the routines), Super Mario Bros.: find the routine that takes a life away when Mario dies, and the routine that counts the level timer down. No reference is available. The RAM address… [+1829 chars]
+[   4 12:54:05] ━━━ turn 1 ━━━
+[   8 12:54:06] USER <user>
+    Mapping sheet 5 (the routines), Super Mario Bros.: find the routine that takes a life away when Mario dies, and the routine that counts the level timer down. No reference is available. The RAM addresses of the coin count, the lives counter and the timer digits are already in this game's mapping (see Known Addresses); start from them. trace_writes on an address while the event happens gives the program counters that write it; disassemble around a PC to read the code. A write found this way may sit in the middle of a routine, so find the routine's entry point (where it begins: the instruction after the previous rts or jmp, or the target of the jsr that calls it) and record the entry. A write may also happen in a small helper shared by several counters; then the routine that does the job named here is the helper's caller, and the helper is worth recording separately as what it is. Prove each routine by showing its code with disassemble and saying which instruction does the job. Record each with record_mapping: mapping_type routine, id the entry address in hex (CPU address), a plain name, notes with how it was found, the instruction that does the job and its caller if known, length if known, source 'trace and disassembly'. Call promote_mappings once at the end. Report each routine's entry, what it does, and the evidence. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again, and take a screenshot to confirm World 1-1 began. In 1-1, holding Right for about two and a half seconds from the start brings Mario under the first ? block floating overhead; jumping (A) into it from below gives one coin. Holding Right for about four seconds from the start runs into the first enemy and loses a life. The TIME counter ticks down by itself. trace_writes needs the game running, not paused. Each play_input call is at most 600 frames; chain calls.
+[   9 12:54:06] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 12:54:06] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 12:54:07] ASSISTANT (turn 1 step 1) · in 1151 (cache 14720) out 133
+    ▷ Let me start by understanding the task. I need to find:
+    1. The routine that takes a life away when Mario dies
+    2. The routine that counts the level timer down
+    
+    I should start from known addresses (coin count, lives counter, timer digits). Let me get the ROM info and check the mapping/known addresses. Let me take a screenshot first and see the state.
+    
+    Let me start.
+    I'll start by checking the current state and the known addresses in the mapping.
+    → get_rom_info {}
+    → screenshot {}
+[  18 12:54:07] RESULT get_rom_info
+    {"sha1":"33D23C2F2CFA4C9EFEC87F7BC1321CE3CE6C89BD","path":"C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes","name":"Super Mario Bros. (World).nes"}
+[  20 12:54:08] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1241-sheet5-routines/images/task-2/70626023b573.png
+[  24 12:54:24] ASSISTANT (turn 1 step 2) · in 10848 (cache 16000) out 3220
+    ▷ Let me analyze the task. I need to find:
+    1. The routine that takes a life away when Mario dies
+    2. The routine that counts the level timer down
+    
+    We have known addresses:
+    - 0x075A: player_lives_counter
+    - 0x07F8-0x07FA: level_timer
+    
+    We already know the timer digits are written by the shared helper AddBCD at $8F5F. The timer countdown is triggered by a caller at CPU $B792 which does LDY #$23 then STA $0139=$FF to subtract 1 from timer. So the routine that counts the level timer down is the caller of the helper. Need to find its entry point.
+    
+    For the lives counter: 0x075A decrements on death. Known that $BC1B (in AddCoin) does INC $075A for 1-UP. But decrement on death needs trace_writes on $075A during death. Note the coin routine INC at $BC1B would also appear if we watch during a death? No, only during death decrement. Let me trace.
+    
+    The timer: we know trace_writes watching timer digits returned PC $8F78. But that's inside the helper. The task says: "A write may also happen in a small helper shared by several counters; then the routine that does the job named here is the helper's caller, and the helper is worth recording separately as what it is." The helper $8F5F is already recorded… [+10723 chars]
+    This is a ROM-hacking reverse-engineering task. Let me set up a plan and start from the known addresses.
+    → todo_write {"todos": [{"content": "Get into live 1-1 gameplay and confirm state", "status": "in_progress"}, {"content": "Trace the timer digit writes and find the routine's entry point", "status": "pending"}, {"content": "Trace the lives counter write on death and find the routine's entry point", "status": "pending"}, {"content": "Record both routines with record_mapping and promote", "status": "pending"}]}
+    → play_input {"script": [{"buttons": [], "frames": 120}]}
+    → search_memory {"hex": "CE 5A 07", "mem_type": "prgRom"}
+[  27 12:54:24] RESULT todo_write
+    Updated todo list: 3 pending, 1 in progress, 0 completed.
+[  29 12:54:26] RESULT play_input
+    {"frames":120,"polls":120,"start_frame":63847,"paused":false,"port":0,"segments":1,"end_frame":63967,"was_paused":false,"sample_frames":[],"sample_every":2,"watch":[],"frames_run":120,"note":"Ran 120 frames of input on port 0. The game is still running."}
+[  31 12:54:26] RESULT search_memory
+    {"offsets":[4569],"mem_type":"prgRom","memory_size":32768,"truncated":false,"pattern_length":3,"start":0,"searched":32768,"offsets_hex":["0x11D9"]}
+[  36 12:54:29] ─── turn 1 end: {"kind":"error","error":{"message":"DeepSeek Messages stream: tool input is invalid JSON","code":"MALFORMED_RESPONSE"}}
+
+[  38 12:54:38] QUEUED <user> for next-turn: continue
+[  39 12:54:38] ━━━ turn 2 ━━━
+[  43 12:54:38] USER <user>
+    continue
+[  45 12:54:41] ASSISTANT (turn 2 step 1) · in 3581 (cache 30208) out 317
+    ▷ The search found CE 5A 07 at offset 0x11D9, which is CPU $91D9. But wait, that's only one hit. Interesting — but is DEC $075A actually used for lives decrement? Let me disassemble around $91D9.
+    
+    Also note the lives counter is a signed/other format. Let me check.
+    
+    Let me take a screenshot and disassemble.
+    
+    Actually, let me think about whether the DEC $075A is the death decrement. In SMB, the death routine at $94DC? Hmm. Let me disassemble around $91D9.
+    
+    Also disassemble around the timer caller $B792.
+    
+    Let me batch.
+    Found one `DEC $075A` (opcode `CE 5A 07`) at PRG offset `0x11D9` = CPU `$91D9`. Let me disassemble around it and around the timer caller, and check the current screen.
+    → disassemble {"address": 36937, "length": 96}
+    → disassemble {"address": 46928, "length": 96}
+    → screenshot {}
+[  47 12:54:41] RESULT disassemble
+    $9049: 06 ad       asl 0xad
+[  49 12:54:41] RESULT disassemble
+    $b750: 70 07       bvs 0x0000
+    $b752: f0 4f       beq 0x0000
+    $b754: a5 0e       lda 0x0e
+    $b756: c9 08       cmp #0x08
+    $b758: 90 49       bcc 0x0000
+    $b75a: c9 0b       cmp #0x0b
+    $b75c: f0 45       beq 0x0000
+    $b75e: a5 b5       lda 0xb5
+    $b760: c9 02       cmp #0x02
+    $b762: b0 3f       bcs 0x0000
+    $b764: ad 87 07    lda 0x0787
+    $b767: d0 3a       bne 0x0000
+    $b769: ad f8 07    lda 0x07f8
+    $b76c: 0d f9 07    ora 0x07f9
+    $b76f: 0d fa 07    ora 0x07fa
+    $b772: f0 26       beq 0x0000
+    $b774: ac f8 07    ldy 0x07f8
+    $b777: 88          dey 
+    $b778: d0 0c       bne 0x0000
+    $b77a: ad f9 07    lda 0x07f9
+    $b77d: 0d fa … [+599 chars]
+[  51 12:54:41] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1241-sheet5-routines/images/task-2/12448d95b9dc.png
+[  55 12:54:44] ASSISTANT (turn 2 step 2) · in 11572 (cache 34048) out 520
+    ▷ The disassemble address calculation: I passed 36937 decimal = 0x9049. But I intended 0x91D9. Let me recompute: 0x91D9 = 37337 decimal. I made an arithmetic error. Let me redo.
+    
+    0x91D9 = 9*4096 + 1*256 + 13*16 + 9 = 36864 + 256 + 208 + 9 = 37337. Yes. I passed 36937 (0x9049). Wrong.
+    
+    Now the timer: disassembly at $B750 region shows the timer routine. Let me find the entry point. At $B774 LDY $07F8 / DEY ... then $B78B LDY #$23 / LDA #$FF / STA $0139 / $B792 JSR $8F5F / $B795 LDA #$A4 / JMP $8F06 (play sound). So this block from $B769 (or earlier) checks timer.
+    
+    The routine entry point: need instruction after previous rts/jmp. Let me disassemble from earlier, say $B730, to find the entry. The code at $B764 LDA $0787; $B767 BNE ... $B769 LDA $07F8... The routine probably starts at $B74E or earlier after an rts.
+    
+    Let me disassemble a wider range from $B700.
+    
+    Also let me disassemble the correct lives address $91D9.
+    
+    Let me also think: is the timer countdown routine perhaps a chunk within a larger routine that handles "hurry up" and time-up? Let me look. The entry might be at $B753 or so. Actually, let me get a wider disassembly.
+    
+    Let me do that.
+    I miscalculated the address (passed `$9049` instead of `$91D9`). Let me redo the lives disassembly and widen the timer routine.
+    → disassemble {"address": 37337, "length": 64}
+    → disassemble {"address": 46816, "length": 128}
+[  57 12:54:44] RESULT disassemble
+    $91d9: ce 5a 07    dec 0x075a
+    $91dc: 10 0b       bpl 0x0000
+    $91de: a9 00       lda #0x00
+    $91e0: 8d 72 07    sta 0x0772
+    $91e3: a9 03       lda #0x03
+    $91e5: 8d 70 07    sta 0x0770
+    $91e8: 60          rts 
+    $91e9: ad 5f 07    lda 0x075f
+    $91ec: 0a          asl a
+    $91ed: aa          tax 
+    $91ee: ad 5c 07    lda 0x075c
+    $91f1: 29 02       and #0x02
+    $91f3: f0 01       beq 0x0000
+    $91f5: e8          inx 
+    $91f6: bc bd 91    ldy 0x91bd, x
+    $91f9: ad 5c 07    lda 0x075c
+    $91fc: 4a          lsr a
+    $91fd: 98          tya 
+    $91fe: b0 04       bcs 0x0000
+    $9200: 4a          lsr a
+    $9201: 4a          lsr a
+    $9202: 4a     … [+273 chars]
+[  59 12:54:44] RESULT disassemble
+    $b6e0: e1 ad       sbc (0xad, x)
+[  62 12:54:48] ASSISTANT (turn 2 step 3) · in 592 (cache 46080) out 795
+    ▷ The second disassembler command output is weird: starting at $B6E0 gave "e1 ad sbc (0xad,x)" then nothing? Actually length 128 should print more. It seems the tool output got truncated to one line. Odd. Maybe the disassembler stops at invalid? No. Let me retry with address 0xB740 (46848) and smaller length. Actually 46816 = 0xB6E0. Let me just disassemble $B740.
+    
+    Wait, the output only showed one line. Perhaps because the tool returns limited lines? The first call with length 96 printed many lines. Hmm the second printed one line. Strange. Maybe an error. Let me retry.
+    
+    Actually maybe the disassembler got confused and output only one instruction. Let me call again with address 46912 (0xB740), length 80.
+    
+    Now for the lives: DEC $075A at $91D9. This is inside a routine. After the DEC, BPL (branch if positive), and if negative (lives underflowed), set $0772=0 and $0770=3, then RTS. This looks like it could be a "subtract a life" helper. Let me find the entry. Let me disassemble earlier around $91B0-$91D9.
+    
+    Actually wait, this DEC $075A might be part of the game-over handling. Let me look before $91D9.
+    
+    Let me disassemble $91A0-91D9. Length ~64 at 0x91A0 = 37280.
+    
+    Let me also reconsider… [+611 chars]
+    The lives decrement is at `$91D9`: `DEC $075A` then `BPL`, and if it went negative it sets `$0772=0`, `$0770=3` (game over handling). Let me find its entry point and callers, and retry the timer disassembly.
+    → disassemble {"address": 37280, "length": 64}
+    → disassemble {"address": 46912, "length": 80}
+    → search_memory {"hex": "20 D9 91", "mem_type": "prgRom"}
+    → search_memory {"hex": "D9 91", "mem_type": "prgRom"}
+[  64 12:54:48] RESULT disassemble
+    $91a0: a2 00       ldx #0x00
+    $91a2: 20 84 bd    jsr 0xbd84
+    $91a5: a9 f0       lda #0xf0
+    $91a7: 85 d7       sta 0xd7
+    $91a9: a2 05       ldx #0x05
+    $91ab: a0 00       ldy #0x00
+    $91ad: 20 1e b9    jsr 0xb91e
+    $91b0: ac 4e 07    ldy 0x074e
+    $91b3: d0 03       bne 0x0000
+    $91b5: 20 0b b7    jsr 0xb70b
+    $91b8: a9 07       lda #0x07
+    $91ba: 85 0e       sta 0x0e
+    $91bc: 60          rts 
+    $91bd: 56 40       lsr 0x40, x
+    $91bf: 65 70       adc 0x70
+    $91c1: 66 40       ror 0x40
+    $91c3: 66 40       ror 0x40
+    $91c5: 66 40       ror 0x40
+    $91c7: 66 60       ror 0x60
+    $91c9: 65 70       adc 0x70
+    $91cb: 00 00       brk 0x0… [+236 chars]
+[  66 12:54:48] RESULT disassemble
+    $b740: e9 00       sbc #0x00
+    $b742: c9 20       cmp #0x20
+    $b744: b0 02       bcs 0x0000
+    $b746: a9 f8       lda #0xf8
+    $b748: 95 e4       sta 0xe4, x
+    $b74a: 60          rts 
+[  68 12:54:48] RESULT search_memory
+    {"offsets":[],"mem_type":"prgRom","memory_size":32768,"truncated":false,"pattern_length":3,"start":0,"searched":32768,"offsets_hex":[]}
+[  70 12:54:48] RESULT search_memory
+    {"offsets":[],"mem_type":"prgRom","memory_size":32768,"truncated":false,"pattern_length":2,"start":0,"searched":32768,"offsets_hex":[]}
+[  73 12:54:58] ASSISTANT (turn 2 step 4) · in 823 (cache 47360) out 2013
+    ▷ Interesting. The lives decrement routine entry seems to be $91CD (INC $0774) or maybe earlier. Let me look. At $91BC RTS ends the previous routine. Then $91BD-$91CB is a data table (looks like values 56 40 65 70 66 40 66 40 66 40 66 60 65 70 00 00 — that's a jump table or data). Then $91CD INC $0774, $91D0 LDA #0, STA $0722, $91D5 LDA #$80, STA $FC, $91D9 DEC $075A...
+    
+    Wait, so the routine entry is at $91CD. But is $91CD reached by a JSR? No PRG operand `20 D9 91` (JSR $91D9) or `20 CD 91`. Hmm. Search for `20 CD 91`. Also the routine could be jumped to from a vector at $91BD table? Actually $91BD-$91CC might be an indirect jump table.
+    
+    Wait, $91CD is not referenced by JSR $91CD? Let me search. Search "20 CD 91" and "CD 91".
+    
+    Actually, hold on. There's a known SMB routine "KillPlayer" or "PlayerDeath". Let me think about the death handling. In SMB, when Mario dies, the routine at $94DC? Hmm.
+    
+    Actually, in the SMB disassembly, there's a routine called "KillPlayer" at $94DC? Let me recall... The SMB1 PRG: "PlayerDeath" is at $94DC? I'm not sure. But our finding is concrete.
+    
+    Let me check what other code jumps to $91CD. Search for "CD 91". Also the routine might be entered by falling … [+4388 chars]
+    The timer code clearly sits in a routine around `$B750-$B797`. The lives decrement routine appears to begin at `$91CD` (`INC $0774 ... DEC $075A`). Let me confirm callers/entry and trace the timer's own write to `$0139` (the operand it sets before calling the helper).
+    → trace_writes {"address": 313, "length": 1, "frames": 300}
+    → search_memory {"hex": "20 CD 91", "mem_type": "prgRom"}
+    → search_memory {"hex": "4C CD 91", "mem_type": "prgRom"}
+    → disassemble {"address": 46923, "length": 32}
+[  75 12:55:03] RESULT trace_writes
+    {"mode":"write","mem_type":"cpu","writers":[{"last_value":255,"samples":[{"address":313,"frame":20,"value":255},{"address":313,"frame":44,"value":255},{"address":313,"frame":68,"value":255},{"address":313,"frame":92,"value":255},{"address":313,"frame":116,"value":255},{"address":313,"frame":140,"value":255},{"address":313,"frame":164,"value":255},{"address":313,"frame":188,"value":255}],"pc":46994,"last_frame":284,"count":12,"origin":{"address":14226,"mem_type":"prgRom","mem_type_id":45},"last_address":313,"pc_hex":"0xB792","origin_hex":"prgRom 0x3792"},{"last_value":0,"samples":[{"address":31… [+678 chars]
+[  77 12:55:03] RESULT search_memory
+    {"offsets":[],"mem_type":"prgRom","memory_size":32768,"truncated":false,"pattern_length":3,"start":0,"searched":32768,"offsets_hex":[]}
+[  79 12:55:03] RESULT search_memory
+    {"offsets":[],"mem_type":"prgRom","memory_size":32768,"truncated":false,"pattern_length":3,"start":0,"searched":32768,"offsets_hex":[]}
+[  81 12:55:03] RESULT disassemble
+    (no instructions decoded)
+[  84 12:55:11] ASSISTANT (turn 2 step 5) · in 563 (cache 50176) out 1613
+    ▷ Great info! trace_writes on $0139 shows:
+    - Writer PC $B792 with value 255 (the JSR $8F5F? no, PC $B792 is the JSR instruction... wait the write address is 313 = 0x0139. The pc is 46994 = 0xB792. Hmm, but $B78F is STA $0139. Let me check: $B78F: 8D 39 01 sta $0139. That instruction is 3 bytes, ends at $B791. PC reported may be the address of the instruction after? trace_writes reports the PC at the time of write callback, which might be the instruction after the store completes, or the PC value at write time. It reported 0xB792 for the store of $FF (value 255). Actually the JSR at $B792... hmm. The write of $FF to $0139 happens via STA $0139 at $B78F, and the callback PC is likely the next instruction fetch = $B792. Fine.
+    
+    - Writer PC $8F83 with value 0. $8F83 is within the helper AddBCD (clearing the operand $0133-$0139). This is the helper clearing operand.
+    
+    So the timer routine is at $B74C-ish, and this confirms trace. 12 writes over 300 frames, meaning timer ticks every 24 frames (300/24=12.5). 
+    
+    Now: the timer routine entry. The trace PC $B792 corresponds to the store at $B78F. Need entry. No JSR $91CD found for lives. Hmm. Let me find how $91CD is entered.
+    
+    Let me check: maybe… [+3333 chars]
+    The trace confirms the timer write: `$B792` writes `$FF` to `$0139` (the `STA $0139` at `$B78F`) every 24 frames — that's the timer's countdown, 12 times in 300 frames. Now let me nail down both routine entries. Let me look for how `$91CD` is reached and widen the timer disassembly.
+    → search_memory {"hex": "CD 91", "mem_type": "prgRom"}
+    → disassemble {"address": 46848, "length": 120}
+    → disassemble {"address": 37216, "length": 112}
+[  86 12:55:11] RESULT search_memory
+    {"offsets":[12379],"mem_type":"prgRom","memory_size":32768,"truncated":false,"pattern_length":2,"start":0,"searched":32768,"offsets_hex":["0x305B"]}
+[  88 12:55:11] RESULT disassemble
+    $b700: b5 e4       lda 0xe4, x
+    $b702: c9 f8       cmp #0xf8
+    $b704: d0 2c       bne 0x0000
+    $b706: ad 92 07    lda 0x0792
+    $b709: d0 3f       bne 0x0000
+    $b70b: a0 00       ldy #0x00
+    $b70d: a5 33       lda 0x33
+    $b70f: 4a          lsr a
+    $b710: 90 02       bcc 0x0000
+    $b712: a0 08       ldy #0x08
+    $b714: 98          tya 
+    $b715: 65 86       adc 0x86
+    $b717: 95 9c       sta 0x9c, x
+    $b719: a5 6d       lda 0x6d
+    $b71b: 69 00       adc #0x00
+    $b71d: 95 83       sta 0x83, x
+    $b71f: a5 ce       lda 0xce
+    $b721: 18          clc 
+    $b722: 69 08       adc #0x08
+    $b724: 95 e4       sta 0xe4, x
+    $b726: a9 01       lda #0x… [+478 chars]
+[  90 12:55:11] RESULT disassemble
+    $9160: f0 03       beq 0x0000
+    $9162: be 18 91    ldx 0x9118, y
+    $9165: b9 16 91    lda 0x9116, y
+    $9168: 85 86       sta 0x86
+    $916a: bd 1c 91    lda 0x911c, x
+    $916d: 85 ce       sta 0xce
+    $916f: bd 25 91    lda 0x9125, x
+    $9172: 8d c4 03    sta 0x03c4
+    $9175: 20 f1 85    jsr 0x85f1
+    $9178: ac 15 07    ldy 0x0715
+    $917b: f0 1a       beq 0x0000
+    $917d: ad 57 07    lda 0x0757
+    $9180: f0 15       beq 0x0000
+    $9182: b9 2d 91    lda 0x912d, y
+    $9185: 8d f8 07    sta 0x07f8
+    $9188: a9 01       lda #0x01
+    $918a: 8d fa 07    sta 0x07fa
+    $918d: 4a          lsr a
+    $918e: 8d f9 07    sta 0x07f9
+    $9191: 8d 57 07    sta 0x… [+783 chars]
+[  93 12:55:28] ASSISTANT (turn 2 step 6) · in 1529 (cache 52352) out 3838
+    ▷ Search for "CD 91" found one at prgRom offset 0x305B = CPU $B05B. Let me disassemble around $B05B to see the JSR (or whatever) to $91CD. Actually pattern "CD 91" at offset 0x305B means bytes at $B05B = CD, $B05C = 91. If preceded by $20 (JSR), then JSR $91CD. Let me disassemble $B050-$B070.
+    
+    Wait, but "20 CD 91" search returned no results. So the "CD 91" at $B05B is not preceded by $20. Let me check what's before: offset $B05A. Search for JMP $91CD "4C CD 91" also no results. Hmm. So what is at $B05B? Let me disassemble.
+    
+    Actually maybe it's a branch or an indirect pointer. Let me disassemble around $B050.
+    
+    Now the timer routine: disassembly $B700 shows the tail of another routine ending RTS at $B74A. Then table $B74B (`4d b7`) used by `lda $b74d,y`... wait, at $B72C: `b9 4d b7 lda $b74d,y`, and `b9 4b b7` at $B738 lda $b74b,y. So $B74B and $B74D are data tables. The disassembler showed $B740 etc as instructions because it misaligned, but actually those are data bytes too ($B74B area is data, and $B740 is code... wait no).
+    
+    Hold on. Look at disassembly:
+    $B72f: 8d 92 07  sta $0792
+    $B732: a4 07     ldy $07
+    $B734: bd 2c 04  lda $042c,x
+    $B737: 38        sec
+    $B738: f9 4b b7  sbc $b74b,y… [+8274 chars]
+    The `JSR` to the lives routine isn't a plain `JSR $91CD` — the only `CD 91` bytes are at prgRom `0x305B` (CPU `$B05B`). Let me examine that and the raw bytes around the timer routine, plus find all `JSR $B7xx` callers.
+    → disassemble {"address": 45090, "length": 40}
+    → read_memory {"address": 14155, "length": 90, "mem_type": "prgRom"}
+    → search_memory {"pattern": [32, -1, 183], "mem_type": "prgRom", "max_results": 64}
+[  95 12:55:28] RESULT disassemble
+    $b022: 6d a5 0c    adc 0x0ca5
+    $b025: d9 36 b0    cmp 0xb036, y
+    $b028: f0 04       beq 0x0000
+    $b02a: a9 00       lda #0x00
+    $b02c: 85 57       sta 0x57
+    $b02e: a9 00       lda #0x00
+    $b030: 8d a1 03    sta 0x03a1
+    $b033: 60          rts 
+    $b034: 00 10       brk 0x10
+    $b036: 01 02       ora (0x02, x)
+    $b038: ad 1c 07    lda 0x071c
+    $b03b: 18          clc 
+    $b03c: 69 ff       adc #0xff
+    $b03e: 8d 1d 07    sta 0x071d
+    $b041: ad 1a 07    lda 0x071a
+    $b044: 69 00       adc #0x00
+    $b046: 8d 1b 07    sta 0x071b
+    $b049: 60          rts 
+[  97 12:55:28] RESULT read_memory
+    {"bytes":[255,80,64,32,173,112,7,240,79,165,14,201,8,144,73,201,11,240,69,165,181,201,2,176,63,173,135,7,208,58,173,248,7,13,249,7,13,250,7,240,38,172,248,7,136,208,12,173,249,7,13,250,7,208,4,169,64,133,252,169,24,141,135,7,160,35,169,255,141,57,1,32,95,143,169,164,76,6,143,141,86,7,32,49,217,238,89,7,96,173],"address":14155,"mem_type":"prgRom"}
+[  99 12:55:28] RESULT search_memory
+    {"offsets":[4533,12079,12085],"mem_type":"prgRom","memory_size":32768,"truncated":false,"pattern_length":3,"start":0,"searched":32768,"offsets_hex":["0x11B5","0x2F2F","0x2F35"]}
+[ 102 12:55:47] ASSISTANT (turn 2 step 7) · in 714 (cache 57600) out 4177
+    ▷ Interesting! The disassembly at $B022 shows $B033 RTS, then $B034 `00 10` brk, $B036 data `01 02`, then $B038 new routine. So the $B05B `CD 91` bytes are inside the routine starting $B038. Let me look: $B038 ad 1c 07 lda $071c; $B03B 18 clc; $B03C 69 ff adc #$ff; $B03E 8d 1d 07 sta $071d; $B041 ad 1a 07 lda $071a; $B044 69 00 adc #$00; $B046 8d 1b 07 sta $071b; $B049 60 rts.
+    
+    Wait but the search said "CD 91" at offset 0x305B = CPU $B05B. That's beyond $B049 RTS. Let me disassemble $B04A onward. $B04A-... Hmm, disassembly gave $B049 RTS then next shown $B022? No I asked from 45090 = 0xB022, length 40 -> up to $B04A. Right, it stopped at $B049. Let me disassemble $B04A+.
+    
+    So $B04A could be a new routine containing `cd 91` at $B05B, which might be `cmp $91cd`? No, `CD 91` followed by third byte. Actually pattern "CD 91" at $B05B means byte $B05B=CD, $B05C=91, and $B05D=? If it's a JSR $91CD it would be `20 CD 91`, but search for that found none. So maybe it's `4C CD 91`? Also none. Hmm.
+    
+    Maybe the bytes are `CD 91 B?` = `cmp $??91`? Like `cd 91 07` = cmp $0791. Let me read those bytes.
+    
+    Wait, search pattern "CD 91" is just 2 bytes, so could be part of an instruction `CD 91 xx` = CMP $… [+10476 chars]
+    Let me resolve the `CD 91` bytes and find the timer routine's caller among the `JSR $B7xx` sites.
+    → disassemble {"address": 44832, "length": 48}
+    → disassemble {"address": 45130, "length": 48}
+    → read_memory {"address": 46832, "length": 32, "mem_type": "prgRom"}
+[ 104 12:55:47] RESULT disassemble
+    $af20: 20 70 be    jsr 0xbe70
+    $af23: ca          dex 
+    $af24: 86 08       stx 0x08
+    $af26: 20 70 be    jsr 0xbe70
+    $af29: 20 96 bb    jsr 0xbb96
+    $af2c: 20 bc b9    jsr 0xb9bc
+    $af2f: 20 b8 b7    jsr 0xb7b8
+    $af32: 20 55 b8    jsr 0xb855
+    $af35: 20 4f b7    jsr 0xb74f
+    $af38: 20 e1 89    jsr 0x89e1
+    $af3b: a5 b5       lda 0xb5
+    $af3d: c9 02       cmp #0x02
+    $af3f: 10 11       bpl 0x0000
+    $af41: ad 9f 07    lda 0x079f
+    $af44: f0 1e       beq 0x0000
+    $af46: c9 04       cmp #0x04
+    $af48: d0 08       bne 0x0000
+    $af4a: ad 7f 07    lda 0x077f
+    $af4d: d0 03       bne 0x0000
+[ 106 12:55:47] RESULT disassemble
+    $b04a: a5 0e       lda 0x0e
+    $b04c: 20 04 8e    jsr 0x8e04
+    $b04f: 31 91       and (0x91), y
+[ 108 12:55:47] RESULT read_memory
+    {"bytes":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":46832,"mem_type":"prgRom"}
+[ 111 12:56:00] ASSISTANT (turn 2 step 8) · in 3083 (cache 59904) out 3190
+    ▷ Found it: `$AF35: 20 4F B7 JSR $B74F`. So the timer routine entry is $B74F! Not $B750. Let me verify the bytes at $B74F: from raw, $B74F = 173 (AD)? Wait, raw bytes starting at $B74B: [255,80,64,32,173,...]. So $B74B=255, $B74C=80, $B74D=64, $B74E=32, $B74F=173=0xAD. Hmm, that would make $B74F = AD (LDA absolute). Then $B750=0x70, $B751=0x07 -> `AD 70 07` = LDA $0770. Ah! That changes things! The disassembly at $B750 was misaligned by one! Actually no — I disassembled at $B750 and got `70 07 bvs`. But if the true instruction starts at $B74F with AD 70 07 = LDA $0770, then $B752 = F0 4F = BEQ, etc.
+    
+    Wait but the raw bytes: index0=$B74B=255, index1=$B74C=80, index2=$B74D=64, index3=$B74E=32, index4=$B74F=173. Let me recount the printed array: [255,80,64,32,173,112,7,240,79,165,14,201,8,144,73,201,11,240,69,165,181,201,2,176,63,173,135,7,208,58,...]
+    
+    So:
+    $B74B=255
+    $B74C=80
+    $B74D=64
+    $B74E=32
+    $B74F=173 (AD)
+    $B750=112 (70)
+    $B751=7
+    $B752=240 (F0)
+    $B753=79 (4F)
+    $B754=165 (A5)
+    $B755=14 (0E)
+    ...
+    
+    So the routine at $B74F: AD 70 07 = LDA $0770. Hmm wait, but the earlier disassembly from $B750 showed "70 07 bvs" — that's misaligned. The true code is at $B74F.
+    
+    But wait, the caller `JSR $B74F` a… [+6879 chars]
+    Key finding: `$AF35: JSR $B74F` — the timer routine actually starts at `$B74F` (I was one byte off; the correct disassembly starts with `LDA $0770`). Let me disassemble it correctly and investigate the lives routine's call path.
+    → disassemble {"address": 46927, "length": 96}
+    → read_memory {"address": 12368, "length": 32, "mem_type": "prgRom"}
+    → search_memory {"hex": "91 CD", "mem_type": "prgRom"}
+[ 113 12:56:00] RESULT disassemble
+    $b74f: ad 70 07    lda 0x0770
+    $b752: f0 4f       beq 0x0000
+    $b754: a5 0e       lda 0x0e
+    $b756: c9 08       cmp #0x08
+    $b758: 90 49       bcc 0x0000
+    $b75a: c9 0b       cmp #0x0b
+    $b75c: f0 45       beq 0x0000
+    $b75e: a5 b5       lda 0xb5
+    $b760: c9 02       cmp #0x02
+    $b762: b0 3f       bcs 0x0000
+    $b764: ad 87 07    lda 0x0787
+    $b767: d0 3a       bne 0x0000
+    $b769: ad f8 07    lda 0x07f8
+    $b76c: 0d f9 07    ora 0x07f9
+    $b76f: 0d fa 07    ora 0x07fa
+    $b772: f0 26       beq 0x0000
+    $b774: ac f8 07    ldy 0x07f8
+    $b777: 88          dey 
+    $b778: d0 0c       bne 0x0000
+    $b77a: ad f9 07    lda 0x07f9
+    $b77d: 0d fa … [+599 chars]
+[ 115 12:56:00] RESULT read_memory
+    {"bytes":[145,199,177,6,178,229,177,164,178,202,178,205,145,105,176,233,176,51,178,69,178,105,178,125,178,173,82,7,201,2,240,43],"address":12368,"mem_type":"prgRom"}
+[ 117 12:56:00] RESULT search_memory
+    {"offsets":[],"mem_type":"prgRom","memory_size":32768,"truncated":false,"pattern_length":2,"start":0,"searched":32768,"offsets_hex":[]}
+[ 120 12:56:20] ASSISTANT (turn 2 step 9) · in 877 (cache 66176) out 4399
+    ▷ The raw bytes at offset 12368 = $B050:
+    [145,199,177,6,178,229,177,164,178,202,178,205,145,105,176,233,176,51,178,69,178,105,178,125,178,173,82,7,201,2,240,43]
+    
+    So $B050=145, $B051=199, $B052=177, $B053=6, $B054=178, $B055=229, $B056=177, $B057=164, $B058=178, $B059=202, $B05A=178, $B05B=205, $B05C=145, $B05D=105, $B05E=176, $B05F=233, $B060=176, $B061=51, $B062=178, $B063=69, $B064=178, $B065=105, $B066=178, $B067=125, $B068=178, $B069=173, $B06A=82, $B06B=7, $B06C=201, $B06D=2, $B06E=240, $B06F=43
+    
+    So bytes at $B05B-$B05C = 205(CD), 145(91). This is part of a table of 16-bit addresses! Look at the sequence: $B050=91 C7 B1 06... Hmm. Let me look for a table of addresses in the $B1xx-$B2xx range. Bytes: 91 C7 | B1 06 | B2 E5 | B1 A4 | B2 CA | B2 CD | 91 69 | B0 E9 | B0 33 | B2 45 | B2 69 | B2 7D | B2 AD 52 07...
+    
+    As little-endian 16-bit: $C791, $06B1, $E5B2, $A4B1, $CAB2, $CDB2, $6991, $E9B0, $33B0, $45B2, $69B2, $7DB2, ... Hmm not clean. But as high-byte-first? $91C7, $B106, $B2E5, $B1A4, $B2CA, $B2CD, $9169, $B0E9, $B033, $B245, $B269, $B27D, $B2AD... Those look like plausible addresses in $B0xx-$B2xx and $91xx! Yes, a table of 16-bit addresses stored big-endian (high byte first).… [+12235 chars]
+    Timer routine confirmed: entry `$B74F`, and the countdown instruction is `STA $0139` (`$B78F`) with `LDA #$FF` set at `$B78D`, then `JSR $8F5F` subtracts 1 from the timer. Now let me prove the lives routine with a real death. First, move Mario near the first Goomba.
+    → play_input {"script": [{"buttons": ["right"], "frames": 200}], "watch": [1878, 134, 206, 392]}
+[ 122 12:56:23] RESULT play_input
+    {"frames":200,"polls":200,"start_frame":70683,"paused":false,"port":0,"segments":1,"end_frame":70883,"was_paused":false,"sample_frames":[4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200],"sample_every":4,"watch":[{"first":0,"address":1878,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"last":0,"address_hex":"0x0756"},{"first":40,"address":134,"values":[40,41,42,45,47,51,55,59,64,70,76,82,88,94,100,106,112,11… [+771 chars]
+[ 125 12:56:28] ASSISTANT (turn 2 step 10) · in 735 (cache 71424) out 735
+    ▷ Interesting: $0086 (Mario x) went from 40 up to 250, wrapped to 6.. then stuck at 39. Hmm. At frame 168ish it reached 250, wrapped to 0, then 39 and stuck at 39 (values sampled every 4 frames). Wait, $0086 is the low byte; $006D page? The watch didn't include $006D. Mario moved right ~250+256... but then stuck at 39? That suggests Mario hit the pipe (the warp pipe at screen x~125). Actually the mapping said Mario gets blocked at a pipe. Hmm, but the known fact says holding right 4s runs into the first enemy. Maybe the Goomba is before the pipe. But Mario's x kept increasing and never died.
+    
+    Hmm wait, the watch shows $00CE=176 constant (on ground) and $075A? I watched 1878=0x756 (not lives). Oops, I watched 0x0756 not 0x075A. 1878 decimal = 0x756. The lives address is 0x075A = 1882. I made an error. Let me redo with 1882.
+    
+    Also $0086 got stuck at 39 (after wrap) meaning Mario was blocked? At screen x = 39 - scroll. Hmm.
+    
+    Actually wait, Mario's x low byte 250 then wrapped to 6, then climbed to 39 then stuck. Hmm, the values: ...244,250,0,6,12,18,24,30,36,39,39,39. So it stopped at 39. Since $006D wasn't watched, absolute x = 39 + 256*page. If page became 1, abs 295. Hmm.
+    
+    Wait, but a… [+829 chars]
+    I watched the wrong address for lives (0x756 vs 0x75A). Let me check the screen and continue with correct watch values.
+    → screenshot {}
+    → play_input {"script": [{"buttons": ["right"], "frames": 90}], "watch": [1882, 134, 109, 1820]}
+[ 127 12:56:28] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1241-sheet5-routines/images/task-2/b34b100fdd69.png
+[ 129 12:56:29] RESULT play_input
+    {"frames":90,"polls":90,"start_frame":71160,"paused":false,"port":0,"segments":1,"end_frame":71250,"was_paused":false,"sample_frames":[2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90],"sample_every":2,"watch":[{"first":0,"address":1882,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"last":0,"address_hex":"0x075A"},{"first":0,"address":134,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,40,40,40],"last":40,"address… [+509 chars]
+[ 132 12:56:37] ASSISTANT (turn 2 step 11) · in 1082 (cache 72832) out 1304
+    ▷ The screenshot shows the death card "WORLD 1-1" with Mario x1. So Mario died! And now lives = 1 displayed, meaning $075A=0. So during the previous 200-frame run, Mario died and $075A decremented from 1 to 0. Actually wait: at the start lives card showed x2 ($075A=1). Now it shows x1 ($075A=0). So Mario died once.
+    
+    But note the watch in the 90-frame call shows $075A=0 and $0086=0 (level reset) and card. So the death happened.
+    
+    Hmm, so during the 200-frame right run, Mario died. The x got stuck at 39 — that was the death? Actually $0086 climbed to 250, wrapped, then 39... hmm, that's weird if he died at the Goomba. Actually maybe the run went: Mario ran right, hit Goomba, died; during the death sequence the game doesn't reset x; then at the death card, level state resets ($0086 40). The 200-frame watch only went to 200 frames; Mario's x stuck at 39 at the end while he's in death animation. OK.
+    
+    Anyway, now Mario is on the death card with lives $075A=0 (last life). If I continue, the next death → $075A goes -1 → game over. So I have one life left. I need to be careful. Actually for tracing the decrement, I need a death with $075A going from e.g. 2→1. Let me use the death card: pressin… [+3164 chars]
+    Mario died during that run — lives went from `x2` to `x1` ($075A = 0), and we're on the death card. Now let me start 1-1, top up lives for retries, and set up a clean death trace.
+    → play_input {"script": [{"buttons": ["start"], "frames": 10}, {"buttons": [], "frames": 90}]}
+    → screenshot {}
+[ 134 12:56:39] RESULT play_input
+    {"frames":100,"polls":100,"start_frame":71740,"paused":false,"port":0,"segments":2,"end_frame":71840,"was_paused":false,"sample_frames":[],"sample_every":2,"watch":[],"frames_run":100,"note":"Ran 100 frames of input on port 0. The game is still running."}
+[ 136 12:56:39] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1241-sheet5-routines/images/task-2/5babfc7b4ae4.png
+[ 139 12:56:42] ASSISTANT (turn 2 step 12) · in 539 (cache 75136) out 291
+    ▷ World 1-1 began (TIME 380, Mario at start). Now let me write $075A=5 to give lives (for retries), then position and trace.
+    
+    Actually, careful: writing $075A changes lives. That's fine. But the mapping says it stores lives minus one. Setting to 5 → card x6. Fine.
+    
+    Let me write $075A = 5, then hold right 200 frames, then trace.
+    
+    Let me do write_memory then play_input right 200 (watch lives to confirm still 5).
+    
+    Actually, I could skip topping up and just trace the next death (from $075A=0 → -1). The DEC happens regardless. But if it goes to game over, the level won't restart and I'd have to restart the whole game. To be safe, top up.
+    
+    Let me write $075A=5 and then play right 200.
+    World 1-1 began (TIME 380). Let me top up lives for retries, then advance to just before the Goomba.
+    → write_memory {"address": 1882, "bytes": [5], "mem_type": "cpu"}
+[ 141 12:56:42] RESULT write_memory
+    {"bytes_written":1,"address":1882,"mem_type":"cpu","persistent":false}
+[ 144 12:56:45] ASSISTANT (turn 2 step 13) · in 223 (cache 75776) out 404
+    ▷ Now hold right 200 frames and watch lives. Then trace.
+    
+    Let me do play_input right 200 with watch [1882, 134].
+    
+    Actually I already know from before that 200 frames of right gets to x~39..250. But now level restarted, so same. Let me hold right 210 and watch. Then trace.
+    
+    Wait, but I want Mario close to the Goomba so that during the trace the Goomba reaches him. Last time holding 200 frames apparently resulted in a death (lives went from x2 to x1) — actually did it? Let me re-examine: the 200-frame run ended at frame 70883; the next 90-frame run showed $075A=0 and card. So the death happened somewhere between. Actually in the 200-frame watch, $0086 got stuck at 39 and $075A wasn't watched. So death likely happened during the 200-frame run or the following 90. Hmm.
+    
+    To be safe, let me hold right only ~150 frames (2.5s), which per the hint puts Mario under the first ? block, before the Goomba. Then trace 600 frames — the Goomba should arrive. If it doesn't, I can extend.
+    
+    Actually, there's a subtlety: at 2.5s Mario is under the ? block at screen x~? The first Goomba is around there. Might already be close. Let me hold right 150 and watch.
+    
+    Then trace for 600.
+    
+    Let me do play_input rig… [+28 chars]
+    → play_input {"script": [{"buttons": ["right"], "frames": 150}], "watch": [1882, 134, 206]}
+[ 146 12:56:47] RESULT play_input
+    {"frames":150,"polls":150,"start_frame":72189,"paused":false,"port":0,"segments":1,"end_frame":72339,"was_paused":false,"sample_frames":[3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93,96,99,102,105,108,111,114,117,120,123,126,129,132,135,138,141,144,147,150],"sample_every":3,"watch":[{"first":5,"address":1882,"values":[5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],"last":5,"address_hex":"0x075A"},{"first":40,"address":134,"values":[40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,… [+568 chars]
+[ 149 12:56:51] ASSISTANT (turn 2 step 14) · in 698 (cache 76288) out 587
+    ▷ Wait, $0086 stayed at 40 the whole 150 frames! Mario didn't move. That means the game isn't accepting input — maybe it's still in the "level start" phase (the card/intro) or the write_memory disrupted something? Actually the screenshot showed 1-1 gameplay with Mario at start, TIME 380. But pressing right now did nothing ($0086=40 constant).
+    
+    Hmm, maybe there's a start delay? Or maybe the controller input isn't working because... Actually earlier the right input worked. Why now not?
+    
+    Possibly the game is paused? No, play_input resumes.
+    
+    Wait, maybe $075A write caused an issue? No.
+    
+    Hmm, $0086=40 constant. Maybe Mario is standing at the level start and input works but he's blocked? No.
+    
+    Actually, could the emulator be paused? play_input says frames_run 150 and game still running.
+    
+    Wait — maybe the game entered a "demo/attract" state? Or maybe the level-start screen where input is ignored for the first ~2 seconds? But the screenshot showed gameplay. Hmm.
+    
+    Actually, maybe the issue: I wrote $075A=5 while the game was in the "World 1-1" card? No, the screenshot clearly showed Mario standing in 1-1 with the ground and clouds.
+    
+    Let me take a screenshot to see current state after the 150-f… [+925 chars]
+    Mario didn't move at all ($0086 stayed 40) — the game may not be accepting input, or something's off. Let me look.
+    → screenshot {}
+    → get_cpu_state {}
+[ 151 12:56:51] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1241-sheet5-routines/images/task-2/5babfc7b4ae4.png
+[ 153 12:56:51] RESULT get_cpu_state
+    {"a":144,"sp":255,"status":133,"ppu_cycle":0,"y":0,"x":7,"pc":32856,"scanline":240,"cycle":361711473}
+[ 156 12:56:56] ASSISTANT (turn 2 step 15) · in 423 (cache 77568) out 621
+    ▷ The screenshot is byte-identical (same sha256) to the earlier one — so the emulator framebuffer isn't changing, i.e., the game is frozen/not running! The play_input said frames_run but the screenshot identical. So maybe the emulator is actually paused at the Mesen level? Or the bridge is reporting frames but the game isn't.
+    
+    Wait, the screenshot sha256 is the same: 5babfc7b... as before the 150-frame run. So no frame advanced visually. But play_input ran 150 frames. That means the game logic isn't advancing (headless with no rendering?) or the game is frozen.
+    
+    Hmm, CPU state: pc=32856=0x8056. SP=255. status=133=0x85. That's likely inside a wait loop? The game might be waiting for something. Actually PC $8056, A=$90, X=7, Y=0. Hmm.
+    
+    Maybe the game is frozen because I wrote $075A while it was in a state and it hung? Or the emulator paused itself.
+    
+    Actually, "Status: RUNNING" in the context. But screenshot identical suggests it's not advancing. Possibly the play_input frames ran a paused emulator? No, it would resume.
+    
+    Wait, maybe the issue: after the previous play_input, was_paused was false, so game running. Then I wrote $075A. Then play_input ran 150 frames. The screenshot is ident… [+962 chars]
+    The framebuffer is byte-identical (TIME 380 unchanged) — the game appears frozen. Let me resume and verify.
+    → resume_emulator {}
+    → step_frame {"count": 1}
+    → screenshot {}
+[ 158 12:56:56] RESULT resume_emulator
+    {"resumed":true}
+[ 160 12:56:56] RESULT step_frame
+    {"stepped":1,"paused":true}
+[ 162 12:56:56] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1241-sheet5-routines/images/task-2/5babfc7b4ae4.png
+[ 166 12:57:02] ASSISTANT (turn 2 step 16) · in 10817 (cache 78592) out 996
+    ▷ The game is paused now (step_frame leaves paused). The screenshot is identical, but the previous play_input 150 frames showed $0086 stuck at 40. That's suspicious. Possibly the game actually WAS frozen/at level start because the game was in "level start" mode where input is ignored until the card... hmm.
+    
+    Wait, actually the screenshot after Start showed Mario in 1-1 and TIME 380. But TIME didn't decrease over 150 frames (still 380). That strongly indicates the game wasn't running during those 150 frames. But play_input said frames_run 150.
+    
+    Hmm, but the screenshot is byte-identical including TIME and Mario sprite. If the game ran 150 frames, TIME would be ~374 and Mario would be walking. So the game did NOT run.
+    
+    Hypothesis: the emulator was paused at the Mesen level. play_input's Lua might call the "resume" only if it was paused? It said was_paused false earlier. Hmm.
+    
+    Actually, look: after the Start press play_input (100 frames), the screenshot showed 1-1 at TIME 380. Then I wrote $075A. Then play_input right 150 → $0086 stuck. Then resume_emulator → "resumed":true. So the emulator was paused before resume_emulator! But play_input said was_paused false at its start? Confusing.
+    
+    P… [+2535 chars]
+    The game seems to have frozen. Let me test whether input now moves Mario.
+    → play_input {"script": [{"buttons": ["right"], "frames": 120}], "watch": [1882, 134, 206]}
+[ 168 12:57:04] RESULT play_input
+    {"frames":120,"polls":120,"start_frame":73215,"paused":false,"port":0,"segments":1,"end_frame":73335,"was_paused":false,"sample_frames":[2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90,92,94,96,98,100,102,104,106,108,110,112,114,116,118,120],"sample_every":2,"watch":[{"first":5,"address":1882,"values":[5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],"last":5,"address_hex":"0x075A"},{"first":40,"address":134,"values":[40,40,40,40,40,40,40,40… [+681 chars]
+[ 172 12:57:11] ASSISTANT (turn 2 step 17) · in 11098 (cache 90368) out 1088
+    ▷ Still $0086=40, no movement, no TIME change? Let me check TIME via screenshot after this run. Something is wrong: the game is not progressing.
+    
+    Wait — the emulator Status is RUNNING. But the game isn't advancing. Actually the watch shows $0086 constant 40 and $00CE constant 176. If frames were running, TIME would tick. Let me screenshot after this run to see TIME.
+    
+    Hypothesis: The game is in a state where Mario can't be controlled — perhaps the "level start" freezes until a "GO" or the screen isn't scrolling. But TIME 380 frozen over many hundreds of frames means the game engine isn't running at all.
+    
+    Alternatively, the write to $075A=5 might have caused a crash/hang. Recall: after I wrote $075A=5, the game froze. Before that, right input worked. So the write may have broken something. But $075A is just lives; writing it shouldn't hang. Unless writing it mid-level-start confused the routine at $91CD? Hmm.
+    
+    Actually wait, more likely: the write_memory to $075A happened while the game was running; maybe it interrupted... no.
+    
+    Let me check: maybe the game is fine but Mario is at x=40 and blocked because the screen is waiting? Let me screenshot and read TIME and also read $075A, $0086 … [+2417 chars]
+    Mario still isn't moving and time isn't advancing — let me diagnose the emulator/game state directly.
+    → read_memory {"address": 1912, "length": 3, "mem_type": "cpu"}
+    → read_memory {"address": 14, "length": 1, "mem_type": "cpu"}
+    → screenshot {}
+    → get_cpu_state {}
+[ 174 12:57:11] RESULT read_memory
+    {"bytes":[16,30,0],"address":1912,"mem_type":"cpu"}
+[ 176 12:57:11] RESULT read_memory
+    {"bytes":[8],"address":14,"mem_type":"cpu"}
+[ 178 12:57:11] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1241-sheet5-routines/images/task-2/5babfc7b4ae4.png
+[ 180 12:57:11] RESULT get_cpu_state
+    {"a":144,"sp":255,"status":133,"ppu_cycle":0,"y":0,"x":7,"pc":32855,"scanline":240,"cycle":397031146}
+[ 183 12:57:24] ASSISTANT (turn 2 step 18) · in 493 (cache 102528) out 2320
+    ▷ $07F8=16, $07F9=30, $07FA=0. That's BCD 160? Wait, 16 decimal = 0x10, 30 decimal = 0x1E. Hmm, the bytes are decimal 16 and 30. As BCD digits, 0x10 and 0x1E are invalid BCD. Hmm. Wait, maybe the timer is at a different address now? Actually the mapping says $07F8=2,$07F9=5,$07FA=7 for TIME 257. Here bytes [16,30,0] — that's not valid BCD (30=0x1E). So maybe $07F8 is no longer the timer, OR the game is in a corrupted state because I wrote $075A and something.
+    
+    Wait, actually [16,30,0]: 16=0x10, 30=0x1E. Hmm. Odd.
+    
+    Game mode $0E = 8. In SMB, game mode 8 is "normal gameplay". Hmm actually the timer routine checks $0E==8. So gameplay mode.
+    
+    But TIME shows 380 and unchanged. And $07F8=16/$07F9=30?? That doesn't match displayed 380. Unless the displayed TIME is stale/not being updated. Hmm, actually maybe the HUD wasn't redrawn.
+    
+    Wait, the screenshot is identical to before Start? No, before Start the death card. After Start, screenshot showed 1-1 TIME 380. Now same.
+    
+    CPU state: pc=32855 (0x8055), sp=255, A=0x90, X=7, Y=0. Hmm, PC $8055 with SP=$FF means... SP=$FF is the initial value; in SMB, the main loop may reset? Actually the program at $8055 might be the "infinite loop waiting for NM… [+7013 chars]
+    The game appears stuck (PC in a tight loop around `$8055`, screenshots identical, timer frozen). Let me reset and start cleanly without any RAM writes.
+    → reset_emulator {}
+    → screenshot {}
+[ 185 12:57:24] RESULT reset_emulator
+    {"reset":true,"paused":false,"cleared_palette_overrides":0,"frames_waited":30,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 187 12:57:24] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1241-sheet5-routines/images/task-2/1b44479edcde.png
+[ 190 12:57:27] ASSISTANT (turn 2 step 19) · in 559 (cache 105216) out 143
+    ▷ After reset, the screen is blank periwinkle. The game is resetting. Wait 30 frames already. It may take a moment for the title. Let me run some frames.
+    
+    Let me play_input empty 120 and screenshot.
+    
+    Actually, reset_emulator already waited 30 frames. Let me run 120 more.
+    Reset done; screen is still blank. Let me let it boot to the title.
+    → play_input {"script": [{"buttons": [], "frames": 120}]}
+    → screenshot {}
+[ 192 12:57:29] RESULT play_input
+    {"frames":120,"polls":120,"start_frame":74711,"paused":false,"port":0,"segments":1,"end_frame":74831,"was_paused":false,"sample_frames":[],"sample_every":2,"watch":[],"frames_run":120,"note":"Ran 120 frames of input on port 0. The game is still running."}
+[ 194 12:57:29] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1241-sheet5-routines/images/task-2/15b50d691743.png
+[ 197 12:57:32] ASSISTANT (turn 2 step 20) · in 512 (cache 105856) out 424
+    ▷ Good, the game booted to the title screen. Interesting: the HUD shows MARIO 000200, coin x01, WORLD 1-1, TIME; and Mario is at the bottom-left standing on the ground? That looks like the title screen with the demo. Actually the title screen shows menu "1 PLAYER GAME / 2 PLAYER GAME / TOP- 000200" and Mario at the bottom. The HUD showing score 000200 etc. is from the attract demo.
+    
+    Per the hint: "Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again, and take a screenshot to confirm World 1-1 began."
+    
+    So the game is on the title screen, but there may be an attract demo running. Let me press Start, wait ~1s, press Start again, then screenshot.
+    
+    Actually the hint: press Start, wait a second, press Start again. This accounts for: first Start might be during attract demo (returns to title), second Start begins game. Or first Start begins game.
+    
+    Let me do: play_input [{start:10},{},{60},{start:10},{},90] then screenshot.
+    
+    That's 10+60+10+90=170 frames.
+    
+    Actually, careful: pressing Start during the title screen (not demo) starts the game. The demo may be showing. Let me just do the sequence.
+    
+    Let me … [+7 chars]
+    Booted to the title/attract screen. Let me follow the known Start sequence to begin World 1-1.
+    → play_input {"script": [{"buttons": ["start"], "frames": 10}, {"buttons": [], "frames": 60}, {"buttons": ["start"], "frames": 10}, {"buttons": [], "frames": 120}]}
+    → screenshot {}
+[ 199 12:57:35] RESULT play_input
+    {"frames":200,"polls":200,"start_frame":75008,"paused":false,"port":0,"segments":4,"end_frame":75208,"was_paused":false,"sample_frames":[],"sample_every":4,"watch":[],"frames_run":200,"note":"Ran 200 frames of input on port 0. The game is still running."}
+[ 201 12:57:35] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1241-sheet5-routines/images/task-2/4a1aee11bebd.png
+[ 204 12:57:38] ASSISTANT (turn 2 step 21) · in 503 (cache 106752) out 401
+    ▷ Now World 1-1 began fresh: MARIO 000000, coin x00, TIME 399. Good. Mario at start.
+    
+    Now let me trace the death. Strategy: hold right ~180-200 frames to get near the Goomba, then trace_writes on $075A for 600 frames. But first, let me confirm whether the game is advancing now by holding right and watching. Actually the goal is the trace. Let me set up.
+    
+    Concern: the previous freeze. Let me hope it was the write. Now no writes.
+    
+    Step 1: play_input right 180, watch lives ($075A) to confirm no death yet and see Mario move. Also watch $0086.
+    
+    Then trace_writes on $075A for 600 frames. During this, Goomba walks into Mario.
+    
+    Actually, let me think about whether the Goomba will reach. At 180 frames of holding right, Mario is ~3s in. The known fact: ~2.5s reaches the first ? block; ~4s hits the enemy. So at 3s, Mario is between; the Goomba (which started walking when it scrolled on) is approaching. If Mario stops, the Goomba continues left and will hit him within ~1s. Good.
+    
+    Let me do play_input right 180 watch [lives, x, y].
+    
+    Then trace.
+    
+    Let me run.
+    World 1-1 began fresh (score 000000, TIME 399). Now I'll advance to just before the first Goomba, then trace the lives decrement during the death.
+    → play_input {"script": [{"buttons": ["right"], "frames": 180}], "watch": [1882, 134, 206]}
+[ 206 12:57:41] RESULT play_input
+    {"frames":180,"polls":180,"start_frame":75418,"paused":false,"port":0,"segments":1,"end_frame":75598,"was_paused":false,"sample_frames":[3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93,96,99,102,105,108,111,114,117,120,123,126,129,132,135,138,141,144,147,150,153,156,159,162,165,168,171,174,177,180],"sample_every":3,"watch":[{"first":2,"address":1882,"values":[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],"last":2,"address_hex":"0x075A"},{"first":40,"address":134,"values":[40,40,… [+731 chars]
+[ 209 12:57:45] ASSISTANT (turn 2 step 22) · in 671 (cache 107648) out 389
+    ▷ The game is advancing now: Mario moved from x=40 to x=253 (wrapped), still alive ($075A=2), on ground ($00CE=176). Good — no freeze this time. So the freeze was caused by the write_memory to $075A (or coincidence). I'll avoid RAM writes.
+    
+    Now Mario is at $0086=24 (after wrapping), i.e., absolute x ~ 280? He's approaching the Goomba. Lives still 2.
+    
+    Now start trace_writes on $075A for 600 frames. The Goomba should kill him. Let me trace.
+    
+    Actually, wait: at 180 frames Mario's x wrapped to 24 and he's moving. The Goomba is ahead. If I stop input now, Mario decelerates and the Goomba comes. Good.
+    
+    trace_writes address 1882 ($075A), length 1, frames 600.
+    
+    But caution: trace_writes "Refused while paused (frames must run)". The game is running (play_input left it running since was_paused false... but the context might say PAUSED after? Let me just call it; if refused, resume first).
+    
+    Let me call trace_writes.
+    
+    Also, while tracing, it might take a while for the Goomba. 600 frames = 10s. Should be enough.
+    
+    Let me run.
+    Game is advancing normally now ($0086 moved 40→253, lives still 2). Now the key trace: watch `$075A` while the Goomba kills Mario.
+    → trace_writes {"address": 1882, "length": 1, "frames": 600}
+[ 211 12:57:55] RESULT trace_writes
+    {"mode":"write","mem_type":"cpu","writers":[{"last_value":1,"samples":[{"address":1882,"frame":13,"value":2},{"address":1882,"frame":13,"value":1}],"pc":37340,"last_frame":13,"count":2,"origin":{"address":4572,"mem_type":"prgRom","mem_type_id":45},"last_address":1882,"pc_hex":"0x91DC","origin_hex":"prgRom 0x11DC"}],"length":1,"address":1882,"total_accesses":2,"recorded_accesses":2,"truncated":false,"frames":600,"note":"Disassemble around a writer's pc (CPU address) to see what it copies from; origin_hex is that code's ROM offset."}
+[ 214 12:58:17] ASSISTANT (turn 2 step 23) · in 224 (cache 108672) out 5148
+    ▷ The trace confirms: $075A is written by PC $91DC (the instruction after DEC $075A at $91D9), with value 1 (from 2) at frame 13 (the Goomba was right there — wait, it took only 13 frames? Maybe the Goomba was already adjacent). Actually the collision happened at frame 13 of the trace. Great.
+    
+    So the writer PC is $91DC = prgRom 0x11DC. The DEC is at $91D9. The routine entry is $91CD. 
+    
+    Wait, PC reported is $91DC, which is the BPL after DEC (the write's next instruction). Fine.
+    
+    Now I have both:
+    - Lives routine: entry $91CD, DEC $075A at $91D9, called by ... (jump table entry at $B05B area; caller unknown). The trace PC $91DC confirms.
+    - Timer routine: entry $B74F, called by JSR $B74F at $AF35, countdown via STA $0139=$FF at $B78F + JSR $8F5F at $B792; trace PC $B792 confirms.
+    
+    Now let me verify the death sequence: after the DEC, did the card appear? Let me screenshot to confirm Mario died and lives card shows x1. Also confirm $075A is now 1.
+    
+    Let me screenshot and read $075A.
+    
+    Then I'll record mappings.
+    
+    But wait — I should double-check the entry of the lives routine and provide evidence. Also the task wants me to record the helper separately (already recorded $8F5F). Good.
+    
+    Let me a… [+13612 chars]
+    Trace confirmed: `$075A` is written by PC `$91DC` (the instruction right after `DEC $075A` at `$91D9`), decrementing 2→1 when the Goomba killed Mario. Let me confirm the death on screen and try to identify the dispatch table that reaches `$91CD`.
+    → read_memory {"address": 1882, "length": 2, "mem_type": "cpu"}
+    → read_memory {"address": 1908, "length": 2, "mem_type": "cpu"}
+    → search_memory {"hex": "4F B0", "mem_type": "prgRom"}
+    → search_memory {"hex": "50 B0", "mem_type": "prgRom"}
+    → disassemble {"address": 36356, "length": 48}
+    → screenshot {}
+[ 216 12:58:17] RESULT read_memory
+    {"bytes":[1,0],"address":1882,"mem_type":"cpu"}
+[ 218 12:58:17] RESULT read_memory
+    {"bytes":[0,0],"address":1908,"mem_type":"cpu"}
+[ 220 12:58:17] RESULT search_memory
+    {"offsets":[],"mem_type":"prgRom","memory_size":32768,"truncated":false,"pattern_length":2,"start":0,"searched":32768,"offsets_hex":[]}
+[ 222 12:58:17] RESULT search_memory
+    {"offsets":[32191],"mem_type":"prgRom","memory_size":32768,"truncated":false,"pattern_length":2,"start":0,"searched":32768,"offsets_hex":["0x7DBF"]}
+[ 224 12:58:17] RESULT disassemble
+    $8e04: 0a          asl a
+    $8e05: a8          tay 
+    $8e06: 68          pla 
+    $8e07: 85 04       sta 0x04
+    $8e09: 68          pla 
+    $8e0a: 85 05       sta 0x05
+    $8e0c: c8          iny 
+    $8e0d: b1 04       lda (0x04), y
+    $8e0f: 85 06       sta 0x06
+    $8e11: c8          iny 
+    $8e12: b1 04       lda (0x04), y
+    $8e14: 85 07       sta 0x07
+    $8e16: 6c 06 00    jmp (0x0006)
+    $8e19: ad 02 20    lda 0x2002
+    $8e1c: ad 78 07    lda 0x0778
+    $8e1f: 09 10       ora #0x10
+    $8e21: 29 f0       and #0xf0
+    $8e23: 20 ed 8e    jsr 0x8eed
+    $8e26: a9 24       lda #0x24
+    $8e28: 20 2d 8e    jsr 0x8e2d
+    $8e2b: a9 20       lda #0x20
+    $8e2d: 8d… [+49 chars]
+[ 226 12:58:17] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1241-sheet5-routines/images/task-2/c7f9f605912a.png
+[ 229 12:58:54] ASSISTANT (turn 2 step 24) · in 1043 (cache 113920) out 8654
+    ▷ Very interesting! $8E04 disassembles as a "RTS dispatch" (trampoline):
+    $8E04: ASL A       ; A = index*2
+    $8E05: TAY
+    $8E06: PLA         ; pull return address low
+    $8E07: STA $04
+    $8E09: PLA         ; pull return address high
+    $8E0A: STA $05
+    $8E0C: INY
+    $8E0D: LDA ($04),Y   ; load pointer low
+    $8E0F: STA $06
+    $8E11: INY
+    $8E12: LDA ($04),Y   ; load pointer high
+    $8E14: STA $07
+    $8E16: JMP ($0006)   ; jump to routine
+    
+    So $8E04 is a dispatcher: it takes the return address (pointing right after the JSR), uses A (index) to read a pointer table located immediately after the JSR, and jumps to that address. This is SMB's "jump table dispatch" pattern!
+    
+    So at $B04A: LDA $0E; JSR $8E04; the return address pushed is $B04F. So the table is at $B04F, indexed by $0E (game mode). A = $0E → ASL → Y = $0E*2. Then PLA/PLA gets $B04F, INY → $B050, reads pointer low; INY → $B051 reads pointer high. Wait: after PLA/PLA, $04/$05 = return address = $B04F (the address after JSR $8E04). Then INY (Y=0x0E*2+1), LDA ($04),Y = byte at $B04F + 0x0E*2 + 1. Hmm, so pointer = bytes at ($B04F + 2*index) and ($B04F + 2*index + 1) — but INY before each load: first INY to 2i+1, load low at base+2i+1; second INY to 2i+2, load hig… [+21152 chars]
+    Both routines are now proven. Key evidence:
+    
+    - **Lives:** `trace_writes` on `$075A` while Mario walked into the first Goomba caught exactly one writer, PC `$91DC` (the branch right after `DEC $075A` at `$91D9`), decrementing 2→1. The routine's first instruction is `$91CD` (previous RTS at `$91BC`, then a table).
+    - **Timer:** `trace_writes` on the BCD operand `$0139` for 300 frames caught `$B792` writing `$FF` every ~24 frames (12×/300), i.e. the `STA $0139` at `$B78F`; the caller is `JSR $B74F` at `$AF35`, and the routine entry is `$B74F`.
+    
+    Let me record both discoveries.
+    → record_mapping {"mapping_type": "routine", "id": "0x91CD", "name": "LoseLife - take a life away when Mario dies", "length": 28, "source": "trace and disassembly", "notes": "Found with no reference by trace_writes on the lives counter $075A while holding Right from the start of 1-1 into the first Goomba: the ONLY writer was PC $91DC (prgRom 0x11DC) with value going 2 -> 1 - that PC is the BPL immediately after DE… [+883 chars]
+    → record_mapping {"mapping_type": "routine", "id": "0xB74F", "name": "DecrementTimer - count the level TIME down", "length": 85, "source": "trace and disassembly", "notes": "Found with no reference from the mapping's timer digits $07F8-$07FA. trace_writes on the BCD operand byte $0139 for 300 frames returned writes of $FF from PC $B792 (plus $8F83, the helper clearing the operand) exactly 12 times in 300 frames - … [+973 chars]
+[ 231 12:58:54] RESULT record_mapping
+    {"mapping_type":"routine","id":"0x91CD","name":"LoseLife - take a life away when Mario dies","length":28,"category":null,"group":null,"notes":"Found with no reference by trace_writes on the lives counter $075A while holding Right from the start of 1-1 into the first Goomba: the ONLY writer was PC $91DC (prgRom 0x11DC) with value going 2 -> 1 - that PC is the BPL immediately after DEC $075A at $91D9. Disassembling backwards, the previous RTS is at $91BC and $91BD-$91CC is a data/jump-table region, so the routine's first instruction is $91CD: INC $0774 ; LDA #$00 / STA $0722 ; LDA #$80 / STA $FC… [+766 chars]
+[ 233 12:58:54] RESULT record_mapping
+    {"mapping_type":"routine","id":"0xB74F","name":"DecrementTimer - count the level TIME down","length":85,"category":null,"group":null,"notes":"Found with no reference from the mapping's timer digits $07F8-$07FA. trace_writes on the BCD operand byte $0139 for 300 frames returned writes of $FF from PC $B792 (plus $8F83, the helper clearing the operand) exactly 12 times in 300 frames - one tick every ~24 frames, matching the visible countdown. $B792 is the JSR that follows STA $0139 at $B78F. Disassembly gives the routine entry $B74F (the JSR at $AF35 calls it; searching PRG for JSR $B7xx found th… [+856 chars]
+[ 236 12:58:56] ASSISTANT (turn 2 step 25) · in 1006 (cache 123520) out 174
+    ▷ Now promote_mappings.
+    
+    Also update todos.
+    
+    Let me call promote_mappings and mark todos.
+    Both routines recorded. Now let me promote the discovered mappings.
+    → promote_mappings {}
+    → todo_write {"todos": [{"content": "Get into live 1-1 gameplay and confirm state", "status": "completed"}, {"content": "Trace the timer digit writes and find the routine's entry point", "status": "completed"}, {"content": "Trace the lives counter write on death and find the routine's entry point", "status": "completed"}, {"content": "Record both routines with record_mapping and promote", "status": "completed"… [+3 chars]
+[ 238 12:58:56] RESULT promote_mappings
+    Promoted 2 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 14 tiles, 7 palettes, 0 sprites, 12 addresses. 0 hypotheses skipped.
+[ 241 12:58:56] RESULT todo_write
+    Updated todo list: 0 pending, 0 in progress, 4 completed.
+[ 245 12:59:02] ASSISTANT (turn 2 step 26) · in 11336 (cache 124672) out 1332
+    ▷ Both mappings are recorded and promoted. The task is complete. Let me write the final report.
+    
+    I should report each routine's entry, what it does, and the evidence.
+    
+    Note: I should be honest about the lives routine caller not being pinned down.
+    
+    Let me write a concise final answer.
+    Done. Both routines are found, proven in the running emulator, recorded with `record_mapping` (source `trace and disassembly`), and promoted to the shared mapping.
+    
+    ## 1. Lose a life on death — entry `$91CD`
+    
+    **Disassembly (`$91CD`–`$91E8`):**
+    ```
+    $91CD: EE 74 07    inc $0774
+    $91D0: A9 00       lda #$00
+    $91D2: 8D 22 07    sta $0722
+    $91D5: A9 80       lda #$80
+    $91D7: 85 FC       sta $FC
+    $91D9: CE 5A 07    dec $075A     <-- the instruction that takes the life
+    $91DC: 10 0B       bpl $91E9     (still has lives -> next-life setup)
+    $91DE: A9 00       lda #$00
+    $91E0: 8D 72 07    sta $0772
+    $91E3: A9 03       lda #$03
+    $91E5: 8D 70 07    sta $0770     (game over flag)
+    $91E8: 60          rts
+    ```
+    
+    **Evidence:** `trace_writes` on the lives counter `$075A` (while Mario ran into the first 1-1 Goomba) returned exactly one writer, **PC `$91DC`**, changing the value **2 → 1**. `$91DC` is the `BPL` immediately after the `DEC $075A` at `$91D9`. Walking back, the previous `RTS` is at `$91BC` and `$91BD`–`$91CC` is a data/jump-table region, so the routine's first instruction is `$91CD`. After the trace RAM `$075A` read 1 and the screenshot showed Mario respawned in 1-1. The only way to reach `$91D9` is straight-line fall-through from `$91CD` (no branch/jump target references it).
+    
+    **Caveat:** no direct `JSR`/`JMP` targets `$91CD` anywhere in PRG (searched `20 CD 91`, `4C CD 91`, and both byte orders), so it is reached via the game's indirect dispatch and I could not pin the caller. It is recorded as the entry per the "instruction after the previous RTS" rule.
+    
+    ## 2. Count the level timer down — entry `$B74F` (caller `JSR $B74F` at `$AF35`)
+    
+    **Disassembly (`$B74F`–`$B7A3`, abridged):**
+    ```
+    $B74F: AD 70 07    lda $0770
+    $B752: F0 4F       beq $B7A3        (return unless timer active)
+    $B754: A5 0E       lda $0E          (game-mode gate)
+    ...
+    $B764: AD 87 07    lda $0787
+    $B767: D0 3A       bne $B7A3        (still in the 24-frame divider)
+    $B782: A9 40       lda #$40
+    $B784: 85 FC       sta $FC          (hurry-up at 100)
+    $B786: A9 18       lda #$18
+    $B788: 8D 87 07    sta $0787        (divider = 24 frames)
+    $B78B: A0 23       ldy #$23
+    $B78D: A9 FF       lda #$FF         (signed -1)
+    $B78F: 8D 39 01    sta $0139        <-- loads the subtract operand
+    $B792: 20 5F 8F    jsr $8F5F        (shared BCD adder subtracts 1)
+    $B795: A9 A4       lda #$A4
+    $B797: 4C 06 8F    jmp $8F06        (tick sound)
+    $B79A: 8D 56 07    sta $0756        (time-up path)
+    $B79D: 20 31 D9    jsr $D931
+    $B7A0: EE 59 07    inc $0759
+    $B7A3: 60          rts
+    ```
+    
+    **Evidence:** `trace_writes` on the BCD operand byte `$0139` for 300 frames caught `$FF` writes from **PC `$B792`** exactly **12 times** — one tick every ~24 frames, matching the visible countdown. `$B792` is the `JSR` following `STA $0139` at `$B78F`. The routine entry is `$B74F` (previous `RTS` at `$B74A`, then data), and the caller is the `JSR $B74F` at **`$AF35`** (found by scanning PRG for `JSR $B7xx`).
+    
+    **Instruction that does the job:** `STA $0139 = $FF` at `$B78F` primes the shared helper `$8F5F` (already in the mapping, target `$07D7+$23` = `$07F8`–`$07FA`, the timer digits) with signed −1, so the helper performs the actual decrement each 24-frame tick.
+    
+    The helper `$8F5F` (`AddBCD`) was already recorded; it is the shared adder for the coin, timer and score counters, so only its timer caller (`$B74F`) was added.
+[ 247 12:59:02] ─── turn 2 end: {"kind":"completed"}
+

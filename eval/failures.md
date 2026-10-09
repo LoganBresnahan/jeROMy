@@ -26,8 +26,9 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Changed:** `eval-run.sh` resumes the session once with "continue"
   (`TRIO_SESSION_ID`), and `eval-grade.mjs` joins a task's streams so a
   proof before the error still counts (commit `7593dc6`).
-- **Status:** `changed`. Resume is verified on a healthy session, never yet
-  after a real provider error.
+- **Status:** `fixed` (`20261009-1241-sheet5-routines`: task 2 hit
+  `MALFORMED_RESPONSE` after 5 calls; the resumed session found and
+  recorded both of its routines). Twice in five tasks so far: expect it.
 - **A re-run checks:** when a task's `config.md` shows "resumed once", the
   resumed stream recorded what the first stream had found.
 
@@ -104,7 +105,7 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Lines hit:** every sheet-5 line; the x/scroll derivation in sheet 3.
 - **Changed:** three fixes in `src/agent/disassembler.ts` with a test
   against the real WASM; verified live through dsh (commit `7593dc6`).
-- **Status:** `changed`: no mapping run has used it since.
+- **Status:** `fixed` (`20261009-1241-sheet5-routines`: 19 calls, no errors).
 - **A re-run checks:** sheet-5 streams show `disassemble` results, no errors.
 
 ## F8. A wrong statement promoted into the mapping cannot be taken back
@@ -131,3 +132,28 @@ change bought; if the failure comes back, reopen it with the new run.
 - **A re-run checks:** when a proven claim grades `disagrees`, check the
   line against the source before calling the claim wrong, and record a
   spec change as a spec version, never silently.
+
+## F10. A re-run starts from its own earlier answer
+
+- **Seen:** before the first re-run with three repeats (2026-10-09): the
+  prompt's Known Addresses carry every promoted entry, so a re-run of
+  C1.score would have started from the wrong `$07DE` claim it is meant to
+  rediscover, and a right line would pass by reading its answer.
+- **Lines hit:** every line a run has already promoted.
+- **Changed:** `scripts/eval-mapping-in.mjs` writes the mapping minus the
+  in-scope lines' entries (each line's `entry`); `eval-run.sh` points the
+  plugin's `mappingsDir` at that copy for the run, which also promotes
+  there, not into `mappings/`.
+- **Status:** `changed`.
+- **A re-run checks:** `config.md` lists the entries held back, and the
+  session's prompt (`dsh-log.mjs show <id> --system`) does not contain them.
+
+## F11. trace_writes refused while the game is paused
+
+- **Seen:** `20261009-1135` task 2 and `20261009-1241-sheet5-routines`
+  task 1: `trace_writes needs frames to run and the emulator is paused`.
+- **Lines hit:** none lost; one wasted call each time.
+- **Changed:** nothing. The refusal is by design (ADR-0013: only named
+  tools run frames) and its message says to resume first.
+- **Status:** `open` (minor). Revisit if a run loses a line to it.
+- **A re-run checks:** n/a.

@@ -141,6 +141,24 @@ describe("score-mapping streams", () => {
     expect(claims.map((c) => [c.name, c.proof, c.promoted])).toEqual([["coins", "write+look", true], ["lives", null, true]]);
     expect(claims.map((c) => c.derived)).toEqual([false, false]);
   });
+  it("marks a routine derived when a trace before the record named a writer PC inside it", () => {
+    const s = [
+      ev({ type: "tool_call", callId: "t", tool: "trace_writes", input: { address: 0x10 } }),
+      ev({ type: "tool_result", callId: "t", status: "completed", result: JSON.stringify({ writers: [{ pc: 0x8055, count: 3 }] }) }),
+      ev({ type: "tool_call", callId: "r1", tool: "record_mapping", input: { mapping_type: "routine", id: "0x8050", name: "lose life", length: 16 } }),
+      ev({ type: "tool_result", callId: "r1", status: "completed", result: "{}" }),
+      ev({ type: "tool_call", callId: "r2", tool: "record_mapping", input: { mapping_type: "routine", id: "0x9000", name: "elsewhere", length: 16 } }),
+      ev({ type: "tool_result", callId: "r2", status: "completed", result: "{}" }),
+    ].join("\n");
+    expect(claimsFromStream(s, "s").claims.map((c) => c.derived)).toEqual([true, false]);
+    const caller = [
+      ev({ type: "tool_call", callId: "q", tool: "search_memory", input: { hex: "20 5F 8F" } }),
+      ev({ type: "tool_result", callId: "q", status: "completed", result: JSON.stringify({ offsets: [0x3c09], mem_type: "prgRom" }) }),
+      ev({ type: "tool_call", callId: "r", tool: "record_mapping", input: { mapping_type: "routine", id: "0xBBFE", name: "coin", length: 75 } }),
+      ev({ type: "tool_result", callId: "r", status: "completed", result: "{}" }),
+    ].join("\n");
+    expect(claimsFromStream(caller, "s").claims[0].derived).toBe(true);
+  });
   it("marks a claim derived only when a diff before the record listed its address", () => {
     const diff = [
       ev({ type: "tool_call", callId: "x", tool: "diff_memory", input: { a: "s0", b: "s1", filter: "increased" } }),

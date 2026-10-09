@@ -195,7 +195,9 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
   provider error is resumed once, `TRIO_SESSION_ID`), streams, images and
   transcripts into `eval/runs/<id>/`, then `scripts/eval-grade.mjs <run>`
   (grades.md with proof held, distribution.md); Claude judges and writes
-  `report.md`
+  `report.md`. A run sees the mapping minus its own lines and promotes into
+  `<run>/mapping-in/` (ADR-0022); `scripts/eval-promote.mjs <run> [...]`
+  moves lines graded right into `mappings/`
 - `scripts/dsh-dev.sh` — boot the `jeromy` dsh profile with the plugin
   mounted from `src/dsh/index.ts` (web UI on :3080, bridge on :9001). Runs
   `scripts/link-dsh.sh` first, which symlinks the harness checkout's
