@@ -10,6 +10,17 @@ commit is the record; a file of ticked boxes stops being read.
 
 ## Bridge
 
+- **A ROM handoff does not refresh the plugin's ROM identity.** 2026-10-09:
+  `scripts/mesen-up.sh <zelda>` swapped Mesen to Zelda (the Lua side kept
+  its socket, `get_rom_info` through `bridge-call.mjs` said Zelda) while
+  the view's `/status`, the mapping, the hack store and the prompt still
+  said SMB, because `MesenService.refresh()` runs only on a connect edge.
+  A mapping session after a handoff would record under the wrong SHA1. The
+  eval loop switches between SMB and the holdout (ADR-0020), so the runner
+  (roadmap item 23d) must do `up.sh --down && up.sh <rom>` until the
+  service notices a changed ROM on its own (poll `get_rom_info` in the
+  accept loop, or a Lua `onRomLoad`-style event if the build has one).
+
 - **Watchdog trip inside the request decoder while paused.** Twice on
   2026-10-05 (sessions `f02bae50`, `e0899303`), after `pause_emulator` and a
   run of back-to-back `get_pixel_color` calls, the Lua log shows "JSON parse
