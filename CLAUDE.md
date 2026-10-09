@@ -178,6 +178,10 @@ the overnight log: `docs/plans/overnight-2026-10-05.md`.
   checks, raw-result criteria per check, streams saved under `.chat-out/`;
   `--blind` sets `JEROMY_BLIND=1` for the headless dsh only (ADR-0019
   calibration: no reference leads, `lookup_symbol` held back)
+- `scripts/wiki-table-to-tsv.mjs <in.txt> <out.tsv>` — a RAM/ROM map copied
+  from a wiki's text rendering (aligned columns, continuation lines,
+  `addr -> target` pointer rows) into the TSV `import-reference.mjs` reads;
+  prints every dropped line for checking (first used for Zelda, 2026-10-09)
 - `scripts/score-mapping.mjs <sha1> [--discoveries]` — grade the mapping's
   `address` entries against the imported reference (agrees / disagrees /
   unknown); the calibration number for roadmap item 22
