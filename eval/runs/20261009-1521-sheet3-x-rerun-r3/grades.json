@@ -1,0 +1,67 @@
+{
+  "run": "20261009-1521-sheet3-x-rerun-r3",
+  "spec": "Super Mario Bros. (World) v6",
+  "reference": "smbdis (doppelganger), ca65 port by threecreepio",
+  "totals": {
+    "calls": 64,
+    "steps": 28,
+    "inTok": 1968944,
+    "outTok": 30664
+  },
+  "stages": {
+    "in_scope": 2,
+    "reached_proof": 2,
+    "recorded": 2,
+    "derived": 2,
+    "promoted": 2,
+    "right": 2,
+    "wrong": 0,
+    "unproven": 0
+  },
+  "rows": [
+    {
+      "where": "task-1",
+      "name": "player_x_position (Mario horizontal position within the level page)",
+      "notes": "Encoding: one byte, Mario's horizontal position in the level measured inside the current 256-pixel page; the page number is $006D, so the absolute level X is $006D*256 + $0086. At the 1-1 start it reads 40 ($28). A screen-space copy is written every frame at $0005 (= $0086 - camera scroll $073F) and at $03AD/$0755, and Mario's OAM X entries mirror it. Found by differential search with no reference: snapshot x0 (idle), held Right 60 frames, snapshot x1, diff 'increased' left 82 survivors; a second 60-frame walk from d1 left 32, with $0086 40 -> 129 -> 218 while the camera scroll $073F went 0 -> 39 -> 112 (so $0086 - $073F stayed equal to Mario's on-screen x 90 -> 106, i.e. $0086 is Mario's world X, not the camera). Proof by write: while paused wrote $0086 = 200 (0xC8), stepped 1 frame; list_sprites showed Mario's palette-4 OAM entries at x=40/48 move to x=200/208, $0086 read back 200, and the screenshot showed Mario standing out by the first bush instead of at the level start. Crossing test: wrote $0086 = 250, held Right 25 frames; $0086 wrapped 250 -> 6 while the page byte $006D incremented 0 -> 1. Source: differential search.",
+      "source": "differential search",
+      "confidence": 1,
+      "id": "0x0086",
+      "kind": "address",
+      "address": 134,
+      "proof": "write+look",
+      "derived": true,
+      "promoted": true,
+      "line": "C2.player_x",
+      "loc": "$0086",
+      "verdict": "agrees",
+      "grader": "reference",
+      "symbol": "Player_X_Position",
+      "expected": "Player_X_Position $0086",
+      "reference_at_claim": "Player_X_Position | SprObject_X_Position",
+      "reference_verdict": "agrees",
+      "final": "agrees"
+    },
+    {
+      "where": "task-1",
+      "name": "player_x_page (page number of Mario's horizontal position)",
+      "notes": "Encoding: one byte, the 256-pixel page of Mario's horizontal position; the within-page position is $0086, so the absolute level X is $006D*256 + $0086. It is 0 at the level start and increments when Mario's world X crosses a multiple of 256. Found by differential search with no reference: after writing $0086 = 250 and holding Right 25 frames (Mario walked across x=256), the pg0 -> pg1 diff 'increased' (38 survivors) showed $006D go 0 -> 1 while $0086 wrapped 250 -> 6. Proof by write: while paused wrote $006D = 0 (leaving $0086 = 6) and stepped 30 frames; Mario's palette-4 sprites moved to the screen's left edge (OAM x 0/8, tiles $3A/$37/$4F/$4F) and the screenshot showed him at the far-left hill instead of the right edge - the position shifted by exactly one page (-256 px). The camera scroll $073F stayed 23 and the camera/nametable page $071B stayed 1, so $006D is the player's own page byte, not the camera's. Source: differential search.",
+      "source": "differential search",
+      "confidence": 1,
+      "id": "0x006D",
+      "kind": "address",
+      "address": 109,
+      "proof": "write+look",
+      "derived": true,
+      "promoted": true,
+      "line": "C2.player_x_page",
+      "loc": "$006D",
+      "verdict": "agrees",
+      "grader": "reference",
+      "symbol": "Player_PageLoc",
+      "expected": "Player_PageLoc $006D",
+      "reference_at_claim": "Player_PageLoc | SprObject_PageLoc",
+      "reference_verdict": "agrees",
+      "final": "agrees"
+    }
+  ]
+}

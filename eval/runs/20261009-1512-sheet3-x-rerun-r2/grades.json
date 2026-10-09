@@ -1,0 +1,67 @@
+{
+  "run": "20261009-1512-sheet3-x-rerun-r2",
+  "spec": "Super Mario Bros. (World) v6",
+  "reference": "smbdis (doppelganger), ca65 port by threecreepio",
+  "totals": {
+    "calls": 145,
+    "steps": 73,
+    "inTok": 7145551,
+    "outTok": 79512
+  },
+  "stages": {
+    "in_scope": 2,
+    "reached_proof": 2,
+    "recorded": 2,
+    "derived": 1,
+    "promoted": 2,
+    "right": 2,
+    "wrong": 0,
+    "unproven": 0
+  },
+  "rows": [
+    {
+      "where": "task-1",
+      "name": "player_x_position_low (position within the page)",
+      "notes": "Mario's horizontal position in the level, LOW byte (0-255, position within the current 256-pixel page). The absolute level x = $006D*256 + $0086 (see the companion page byte $006D). Encoding found with no reference by differential search: snapshot s0 at World 1-1 start ($0086=40), hold Right 40 frames, snapshot s1 -> diff 'increased' left 50 survivors including $0086 (40 -> 99); a second 30-frame run with from=d1 showed $0086 climbing 99 -> 117 smoothly with Mario's movement. Proof by write + screenshot: paused at the 1-1 start ($006D=0, $0086=40, camera $071C=0), write_memory $0086=200, step 2 frames -> list_sprites showed Mario's OAM entries moved from x=40/48 to x=200/208 and the screenshot showed the small Mario standing at the right-hand bush instead of on the hill at the left. Repeating on a mid-level state (page 1) confirmed the low byte is the within-page part. Found alongside $006D; source: differential search (no reference was available).",
+      "source": "differential search",
+      "confidence": 1,
+      "id": "0x0086",
+      "kind": "address",
+      "address": 134,
+      "proof": "write+look",
+      "derived": true,
+      "promoted": true,
+      "line": "C2.player_x",
+      "loc": "$0086",
+      "verdict": "agrees",
+      "grader": "reference",
+      "symbol": "Player_X_Position",
+      "expected": "Player_X_Position $0086",
+      "reference_at_claim": "Player_X_Position | SprObject_X_Position",
+      "reference_verdict": "agrees",
+      "final": "agrees"
+    },
+    {
+      "where": "task-1",
+      "name": "player_x_position_page (high byte of Mario's level x)",
+      "notes": "Mario's horizontal position in the level, HIGH (page) byte: the 16-bit level x is $006D*256 + $0086, i.e. $006D counts how many 256-pixel pages Mario has travelled. It is a separate array from the low byte (objects use $006D,X and $0086,X; Mario is object slot 0). Encoding found with no reference from the movement routine: disassembling the writer of $0086 (trace_writes on $0086 while standing still returned PC $BF40) showed CPU $BF3C-$BF46 = 'lda $86,X / adc $00 / sta $86,X ; lda $6d,X / adc $02 / sta $6d,X' - a 16-bit add that carries from $0086 into $006D. Natural observation while holding Right for 360 frames from 1-1 start: $0086 ran 40, 42, ... 253 then wrapped to 0, 6, 15, 24, 33, 41 and $006D changed 0 -> 1 on exactly the frame $0086 wrapped (watch samples frames 156-162), while Mario's on-screen x stayed ~112 and the camera $071C/$073F continued scrolling (0 -> 185). Proof by write + screenshot: from a live mid-level state ($006D=1, $0086=9, camera $071C=153, Mario on screen at x=112 = level 265), paused and wrote ONLY $0086=0, stepping 2 frames: $006D stayed 1 and Mario's OAM entries appeared at x=103 = 256-153, i.e. level 256. Had the page byte been ignored, $0086=0 would be level 0, 153 px behind the camera and off-screen; the screenshot showed Mario standing on the left of the hill with the goomba to his right. Source: differential search (no reference available).",
+      "source": "differential search",
+      "confidence": 1,
+      "id": "0x006D",
+      "kind": "address",
+      "address": 109,
+      "proof": "write+look",
+      "derived": false,
+      "promoted": true,
+      "line": "C2.player_x_page",
+      "loc": "$006D",
+      "verdict": "agrees",
+      "grader": "reference",
+      "symbol": "Player_PageLoc",
+      "expected": "Player_PageLoc $006D",
+      "reference_at_claim": "Player_PageLoc | SprObject_PageLoc",
+      "reference_verdict": "agrees",
+      "final": "agrees"
+    }
+  ]
+}

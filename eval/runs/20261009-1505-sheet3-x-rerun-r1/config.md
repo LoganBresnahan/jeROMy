@@ -1,0 +1,19 @@
+# Config: 20261009-1505-sheet3-x-rerun-r1
+
+- commit: `e662b95`
+- game: Super Mario Bros. (World) (sha1 `33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd`)
+- spec: `eval/spec/smb.json` v6 · lines: C2.player_x,C2.player_x_page
+- model: deepseek-flash · blind: true (JEROMY_BLIND=1) · holdout: false
+- re-run of: `20261009-1135-sheet3-hud-position` (eval/failures.md entries for these lines apply)
+- caps: $1.00 per run · min tool calls per task 10 · trio timeout 900 s
+- balance before: $7.03
+- started: 2026-10-09T15:05:12-05:00
+
+## Task 1
+
+```
+Mapping sheet 3 (the RAM a hacker reaches for), scene World 1-1 of Super Mario Bros.: find the RAM addresses of the player's horizontal position: Mario's horizontal position in the level (it may be a page byte plus a position within the page). No reference is available; use the find-variable skill and your own judgement for values that do not change by playing. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again, and take a screenshot to confirm World 1-1 began. The HUD along the top shows MARIO with a six-digit score, a coin icon with a two-digit count, WORLD 1-1, and TIME counting down from 400 by one about every 0.4 seconds. Each play_input call is at most 600 frames; chain calls, and take a screenshot whenever you need to know where you are. Mario's horizontal position grows as he walks right. Holding Right for about four seconds from the start of 1-1 runs into the first enemy and loses a life, and a black card 'WORLD 1-1' is shown about three seconds later. Prove each position address by write_memory and a screenshot showing Mario moved. Record each with record_mapping: mapping_type address, a plain name, notes with the encoding and the proof, source 'differential search'. Call promote_mappings once at the end. Report each address, its encoding and what the proof screenshot showed.
+```
+
+[eval-mapping-in] held back addresses.0x0086, addresses.0x006D, addresses.0x071C (names it), addresses.0x03AD (names it), 1 note(s) (name it)
+- balance after: $6.98 · ended: 2026-10-09T15:12:32-05:00

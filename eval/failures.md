@@ -133,8 +133,9 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Lines hit:** any line a later run corrects.
 - **Changed:** nothing. A session has no way to retract or amend an entry
   (ADR-0021 keeps "a later discovery fills gaps, never overwrites").
-- **Status:** `open`. A decision (an ADR): let a proven later claim
-  replace an entry's description, or mark the old sentence superseded.
+- **Status:** `fixed` by ADR-0022 (`sheet3-x-rerun` r1-r3: `$0086` replaced
+  by a 3/3-right entry; the wrong sentence is gone). Residue: notes are
+  never replaced, so a note correcting a sentence outlives the sentence.
 - **A re-run checks:** n/a until the decision.
 
 ## F9. A spec line that is wrong about the game

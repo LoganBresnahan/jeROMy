@@ -1,0 +1,531 @@
+# session-83675c67-4b30-4d0e-87f7-8271f8a7f166 · Find Mario horizontal position RAM
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-09T20:21:14.619Z
+
+[   3 15:21:14] QUEUED <user> for next-turn: Mapping sheet 3 (the RAM a hacker reaches for), scene World 1-1 of Super Mario Bros.: find the RAM addresses of the player's horizontal position: Mario's horizontal position in the level (it may be a … [+1281 chars]
+[   4 15:21:14] ━━━ turn 1 ━━━
+[   8 15:21:14] USER <user>
+    Mapping sheet 3 (the RAM a hacker reaches for), scene World 1-1 of Super Mario Bros.: find the RAM addresses of the player's horizontal position: Mario's horizontal position in the level (it may be a page byte plus a position within the page). No reference is available; use the find-variable skill and your own judgement for values that do not change by playing. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again, and take a screenshot to confirm World 1-1 began. The HUD along the top shows MARIO with a six-digit score, a coin icon with a two-digit count, WORLD 1-1, and TIME counting down from 400 by one about every 0.4 seconds. Each play_input call is at most 600 frames; chain calls, and take a screenshot whenever you need to know where you are. Mario's horizontal position grows as he walks right. Holding Right for about four seconds from the start of 1-1 runs into the first enemy and loses a life, and a black card 'WORLD 1-1' is shown about three seconds later. Prove each position address by write_memory and a screenshot showing Mario moved. Record each with record_mapping: mapping_type address, a plain name, notes with the encoding and the proof, source 'differential search'. Call promote_mappings once at the end. Report each address, its encoding and what the proof screenshot showed.
+[   9 15:21:14] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 15:21:14] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 15:21:15] ASSISTANT (turn 1 step 1) · in 197 (cache 15616) out 67
+    ▷ 
+    I'll start by loading the find-variable skill since this task matches it directly.
+    → skill {"name": "find-variable"}
+    → screenshot {}
+[  18 15:21:15] RESULT skill
+    <skill_content name="find-variable">
+    <skill_resources>
+    Base directory for this skill: /home/oof/jeROMy/skills/find-variable
+    Resolve relative paths mentioned by this skill against the base directory before using them. Load referenced resources only as needed.
+    </skill_resources>
+    
+    <skill_instructions>
+    
+    # Find a variable by differential search
+    
+    Most games have no reference. This procedure needs only the running game:
+    `snapshot_memory`, `play_input`, `diff_memory`, then `write_memory` and a
+    screenshot for the proof (ADR-0019). Written from the blind session of
+    2026-10-06 on Super Mario Bros. (World… [+6512 chars]
+[  20 15:21:16] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1521-sheet3-x-rerun-r3/images/task-1/de9c5db4d18b.png
+[  24 15:21:21] ASSISTANT (turn 1 step 2) · in 17668 (cache 15872) out 728
+    ▷ The screenshot shows the title screen? Actually it shows World 1-1 gameplay with TIME 291, Mario at start, score 000000. Wait, it shows MARIO 000000, coin x00, WORLD 1-1, TIME 291. Mario small on the hill at start. So we're already in World 1-1! Great. TIME 291 means it's been running ~44 seconds (400-291=109 ticks * 0.4 = 43.6s). Hmm, so the game has been running.
+    
+    Wait, but the task says title screen or attract demo. But screenshot shows actual gameplay. Maybe the attract demo? No, attract demo shows a demo with score counting. Actually this looks like gameplay at the start of 1-1 with Mario small on hill. TIME 291... Hmm the attract demo doesn't show TIME counting? Actually it does. Let me not overthink. Actually the HUD says MARIO 000000 and TIME 291 which suggests it's the attract demo? The attract demo does play a demo of 1-1. Hmm, but score would grow. Score 000000 and time 291 — the demo might just have started.
+    
+    Let me just check the CPU/game mode. Better: take a screenshot and check $0770 game mode. If in demo, need to press Start, wait, press Start.
+    
+    Let me read $0770.
+    
+    Actually the task explicitly says to press Start, wait a second, press Start again, then screenshot. B… [+1047 chars]
+    We're already showing a World 1-1 frame (TIME 291), but that could be the attract demo. Let me check the game mode and lives before deciding whether to press Start.
+    → read_memory {"address": 1904, "length": 1}
+    → read_memory {"address": 1882, "length": 1}
+    → get_cpu_state {}
+[  26 15:21:21] RESULT read_memory
+    {"address":1904,"bytes":[1],"mem_type":"cpuDebug"}
+[  28 15:21:21] RESULT read_memory
+    {"address":1882,"bytes":[1],"mem_type":"cpuDebug"}
+[  30 15:21:21] RESULT get_cpu_state
+    {"a":144,"status":133,"x":5,"y":0,"pc":32857,"scanline":240,"cycle":1169448004,"ppu_cycle":0,"sp":255}
+[  33 15:21:28] ASSISTANT (turn 1 step 3) · in 196 (cache 34176) out 1141
+    ▷ GameMode $0770 = 1, so we are in a game (mode 1 = in a level). Lives $075A = 1 (so 2 lives shown). Hmm, but the task says the game is at title or attract demo. It's actually in mode 1. TIME 291.
+    
+    Wait — could it be the attract demo? In attract demo, GameMode would be 0 (mode 0 = title screen / attract demo per mapping). Since $0770=1, we're in an actual game.
+    
+    Hmm but the prompt said "it is on its title screen or attract demo". Maybe the runtime context is stale/approximate. Since we're actually in mode 1 with a real game running (lives=2), we can just proceed.
+    
+    But careful: TIME 291 means it's been running a while; Mario may be idle at start. Actually the screenshot shows Mario at the start on the hill, small. That matches start of 1-1. If it were attract demo, Mario would be moving.
+    
+    Hmm, but if the game is just sitting there, Mario is idle at start. Let me verify: is the game actually paused/idle? The CPU state shows status=133 (0x85), which is NMI enabled+carry... Whatever.
+    
+    Let me proceed. Actually wait — could this be the attract demo that started and Mario hasn't moved? Unlikely with time 291.
+    
+    Actually, maybe a previous session left the game running. Doesn't matter — mode 1… [+2790 chars]
+    Game mode `$0770` = 1 (in a level) and lives `$075A` = 1, so a real game of 1-1 is running — not the attract demo. Mario is idle at the start. I'll do a differential search on horizontal movement.
+    → snapshot_memory {"name": "x0"}
+    → screenshot {}
+[  35 15:21:28] RESULT snapshot_memory
+    {"name":"x0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T20:21:28.448Z","checksum":"40e85c79","snapshots":["x0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[  37 15:21:28] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1521-sheet3-x-rerun-r3/images/task-1/9b4a44cf3232.png
+[  40 15:21:31] ASSISTANT (turn 1 step 4) · in 516 (cache 35456) out 185
+    ▷ Mario is still at start, TIME 261 now (was 291 earlier — time keeps ticking, ~75 frames between). So the game is live and Mario idle. Good.
+    
+    Hmm wait, TIME went 291 -> 261 = 30 ticks = 720 frames = 12 seconds between the two screenshots? That seems long but tool calls take time. Fine.
+    
+    Now hold Right for 60 frames and snapshot. Let me use play_input with watch of nothing, then snapshot.
+    
+    Actually I can also use watch to sample candidate addresses, but first diff.
+    Mario is idle at the start (TIME ticking down). Now I'll hold Right briefly and diff.
+    → play_input {"script": [{"buttons": ["right"], "frames": 60}]}
+[  42 15:21:32] RESULT play_input
+    {"end_frame":98769,"sample_frames":[],"frames_run":60,"frames":60,"start_frame":98709,"watch":[],"sample_every":1,"port":0,"segments":1,"paused":false,"was_paused":false,"polls":60,"note":"Ran 60 frames of input on port 0. The game is still running."}
+[  45 15:21:33] ASSISTANT (turn 1 step 5) · in 155 (cache 36096) out 53
+    ▷ 
+    → snapshot_memory {"name": "x1"}
+    → screenshot {}
+[  47 15:21:33] RESULT snapshot_memory
+    {"name":"x1","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T20:21:33.540Z","checksum":"42a35d48","snapshots":["x0","x1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[  49 15:21:33] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1521-sheet3-x-rerun-r3/images/task-1/829d29969fea.png
+[  52 15:21:35] ASSISTANT (turn 1 step 6) · in 527 (cache 36224) out 137
+    ▷ Mario moved right, screen scrolled. Now diff increased from x0 to x1.
+    
+    Let me run diff_memory with filter increased.
+    Mario moved right and the screen scrolled. Now diffing for values that increased.
+    → diff_memory {"a": "x0", "b": "x1", "filter": "increased", "name": "d1"}
+[  54 15:21:35] RESULT diff_memory
+    {"a":"x0","b":"x1","filter":"increased","considered":2048,"matched":82,"hits":[{"address":5,"old":40,"new":90,"address_hex":"0x0005"},{"address":9,"old":178,"new":229,"address_hex":"0x0009"},{"address":69,"old":0,"new":1,"address_hex":"0x0045"},{"address":134,"old":40,"new":129,"address_hex":"0x0086"},{"address":249,"old":28,"new":30,"address_hex":"0x00F9"},{"address":495,"old":3,"new":8,"address_hex":"0x01EF"},{"address":496,"old":3,"new":8,"address_hex":"0x01F0"},{"address":519,"old":40,"new":90,"address_hex":"0x0207"},{"address":523,"old":48,"new":98,"address_hex":"0x020B"},{"address":527,"… [+3249 chars]
+[  57 15:21:45] ASSISTANT (turn 1 step 7) · in 1542 (cache 36864) out 1802
+    ▷ 82 survivors. I see candidates. Notably $0086 (old 40 new 129) — that looks like a screen-right/scroll position. $03AD is Mario's Y high pos (old 40 new 90) — that's weird, increased from 40 to 90? Actually $03AD is Player_Y_HighPos in real SMB... hmm old 40 new 90 looks like a mirror of scroll. Actually many mirrors of scroll at $0086 and $03AD.
+    
+    Hmm. Note: Mario walked but did the screen scroll? Yes. So scroll-related values changed: $0086 (ScreenRight_X_Pos), $03AD (ScreenRight_PageLoc?), $0702 etc.
+    
+    Mario's X position: In real SMB, Player_X_Position = $006E, Player_PageLoc = $006D. But there's no hit at 0x006D/0x006E in increased! Hmm. Let me check: maybe Mario's X didn't increase much? He walked right so it should.
+    
+    Wait, perhaps the addresses weren't in the diff because they're stored in a different range and moved differently... Actually holding right for 60 frames, Mario moves from x=40 to... Actually the screen scrolled a lot (about 50px). Mario's screen x stays around the same after scrolling! In SMB, when Mario is past mid-screen the camera follows and Mario's *screen* x stays constant while his *level* position grows. The player's X is stored as level position (page + s… [+4642 chars]
+    82 survivors. Notably `$0086` (40→129) looks scroll-related, and the lower RAM shows only OAM copies. Let me inspect the classic player-X area directly and set up a second walk to narrow.
+    → read_memory {"address": 96, "length": 32}
+    → read_memory {"address": 128, "length": 16}
+    → read_memory {"address": 940, "length": 2}
+[  59 15:21:45] RESULT read_memory
+    {"address":96,"bytes":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0],"mem_type":"cpuDebug"}
+[  61 15:21:45] RESULT read_memory
+    {"address":128,"bytes":[0,0,0,0,0,0,129,96,96,96,96,96,0,0,0,0],"mem_type":"cpuDebug"}
+[  63 15:21:45] RESULT read_memory
+    {"address":940,"bytes":[0,90],"mem_type":"cpuDebug"}
+[  66 15:21:55] ASSISTANT (turn 1 step 8) · in 183 (cache 40192) out 1771
+    ▷ So $006E = 0 and $006D = 1. Hmm $006D=1? Let me re-read: address 96 = 0x60. bytes[14] corresponds to 0x6E? 96+14 = 110 = 0x6E. bytes: index 0..31 = 0x60..0x7F. Values: indices 14-18 = 1,1,1,1,1. So 0x6E=1, 0x6F=1, 0x70=1, 0x71=1, 0x72=1. Hmm, 0x6D = index 13 = 0. So $006D=0, $006E=1, $006F=1, $0070=1, $0071=1, $0072=1. That doesn't look like player X.
+    
+    Hmm wait, these could be enemy/object slots. In smbdis, $006E might be... hmm.
+    
+    $0080 = index 32 → address 128. bytes: index 6 = 0x86 = 129, index 7 = 0x87 = 96, indices 8-11 = 0x88-0x8B = 96,96,96,96. So $0086=129, $0087=96.
+    
+    Hmm. $0086=129. In smbdis ScreenRight_X_Pos = $0086? That's the right edge of the screen? 129 doesn't look right for scroll.
+    
+    $03AD = 90 (0x5A). Hmm.
+    
+    Wait, maybe my assumption about which is which is off. Let me reconsider: In SMB, the "screen" scroll is stored at $073F (X) and $0740 (Y) which the NMI writes to $2005. $0086 is ScreenRight_X_Pos = the X position of the right edge of the screen in the level? Actually in smbdis:
+    
+    ```
+    ScreenRight_X_Pos = $0086 ; Right edge of screen, X position
+    ScreenRight_PageLoc = $0087
+    ```
+    
+    Hmm and there's also:
+    ```
+    Player_X_Position = $006E
+    Player_PageLoc = $006D
+    ```
+    But 0x6E … [+4173 chars]
+    `$006E`/`$006D` read 0/1 — not the walk position. Let me narrow with a second identical walk.
+    → play_input {"script": [{"buttons": ["right"], "frames": 60}]}
+[  68 15:21:56] RESULT play_input
+    {"end_frame":100201,"sample_frames":[],"frames_run":60,"frames":60,"start_frame":100141,"watch":[],"sample_every":1,"port":0,"segments":1,"paused":false,"was_paused":false,"polls":60,"note":"Ran 60 frames of input on port 0. The game is still running."}
+[  71 15:21:57] ASSISTANT (turn 1 step 9) · in 256 (cache 41984) out 53
+    ▷ 
+    → snapshot_memory {"name": "x2"}
+    → screenshot {}
+[  73 15:21:57] RESULT snapshot_memory
+    {"name":"x2","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T20:21:57.388Z","checksum":"c79b77f4","snapshots":["x0","x1","x2"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[  75 15:21:57] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1521-sheet3-x-rerun-r3/images/task-1/61c2783def70.png
+[  78 15:21:59] ASSISTANT (turn 1 step 10) · in 638 (cache 42112) out 269
+    ▷ Mario is now near the first goomba (visible at right, x~200). Wait, there are two ? blocks and a goomba. Mario walked more. Actually the screenshot shows Mario maybe at x ~ 190? I see a goomba-like thing at x~200 bottom right. Hmm. Actually I see two ? blocks and at bottom right a goomba. Mario might be hidden? Let me look: bottom row has ground; there's a green hill, a goomba at right on ground around x=195. Mario... I don't clearly see Mario. Maybe he's overlapping the bush.
+    
+    Anyway, time is 189. Let me diff from d1.
+    
+    Careful — Mario might have died? No, TIME still counting, screen scrolled.
+    
+    Let me diff.
+    → diff_memory {"a": "x1", "b": "x2", "filter": "increased", "from": "d1", "name": "d2"}
+[  80 15:21:59] RESULT diff_memory
+    {"a":"x1","b":"x2","filter":"increased","considered":82,"matched":32,"hits":[{"address":5,"old":90,"new":106,"address_hex":"0x0005"},{"address":134,"old":129,"new":218,"address_hex":"0x0086"},{"address":495,"old":8,"new":10,"address_hex":"0x01EF"},{"address":519,"old":90,"new":106,"address_hex":"0x0207"},{"address":523,"old":98,"new":114,"address_hex":"0x020B"},{"address":527,"old":90,"new":106,"address_hex":"0x020F"},{"address":531,"old":98,"new":114,"address_hex":"0x0213"},{"address":535,"old":90,"new":106,"address_hex":"0x0217"},{"address":539,"old":98,"new":114,"address_hex":"0x021B"},{"ad… [+1462 chars]
+[  83 15:22:18] ASSISTANT (turn 1 step 11) · in 799 (cache 43008) out 3953
+    ▷ 32 survivors now. $0086: 129 -> 218 (+89). $0005: 90->106 (+16, only 16 because Mario near scroll-lock? Hmm). $03AD: 90->106. $073F (scroll) 39->112. $071C 39->112.
+    
+    Interesting: $0005 old 90 new 106 (+16) and $0086 old 129 new 218 (+89). Hmm inconsistent. Mario's X should increase by ~89 if he walked the whole time... but $0005 only +16. That means $0005 is Mario's *screen* X (capped when camera locks at mid-screen). Actually SMB: Mario's screen X grows until he reaches ~112, then camera scrolls with him keeping screen X fixed. So $0005 = screen X of Mario? It went 90 -> 106, less than 112. Hmm.
+    
+    Wait, in the first interval Mario went from 40 -> 90 (+50). In the second from 90 -> 106 (+16). But the scroll ($073F) went 39->112 (+73). Hmm, so during second interval the camera scrolled a lot and Mario's screen x only +16. That's consistent with Mario being pushed? Hmm.
+    
+    Actually let me reconsider: $0086 (ScreenRight_X_Pos) 129 -> 218 (+89). And $073F (scroll) 39->112 (+73). Hmm, the scroll differs from ScreenRight by ~106? ScreenRight = scroll+? 
+    
+    Hmm, confusing. Let me think about which is the player's level X.
+    
+    Actually! Big realization: in SMB, the player's X is NOT $006E. The pla… [+11074 chars]
+    32 survivors. `$0086` tracks `scroll + Mario's screen x` (129−39=90, 218−112=106), which is exactly Mario's world X. `$0005`/`$03AD`/`$0755` are his *screen* x (camera-locked). Let me read the current state and test `$0086` by writing to it.
+    → pause_emulator {}
+    → read_memory {"address": 134, "length": 2}
+    → read_memory {"address": 109, "length": 2}
+    → read_memory {"address": 1855, "length": 1}
+    → read_memory {"address": 5, "length": 1}
+    → read_memory {"address": 941, "length": 1}
+[  85 15:22:18] RESULT pause_emulator
+    {"paused":true}
+[  87 15:22:18] RESULT read_memory
+    {"address":134,"bytes":[40,96],"mem_type":"cpuDebug"}
+[  89 15:22:18] RESULT read_memory
+    {"address":109,"bytes":[0,1],"mem_type":"cpuDebug"}
+[  91 15:22:18] RESULT read_memory
+    {"address":1855,"bytes":[0],"mem_type":"cpuDebug"}
+[  93 15:22:18] RESULT read_memory
+    {"address":5,"bytes":[40],"mem_type":"cpuDebug"}
+[  95 15:22:18] RESULT read_memory
+    {"address":941,"bytes":[40],"mem_type":"cpuDebug"}
+[  99 15:22:30] ASSISTANT (turn 1 step 12) · in 15528 (cache 47744) out 2405
+    ▷ Wait, now the reads show $0086 = 40, $0087 = 96, $006E = 1, $006D = 0, $0005 = 40, $03AD = 40. But these are AFTER pausing. Hmm! The values are back to 40/96! That means the game state changed — did Mario die and respawn? Or did the pause... no.
+    
+    Wait, $0086 = 40, $03AD = 40, $0005 = 40. These are all the *start* values. But we had scrolled far. Hmm. Did Mario die and the level restart? Between the x2 snapshot and now, time passed (12 seconds?) and Mario was near a goomba. The pause call happened after the screenshot. But the reads happened after pause.
+    
+    Oh! I bet Mario died (walked into the goomba) and respawned at start. Actually no, we paused. But the pause happened after the screenshot and the read... Let me check. The sequence: screenshot x2, then diff, then pause + reads. Between x2 and pause, ~30+ seconds of real time elapsed (tool calls), during which the game kept running. Mario stood still (no input) but the goomba was walking toward him! The goomba would reach Mario and kill him. Then he respawned at the start of 1-1 (or a new life). That explains why values reset to 40.
+    
+    Hmm, but the screenshot at x2 showed Mario near the goomba. Then we did the diff (some seconds), the… [+6593 chars]
+    The values have reset to start values (40) — Mario likely died to the Goomba while I was diffing. Let me check the live state.
+    → screenshot {}
+    → read_memory {"address": 1882, "length": 1}
+    → read_memory {"address": 2040, "length": 3}
+    → read_memory {"address": 1855, "length": 1}
+[ 101 15:22:30] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1521-sheet3-x-rerun-r3/images/task-1/1eafc6ff42d6.png
+[ 103 15:22:30] RESULT read_memory
+    {"address":1882,"bytes":[0],"mem_type":"cpuDebug"}
+[ 105 15:22:30] RESULT read_memory
+    {"address":2040,"bytes":[3,3,8],"mem_type":"cpuDebug"}
+[ 107 15:22:30] RESULT read_memory
+    {"address":1855,"bytes":[0],"mem_type":"cpuDebug"}
+[ 110 15:22:42] ASSISTANT (turn 1 step 13) · in 456 (cache 65664) out 2307
+    ▷ Confirmed: $075A=0 (lives showing 1), TIME 338, $073F=0. Mario died and respawned at start of 1-1 (TIME 338 means restarted at 400 and counted to 338). Wait TIME 338 means it restarted recently. And $073F=0 (scroll 0).
+    
+    Hmm wait, but the screen shows TIME 338 and Mario at start. So Mario died + respawned. Good.
+    
+    Now $0086=40, $0087=96. Hmm $0087=96 even at start. So $0087 isn't page.
+    
+    Hmm, 96 = 0x60. Weird. Hmm, at x1 $0087 was also 96. So it's constant. Not the page.
+    
+    Hmm, wait. Let me reconsider: maybe the page byte is a *different* address entirely. Let me think about what increased in d1/d2 that could be the page: candidates that increased but stayed 0 until crossing 256 wouldn't show. So I need to walk past a page boundary.
+    
+    Alternatively, maybe the encoding is: $0086 is the position *within the page* and there's a page byte somewhere — OR $0086 is a full 8-bit value and the page is stored elsewhere.
+    
+    Hmm, but here's the thing: I computed $0086 = scroll + screen_x. At start scroll=0, screen_x=40, $0086=40. If Mario walks to world x=300, scroll would be ~188, screen_x ~112, $0086 = 300 mod 256 = 44? No! $0086 = scroll + screen_x would be 300 which overflows 8 bits → 44. Hmm, th… [+6402 chars]
+    Confirmed: Mario died and respawned at the start (lives `$075A`=0, TIME reset, scroll `$073F`=0). `$0086` reads 40 again. Now the decisive write test: if `$0086` is Mario's world X, writing it should move him.
+    → save_state {"slot": 0}
+    → write_memory {"address": 134, "bytes": [200]}
+[ 112 15:22:42] RESULT save_state
+    {"slot":0,"bytes":4654,"action":"saved","stepped_frames":0,"paused":false}
+[ 114 15:22:42] RESULT write_memory
+    {"bytes_written":1,"address":134,"mem_type":"cpu","persistent":false}
+[ 117 15:22:44] ASSISTANT (turn 1 step 14) · in 141 (cache 68352) out 50
+    ▷ 
+    → step_frame {"count": 1}
+    → screenshot {}
+[ 119 15:22:44] RESULT step_frame
+    {"stepped":1,"paused":true}
+[ 121 15:22:44] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1521-sheet3-x-rerun-r3/images/task-1/f72bc9c287ce.png
+[ 124 15:22:50] ASSISTANT (turn 1 step 15) · in 441 (cache 68480) out 990
+    ▷ Hmm. Mario appears to have moved? Let me look. The screen shows the hill at left with a bush to the right, ground. Where's Mario? I see something red at the right side around x=200, y=195 (on the bush/ground at right). Actually there's a reddish blob at ~x=198, y=196 — that could be Mario standing near the bush at x~200! Yes! Mario moved from x=40 to about x=200. 
+    
+    Wait, but TIME changed from 338 to 304 during those steps? That's 34 ticks = 816 frames. Hmm, that means a lot of frames ran between the reads and now (the save_state and write and step). Actually the tool calls take real time and the game was running (not paused) until save_state... wait, I had paused earlier. Then save_state says "paused": false and stepped_frames 0 — so the emulator was NOT paused at save_state time? But I paused earlier. Hmm, the screenshot before showed TIME 338 while... 
+    
+    Oh I see: the earlier pause_emulator happened, but then read/tool calls... Actually the pause status: after my pause_emulator call earlier, the state said PAUSED. Then I did reads and a screenshot. Then save_state with "paused": false. That's odd — maybe the screenshot or something resumed it? Hmm, the system said "Status: PAUSED"… [+1854 chars]
+    Mario appears to have jumped right to ~x=200. Let me confirm with sprite data and read the values back.
+    → list_sprites {}
+    → read_memory {"address": 134, "length": 1}
+    → read_memory {"address": 5, "length": 1}
+    → read_memory {"address": 1855, "length": 1}
+[ 126 15:22:50] RESULT list_sprites
+    {"sprites":[{"width":8,"attr":35,"index":0,"palette":7,"tile":255,"x":88,"y":25,"height":8,"flip_v":false,"chr_tile":255,"behind_background":true,"flip_h":false},{"width":8,"attr":0,"index":1,"palette":4,"tile":252,"x":200,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":2,"palette":4,"tile":252,"x":208,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":3,"palette":4,"tile":252,"x":200,"y":185,"height":8,"flip_v":false,"chr_tile":252,"behind_background":fals… [+903 chars]
+[ 128 15:22:50] RESULT read_memory
+    {"address":134,"bytes":[200],"mem_type":"cpuDebug"}
+[ 130 15:22:50] RESULT read_memory
+    {"address":5,"bytes":[200],"mem_type":"cpuDebug"}
+[ 132 15:22:50] RESULT read_memory
+    {"address":1855,"bytes":[0],"mem_type":"cpuDebug"}
+[ 135 15:23:07] ASSISTANT (turn 1 step 16) · in 677 (cache 69888) out 3376
+    ▷ Confirmed: Mario's sprites are now at x=200/208 (OAM entries 1-8, palette 4 = Mario, tiles 58/55/79/79 = small Mario). And $0086 = 200 read back, $0005 = 200, $073F (scroll) = 0.
+    
+    So $0086 is Mario's horizontal position (world position within the page since scroll=0). Writing it moved Mario from x=40 to x=200 on screen. Proof solid.
+    
+    But wait — is $0086 the source of truth or derived? It read back 200 after a frame, so the game didn't revert it. If it were derived from another variable, it'd snap back. So $0086 is (at least) the authoritative variable the renderer/physics uses. Actually careful: the game might recompute $0086 from $006E+$073F. But if $006E were the real position, then writing $0086 would be overwritten next frame. It wasn't. Unless... the game reads $0086 for physics. Given it persisted, $0086 is the position.
+    
+    Hmm, but actually: it's possible the game derives $0086 = $0005 (screen x) + $073F and $0005 was ALSO updated by the game because it derives $0005 from... circular. Hmm. But $0005=200 too. If $0086 were derived, then $0005 must have been the true source; but writing only $0086 caused $0005 to become 200. So either $0005 is derived from $0086, or both derive … [+10317 chars]
+    Proof: Mario's own sprites (palette 4, tiles $3A/$37/$4F) jumped from x=40 to x=200/208, and `$0086` read back 200. So `$0086` is Mario's horizontal position. Now I need the page byte. I'll place him near the page edge and walk across x=256.
+    → write_memory {"address": 134, "bytes": [250]}
+    → step_frame {"count": 1}
+[ 137 15:23:07] RESULT write_memory
+    {"bytes_written":1,"address":134,"mem_type":"cpu","persistent":false}
+[ 139 15:23:07] RESULT step_frame
+    {"stepped":1,"paused":true}
+[ 142 15:23:08] ASSISTANT (turn 1 step 17) · in 135 (cache 73856) out 53
+    ▷ 
+    → screenshot {}
+    → snapshot_memory {"name": "pg0"}
+[ 144 15:23:08] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1521-sheet3-x-rerun-r3/images/task-1/ae3b322adf10.png
+[ 146 15:23:08] RESULT snapshot_memory
+    {"name":"pg0","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T20:23:08.739Z","checksum":"5cc65af2","snapshots":["x0","x1","x2","pg0"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 149 15:23:10] ASSISTANT (turn 1 step 18) · in 527 (cache 73984) out 164
+    ▷ Mario is at the far right edge (x~250), on top of the bush. Camera still at 0. Good.
+    
+    Now walk right ~25 frames to cross 256. Then snapshot pg1 and diff.
+    
+    Note: crossing x=256 will make $0086 wrap to ~30. And the camera should scroll right (nametable flip).
+    
+    Let me play right 25 frames.
+    Mario is pinned at the right edge (x≈250). Now I'll walk him across x=256 and look for a byte that flips 0→1.
+    → play_input {"script": [{"buttons": ["right"], "frames": 25}]}
+[ 151 15:23:11] RESULT play_input
+    {"end_frame":104730,"sample_frames":[],"frames_run":25,"frames":25,"start_frame":104705,"watch":[],"sample_every":1,"port":0,"segments":1,"paused":false,"was_paused":false,"polls":25,"note":"Ran 25 frames of input on port 0. The game is still running."}
+[ 155 15:23:13] ASSISTANT (turn 1 step 19) · in 15519 (cache 74624) out 113
+    ▷ Now snapshot pg1 and diff, and screenshot to see where Mario is.
+    → snapshot_memory {"name": "pg1"}
+    → screenshot {}
+    → read_memory {"address": 134, "length": 2}
+[ 157 15:23:13] RESULT snapshot_memory
+    {"name":"pg1","address":0,"length":2048,"mem_type":"cpuDebug","taken_at":"2026-10-09T20:23:13.448Z","checksum":"fb30474c","snapshots":["x0","x1","x2","pg0","pg1"],"note":"Bytes kept in the session, not shown. Make something happen, snapshot again, then diff_memory."}
+[ 159 15:23:13] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1521-sheet3-x-rerun-r3/images/task-1/c4aee6f8e170.png
+[ 161 15:23:13] RESULT read_memory
+    {"address":134,"bytes":[6,96],"mem_type":"cpuDebug"}
+[ 164 15:23:16] ASSISTANT (turn 1 step 20) · in 512 (cache 90240) out 341
+    ▷ $0086 = 6 now. So it wrapped from 250 → 6 after walking 25 frames (+12? Actually 250 + ~12 = 262 → wrap to 6). So $0086 wrapped. Good.
+    
+    Now diff pg0→pg1 increased to find the page byte.
+    
+    Note $0087 = 96 still. So $0087 is not the page.
+    
+    Let me diff. I'll use filter "increased" and also look for 0→1. Also check "equals 1" to find bytes now equal to 1.
+    
+    Let me do both: diff increased, and diff equals 1.
+    
+    Actually the page byte went from 0 to 1, so filter "equals 1" would show all bytes currently equal 1 (many). filter "increased" from pg0→pg1 would show the page byte among others. Let me get increased first.
+    
+    Hmm, but note pg0 was at Mario x=250 and pg1 at 6. The camera likely jumped. Many things changed.
+    
+    Let me run diff increased.
+    `$0086` wrapped 250→6 (Mario crossed x=256). Now let me find the byte that flipped with the page.
+    → diff_memory {"a": "pg0", "b": "pg1", "filter": "increased", "name": "pgd"}
+[ 166 15:23:16] RESULT diff_memory
+    {"a":"pg0","b":"pg1","filter":"increased","considered":2048,"matched":38,"hits":[{"address":9,"old":107,"new":135,"address_hex":"0x0009"},{"address":69,"old":0,"new":1,"address_hex":"0x0045"},{"address":109,"old":0,"new":1,"address_hex":"0x006D"},{"address":245,"old":75,"new":116,"address_hex":"0x00F5"},{"address":247,"old":5,"new":7,"address_hex":"0x00F7"},{"address":248,"old":19,"new":22,"address_hex":"0x00F8"},{"address":249,"old":31,"new":36,"address_hex":"0x00F9"},{"address":495,"old":15,"new":17,"address_hex":"0x01EF"},{"address":496,"old":15,"new":17,"address_hex":"0x01F0"},{"address":7… [+1789 chars]
+[ 169 15:23:30] ASSISTANT (turn 1 step 21) · in 1034 (cache 91008) out 2774
+    ▷ $006D went 0 → 1! That's the page byte.
+    
+    And $0045 0→1 (facing/moving dir), $071B 0→1 (nametable page select?), etc.
+    
+    So $006D = page byte, $0086 = position within page. That matches my recollection of SMB: Player_PageLoc = $006D, Player_X_Position = $006E?? Hmm, but $006E read 1 earlier and $0086 is the position. Hmm interesting — so the classic addresses are $006D (page) and $0086? Hmm.
+    
+    Wait, maybe $0086 is Player_X_Position and $006D is Player_PageLoc. Actually hmm, maybe real SMB has `Player_X_Position = $0086`? Let me reconsider — no. Actually I now recall the smbdis map might be:
+    - Player_X_Position = $0086? Hmm no.
+    
+    Hmm, whatever. Let me verify $006D is the page byte by writing it. Since Mario is at page 1 position 6 (world x = 256+6 = 262), the screen scroll $073F=23. Hmm, so camera page? $071B = 1 (nametable page). $006D = 1.
+    
+    Wait, but $006D=1 is the *player* page (Player_PageLoc). And Mario at $0086=6 means world x = 256*1 + 6 = 262. Consistent! 
+    
+    Now let me prove $006D. How? Write $006D = 2 and see... hmm, Mario's world x would become 512+6. That would teleport him far and the game would likely scroll. Screenshot would show a different part of the level. That's a proof… [+7719 chars]
+    `$006D` flipped 0→1 exactly when `$0086` wrapped — that's the page byte. `$071B` (nametable page) also flipped. Let me prove `$006D` by writing it and seeing Mario move a whole page.
+    → read_memory {"address": 109, "length": 2}
+    → read_memory {"address": 1855, "length": 1}
+    → read_memory {"address": 1819, "length": 1}
+    → save_state {"slot": 1}
+[ 171 15:23:30] RESULT read_memory
+    {"address":109,"bytes":[1,1],"mem_type":"cpuDebug"}
+[ 173 15:23:30] RESULT read_memory
+    {"address":1855,"bytes":[23],"mem_type":"cpuDebug"}
+[ 175 15:23:30] RESULT read_memory
+    {"address":1819,"bytes":[1],"mem_type":"cpuDebug"}
+[ 177 15:23:30] RESULT save_state
+    {"slot":1,"bytes":4729,"action":"saved","stepped_frames":0,"paused":false}
+[ 180 15:23:43] ASSISTANT (turn 1 step 22) · in 207 (cache 94720) out 2622
+    ▷ Current: $006D=1, $006E=1 (hmm, $006E is 1 again — so $006E is not Mario's position; it's something else), $0086=6, $073F=23, $071B=1.
+    
+    So world x = 256*1 + 6 = 262, camera scroll = 256*1 + 23? Hmm, $073F=23 and page 1 → camera x = 279. screen x = 262 - (256+23) = -17? That can't be. Hmm.
+    
+    Wait: $073F is the scroll within the current page but the page for the scroll... Let me reconsider. screen x = Mario_world_x - camera_x. Mario screen x should be ~112 (camera locks). 262 - camera = 112 → camera = 150. Hmm, camera = 150? But $073F=23. So camera_x = 128 + 23 = 151? Hmm! That would mean the camera page starts at 128, not 256. 
+    
+    Hmm, actually in SMB the nametables are 256 wide, and the scroll register $073F goes 0-255. The camera x = nametable_page*256 + $073F. If nametable page 0 and $073F=23 → camera=23. Then Mario screen x = 262-23 = 239. Hmm, that's at the right edge. Actually plausible! Mario just crossed the page boundary at x=256 while screen was near right edge? No — before crossing, Mario was at 250 with camera 0 → screen 250. So yes, Mario was at the right edge and the camera hadn't scrolled. After walking to 262, camera moved to 23, screen x = 239.
+    
+    Hmm OK. So camera = 0*2… [+7156 chars]
+    Now the page byte test: write `$006D` from 1 to 0 (Mario's world x becomes 256·0+6=6, near the level start) and let the camera settle.
+    → write_memory {"address": 109, "bytes": [0]}
+    → step_frame {"count": 30}
+[ 182 15:23:43] RESULT write_memory
+    {"bytes_written":1,"address":109,"mem_type":"cpu","persistent":false}
+[ 184 15:23:43] RESULT step_frame
+    {"stepped":30,"paused":true}
+[ 188 15:23:45] ASSISTANT (turn 1 step 23) · in 15438 (cache 97536) out 164
+    ▷ Now screenshot to see result.
+    → screenshot {}
+    → read_memory {"address": 109, "length": 2}
+    → read_memory {"address": 1855, "length": 1}
+    → read_memory {"address": 5, "length": 1}
+[ 190 15:23:45] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1521-sheet3-x-rerun-r3/images/task-1/226fbb6b7c24.png
+[ 192 15:23:45] RESULT read_memory
+    {"address":109,"bytes":[0,1],"mem_type":"cpuDebug"}
+[ 194 15:23:45] RESULT read_memory
+    {"address":1855,"bytes":[23],"mem_type":"cpuDebug"}
+[ 196 15:23:45] RESULT read_memory
+    {"address":5,"bytes":[0],"mem_type":"cpuDebug"}
+[ 199 15:23:53] ASSISTANT (turn 1 step 24) · in 548 (cache 113024) out 1463
+    ▷ Interesting! After writing $006D=0 and stepping 30 frames:
+    - $006D=0, $0086=1 (Mario world x = 0*256+1 = 1)
+    - $073F = 23 (scroll unchanged!)
+    - $0005 = 0 (screen x = $0086 - $073F = 1-23 = -22 → 0 clipped?)
+    
+    The screenshot shows Mario at the far LEFT edge of the screen (x≈0, y≈195), on the green hill. The camera is still showing... hmm, the ? block at right x~240 which was the same ? block seen in pg1. So the camera didn't move (scroll still 23), but Mario moved to the far left of the screen.
+    
+    So writing $006D moved Mario by -256 px (from world 262 to world 6→then 1). The camera stayed. Mario is now at the left edge, partly off-screen. That proves $006D is Mario's page byte: it shifted Mario's horizontal position by exactly 256 pixels.
+    
+    Hmm, but wait: $0086 changed from 6 to 1 after 30 frames? Because Mario was walking? No, no input. Maybe gravity/physics nudged. Or the game clamps. Anyway.
+    
+    Actually, the fact that $0086 = 1 and Mario is at the screen's left edge with the camera at scroll 23 confirms Mario's world x dropped by 256. 
+    
+    Hmm, but actually is it possible that $006D is the *camera* page and writing it moved the camera? The camera scroll $073F stayed 23. And Mario moved to… [+3478 chars]
+    Mario jumped to the **left** edge of the screen (the camera stayed put, `$073F`=23), while `$006D` went 1→0 and `$0086` went 6→1. That's a shift of exactly −256 px: `$006D` is Mario's page byte. Let me confirm the camera page (`$071B`) is unchanged, then restore a sane state.
+    → read_memory {"address": 1819, "length": 2}
+    → list_sprites {}
+    → load_state {"slot": 1}
+[ 201 15:23:54] RESULT read_memory
+    {"address":1819,"bytes":[1,23],"mem_type":"cpuDebug"}
+[ 203 15:23:54] RESULT list_sprites
+    {"sprites":[{"width":8,"attr":35,"index":0,"palette":7,"tile":255,"x":88,"y":25,"height":8,"flip_v":false,"chr_tile":255,"behind_background":true,"flip_h":false},{"width":8,"attr":0,"index":1,"palette":4,"tile":252,"x":0,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":2,"palette":4,"tile":252,"x":8,"y":177,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"flip_h":false},{"width":8,"attr":0,"index":3,"palette":4,"tile":252,"x":0,"y":185,"height":8,"flip_v":false,"chr_tile":252,"behind_background":false,"fli… [+887 chars]
+[ 205 15:23:54] RESULT load_state
+    {"slot":1,"bytes":4729,"action":"loaded","stepped_frames":0,"paused":false}
+[ 208 15:23:59] ASSISTANT (turn 1 step 25) · in 734 (cache 114944) out 879
+    ▷ $071B=1 (camera page unchanged), while $006D=0 (player page). So they are distinct: $006D is the player's page, $071B is the camera/nametable page. Good disambiguation.
+    
+    And list_sprites confirmed Mario's sprites (palette 4) at x=0/8 — the left edge. 
+    
+    Now load_state slot 1 restored.
+    
+    Let me verify the restore: read $006D, $0086.
+    
+    Actually, let me take a screenshot after restore to confirm.
+    
+    Then record mappings:
+    1. $0086 — player_x_position (horizontal position within the page). notes: encoding, proof.
+    2. $006D — player_x_page (page number of Mario's horizontal position).
+    
+    Also might record $071B as camera page? Not asked. Could be a bonus but let's keep focused. Actually it's useful context for notes on $006D. I'll mention in notes.
+    
+    Hmm, also the task says "Report each address, its encoding and what the proof screenshot showed." So report both.
+    
+    Let me also consider whether to record $0005 (screen-space copy). Not necessary.
+    
+    Wait — but I should double check one thing: is $0086 really the *player's* X, or could it be the camera's "ScreenRight_X_Pos"? We proved writing $0086 moves Mario (his sprites jumped to x=200). So it's Mario's position. Good.
+    
+    Hmm, but there's a subtlety: c… [+1524 chars]
+    `$071B` (camera/nametable page) stayed **1** while `$006D` went to 0 — so `$006D` is Mario's own page, distinct from the camera. Sprites confirmed Mario at x=0/8. Let me verify the state restore.
+    → screenshot {}
+    → read_memory {"address": 109, "length": 2}
+[ 210 15:23:59] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1521-sheet3-x-rerun-r3/images/task-1/42aacacf5501.png
+[ 212 15:23:59] RESULT read_memory
+    {"address":109,"bytes":[1,1],"mem_type":"cpuDebug"}
+[ 215 15:24:08] ASSISTANT (turn 1 step 26) · in 470 (cache 116480) out 1995
+    ▷ Restored: $006D=1, $0086=1?? Hmm, $0086 = 1 now, not 6. And $006E = 1. Hmm.
+    
+    Wait, loaded state slot 1 which was saved when $006D=1, $0086=6. But now $0086 reads 1? Hmm. Maybe while paused after load, the game ran a frame (load_state runs one frame while paused) and Mario moved? Mario is stationary without input, so $0086 shouldn't change from 6 to 1.
+    
+    Hmm, unless the save was taken at a moment when $0086 was different. Let me not worry — the screenshot shows Mario at the right edge on the hill (x~245), consistent with world x ≈ 256+something with camera at ~23? Hmm, Mario at right edge screen x ~245. If camera scroll=23 and world x = $006D*256+$0086 = 256+1 = 257, screen x = 257-23 = 234. Close to the ~245 observed. OK.
+    
+    Hmm, but earlier at pg1 $0086 was 6 and Mario at ~245 too. So between 6 and 1, his screen x changed by 5, imperceptible. Fine.
+    
+    Actually hold on: this is concerning — did the game clamp $0086? The state I saved (slot 1) had $0086=6 and $006D=1 at the moment of save (right after the pg1 reads). But load_state restored and one frame ran. $0086=1. Hmm, maybe the game's physics pushed Mario back? There might be a wall/hill. Not important.
+    
+    OK. Now record the mappings.… [+2403 chars]
+    Restored (Mario back at world x ≈ 257, right edge of the page). Both facts are proven. Recording them.
+    → record_mapping {"mapping_type": "address", "id": "0x0086", "name": "player_x_position (Mario horizontal position within the level page)", "category": "player", "format": "binary, pixels within the current 256-px page (world x = $006D*256 + $0086)", "notes": "Encoding: one byte, Mario's horizontal position in the level measured inside the current 256-pixel page; the page number is $006D, so the absolute level X i… [+1023 chars]
+    → record_mapping {"mapping_type": "address", "id": "0x006D", "name": "player_x_page (page number of Mario's horizontal position)", "category": "player", "format": "binary, 0-based 256-px page (world x = page*256 + $0086)", "notes": "Encoding: one byte, the 256-pixel page of Mario's horizontal position; the within-page position is $0086, so the absolute level X is $006D*256 + $0086. It is 0 at the level start and i… [+802 chars]
+[ 217 15:24:08] RESULT record_mapping
+    {"mapping_type":"address","id":"0x0086","name":"player_x_position (Mario horizontal position within the level page)","format":"binary, pixels within the current 256-px page (world x = $006D*256 + $0086)","category":"player","group":null,"notes":"Encoding: one byte, Mario's horizontal position in the level measured inside the current 256-pixel page; the page number is $006D, so the absolute level X is $006D*256 + $0086. At the 1-1 start it reads 40 ($28). A screen-space copy is written every frame at $0005 (= $0086 - camera scroll $073F) and at $03AD/$0755, and Mario's OAM X entries mirror it. … [+888 chars]
+[ 219 15:24:08] RESULT record_mapping
+    {"mapping_type":"address","id":"0x006D","name":"player_x_page (page number of Mario's horizontal position)","format":"binary, 0-based 256-px page (world x = page*256 + $0086)","category":"player","group":null,"notes":"Encoding: one byte, the 256-pixel page of Mario's horizontal position; the within-page position is $0086, so the absolute level X is $006D*256 + $0086. It is 0 at the level start and increments when Mario's world X crosses a multiple of 256. Found by differential search with no reference: after writing $0086 = 250 and holding Right 25 frames (Mario walked across x=256), the pg0 -… [+667 chars]
+[ 222 15:24:10] ASSISTANT (turn 1 step 27) · in 839 (cache 118912) out 69
+    ▷ Now promote_mappings once at the end. Also maybe leave the game running/resumed.
+    
+    Let me call promote_mappings and resume_emulator.
+    → promote_mappings {}
+    → resume_emulator {}
+[ 224 15:24:10] RESULT promote_mappings
+    Promoted 2 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 14 tiles, 7 palettes, 1 sprites, 12 addresses. 0 hypotheses skipped.
+[ 226 15:24:10] RESULT resume_emulator
+    {"resumed":true}
+[ 230 15:24:15] ASSISTANT (turn 1 step 28) · in 16197 (cache 119808) out 740
+    ▷ Done. Let me write the final report.
+    
+    Report:
+    - $0086: Mario's horizontal position within the 256-px page. Encoding binary, 0-255.
+    - $006D: page number. World x = $006D*256 + $0086.
+    
+    Proofs and screenshots described.
+    
+    Also mention $0005/$03AD are derived screen-space copies, and $071B is the camera page.
+    
+    Keep concise.
+    Done — promoted to the shared mapping file.
+    
+    ## Mario's horizontal position in World 1-1
+    
+    **The address pair**
+    
+    | Address | Name | Encoding |
+    |---|---|---|
+    | `$0086` | Mario's horizontal position **within the current page** | one binary byte, 0–255 px |
+    | `$006D` | Mario's X **page number** | one binary byte, 0-based; +1 every 256 px |
+    
+    Absolute level X = **`$006D` × 256 + `$0086`**. At the 1-1 start `$006D`=0, `$0086`=40 (`$28`).
+    
+    **How each was found (differential search, no reference)**
+    - Snapshot while idle → held Right 60 frames → `increased` left **82** survivors; a second 60-frame walk narrowed d1 to **32**. `$0086` stepped 40 → 129 → 218 while the camera scroll `$073F` stepped 0 → 39 → 112, and `$0086 − $073F` exactly equalled Mario's on-screen x (90 → 106) — so `$0086` is Mario's world X, not the camera.
+    - Wrote `$0086`=250 and held Right 25 frames: `$0086` wrapped 250→6 and the page byte `$006D` ticked 0→1 (that `equals`/`increased` round left **38** survivors).
+    
+    **Write proofs (what the screenshots showed)**
+    - `write_memory $0086 = 200` (0xC8), one frame: Mario's palette-4 sprites moved from x=40/48 to **x=200/208** (`list_sprites`), `$0086` read back 200, and the screenshot showed him standing out by the first bush instead of at the level start.
+    - `write_memory $006D = 0` (with `$0086`=6), 30 frames: Mario's sprites jumped to OAM **x=0/8** and the screenshot showed him at the **far-left hill** instead of the right edge — a shift of exactly one page (−256 px). The camera was untouched (`$073F`=23, camera page `$071B`=1), which is how `$006D` was shown to be Mario's own page rather than the camera's.
+    
+    **Related addresses (not the position itself):** `$0005`, `$03AD`, `$0755` are the per-frame *screen-space* copy (`$0086 − $073F`, equal to Mario's OAM X), and `$071B` is the camera/nametable page. Note `$006E` is **not** the player position here — it never tracked walking.
+    
+    Both entries are recorded with `source: "differential search"` and promoted (mapping file now has 12 addresses). The emulator is running again with the game restored to a sane state.
+[ 232 15:24:15] ─── turn 1 end: {"kind":"completed"}
+
