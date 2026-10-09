@@ -24,4 +24,13 @@ describe("eval-mapping-in", () => {
     expect(Object.keys(out.addresses)).toEqual(["0x0860"]);
     expect(out.notes).toEqual(["other"]);
   });
+
+  it("holds back mentions of a held-back entry's ROM origin, as a PRG offset or a CPU address", () => {
+    const mapping = { tiles: { "0x53-0x56": { name: "? block", rom_origins: [{ mem: "prgRom", offset: 0xc8c, length: 4 }] } },
+      routines: { "0x8B00": { name: "draws from $8C8C" } }, notes: ["table at prgRom 0xC8C", "other"] };
+    const spec = { prg_base: 0x8000, lines: [{ id: "m", entry: "tiles.0x53-0x56" }] };
+    const { mapping: out } = stripLines(mapping, spec, ["m"]);
+    expect(out.routines).toEqual({});
+    expect(out.notes).toEqual(["other"]);
+  });
 });
