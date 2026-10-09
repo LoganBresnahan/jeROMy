@@ -117,14 +117,17 @@ for t in "${TASKS[@]}"; do
   sid="$(sed -n 's/.*replay: scripts\/dsh-log.mjs show \([0-9a-f-]*\).*/\1/p' "$RUN/streams/task-$i.trio.txt" | tail -1)"
   [ -n "$out" ] && cp "$out/custom.jsonl" "$RUN/streams/task-$i.jsonl"
   # A turn that ended on a provider error (2026-10-09: MALFORMED_RESPONSE, a tool call streamed as invalid JSON)
-  # lost the task's work; resume the same session once so what it had found can still be proven and recorded.
-  if [ -n "$sid" ] && [ ! -f "$RUN/.capped" ] && grep -q '"phase":"turn_end".*"kind":"error"' "$RUN/streams/task-$i.jsonl" 2>/dev/null; then
-    echo "[eval-run] task $i ended on an error; resuming session $sid once"
-    echo "- task $i: turn ended on an error ($(grep -o '"code":"[A-Z_]*"' "$RUN/streams/task-$i.jsonl" | tail -1)); resumed once with \"continue\"" >> "$RUN/config.md"
-    TRIO_SESSION_ID="session-$sid" scripts/trio.sh --blind --task "continue" 1 | tee "$RUN/streams/task-$i.r1.trio.txt"
-    rout="$(sed -n 's/^\[trio\] streams in //p' "$RUN/streams/task-$i.r1.trio.txt" | tail -1)"
-    [ -n "$rout" ] && cp "$rout/custom.jsonl" "$RUN/streams/task-$i.r1.jsonl"
-  fi
+  # lost the task's work; resume the same session, up to three times (eval/failures.md F1: one resume was not enough
+  # in sheet3-worldlevel-rerun r1 and r3, and the error is not deterministic), so what it found can still be recorded.
+  last="$RUN/streams/task-$i.jsonl"; n=0
+  while [ -n "$sid" ] && [ $n -lt 3 ] && [ ! -f "$RUN/.capped" ] && grep -q '"phase":"turn_end".*"kind":"error"' "$last" 2>/dev/null; do
+    n=$((n+1))
+    echo "[eval-run] task $i ended on an error; resuming session $sid ($n of 3)"
+    echo "- task $i: turn ended on an error ($(grep -o '"code":"[A-Z_]*"' "$last" | tail -1)); resume $n with \"continue\"" >> "$RUN/config.md"
+    TRIO_SESSION_ID="session-$sid" scripts/trio.sh --blind --task "continue" 1 | tee "$RUN/streams/task-$i.r$n.trio.txt"
+    rout="$(sed -n 's/^\[trio\] streams in //p' "$RUN/streams/task-$i.r$n.trio.txt" | tail -1)"
+    [ -n "$rout" ] && cp "$rout/custom.jsonl" "$RUN/streams/task-$i.r$n.jsonl" && last="$RUN/streams/task-$i.r$n.jsonl"
+  done
   if [ -n "$sid" ]; then
     node scripts/dsh-log.mjs show "$sid" --images "$RUN/images/task-$i" > "$RUN/transcripts/task-$i.txt" 2>&1
   fi

@@ -26,9 +26,14 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Changed:** `eval-run.sh` resumes the session once with "continue"
   (`TRIO_SESSION_ID`), and `eval-grade.mjs` joins a task's streams so a
   proof before the error still counts (commit `7593dc6`).
-- **Status:** `fixed` (`20261009-1241-sheet5-routines`: task 2 hit
-  `MALFORMED_RESPONSE` after 5 calls; the resumed session found and
-  recorded both of its routines). Twice in five tasks so far: expect it.
+- **Status:** `changed` (reopened). Fixed once (`20261009-1241-sheet5-routines`
+  task 2, one resume), then `sheet3-worldlevel-rerun` r1 and r3 were lost
+  with one resume each (r1's resume failed in four seconds, r3's after 15
+  calls). Five of fifteen tasks so far. The error is not deterministic: a
+  manual resume of r3's session later completed. Runner now resumes up to
+  three times. A debug line in the dsh checkout (env-gated,
+  `JEROMY_DEBUG_TOOLJSON`) logs the provider's raw tool arguments on the
+  next occurrence; it is removed at the end of the session.
 - **A re-run checks:** when a task's `config.md` shows "resumed once", the
   resumed stream recorded what the first stream had found.
 
@@ -46,7 +51,9 @@ change bought; if the failure comes back, reopen it with the new run.
   by `equals` the shown value and `unchanged` across play until every
   survivor is listed, then bisect with writes, a forced redraw and save
   states (commit after `06957a4`).
-- **Status:** `changed`.
+- **Status:** `changed`; not measurable on SMB (`sheet3-worldlevel-rerun`:
+  the one completed repeat went to the remembered block and skipped the
+  route). Its test is the holdout's counters, three repeats.
 - **A re-run checks:** the line's claim is `derived` (its address came out
   of the session's own search), not read from a guessed block.
 
