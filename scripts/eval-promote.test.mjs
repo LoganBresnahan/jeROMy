@@ -45,4 +45,12 @@ describe("eval-promote", () => {
     expect(mapping.addresses["0x03AD"].description).toBe("new");
     expect(mapping.addresses["0x075A"].description).toBe("lives");
   });
+
+  it("never adds a side entry its own run graded wrong", () => {
+    const spec = { lines: [{ id: "x" }] };
+    const runs = [{ id: "r1", rows: [row("y", "0x03AD", "disagrees")], copy: copy({ "0x03AD": { description: "wrong" } }) }];
+    const mapping = { addresses: {}, notes: [] };
+    apply(mapping, spec, decide(spec.lines, runs), runs);
+    expect(mapping.addresses).toEqual({});
+  });
 });

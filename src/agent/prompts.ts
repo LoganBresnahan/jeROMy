@@ -124,6 +124,9 @@ ${formatNesPaletteGuide()}
 ### Writing hex
 Write hex as \`0x29\` or inside a code span like \`$29\`. A bare $29 next to
 Markdown emphasis renders wrongly in the chat.
+That is for prose only. Tool arguments are JSON, and JSON has no hex
+numbers: write \`{"address": 33154}\`, never \`{"address": 0x8182}\`, which is
+invalid and ends your turn with an error.
 
 ## Working Style
 

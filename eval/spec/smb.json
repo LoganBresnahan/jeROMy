@@ -2,7 +2,7 @@
   "game": "Super Mario Bros. (World)",
   "sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
   "rom_path": "C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes",
-  "spec_version": 3,
+  "spec_version": 4,
   "holdout": false,
   "mapper": "NROM",
   "prg_base": 32768,
@@ -11,7 +11,8 @@
     "match: a claim belongs to the line when every word of one group appears in the claim's name (words are lowercased, camelCase and punctuation split, plural s dropped; xpos becomes x pos). exclude: words that take a claim off the line. Matching is vocabulary, not the answer.",
     "ref: the reference symbols that grade the line (scripts/score-mapping.mjs). span: how many bytes from the symbol's address count as the same thing, when the reference gives no size (BCD digit runs). A run never sees this file: trio.sh voids a blind run whose shell reads eval/, hacks/ or mappings/.",
     "Lines with grader claude are judged from the run's saved images; the scorer lists them as needs-judge.",
-    "v3 (2026-10-09, before the first sheet-5 run): the coin and timer routine lines exclude helper vocabulary and the digit-helper line takes it, so a claim about SMB's shared BCD adder (DigitsMathRoutine, called by GiveOneCoin and RunGameTimer) is graded on the helper's line. Vocabulary only; no reference changed."
+    "v3 (2026-10-09, before the first sheet-5 run): the coin and timer routine lines exclude helper vocabulary and the digit-helper line takes it, so a claim about SMB's shared BCD adder (DigitsMathRoutine, called by GiveOneCoin and RunGameTimer) is graded on the helper's line. Vocabulary only; no reference changed.",
+    "v4 (2026-10-09, eval/runs/20261009-1414-sheet5b-entry-dispatch-palette): E3.vram_writer added (attributes.md E3 lists the renderer's writers); E1.nmi excludes writer vocabulary, since a claim about the NMI's VRAM writer had landed on the NMI line."
   ],
   "lines": [
     {
@@ -1544,7 +1545,10 @@
       ],
       "grader": "reference",
       "proof": "read_memory at $FFFC, disassemble",
-      "status": "open"
+      "status": "promoted",
+      "run": "20261009-1414-sheet5b-entry-dispatch-palette",
+      "verdict": "agrees",
+      "entry": "routines.0x8000"
     },
     {
       "id": "E1.nmi",
@@ -1569,7 +1573,18 @@
       ],
       "grader": "reference",
       "proof": "read_memory at $FFFA, disassemble",
-      "status": "open"
+      "status": "promoted",
+      "exclude": [
+        "write",
+        "writer",
+        "buffer",
+        "vram",
+        "copy",
+        "update"
+      ],
+      "run": "20261009-1414-sheet5b-entry-dispatch-palette",
+      "verdict": "agrees",
+      "entry": "routines.0x8082"
     },
     {
       "id": "E2.mode_dispatch",
@@ -1597,7 +1612,10 @@
       ],
       "grader": "reference",
       "proof": "disassemble",
-      "status": "open"
+      "status": "promoted",
+      "run": "20261009-1414-sheet5b-entry-dispatch-palette",
+      "verdict": "agrees",
+      "entry": "routines.0x8212"
     },
     {
       "id": "E3.palette_loader",
@@ -1620,6 +1638,40 @@
       ],
       "grader": "reference",
       "proof": "trace_writes on $2007 during an area load",
+      "status": "promoted",
+      "run": "20261009-1414-sheet5b-entry-dispatch-palette",
+      "verdict": "agrees",
+      "entry": "routines.0x85BF"
+    },
+    {
+      "id": "E3.vram_writer",
+      "class": "E3",
+      "sheet": 5,
+      "type": "routine",
+      "name": "VRAM buffer writer (copies queued writes to $2006/$2007 during the NMI)",
+      "match": [
+        [
+          "vram"
+        ],
+        [
+          "buffer",
+          "write"
+        ],
+        [
+          "ppu",
+          "write"
+        ],
+        [
+          "update",
+          "screen"
+        ]
+      ],
+      "ref": [
+        "UpdateScreen",
+        "WriteBufferToScreen"
+      ],
+      "grader": "reference",
+      "proof": "trace_writes on $2007, disassemble",
       "status": "open"
     },
     {

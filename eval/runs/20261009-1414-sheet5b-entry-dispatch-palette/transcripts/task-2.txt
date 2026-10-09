@@ -1,0 +1,1414 @@
+# session-a888066e-d0cb-41ba-8dc0-4042a37724ac · Map Super Mario Bros game routines
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-09T19:15:27.599Z
+
+[   3 14:15:27] QUEUED <user> for next-turn: Mapping sheet 5 (the routines), Super Mario Bros.: find the routine that decides what the game runs each frame depending on whether it is on the title screen, in a level, or at game over (the game-mod… [+1456 chars]
+[   4 14:15:27] ━━━ turn 1 ━━━
+[   8 14:15:27] USER <user>
+    Mapping sheet 5 (the routines), Super Mario Bros.: find the routine that decides what the game runs each frame depending on whether it is on the title screen, in a level, or at game over (the game-mode dispatch), and the routine that loads an area's background and sprite colors when a level starts (the colors come from a table in PRG; the hardware palette is written through $2006/$2007, possibly from a RAM buffer that the frame interrupt copies). No reference is available. Use read_memory, disassemble, trace_writes (mode write or read) and search_memory. A routine's entry is where it begins (the target of the vector, jsr or jmp that reaches it), not an instruction inside it; record the entry. Prove each routine by showing its code with disassemble and saying which instructions do the job. Record each with record_mapping: mapping_type routine, id the entry address in hex (CPU address), a plain name, notes with how it was found and the instructions that do the job, length if known, source 'trace and disassembly'. Call promote_mappings once at the end. Report each routine's entry, what it does, and the evidence. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again, and take a screenshot to confirm World 1-1 began. Holding Right for about four seconds from the start of 1-1 runs into the first enemy and loses a life; the level reloads after a black WORLD card. trace_writes needs the game running, not paused. Each play_input call is at most 600 frames; chain calls.
+[   9 14:15:27] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 14:15:27] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 14:15:36] ASSISTANT (turn 1 step 1) · in 1079 (cache 14720) out 1829
+    ▷ Let me start by taking a screenshot to see the current state.
+    
+    Let me plan. I need to find two routines in Super Mario Bros.:
+    1. Game-mode dispatch routine (title screen vs in-level vs game over).
+    2. Routine that loads area's background/sprite colors when a level starts (palette loading).
+    
+    I know SMB well. The game mode is stored at $0770 (GameMode) / $0776 (OperMode)? Let me recall the SMB disassembly (smbdis.asm by doppelganger). Known addresses:
+    - `GameRoutines` / `GameMode`: $0770 is `GameMode`. There's a routine `GameMode`? Actually in doppelganger's disassembly:
+      - `OperMode` = $0776, `GameMode` = $0770.
+      - The main game loop `MainGameLoop`? At $80xx.
+      - `PlaySound`...
+      - `InitializeGame` etc.
+    
+    Actually the routine that dispatches based on game mode is `GameRoutines`? Let me think. In doppelganger's SMB disassembly:
+    
+    ```
+    GameEngine:
+          ...
+          lda GameMode
+          jsr JumpEngine
+          .dw TitleScreenMode
+          .dw GameMode
+          .dw VictoryMode
+          .dw GameOverMode
+    ```
+    
+    Hmm. Actually I recall:
+    
+    ```
+    GameEngine:
+            inc FrameCounter
+            ...
+    ```
+    
+    Let me just do it empirically with the emulator tools. But I can use my knowledge as leads, then confirm with disasse… [+5021 chars]
+    I'll start by checking the ROM and current screen state.
+    → get_rom_info {}
+    → screenshot {}
+    → read_memory {"address": 0, "length": 32, "mem_type": "palette"}
+[  18 14:15:37] RESULT get_rom_info
+    {"name":"Super Mario Bros. (World).nes","sha1":"33D23C2F2CFA4C9EFEC87F7BC1321CE3CE6C89BD","path":"C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes"}
+[  20 14:15:37] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1414-sheet5b-entry-dispatch-palette/images/task-2/6c1f3832c1b2.png
+[  22 14:15:37] RESULT read_memory
+    {"mem_type":"palette","bytes":[34,41,26,15,15,54,23,15,15,48,33,15,15,7,23,15,34,22,39,24,15,26,48,39,15,22,48,39,15,15,54,23],"address":0}
+[  28 14:15:42] ─── turn 1 end: {"kind":"error","error":{"message":"DeepSeek Messages stream: tool input is invalid JSON","code":"MALFORMED_RESPONSE"}}
+
+[  30 14:15:51] QUEUED <user> for next-turn: continue
+[  31 14:15:51] ━━━ turn 2 ━━━
+[  35 14:15:51] USER <user>
+    continue
+[  37 14:15:55] ASSISTANT (turn 2 step 1) · in 16541 (cache 17920) out 590
+    ▷ The game is currently in World 1-1 (screenshot shows gameplay). I need to find two routines:
+    
+    1. Game-mode dispatch: decides title screen vs in-level vs game over. Known SMB: `GameMode` at $0770, and dispatch routine. I recall the routine is at $82B0-ish, called `GameEngine`? Let me search PRG for `AD 70 07` (LDA $0770).
+    
+    2. Palette loading routine for level start. Known SMB: `LoadAreaPalettes`? Actually there's routine at $... Let me search.
+    
+    Let me disassemble region around $8000-$8200 maybe. Actually I recall in doppelganger's disassembly:
+    
+    ```
+    ;;; $82A1: GameEngine
+    GameEngine:
+          lda GameMode
+          jsr JumpEngine
+          .dw TitleScreenMode
+          ...
+    ```
+    
+    Hmm. Actually wait — the NMI calls `$8182`? Let me check. In the mapping notes: NMI at $8082 calls $F2D0, $8E5C, $8182, $8F97. So $8182 is per-frame logic. Let me disassemble $8182. That is likely the "GameEngine" dispatch! Actually $8182 is right after NMI's RTI at $8181. Hmm, NMI ends at $8181 with RTI; $8182 is the next routine. NMI calls JSR $8182. That's per-frame game logic. Let me disassemble it.
+    
+    Actually in doppelganger's SMB disassembly, `GameEngine` might be at $8182? Let me think. The NMI handler is `NMI` and it c… [+170 chars]
+    The game is currently in World 1-1. Let me hunt for the game-mode dispatch. I'll search PRG for code that reads the game-mode byte and disassemble the per-frame routine the NMI calls.
+    → search_memory {"hex": "AD 70 07", "mem_type": "prgRom", "max_results": 40}
+    → disassemble {"address": 32898, "length": 160}
+[  39 14:15:55] RESULT search_memory
+    {"pattern_length":3,"offsets":[386,530,1425,1704,1791,1842,3935,4333,14159,29392],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":["0x182","0x212","0x591","0x6A8","0x6FF","0x732","0xF5F","0x10ED","0x374F","0x72D0"]}
+[  41 14:15:55] RESULT disassemble
+    $8082: ad 78 07    lda 0x0778
+    $8085: 29 7f       and #0x7f
+    $8087: 8d 78 07    sta 0x0778
+    $808a: 29 7e       and #0x7e
+    $808c: 8d 00 20    sta 0x2000
+    $808f: ad 79 07    lda 0x0779
+    $8092: 29 e6       and #0xe6
+    $8094: ac 74 07    ldy 0x0774
+    $8097: d0 05       bne 0x0000
+    $8099: ad 79 07    lda 0x0779
+    $809c: 09 1e       ora #0x1e
+    $809e: 8d 79 07    sta 0x0779
+    $80a1: 29 e7       and #0xe7
+    $80a3: 8d 01 20    sta 0x2001
+    $80a6: ae 02 20    ldx 0x2002
+    $80a9: a9 00       lda #0x00
+    $80ab: 20 e6 8e    jsr 0x8ee6
+    $80ae: 8d 03 20    sta 0x2003
+    $80b1: a9 02       lda #0x02
+    $80b3: 8d 14 40    sta 0x4014
+    $80b6: … [+1302 chars]
+[  45 14:15:59] ASSISTANT (turn 2 step 2) · in 14158 (cache 34944) out 503
+    ▷ Interesting. The NMI calls JSR $8182 (per-frame logic). Note the disassembly of the NMI at $8082... but wait, the mapping says NMI at $8082 length 256, RTI at $8181. And $80EA is `jsr 0x8182`. So $8182 is the per-frame game logic. Let me disassemble $8182.
+    
+    But wait, there's a discrepancy: the disassembly output shows `jsr 0x8ee6` at $80ab while the mapping says $8EDD. Whatever. The key: $8182.
+    
+    Hmm, but a game-mode dispatch that runs each frame is likely called from NMI each frame. Let me disassemble $8182.
+    
+    Also search result offsets are prgRom offsets (no header). Offset 0x182 => CPU $8182 if PRG starts at CPU $8000 and prgRom offset 0 = CPU $8000. Indeed prgRom 0x182 corresponds to CPU $8182. That's `AD 70 07` = LDA $0770! So $8182 is LDA $0770 — the game-mode dispatch routine entry likely. Let me disassemble.
+    
+    Other offsets: 0x212 -> CPU $8212, 0x591 -> $8591, 0x6A8 -> $86A8, 0x6FF -> $86FF, 0x732 -> $8732, 0xF5F -> $8F5F (that's AddBCD, contains 0770 guard), 0x10ED -> $90ED, 0x374F -> $B74F (DecrementTimer LDA $0770), 0x72D0 -> $F2D0.
+    
+    So $8182 starts with LDA $0770. Let me disassemble it.
+    Search hit offsets include prgRom `0x182` = CPU `$8182`, which the NMI calls every frame as game logic, and it begins with `LDA $0770`. Let me disassemble it.
+    → disassemble {"address": 33154, "length": 140}
+[  47 14:15:59] RESULT disassemble
+    $8182: ad 70 07    lda 0x0770
+    $8185: c9 02       cmp #0x02
+    $8187: f0 0b       beq 0x0000
+    $8189: c9 01       cmp #0x01
+    $818b: d0 38       bne 0x0000
+    $818d: ad 72 07    lda 0x0772
+    $8190: c9 03       cmp #0x03
+    $8192: d0 31       bne 0x0000
+    $8194: ad 77 07    lda 0x0777
+    $8197: f0 04       beq 0x0000
+    $8199: ce 77 07    dec 0x0777
+    $819c: 60          rts 
+    $819d: ad fc 06    lda 0x06fc
+    $81a0: 29 10       and #0x10
+    $81a2: f0 19       beq 0x0000
+    $81a4: ad 76 07    lda 0x0776
+    $81a7: 29 80       and #0x80
+    $81a9: d0 1a       bne 0x0000
+    $81ab: a9 2b       lda #0x2b
+    $81ad: 8d 77 07    sta 0x0777
+    $81b0: ad 76… [+1297 chars]
+[  50 14:16:10] ASSISTANT (turn 2 step 3) · in 1164 (cache 49536) out 2483
+    ▷ Hmm, $8182 begins with LDA $0770, CMP #$02, CMP #$01. This looks like it checks game mode. But this is not obviously the dispatch. Let me reconsider. Actually wait, this may be the routine that handles the "game mode" flags for attract/demo and pause. Hmm.
+    
+    Actually, in doppelganger's disassembly, I believe `GameEngine` is at $8182? Let me recall the routine names. Hmm:
+    
+    Known SMB disassembly (smbdis.asm):
+    ```
+    ;;; $8182: GameEngine
+    GameEngine:
+          lda GameMode
+          cmp #$02
+          beq GameEngine_Clear
+          cmp #$01
+          bne ...
+    ```
+    
+    Hmm, not sure. Actually I recall the game-mode dispatch is done via a jump table at $82A1ish. Let me check offset 0x212 = CPU $8212 (LDA $0770). Let me disassemble $8200-$82D0.
+    
+    Actually, hold on. I recall from doppelganger's disassembly:
+    - `GameMode` = $0770
+    - `GameEngine` might be at $8182? No...
+    
+    Let me think about the SMB code structure from memory:
+    ```
+    ;;; $82A1: GameEngine
+    GameEngine:
+            lda GameMode
+            jsr JumpEngine
+    
+            .dw TitleScreenMode
+            .dw GameMode
+            .dw VictoryMode
+            .dw GameOverMode
+    ```
+    
+    Hmm, but the routine at $8182 also starts with LDA $0770. And the NMI calls $8182 each frame. If $8182 is the dispa… [+5028 chars]
+    `$8182` is the NMI-called per-frame routine and starts with `LDA $0770`; but it compares mode values rather than jumping through a table. Let me examine the other `LDA $0770` sites and locate the area palette table.
+    → disassemble {"address": 33280, "length": 208}
+    → search_memory {"hex": "22 29 1A 0F 0F 36 17 0F", "mem_type": "prgRom"}
+    → read_memory {"address": 3275, "length": 40, "mem_type": "prgRom"}
+    → disassemble {"address": 34193, "length": 80}
+[  52 14:16:10] RESULT disassemble
+    $8200: 69 08       adc #0x08
+    $8202: 9d f2 06    sta 0x06f2, x
+    $8205: 18          clc 
+    $8206: 69 08       adc #0x08
+    $8208: 9d f3 06    sta 0x06f3, x
+    $820b: ca          dex 
+    $820c: ca          dex 
+    $820d: ca          dex 
+    $820e: 88          dey 
+    $820f: 10 e8       bpl 0x0000
+    $8211: 60          rts 
+    $8212: ad 70 07    lda 0x0770
+    $8215: 20 04 8e    jsr 0x8e04
+    $8218: 31 82       and (0x82), y
+[  54 14:16:10] RESULT search_memory
+    {"pattern_length":8,"offsets":[],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":[]}
+[  56 14:16:10] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[15,41,26,15,15,54,23,15,15,48,33,15,15,39,23,15,15,22,39,24,15,26,48,39,15,22,48,39,15,15,54,23,0,63,0,32,15,41,26,9],"address":3275}
+[  58 14:16:10] RESULT disassemble
+    $8591: ad 70 07    lda 0x0770
+    $8594: f0 32       beq 0x0000
+    $8596: a2 03       ldx #0x03
+    $8598: 4c c5 85    jmp 0x85c5
+    $859b: ad 44 07    lda 0x0744
+    $859e: 48          pha 
+    $859f: ad 56 07    lda 0x0756
+    $85a2: 48          pha 
+    $85a3: a9 00       lda #0x00
+    $85a5: 8d 56 07    sta 0x0756
+    $85a8: a9 02       lda #0x02
+    $85aa: 8d 44 07    sta 0x0744
+    $85ad: 20 f1 85    jsr 0x85f1
+    $85b0: 68          pla 
+    $85b1: 8d 56 07    sta 0x0756
+    $85b4: 68          pla 
+    $85b5: 8d 44 07    sta 0x0744
+    $85b8: 4c 45 87    jmp 0x8745
+    $85bb: 01 02       ora (0x02, x)
+[  61 14:16:19] ASSISTANT (turn 2 step 4) · in 758 (cache 53120) out 1793
+    ▷ Big discovery: At $8212:
+    ```
+    $8212: ad 70 07    lda 0x0770
+    $8215: 20 04 8e    jsr 0x8e04
+    $8218: 31 82       and (0x82), y
+    ```
+    That's the dispatch! `LDA $0770 / JSR $8E04` then a jump table at $8218. $8E04 is probably `JumpEngine`. The table at $8218: `31 82` = $8231, then next... Let me read the table. And $8E04 is the jump engine.
+    
+    Wait, but the JSR $8E04 is followed by table data (two-byte addresses). The routine `JumpEngine` at $8E04 uses the return address (the table location) and the index A to compute the target. Classic SMB JumpEngine:
+    
+    ```
+    JumpEngine:
+          asl a            ; multiply by 2
+          tay
+          pla              ; pop return address low
+          sta $04
+          pla              ; pop high
+          sta $05
+          iny
+          lda ($04),y      ; high byte of target
+          sta $06
+          iny
+          lda ($04),y      ; low byte
+          sta $07
+          jmp ($0006)      ; jump to target
+    ```
+    Hmm, order.
+    
+    So the dispatch routine entry is $8212. But wait — the NMI calls $8182 each frame, not $8212. Hmm. $8182 is a different routine. So maybe $8212 is called from somewhere else. Where's the JSR $8212? Let me search for "20 12 82". Hmm. But actually in SMB, GameEngine at $8212 is probably calle… [+3361 chars]
+    Key find at `$8212`: `LDA $0770 / JSR $8E04` followed by what looks like an address table. That's the mode dispatch. Let me read the table at `$8218`, disassemble the jump engine `$8E04`, and find callers.
+    → read_memory {"address": 33290, "length": 16, "mem_type": "prgRom"}
+    → disassemble {"address": 36356, "length": 48}
+    → search_memory {"hex": "20 12 82", "mem_type": "prgRom"}
+    → search_memory {"hex": "4C 12 82", "mem_type": "prgRom"}
+[  63 14:16:19] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"address":33290}
+[  65 14:16:19] RESULT disassemble
+    $8e04: 0a          asl a
+    $8e05: a8          tay 
+    $8e06: 68          pla 
+    $8e07: 85 04       sta 0x04
+    $8e09: 68          pla 
+    $8e0a: 85 05       sta 0x05
+    $8e0c: c8          iny 
+    $8e0d: b1 04       lda (0x04), y
+    $8e0f: 85 06       sta 0x06
+    $8e11: c8          iny 
+    $8e12: b1 04       lda (0x04), y
+    $8e14: 85 07       sta 0x07
+    $8e16: 6c 06 00    jmp (0x0006)
+    $8e19: ad 02 20    lda 0x2002
+    $8e1c: ad 78 07    lda 0x0778
+    $8e1f: 09 10       ora #0x10
+    $8e21: 29 f0       and #0xf0
+    $8e23: 20 ed 8e    jsr 0x8eed
+    $8e26: a9 24       lda #0x24
+    $8e28: 20 2d 8e    jsr 0x8e2d
+    $8e2b: a9 20       lda #0x20
+    $8e2d: 8d… [+49 chars]
+[  67 14:16:19] RESULT search_memory
+    {"pattern_length":3,"offsets":[373],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":["0x175"]}
+[  69 14:16:19] RESULT search_memory
+    {"pattern_length":3,"offsets":[],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":[]}
+[  72 14:16:22] ASSISTANT (turn 2 step 5) · in 677 (cache 55552) out 810
+    ▷ Whoa, read_memory at 33290 (0x8218) returned all zeros. That's because mem_type prgRom reads from ROM offset, not CPU address! Wait, earlier I read_memory address 3275 length 40 mem_type prgRom and got bytes [15,41,26,15,...] which correspond to the palette table at offset 0xCCB. So prgRom read_memory uses offset (not CPU). So to read CPU $8218 I need offset 0x218 = 536. Let me re-read.
+    
+    The disassembler uses CPU address (it disassembled $8212 correctly), but read_memory prgRom uses offset. Okay.
+    
+    JSR $8212 found at offset 0x175 = CPU $8175. That's within the NMI region! Indeed the NMI at $8082 ends at $8181. $8175 is inside NMI. So NMI calls JSR $8212 at $8175. Wait, but earlier disassembly of NMI showed $80EA jsr $8182, and then continued. Let me re-disassemble NMI from $8150 to $8181 to see the call to $8212.
+    
+    Hmm interesting: So NMI calls both $8182 and $8212? Let me check: at $8175 there's JSR $8212. So yes, NMI calls the GameEngine dispatch at $8212.
+    
+    Wait, but the earlier mapping note said NMI calls $8182 at $80EA. So NMI calls $8182 once, and also $8212 later. Let me disassemble $8140-$8181.
+    
+    Actually hold on: offset 0x175 = CPU $8175. Let me disassemble $8150 length 50.
+    
+    N… [+421 chars]
+    `read_memory` with `mem_type: prgRom` uses file offsets, so I need offset `0x218`. Also found: `JSR $8212` at CPU `$8175` (inside the NMI). Let me get the dispatch table and the NMI tail.
+    → read_memory {"address": 536, "length": 16, "mem_type": "prgRom"}
+    → disassemble {"address": 33104, "length": 50}
+    → read_memory {"address": 3264, "length": 64, "mem_type": "prgRom"}
+    → search_memory {"hex": "B9 CB 8C", "mem_type": "prgRom"}
+[  74 14:16:22] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[49,130,220,174,139,131,24,146,160,0,44,160,4,169,248,153],"address":536}
+[  76 14:16:22] RESULT disassemble
+    $8150: ad 02 20    lda 0x2002
+    $8153: 29 40       and #0x40
+    $8155: f0 f9       beq 0x0000
+    $8157: a0 14       ldy #0x14
+    $8159: 88          dey 
+    $815a: d0 fd       bne 0x0000
+    $815c: ad 3f 07    lda 0x073f
+    $815f: 8d 05 20    sta 0x2005
+    $8162: ad 40 07    lda 0x0740
+    $8165: 8d 05 20    sta 0x2005
+    $8168: ad 78 07    lda 0x0778
+    $816b: 48          pha 
+    $816c: 8d 00 20    sta 0x2000
+    $816f: ad 76 07    lda 0x0776
+    $8172: 4a          lsr a
+    $8173: b0 03       bcs 0x0000
+    $8175: 20 12 82    jsr 0x8212
+    $8178: ad 02 20    lda 0x2002
+    $817b: 68          pla 
+    $817c: 09 80       ora #0x80
+    $817e: 8d 00 20    sta 0x2… [+27 chars]
+[  78 14:16:22] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[22,48,39,15,15,48,16,0,63,0,32,15,41,26,15,15,54,23,15,15,48,33,15,15,39,23,15,15,22,39,24,15,26,48,39,15,22,48,39,15,15,54,23,0,63,0,32,15,41,26,9,15,60,28,15,15,48,33,28,15,39,23,28,15],"address":3264}
+[  80 14:16:22] RESULT search_memory
+    {"pattern_length":3,"offsets":[],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":[]}
+[  83 14:16:45] ASSISTANT (turn 2 step 6) · in 697 (cache 56960) out 6182
+    ▷ The dispatch table at CPU $8218 (offset 0x218) = bytes [49,130, 220,174, 139,131, 24,146]. So:
+    - GameMode 0 -> $8231 (49,130 -> low=0x31, high=0x82 → $8231)
+    - GameMode 1 -> $AEDC (220,174 → low=0xDC, high=0xAE → $AEDC)
+    - GameMode 2 -> $838B (139,131 → $838B)
+    - GameMode 3 -> $9218 (24,146 → $9218)
+    
+    This matches known SMB: TitleScreenMode at $8231, GameMode at $AEDC, VictoryMode at $838B, GameOverMode at $9218. 
+    
+    And the NMI at $816F-$8175:
+    ```
+    $816F: lda $0776     ; OperMode
+    $8172: lsr a
+    $8173: bcs +3        ; if bit0 set, skip
+    $8175: jsr $8212     ; GameEngine dispatch
+    $8178: lda $2002
+    ```
+    So the dispatch is called from NMI when OperMode bit 0 is clear. Good evidence.
+    
+    Now I need to confirm $8212 is the entry (the JSR target). Yes: JSR $8212 at $8175, plus the JSR $8E04 table dispatch.
+    
+    Also I should confirm the palette-loading routine. The area palette table: read at offset 0xCC0 = 3264 gave [22,48,39,15, 15,48,16,0, 63,0,32,15, ...]. Hmm. Let me map: offset 0xCC0 = CPU $8CC0. bytes: 
+    offset 0xCC0: 0x16=22, 0x30=48, 0x27=39, 0x0F=15, 
+    0xCC4: 0x0F=15, 0x30=48, 0x10=16, 0x00=0,
+    0xCC8: 0x3F=63, 0x00=0, 0x20=32, 0x0F=15,
+    0xCCC: 0x29=41,0x1A=26,0x0F=15, 0x0F=15, 0x36=54,0x17=23,0x0F=15… [+13353 chars]
+    Dispatch confirmed: the table at `$8218` is `$8231, $AEDC, $838B, $9218` for GameMode 0–3, and the NMI calls `$8212`. Now for the palette routine. Let me pin down the PRG palette table and the code that uses it.
+    → read_memory {"address": 3275, "length": 32, "mem_type": "prgRom"}
+    → search_memory {"hex": "29 1A 0F 0F 36 17 0F 0F 30", "mem_type": "prgRom"}
+    → search_memory {"hex": "29 1A 0F 0F 36 17 0F", "mem_type": "cpuDebug"}
+    → search_memory {"hex": "A9 3F 8D 06 20", "mem_type": "prgRom"}
+[  85 14:16:45] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[15,41,26,15,15,54,23,15,15,48,33,15,15,39,23,15,15,22,39,24,15,26,48,39,15,22,48,39,15,15,54,23],"address":3275}
+[  87 14:16:45] RESULT search_memory
+    {"pattern_length":9,"offsets":[3276],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":["0xCCC"]}
+[  89 14:16:45] RESULT search_memory ERROR
+    Error: Bridge error: bridge.lua:397: invalid memory type
+[  91 14:16:45] RESULT search_memory
+    {"pattern_length":5,"offsets":[3789],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":["0xECD"]}
+[  94 14:16:53] ASSISTANT (turn 2 step 7) · in 6469 (cache 57600) out 1817
+    ▷ So the 32-byte table at prgRom 0xCCB (CPU $8CCB) is:
+    [0F,29,1A,0F, 0F,36,17,0F, 0F,30,21,0F, 0F,27,17,0F, 0F,16,27,18, 0F,1A,30,27, 0F,16,30,27, 0F,0F,36,17]
+    
+    Wait let me map:
+    idx0:0F
+    1:29
+    2:1A
+    3:0F
+    4:0F
+    5:36
+    6:17
+    7:0F
+    8:0F
+    9:30
+    10:21
+    11:0F
+    12:0F
+    13:27
+    14:17
+    15:0F
+    16:0F
+    17:16
+    18:27
+    19:18
+    20:0F
+    21:1A
+    22:30
+    23:27
+    24:0F
+    25:16
+    26:30
+    27:27
+    28:0F
+    29:0F
+    30:36
+    31:17
+    
+    So 8 palettes:
+    P0=[0F,29,1A,0F]
+    P1=[0F,36,17,0F]
+    P2=[0F,30,21,0F]
+    P3=[0F,27,17,0F]
+    P4=[0F,16,27,18]
+    P5=[0F,1A,30,27]
+    P6=[0F,16,30,27]
+    P7=[0F,0F,36,17]
+    
+    Compare live PPU:
+    [22,29,1A,0F, 0F,36,17,0F, 0F,30,21,0F, 0F,07,17,0F, 22,16,27,18, 0F,1A,30,27, 0F,16,30,27, 0F,0F,36,17]
+    
+    Difference: P0 slot0 = 22 live vs 0F ROM; P3 slot1 = 07 live vs 27 ROM; P4 slot0 = 22 live vs 0F ROM. Hmm interesting, P3 = [0F,07,17,0F] live but ROM [0F,27,17,0F]. Wait, hold on: P3 in ROM is [0F,27,17,0F] with 0x27 orange at slot 1. But live P3 slot1 reads 0x07 dark brown. Hmm, that's odd. But maybe the live PPU palette was captured while the ? block was hit/animating? Actually the ? block uses palette 3 with orange face; the coin/used block may be brown. Actually at the moment of the screenshot, there's a used block? The screenshot shows a "used" block… [+2804 chars]
+    The 32-byte table at CPU `$8CCB` is the 8-palette block for 1-1. There's a `LDA #$3F / STA $2006` at CPU `$8ECD`. Let me disassemble that region and find references to the table.
+    → disassemble {"address": 36512, "length": 144}
+    → search_memory {"hex": "CB 8C", "mem_type": "prgRom"}
+    → disassemble {"address": 36075, "length": 120}
+[  96 14:16:53] RESULT disassemble
+    $8ea0: ad 78 07    lda 0x0778
+    $8ea3: 09 04       ora #0x04
+    $8ea5: b0 02       bcs 0x0000
+    $8ea7: 29 fb       and #0xfb
+    $8ea9: 20 ed 8e    jsr 0x8eed
+    $8eac: 68          pla 
+    $8ead: 0a          asl a
+    $8eae: 90 03       bcc 0x0000
+    $8eb0: 09 02       ora #0x02
+    $8eb2: c8          iny 
+    $8eb3: 4a          lsr a
+    $8eb4: 4a          lsr a
+    $8eb5: aa          tax 
+    $8eb6: b0 01       bcs 0x0000
+    $8eb8: c8          iny 
+    $8eb9: b1 00       lda (0x00), y
+    $8ebb: 8d 07 20    sta 0x2007
+    $8ebe: ca          dex 
+    $8ebf: d0 f5       bne 0x0000
+    $8ec1: 38          sec 
+    $8ec2: 98          tya 
+    $8ec3: 65 00       adc 0x00… [+611 chars]
+[  98 14:16:53] RESULT search_memory
+    {"pattern_length":2,"offsets":[],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":[]}
+[ 100 14:16:53] RESULT disassemble
+    $8ceb: 00 3f       brk 0x3f
+    $8ced: 00 20       brk 0x20
+[ 103 14:17:10] ASSISTANT (turn 2 step 8) · in 890 (cache 65792) out 3689
+    ▷ Hmm, the region $8EA0-$8EF3 is the VRAM update/queue transfer routine (uses $00/$01 pointer, writes $2006/$2007). The $8ECD writes $3F00 to $2006 as part of a routine that takes a pointer in $00/$01 and writes bytes. Wait, $8ECD is reached after $8EC1-$8ECB advancing the pointer. This is probably part of `$8E5C` (the "WriteVRAM" routine). Hmm.
+    
+    Actually this looks like the NMI's VRAM update: at $80B6-$80C3 it indexes tables $805A/$806D by $0773 into $00/$01, then JSR $8EDD. Hmm, $8EDD reads (0x00),y and does STA $2005 twice?? That's weird — writing palette data to $2005? Wait no: $8EDD: LDX $2002; LDY #$00; LDA ($00),Y; BNE ... (branch target 0x0000, unknown) ; STA $2005; STA $2005; RTS. Hmm, that's odd. Actually the branch at $8EE4 `d0 ac` = BNE $8E92 (since $8EE6 + 0xAC = $8E92). The disassembler shows 0x0000 because it doesn't resolve. So $8E92 is the target. So $8EDD is a routine that loops over a buffer.
+    
+    Hmm, this is the "VRAM queue transfer". The palette is likely written via this queue: the game queues palette bytes and $8EDD writes them.
+    
+    But the task wants the routine that loads area background/sprite colors when a level starts. It says "the hardware palette is written th… [+10054 chars]
+    The `$2006=$3F` write lives in a VRAM-from-buffer routine around `$8E95`. The NMI indexes pointer tables `$805A/$806D` by queue state `$0773`. Let me read those pointer tables and the full buffer routine.
+    → read_memory {"address": 90, "length": 24, "mem_type": "prgRom"}
+    → read_memory {"address": 109, "length": 24, "mem_type": "prgRom"}
+    → disassemble {"address": 36485, "length": 160}
+[ 105 14:17:10] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[1,164,200,236,16,0,65,65,76,52,60,68,84,104,124,168,191,222,239,3,140,140,140,141],"address":90}
+[ 107 14:17:10] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[3,140,140,140,141,3,3,3,141,141,141,141,141,141,141,141,141,141,141,0,64,173,120,7],"address":109}
+[ 109 14:17:10] RESULT disassemble
+    (no instructions decoded)
+[ 112 14:17:23] ASSISTANT (turn 2 step 9) · in 252 (cache 70272) out 2587
+    ▷ Hmm, my read offsets: I asked read_memory address 90 (0x5A) length 24, but it returned bytes starting [1,164,200,...] which doesn't look like a pointer table. Wait: 90 decimal = 0x5A. bytes: 1,164(0xA4),200(0xC8),236(0xEC),16,0,65,65,... Hmm. That's $8C? Actually the table $805A should be 7 bytes of low addresses. Hmm. Wait, maybe the NMI tables are at CPU $805A, but read_memory prgRom offset 0x5A = CPU $805A. Yes. bytes: 01 A4 C8 EC 10 00 41 41 4C 34 3C 44 54 68 7C A8 BF DE EF 03 8C 8C 8C 8D.
+    
+    Hmm, that doesn't look like a clean pointer table. But wait, maybe $805A isn't the table base; the NMI code does `LDA $805A,X` with X=$0773 (0-6). The bytes at $805A: 01, A4, C8, EC, 10, 00, 41. And $806D: 03,8C,8C,8C,8D,03,03,... Hmm. So entries (low, high):
+    - state0: low=$01, high=$03 → $0301
+    - state1: low=$A4, high=$8C → $8CA4
+    - state2: low=$C8, high=$8C → $8CC8
+    - state3: low=$EC, high=$8C → $8CEC
+    - state4: low=$10, high=$8D → $8D10
+    - state5: low=$00, high=$03 → $0300
+    - state6: low=$41, high=$03 → $0341
+    
+    Hmm wait, but $806D read: I asked address 109 = 0x6D. bytes [3,140,140,140,141,3,3,3,...] = [03,8C,8C,8C,8D,03,03,03,...]. So high bytes for state0-6 = 03? no: state0 high = 03, state1=8C… [+6556 chars]
+    The dispatch is nailed. For the palette routine, the cleanest proof is to watch *reads* of the PRG palette table `$8CCB` while a level reloads. First, make Mario die and let 1-1 reload.
+    → play_input {"script": [{"buttons": ["right"], "frames": 300}], "watch": [37594, 30592, 30582, 30578]}
+[ 114 14:17:28] RESULT play_input
+    {"port":0,"was_paused":false,"sample_frames":[5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145,150,155,160,165,170,175,180,185,190,195,200,205,210,215,220,225,230,235,240,245,250,255,260,265,270,275,280,285,290,295,300],"frames":300,"watch":[{"last":147,"values":[147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147,147],"first":147,"address":37594,"address_hex":"0x92D… [+1220 chars]
+[ 117 14:17:31] ASSISTANT (turn 2 step 10) · in 833 (cache 73088) out 262
+    ▷ Hmm, my watch addresses were wrong. I intended $075A = 0x075A = 1882 decimal, but I passed 37594 (0x92DA) etc. I messed up hex/decimal. 0x075A = 1882. 0x0770 = 1904, 0x0776 = 1910, 0x0772 = 1906. Let me not worry; take a screenshot to see state.
+    
+    Actually play_input 300 right: Did Mario die? Let me screenshot.
+    → screenshot {}
+    → read_memory {"address": 1882, "length": 6, "mem_type": "cpu"}
+    → read_memory {"address": 1904, "length": 8, "mem_type": "cpu"}
+[ 119 14:17:31] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1414-sheet5b-entry-dispatch-palette/images/task-2/d141c5a6c6a0.png
+[ 121 14:17:31] RESULT read_memory
+    {"mem_type":"cpu","bytes":[2,0,0,0,2,0],"address":1882}
+[ 123 14:17:31] RESULT read_memory
+    {"mem_type":"cpu","bytes":[0,0,3,0,0,1,0,0],"address":1904}
+[ 126 14:17:43] ASSISTANT (turn 2 step 11) · in 505 (cache 74112) out 2392
+    ▷ Interesting! The screenshot shows Mario standing on top of a green pipe... far into the level? Actually holding Right for 300 frames moved Mario onto a pipe and he's still alive. The Goomba didn't kill him because he jumped? No, no jump input; but he walked and maybe the Goomba's timing differs. Hmm, actually he's standing on a pipe (auto?). Wait, he's at a pipe on top. Hmm, holding right, he'd walk into the pipe and stop. The Goombas are on the ground to the right. He's standing on the pipe — maybe he walked into it and climbed? No. Hmm, maybe he jumped onto it due to... Actually the screenshot shows Mario on top of the first pipe. Odd but fine.
+    
+    Lives $075A = 2 (still alive, no death). GameMode $0770 = 0? Wait read at 1904 (0x770) gave [0,0,3,0,0,1,0,0]: $0770=0, $0771=0, $0772=3, $0773=0, $0774=0, $0775=1, $0776=0, $0777=0.
+    
+    Wait, GameMode $0770 = 0?? That would be title screen mode. But we're clearly in a level. Hmm! So maybe $0770 is not GameMode, or the mapping/known facts differ. Hmm. Actually wait: read at address 1904 decimal = 0x770? 1904 = 0x770. Yes. Bytes: $0770=0, $0771=0, $0772=3, $0773=0, $0774=0, $0775=1, $0776=0, $0777=0.
+    
+    Hmm, if GameMode=0 and the dispatch jumps… [+5894 chars]
+    The screenshot shows Mario still alive on the first pipe. Let me verify my address decoding (known player x is `$0086`) and identify which mode handler `$8231` is.
+    → read_memory {"address": 134, "length": 4, "mem_type": "cpu"}
+    → read_memory {"address": 1904, "length": 12, "mem_type": "cpu"}
+    → disassemble {"address": 33329, "length": 64}
+    → disassemble {"address": 44764, "length": 48}
+[ 128 14:17:43] RESULT read_memory
+    {"mem_type":"cpu","bytes":[40,96,96,96],"address":134}
+[ 130 14:17:43] RESULT read_memory
+    {"mem_type":"cpu","bytes":[0,0,3,0,0,0,0,0,16,30,0,0],"address":1904}
+[ 132 14:17:43] RESULT disassemble
+    $8231: ad 72 07    lda 0x0772
+    $8234: 20 04 8e    jsr 0x8e04
+[ 134 14:17:43] RESULT disassemble
+    $aedc: ad 72 07    lda 0x0772
+    $aedf: 20 04 8e    jsr 0x8e04
+    $aee2: e4 8f       cpx 0x8f
+[ 137 14:17:54] ASSISTANT (turn 2 step 12) · in 265 (cache 76928) out 2347
+    ▷ $0086 = 40 (0x28). But screenshot shows Mario at around x=110? Hmm. Actually the screenshot is 256 wide; Mario is at around x=108. But $0086=40. Hmm. Wait, maybe the read happened at a different time (the game scrolls). Actually Mario on top of the pipe at screen x ~108. If $0086=40 and scroll $071C=... screen x = 0x86 - 0x71C. If scroll is 0, screen x=40. Hmm. But the screenshot shows Mario near the middle. Actually wait, maybe the read was after the game kept running (between screenshot and read, the game advanced). play_input ended and left game running (paused: false). Then screenshot, then reads. The game kept running, so Mario kept moving right and possibly died. The reads are ~seconds later. Let me pause the emulator to get consistent state.
+    
+    Actually important: the game is RUNNING, so reads are inconsistent. I should pause for state reads.
+    
+    But the bigger issue: $0770=0 during gameplay. Now disassembly:
+    $8231: LDA $0772 ; JSR $8E04 ... (dispatch on $0772 via a table!)
+    $AEDC: LDA $0772 ; JSR $8E04 ... (also dispatch on $0772)
+    
+    So $8231 and $AEDC are further dispatchers on $0772. Interesting. So the top-level GameEngine at $8212 dispatches on $0770 to secondary dispatchers th… [+6286 chars]
+    Key discovery: `$8231` and `$AEDC` are *secondary* dispatchers (both `LDA $0772 / JSR $8E04`), and `$0770=0` right now — consistent with the attract demo (which runs under title mode). I need real gameplay. Let me set up a task list and start a game properly.
+    → todo_write {"todos": [{"content": "Confirm $8212 GameEngine dispatch and record it", "status": "completed"}, {"content": "Start real gameplay (Start, wait, Start) and confirm World 1-1", "status": "in_progress"}, {"content": "Locate area palette table reference via trace_writes read on $8CCB during a level load", "status": "pending"}, {"content": "Disassemble and prove the palette-load routine entry", "statu… [+95 chars]
+    → play_input {"script": [{"buttons": ["start"], "frames": 4}, {"buttons": [], "frames": 120}, {"buttons": ["start"], "frames": 4}, {"buttons": [], "frames": 120}], "watch": [1904, 1882, 1906, 1910]}
+[ 140 14:17:54] RESULT todo_write
+    Updated todo list: 3 pending, 1 in progress, 1 completed.
+[ 142 14:17:58] RESULT play_input
+    {"port":0,"was_paused":false,"sample_frames":[5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145,150,155,160,165,170,175,180,185,190,195,200,205,210,215,220,225,230,235,240,245,248],"frames":248,"watch":[{"last":1,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":0,"address":1904,"address_hex":"0x0770"},{"last":2,"values":[0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],"first":0,"address":1882,"address_hex":"0x075A"},{"last":1,"… [+600 chars]
+[ 145 14:18:06] ASSISTANT (turn 2 step 13) · in 786 (cache 79488) out 1232
+    ▷ The watch shows $0770: 0 until frame ~120, then 1 from frame ~125 onward. So the game went from title/demo (0) to gameplay (1) at ~frame 120-125, which corresponds to the second Start press. Great: GameMode ($0770) = 1 during gameplay. Confirmed!
+    
+    $0772: 1 until frame 30, then 3 (frames 30-115), then 0 at frame 120, then 1. Hmm. $0772=3 during title/attract? Then 0 then 1.
+    
+    $075A lives = 2 after frame 30. Good.
+    
+    $0776 OperMode = 0.
+    
+    So now we're in real gameplay (World 1-1). Let me screenshot to confirm.
+    
+    Now, palette routine. We now have a real level loaded. To trace the palette read, we need a level load. Options:
+    1. Die and let it reload.
+    2. The palette might also be reloaded on pause? no.
+    
+    Let me die: play_input right ~300 frames. But earlier, in attract demo, Mario ended on a pipe alive. In real gameplay, holding Right into the first Goomba should kill. Let me do play_input right 300 and watch lives, then trace.
+    
+    Actually a more controlled approach: instead of relying on goomba, I could just trace reads of $8CCB while playing right (in case the palette gets reloaded on scroll — no).
+    
+    Let me do: play_input right 300 (dies). Then trace_writes read $8CCB for 600 frames to catch t… [+3082 chars]
+    Confirmed: `$0770` (GameMode) stayed 0 in the attract demo and became **1** at the second Start — we're now in real World 1-1. Let me verify and then die to force a level reload (for the palette-read trace).
+    → screenshot {}
+    → play_input {"script": [{"buttons": ["right"], "frames": 250}], "watch": [1882, 1904]}
+[ 147 14:18:06] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1414-sheet5b-entry-dispatch-palette/images/task-2/f2e268dbf13d.png
+[ 149 14:18:10] RESULT play_input
+    {"port":0,"was_paused":false,"sample_frames":[5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145,150,155,160,165,170,175,180,185,190,195,200,205,210,215,220,225,230,235,240,245,250],"frames":250,"watch":[{"last":2,"values":[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],"first":2,"address":1882,"address_hex":"0x075A"},{"last":1,"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":1,"address":1904,"address_hex":"0x0770"}],"end_frame… [+260 chars]
+[ 152 14:18:34] ASSISTANT (turn 2 step 14) · in 914 (cache 81408) out 4823
+    ▷ The screenshot shows Mario mid-death? Actually the screenshot shows Mario at the bottom near the hill, and the HUD TIME 384. Lives still 2, GameMode 1. So Mario didn't die — he walked to the right and the Goomba passed? Hmm, the screenshot shows Mario at the hill (x~40) — wait that looks like he's at the start-ish. Actually the hill is the first hill; TIME 384. Hmm, Mario is standing on the ground at the hill, not dead.
+    
+    Wait, screenshot shows Mario at screen x~45 and a "poof"? Actually he might have been hit by the Goomba but the Goomba... The lives still 2. Hmm.
+    
+    Maybe holding Right doesn't kill because the Goomba walks off or Mario jumps over? No jump input. Hmm, in the mapping note LoseLife, they found it by "holding Right from the start of 1-1 into the first Goomba" and the lives went 2->1. But here it didn't.
+    
+    Hmm, possibly because the game scrolled and the Goomba timing. Or maybe Mario did die and respawned already? Lives would be 1 then. It's 2. So no death.
+    
+    Hmm, wait: screenshot shows Mario and TIME 384 — only ~26 seconds elapsed (400→384), meaning game just started recently. And $075A=2. So the level we're in is real gameplay but Mario is at the hill? The hill is early. … [+16035 chars]
+    The emulator runs freely between calls, so I'll force a quick death via the level timer and trace *reads* of the palette table region during the reload. First pause and set the timer near zero.
+    → pause_emulator {}
+[ 154 14:18:34] RESULT pause_emulator
+    {"paused":true}
+[ 158 14:18:38] ASSISTANT (turn 2 step 15) · in 12885 (cache 87040) out 473
+    ▷ I paused. Now write the timer to small value. Then resume and trace reads.
+    
+    Actually, before that, let me also just try a direct static search: search PRG for the 2-byte "C8 8C" and "A4 8C" references. But let me proceed with the emulator trace, which is more authoritative.
+    
+    Let me write $07F8 = [0,0,1] and also confirm state. Then resume and trace.
+    
+    Actually, I realize a subtlety: the time-up death path in SMB might set a flag and not immediately reload. Let me just try.
+    
+    Write memory cpu 0x07F8 = [0,0,1].
+    
+    Then write_memory also maybe set $075A lives=2 (already 2).
+    
+    Then resume_emulator, then trace_writes address 0x8CA0 length 0x88 mode read frames 600.
+    
+    Hmm, but between resume and trace, tool latency ~ maybe 1-2s = 60-120 frames. Timer decrements every 24 frames → reaches 0 in ~24-48 frames. Death animation ~ 3s. Reload ~5s. Total from now ~5-6s. Trace runs 10s. Should be fine.
+    
+    Actually, is the trace's "read" callback on ROM going to catch the palette load read? Let me also trace the PPU palette writes as a cross-check in a separate call if needed.
+    
+    Let me proceed. First write.
+    
+    Also, let me reconsider: is $07F8 really the timer? mapping says yes. Write [0,0,1].
+    
+    Actually maybe… [+75 chars]
+    Now write the timer near zero so a time-up death forces a level reload during the trace.
+    → write_memory {"address": 2040, "bytes": [0, 0, 1], "mem_type": "cpu"}
+[ 160 14:18:38] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":3,"address":2040,"persistent":false}
+[ 163 14:18:41] ASSISTANT (turn 2 step 16) · in 207 (cache 100224) out 454
+    ▷ Now resume and trace. But I want the trace to start as soon as possible. Let me resume and then immediately trace. They're dependent (trace refused while paused), so sequential.
+    
+    Actually, I could call resume_emulator and trace_writes in the same message? The trace would be refused if it runs before resume. Since they run concurrently, risky. Let me do resume first, then trace.
+    
+    Hmm, but latency. Alternatively, trace_writes itself might not need resume if I pass... no.
+    
+    Let me just do resume then trace quickly.
+    
+    Actually wait — maybe a better method: instead of time-up, I could use trace_writes with mode read on ROM while the game is already paused? No, refused.
+    
+    Let me resume.
+    
+    Actually, an even more robust plan: reset the emulator? No.
+    
+    Let me resume then trace. Given the death+reload takes ~5s, and latency ~1-2s, we should be fine.
+    
+    Let me do resume_emulator and then trace_writes. But to reduce latency, I'll put both in one message? The instructions say independent calls together. These are dependent. The trace might run concurrently with resume and get refused (while paused). Given the tool likely processes sequentially in order within a message... uncertain. Safer to do resume… [+707 chars]
+    → resume_emulator {}
+[ 165 14:18:41] RESULT resume_emulator
+    {"resumed":true}
+[ 169 14:18:44] ASSISTANT (turn 2 step 17) · in 12800 (cache 100864) out 289
+    ▷ Now trace reads on the palette table region. Let me trace address 0x8CA0 length 0x88 (136 bytes) mode read, frames 600.
+    
+    Actually, let me first quickly test with the palette table specifically: address 0x8CC8, length 0x24. But I'll broaden to 0x8CA0-0x8D28 to be safe.
+    
+    Hmm, but if the read callback catches opcode fetches of code in that range, it might be noisy. Let me check whether $8CA0-$8D28 is data by disassembling. Actually I earlier disassembled $8CEB and got "brk" -> data. Let me just do a broad range.
+    
+    Let me call trace_writes with address 3232 (0x8CA0) length 136, mode read, frames 600.
+    Now trace *reads* of the palette table region while the time-up death reloads the level.
+    → trace_writes {"address": 36000, "length": 136, "mode": "read", "frames": 600}
+[ 171 14:18:54] RESULT trace_writes
+    {"recorded_accesses":36,"total_accesses":36,"writers":[{"origin":{"mem_type":"prgRom","mem_type_id":45,"address":3771},"last_address":36074,"last_value":23,"count":32,"samples":[{"value":15,"frame":189,"address":36043},{"value":41,"frame":189,"address":36044},{"value":26,"frame":189,"address":36045},{"value":15,"frame":189,"address":36046},{"value":15,"frame":189,"address":36047},{"value":54,"frame":189,"address":36048},{"value":23,"frame":189,"address":36049},{"value":15,"frame":189,"address":36050}],"pc":36539,"last_frame":189,"pc_hex":"0x8EBB","origin_hex":"prgRom 0xEBB"},{"origin":{"mem_ty… [+950 chars]
+[ 174 14:19:21] ASSISTANT (turn 2 step 18) · in 579 (cache 113920) out 6551
+    ▷ The trace caught reads at frame 189 of addresses 36040 (0x8CC8) through 36075 (0x8CEB):
+    
+    - PC $8E9E reads $8CCA (value 32 = 0x20)
+    - PC $8E98 reads $8CC9 (value 0)
+    - PC $8EBB reads $8CCB-$8CEA (32 values = the palette!) — count 32, values 15,41,26,15,... = 0F,29,1A,0F,... the palette data.
+    - PC $8EE4 reads $8CC8 (value 63=0x3F) and $8CEB (value 0).
+    
+    So the routine that processes this buffer is around $8E92-$8EEC, and the entry is likely the VRAM buffer writer. PC $8E98 and $8E9E read the header bytes ($8CC9, $8CCA), and $8EBB reads the data bytes. Wait, interesting: $8E98 and $8E9E read addresses 0x8CC9 and 0x8CCA (values 0 and 0x20). And $8EE4 reads $8CC8 (0x3F) and $8CEB (0).
+    
+    Hmm, this suggests the "routine" reads the header bytes at $8CC8 (high=$3F), $8CC9 (low=$00), $8CCA (control/length=$20?) and then copies data $8CCB... to $2007.
+    
+    But wait — that means the palette is written directly from ROM at $8CC8 by this routine, not via a RAM buffer. Actually hold on: $8E98/$8E9E read $8CC9/$8CCA. But actually the PC values: $8E98 and $8E9E. Let me disassemble $8E92-$8EEC more carefully. Earlier disassembly from $8EA0 showed:
+    
+    ```
+    $8ea0: lda 0x0778
+    $8ea3: ora #0x04
+    ...
+    $8eac: pla
+    $8ead… [+17264 chars]
+    The trace caught the palette write path at frame 189: PCs `$8E96/$8E9C/$8EBB/$8EE2` read the ROM buffer at `$8CC8` (`$3F,$00,$20`, then the 32 palette bytes). Let me get the exact disassembly and the surrounding data.
+    → disassemble {"address": 36496, "length": 112}
+    → read_memory {"address": 3216, "length": 176, "mem_type": "prgRom"}
+    → read_memory {"address": 1907, "length": 4, "mem_type": "cpu"}
+[ 176 14:19:21] RESULT disassemble
+    (no instructions decoded)
+[ 178 14:19:21] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[83,85,84,86,165,167,166,168,194,196,195,197,87,89,88,90,123,125,124,126,63,0,32,15,21,18,37,15,58,26,15,15,48,18,15,15,39,18,15,34,22,39,24,15,16,48,39,15,22,48,39,15,15,48,16,0,63,0,32,15,41,26,15,15,54,23,15,15,48,33,15,15,39,23,15,15,22,39,24,15,26,48,39,15,22,48,39,15,15,54,23,0,63,0,32,15,41,26,9,15,60,28,15,15,48,33,28,15,39,23,28,15,22,39,24,15,28,54,23,15,22,48,39,15,12,60,28,0,63,0,32,15,48,16,0,15,48,16,0,15,48,22,0,15,39,23,0,15,22,39,24,15,28,54,23,15,22,48,39,15,0,48,16,0,63,0,4,34,48,0,16,0,63,0,4,15],"address":3216}
+[ 180 14:19:21] RESULT read_memory
+    {"mem_type":"cpu","bytes":[0,0,0,0],"address":1907}
+[ 183 14:19:36] ASSISTANT (turn 2 step 19) · in 507 (cache 120960) out 3976
+    ▷ Now I have the data region $8C90-$8D40. Let me decode:
+    
+    $8C90 = offset 0xC90. bytes:
+    0x8C90: 53,85,84,86, 165,167,166,168, 194,196,195,197, 87,89,88,90, 123,125,124,126
+    That's a table of sprite/background tile numbers (like "object graphics" indices). Not palettes.
+    
+    Then:
+    0x8CA4: 63,0,32,15,21,18,37,15,58,26,15,15,48,18,15,15,39,18,15,34,22,39,24,15,16,48,39,15,22,48,39,15,15,48,16,0
+    Wait let me index. offset 0xC90 + i:
+    
+    i: value (hex)
+    0: 53 (0x53)
+    1: 85 (0x55)
+    2: 84 (0x54)
+    3: 86 (0x56)
+    4: 165 (0xA5)
+    5: 167 (0xA7)
+    6: 166 (0xA6)
+    7: 168 (0xA8)
+    8: 194 (0xC2)
+    9: 196 (0xC4)
+    10: 195 (0xC3)
+    11: 197 (0xC5)
+    12: 87 (0x57)
+    13: 89 (0x59)
+    14: 88 (0x58)
+    15: 90 (0x5A)
+    16: 123 (0x7B)
+    17: 125 (0x7D)
+    18: 124 (0x7C)
+    19: 126 (0x7E)
+    20: 63 (0x3F)  -> 0x8CA4
+    21: 0
+    22: 32 (0x20)
+    23: 15 (0x0F)
+    24: 21 (0x15)
+    25: 18 (0x12)
+    26: 37 (0x25)
+    27: 15
+    28: 58 (0x3A)
+    29: 26 (0x1A)
+    30: 15
+    31: 15
+    32: 48 (0x30)
+    33: 18 (0x12)
+    34: 15
+    35: 15
+    36: 39 (0x27)
+    37: 18 (0x12)
+    38: 15
+    39: 34 (0x22)
+    40: 22 (0x16)
+    41: 39 (0x27)
+    42: 24 (0x18)
+    43: 15
+    44: 16 (0x10)
+    45: 48 (0x30)
+    46: 39 (0x27)
+    47: 15
+    48: 22 (0x16)
+    49: 48 (0x30)
+    50: 39 (0x27)
+    51: 15
+    52: 15
+    53: 48 (0x30)
+    54: 16 (0x10)
+    55: 0
+    56: 63 (0x3F)  -> 0x8CC8
+    57: 0
+    58: 32 (0x20)
+    59: … [+7164 chars]
+    The data region reveals **four** full 32-byte palette blocks at `$8CA4`, `$8CC8`, `$8CEC`, `$8D10` — each `[3F 00 20 <32 palette bytes> 00]` — and the NMI pointer table states 1–4 point at them. So the palette write is selected by `$0773`. Let me find what sets `$0773` at level start.
+    → search_memory {"hex": "8D 73 07", "mem_type": "prgRom"}
+    → search_memory {"hex": "8E 73 07", "mem_type": "prgRom"}
+    → search_memory {"hex": "9D 73 07", "mem_type": "prgRom"}
+    → disassemble {"address": 36498, "length": 24}
+[ 185 14:19:36] RESULT search_memory
+    {"pattern_length":3,"offsets":[219,1088,1515,1612,1787,2495,2653,6667],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":["0xDB","0x440","0x5EB","0x64C","0x6FB","0x9BF","0xA5D","0x1A0B"]}
+[ 187 14:19:36] RESULT search_memory
+    {"pattern_length":3,"offsets":[1477],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":["0x5C5"]}
+[ 189 14:19:36] RESULT search_memory
+    {"pattern_length":3,"offsets":[],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":[]}
+[ 191 14:19:36] RESULT disassemble
+    $8e92: 8d 06 20    sta 0x2006
+    $8e95: c8          iny 
+    $8e96: b1 00       lda (0x00), y
+    $8e98: 8d 06 20    sta 0x2006
+    $8e9b: c8          iny 
+    $8e9c: b1 00       lda (0x00), y
+    $8e9e: 0a          asl a
+    $8e9f: 48          pha 
+    $8ea0: ad 78 07    lda 0x0778
+    $8ea3: 09 04       ora #0x04
+    $8ea5: b0 02       bcs 0x0000
+    $8ea7: 29 fb       and #0xfb
+[ 194 14:19:48] ASSISTANT (turn 2 step 20) · in 439 (cache 125440) out 2964
+    ▷ Now I have the writer routine. Let me reconstruct:
+    
+    The NMI's VRAM buffer transfer entry is $8EDD:
+    ```
+    $8EDD: ae 02 20    ldx $2002
+    $8EE0: a0 00       ldy #$00
+    $8EE2: b1 00       lda ($00),y     ; read first byte
+    $8EE4: d0 ac       bne $8E92       ; if nonzero, go process
+    $8EE6: 8d 05 20    sta $2005
+    $8EE9: 8d 05 20    sta $2005
+    $8EEC: 60          rts
+    ```
+    So if the buffer's first byte is 0, it writes $2005 twice and returns.
+    
+    At $8E92 (the processing entry for a nonempty buffer):
+    ```
+    $8E92: 8d 06 20    sta $2006       ; write first byte (3F) to PPUADDR high
+    $8E95: c8          iny
+    $8E96: b1 00       lda ($00),y     ; read second byte (00)
+    $8E98: 8d 06 20    sta $2006       ; PPUADDR low -> address $3F00
+    $8E9B: c8          iny
+    $8E9C: b1 00       lda ($00),y     ; read third byte (20 = 0x20)
+    $8E9E: 0a          asl a           ; shift left, carry = bit7
+    $8E9F: 48          pha             ; save
+    $8EA0: ad 78 07    lda $0778
+    $8EA3: 09 04       ora #$04
+    $8EA5: b0 02       bcs +2          ; if carry (bit7 of control set)
+    $8EA7: 29 fb       and #$fb        ; else clear bit 2
+    $8EA9: 20 ed 8e    jsr $8EED       ; set PPUCTRL ($0778 and $2000)
+    $8EAC: 68          pla             ; restore contr… [+7140 chars]
+    Now I have the exact write routine. The palette buffer is selected by `$0773`. Let me trace writes to `$0773` during another level reload to find the routine that queues the area palette.
+    → pause_emulator {}
+[ 196 14:19:48] RESULT pause_emulator
+    {"paused":true}
+[ 200 14:19:51] ASSISTANT (turn 2 step 21) · in 12855 (cache 128768) out 161
+    ▷ Now write the timer and trace $0773. Let me write and then resume+trace.
+    
+    Actually, before I do that, let me consider that I may already have enough to identify the palette routine. But the task explicitly wants the routine that "loads an area's background and sprite colors when a level starts". The trace of $0773 writers will pin it.
+    
+    Let me write timer.
+    → write_memory {"address": 2040, "bytes": [0, 0, 1], "mem_type": "cpu"}
+[ 202 14:19:51] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":3,"address":2040,"persistent":false}
+[ 205 14:19:52] ASSISTANT (turn 2 step 22) · in 249 (cache 141568) out 25
+    ▷ 
+    → resume_emulator {}
+[ 207 14:19:52] RESULT resume_emulator
+    {"resumed":true}
+[ 211 14:19:54] ASSISTANT (turn 2 step 23) · in 12797 (cache 141824) out 96
+    ▷ Now trace writes to $0773.
+    → trace_writes {"address": 1907, "length": 1, "mode": "write", "frames": 600}
+[ 213 14:20:04] RESULT trace_writes
+    {"recorded_accesses":599,"total_accesses":599,"writers":[{"origin":{"mem_type":"prgRom","mem_type_id":45,"address":222},"last_address":1907,"last_value":0,"count":598,"samples":[{"value":0,"frame":0,"address":1907},{"value":0,"frame":1,"address":1907},{"value":0,"frame":2,"address":1907},{"value":0,"frame":3,"address":1907},{"value":0,"frame":4,"address":1907},{"value":0,"frame":5,"address":1907},{"value":0,"frame":6,"address":1907},{"value":0,"frame":7,"address":1907}],"pc":32990,"last_frame":599,"pc_hex":"0x80DE","origin_hex":"prgRom 0xDE"},{"origin":{"mem_type":"prgRom","mem_type_id":45,"ad… [+394 chars]
+[ 216 14:20:30] ASSISTANT (turn 2 step 24) · in 446 (cache 154624) out 6324
+    ▷ Excellent! trace_writes on $0773:
+    - 598 writes of value 0 from PC $80DE (the NMI clearing $0773 each frame).
+    - 1 write of value 3 at frame 42 from PC $85C8 (prgRom 0x5C8).
+    
+    So the routine that sets $0773 = 3 (the overworld/1-1 palette selector) is at PC $85C8, which is inside the routine around $85C5-$85CB. Earlier we saw:
+    ```
+    $8591: ad 70 07    lda 0x0770
+    $8594: f0 32       beq +0x32 -> $85C8
+    $8596: a2 03       ldx #0x03
+    $8598: 4c c5 85    jmp 0x85c5
+    ...
+    ```
+    And search for STX $0773 found offset 0x5C5 = CPU $85C5. So:
+    ```
+    $85C5: 8e 73 07    stx $0773
+    $85C8: ... (probably RTS?)
+    ```
+    Wait, PC $85C8 is reported as the write PC. If the instruction is `STX $0773` at $85C5 (3 bytes: 8E 73 07), the PC after is $85C8. Yes! The trace reports the PC after the writing instruction. So the instruction is at $85C5: `STX $0773`.
+    
+    So the routine entry: it's the routine that sets $0773 to X. Let me disassemble $85C0-$85D0. And trace backwards to the routine entry.
+    
+    Earlier disassembly:
+    ```
+    $8591: ad 70 07    lda $0770
+    $8594: f0 32       beq $85C8
+    $8596: a2 03       ldx #$03
+    $8598: 4c c5 85    jmp $85C5
+    $859b: ad 44 07    lda $0744
+    ...
+    ```
+    Hmm, so $8591: LDA $0770; BEQ $85C8 (target $8596+0x32 = $85… [+16354 chars]
+    The only nonzero `$0773` writer is `STX $0773` at `$85C5` (trace PC `$85C8`, value 3). Let me disassemble that whole routine and find how it's reached.
+    → disassemble {"address": 34128, "length": 176}
+    → search_memory {"hex": "20 C5 85", "mem_type": "prgRom"}
+    → search_memory {"hex": "4C C5 85", "mem_type": "prgRom"}
+    → search_memory {"hex": "91 85", "mem_type": "prgRom"}
+[ 218 14:20:30] RESULT disassemble
+    $8550: 99 06 02    sta 0x0206, y
+    $8553: bd 10 01    lda 0x0110, x
+    $8556: 0a          asl a
+    $8557: aa          tax 
+    $8558: bd 9f 84    lda 0x849f, x
+    $855b: 99 01 02    sta 0x0201, y
+    $855e: bd a0 84    lda 0x84a0, x
+    $8561: 99 05 02    sta 0x0205, y
+    $8564: a6 08       ldx 0x08
+    $8566: 60          rts 
+    $8567: ad 3c 07    lda 0x073c
+    $856a: 20 04 8e    jsr 0x8e04
+[ 220 14:20:30] RESULT search_memory
+    {"pattern_length":3,"offsets":[],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":[]}
+[ 222 14:20:30] RESULT search_memory
+    {"pattern_length":3,"offsets":[1432],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":["0x598"]}
+[ 224 14:20:30] RESULT search_memory
+    {"pattern_length":2,"offsets":[4455,4460],"start":0,"mem_type":"prgRom","searched":32768,"memory_size":32768,"truncated":false,"offsets_hex":["0x1167","0x116C"]}
+[ 227 14:20:35] ASSISTANT (turn 2 step 25) · in 516 (cache 161280) out 762
+    ▷ Interesting: at $8567 there's another `LDA $073C; JSR $8E04` — a dispatch on $073C. That's right after the RTS at $8566. So the region has multiple small routines.
+    
+    The `JMP $85C5` search found offset 0x598 = CPU $8598. That's the one we saw. So $8591 is reached... let me search for who calls/jumps to $8591. "91 85" search found offsets 0x1167 (=CPU $9167) and 0x116C (=CPU $916C). Those are in the LoseLife region ($91CD?) No, $9167/$916C are before $91CD. Hmm, could be a data table. Let me check.
+    
+    Actually, the routine containing $8591 might start at $8567 (LDA $073C; JSR $8E04) — wait, $8567 and $8591 are 0x2A apart. Let me disassemble from $8567.
+    
+    The disassembler seems to stop early (only showed 6 instructions from $8550 to $8566). Let me disassemble from $8567.
+    
+    Hmm, the tool returned only up to $8566 despite length 176. Maybe it stops at a branch to 0x0000? Odd. Let me disassemble $8567 length 100.
+    
+    Also search "20 91 85" (JSR $8591) and "4C 91 85".
+    
+    Actually the search "91 85" found offsets 0x1167 and 0x116C = CPU $9167, $916C. Let me disassemble $9150-$9180. That might be the caller. Hmm, but those bytes could be data.
+    
+    Let me disassemble $8567 and $9150.
+    
+    Actually, let me r… [+736 chars]
+    The disassembler cut off at an RTS. Let me disassemble from `$8567` and check the callers at `$9167/$916C`.
+    → disassemble {"address": 34151, "length": 120}
+    → disassemble {"address": 37200, "length": 96}
+[ 229 14:20:35] RESULT disassemble
+    $8567: ad 3c 07    lda 0x073c
+    $856a: 20 04 8e    jsr 0x8e04
+[ 231 14:20:35] RESULT disassemble
+    $9150: d0 01       bne 0x0000
+    $9152: c8          iny 
+    $9153: 8c 04 07    sty 0x0704
+    $9156: ae 10 07    ldx 0x0710
+    $9159: ac 52 07    ldy 0x0752
+    $915c: f0 07       beq 0x0000
+    $915e: c0 01       cpy #0x01
+    $9160: f0 03       beq 0x0000
+    $9162: be 18 91    ldx 0x9118, y
+    $9165: b9 16 91    lda 0x9116, y
+    $9168: 85 86       sta 0x86
+    $916a: bd 1c 91    lda 0x911c, x
+    $916d: 85 ce       sta 0xce
+    $916f: bd 25 91    lda 0x9125, x
+    $9172: 8d c4 03    sta 0x03c4
+    $9175: 20 f1 85    jsr 0x85f1
+    $9178: ac 15 07    ldy 0x0715
+    $917b: f0 1a       beq 0x0000
+    $917d: ad 57 07    lda 0x0757
+    $9180: f0 15       beq 0x0000… [+558 chars]
+[ 234 14:20:44] ASSISTANT (turn 2 step 26) · in 876 (cache 162432) out 1619
+    ▷ Hmm, the disassembler stops after 2 instructions at $8567 — because `jsr $8E04` is followed by a jump table and the disassembler likely stops at data? Actually the tool seems to stop when it hits an unrecognized/BRK? Or it stops after a JSR? No, earlier disassemblies continued through JSRs. Weird. Maybe it stops at `0x8e04`? Hmm.
+    
+    Actually maybe the disassembler stops when it encounters a specific opcode or when the branch target computation fails. It showed only 2 instructions then stopped. Odd.
+    
+    The second disassembly $9150 shows the routine that includes the "LoseLife" area. At $9175: JSR $85F1. And $9165: LDA $9116,Y; STA $0086. Hmm. This routine at $9150 area is the "player death / continue" handler. $9116 table etc.
+    
+    The search "91 85" found offsets 0x1167 ($9167) and 0x116C ($916C) — those are within this routine (LDA $9116,Y at $9165 is bytes B9 16 91, and at $9167 is the next byte 0x91? Hmm). The "91 85" byte pairs at $9167/$916C might be coincidental operand bytes. Actually at $9165: `b9 16 91` = LDA $9116,Y (bytes B9 16 91). At $9167 byte = 0x91 (part of operand). Then $9168: `85 86`. Hmm, "91 85" at offset 0x1167 means bytes $91,$85 at CPU $9167-$9168: that's the last b… [+3389 chars]
+    The disassembler stalls at the `JSR $8E04` jump tables. Let me read the tables and disassemble around `$8580`.
+    → read_memory {"address": 1388, "length": 24, "mem_type": "prgRom"}
+    → disassemble {"address": 34176, "length": 80}
+    → disassemble {"address": 34240, "length": 32}
+[ 236 14:20:44] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[142,139,133,155,133,82,134,90,134,147,134,157,136,168,134,157,136,230,134,191,133,227,133,67],"address":1388}
+[ 238 14:20:44] RESULT disassemble
+    $8580: 85 e3       sta 0xe3
+    $8582: 85 43       sta 0x43
+    $8584: 86 ff       stx 0xff
+    $8586: 86 32       stx 0x32
+[ 240 14:20:44] RESULT disassemble
+    $85c0: 4e 07 be    lsr 0xbe07
+[ 243 14:21:05] ASSISTANT (turn 2 step 27) · in 229 (cache 164864) out 5025
+    ▷ The disassembler is being unreliable (it decoded $8580 as `sta $e3` etc., which are actually part of a jump table or code? Hmm, $8580 bytes 85 E3 = STA $E3, that could be code. But then it stopped after 4 instructions). The disassembler seems to stop after a few instructions sometimes. Possibly it stops at a branch or at $FF byte. This is annoying.
+    
+    Let me read raw bytes and decode manually.
+    
+    Table at $856C (offset 0x56C): read at 1388 (0x56C) gave bytes:
+    [142,139, 133,155, 133,82, 134,90, 134,147, 134,157, 136,168, 134,157, 136,230, 134,191, 133,227, 133, 67,...]
+    
+    As little-endian addresses:
+    $856C: 8E 8B → $8B8E
+    $856E: 85 9B → $9B85
+    $8570: 85 52 → $5285
+    $8572: 86 5A → $5A86
+    $8574: 86 93 → $9386
+    $8576: 86 9D → $9D86
+    $8578: 88 A8 → $A888
+    $857A: 86 9D → $9D86
+    $857C: 88 E6 → $E688
+    $857E: 86 BF → $BF86
+    $8580: 85 E3 → $E385
+    $8582: 85 43 → $4385
+    
+    Hmm, these don't look like code addresses (e.g., $5285, $5A86). The pattern: bytes are [8E,8B,85,9B,85,52,86,5A,86,93,86,9D,88,A8,86,9D,88,E6,86,BF,85,E3,85,43]. If we read as pairs offset by 1: [8B,85]=$858B, [9B,85]=$859B, [52,86]=$8652, [5A,86]=$865A, [93,86]=$8693, [9D,88]=$889D, [A8,86]=$86A8, [9D,88]=$889D, [E6,86]=$86E6, [BF,85]=$85BF, [E… [+13297 chars]
+    The disassembler is unreliable across these jump tables. Let me run a direct experiment: pause, set `$0773` to each palette selector, step a frame, and read the hardware palette — this proves the mechanism and the table mapping.
+    → pause_emulator {}
+[ 245 14:21:05] RESULT pause_emulator
+    {"paused":true}
+[ 249 14:21:08] ASSISTANT (turn 2 step 28) · in 12786 (cache 170112) out 411
+    ▷ Let me do the $0773 experiment. First read current palette, then write $0773=2, step 1 frame, read palette; then $0773=1; then 4. Actually let me be efficient: read palette (current), write $0773=2, step, read palette. That should show the overworld block $8CC8.
+    
+    Let me first read the current palette (paused).
+    
+    Actually, let me combine: read palette, then write $0773=2. But write needs to be after read? No dependency; but step must follow write. Let me do read palette + write $0773=2 in one message, then step + read palette.
+    
+    Hmm, the write and read are independent. Let me do:
+    Message 1: read_memory palette (32), write_memory $0773=2.
+    Then message 2: step_frame 1, read_memory palette.
+    
+    Then repeat for 1 and 4.
+    
+    Let's go.
+    
+    Wait, actually the game is paused, and step_frame 1 will run one frame: the NMI fires, does the transfer, and clears $0773. Then the palette should be the block.
+    
+    Let me proceed.
+    Now the direct experiment. Read the current palette, then force `$0773=2` and step one frame.
+    → read_memory {"address": 0, "length": 32, "mem_type": "palette"}
+    → write_memory {"address": 1907, "bytes": [2], "mem_type": "cpu"}
+[ 251 14:21:08] RESULT read_memory
+    {"mem_type":"palette","bytes":[34,41,26,15,15,54,23,15,15,48,33,15,15,23,23,15,34,22,39,24,15,26,48,39,15,22,48,39,15,15,54,23],"address":0}
+[ 253 14:21:08] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1907,"persistent":false}
+[ 256 14:21:12] ASSISTANT (turn 2 step 29) · in 258 (cache 183168) out 566
+    ▷ Current palette: [22,29,1A,0F, 0F,36,17,0F, 0F,30,21,0F, 0F,17,17,0F, 22,16,27,18, 0F,1A,30,27, 0F,16,30,27, 0F,0F,36,17].
+    This matches block $8CC8 exactly (P3 slot1 = 17 brown, the used-block state; P0 slot0=22).
+    
+    So the live 1-1 palette is block $8CC8 = state2. Good. So the palette selector for 1-1 is 2.
+    
+    Now let me step 1 frame after writing $0773=2 and see if it changes (it should, but it's already block2, so no visible change). Let me instead write $0773=1 and step: expect block $8CA4 which is dark → visibly different.
+    
+    Actually, to prove the mapping, let me write 1, step, read palette; then write 4, step, read; then write 2, step, read to restore.
+    
+    Let me do write 1 now, and step.
+    
+    Hmm, I need to be careful: after step_frame 1, the NMI writes the palette from the selected buffer. Let's test selector 1.
+    
+    Message: write $0773=1, then step_frame 1, then read palette. These are dependent (write then step then read). Let me do them sequentially: write first.
+    
+    Actually I can do write and step in one message? step depends on write. Better sequential. Let me do write 1.
+    
+    Hmm, this is getting slow. But it's a strong proof. Let me just do it for selector 1 (dark) — that will visibly co… [+244 chars]
+    Live palette equals the `$8CC8` block exactly — so 1-1's selector is 2. Let me confirm the mechanism by forcing selector 1 (a dark palette) and stepping one frame.
+    → write_memory {"address": 1907, "bytes": [1], "mem_type": "cpu"}
+[ 258 14:21:12] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1907,"persistent":false}
+[ 261 14:21:14] ASSISTANT (turn 2 step 30) · in 217 (cache 183808) out 38
+    ▷ 
+    → step_frame {"count": 1}
+[ 263 14:21:14] RESULT step_frame
+    {"paused":true,"stepped":1}
+[ 266 14:21:16] ASSISTANT (turn 2 step 31) · in 149 (cache 183936) out 85
+    ▷ 
+    → read_memory {"address": 0, "length": 32, "mem_type": "palette"}
+    → screenshot {}
+[ 268 14:21:16] RESULT read_memory
+    {"mem_type":"palette","bytes":[34,21,18,37,15,58,26,15,15,48,18,15,15,39,23,15,34,22,39,24,15,16,48,39,15,22,48,39,15,15,48,16],"address":0}
+[ 270 14:21:16] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1414-sheet5b-entry-dispatch-palette/images/task-2/6b5edd83200d.png
+[ 273 14:21:25] ASSISTANT (turn 2 step 32) · in 553 (cache 184064) out 1464
+    ▷ The palette changed to [22,15,12,0F, 0F,3A,1A,0F, 0F,30,12,0F, 0F,27,17,0F, 22,16,27,18, 0F,10,30,27, 0F,16,30,27, 0F,0F,30,10] — which matches block $8CA4. The screenshot shows the pipes turned blue/pink, ground green/blue — a completely different palette. This proves:
+    - Writing $0773 selects the ROM palette buffer, and the NMI writes it to PPU via $2006/$2007.
+    
+    Great. Now restore selector 2.
+    
+    Now, the routine question. The value 2 must be written at level start by some routine. The write-trace earlier caught only value 3 from $85C5. But that might have been the hurry palette. Let me reconsider: block $8CEC might be the "hurry" palette (state3). Recall I set the timer to 001, which triggers hurry → the game writes $0773=3 at frame 42. That's consistent! So $85C5 is the *hurry* palette changer, not the level-start loader.
+    
+    So the level-start loader writes $0773=2. Why didn't the write-trace catch it? Because in that trace window, the level may not have reloaded (the timer write got clobbered). Hmm. Or the level-start palette load uses a different mechanism.
+    
+    Wait, actually: hmm. Let me reconsider. The routine at $85C5 wrote value 3 with X=3. Maybe that IS the level-start loader and… [+3682 chars]
+    Confirmed: selector `$0773=1` swapped the whole level to the dark palette at `$8CA4` (pipes blue/pink, ground green) — the NMI path writes ROM palette blocks through `$2006/$2007`. Restoring selector 2.
+    → write_memory {"address": 1907, "bytes": [2], "mem_type": "cpu"}
+[ 275 14:21:25] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1907,"persistent":false}
+[ 278 14:21:27] ASSISTANT (turn 2 step 33) · in 258 (cache 185856) out 38
+    ▷ 
+    → step_frame {"count": 1}
+[ 280 14:21:27] RESULT step_frame
+    {"paused":true,"stepped":1}
+[ 283 14:21:32] ASSISTANT (turn 2 step 34) · in 190 (cache 185984) out 738
+    ▷ Now screenshot and check state. Then play_input right to die.
+    
+    Actually, let me just resume and trace $0773 for a long window while I trigger death via play_input? Can't combine.
+    
+    Let me think: I want a guaranteed level reload during a $0773 trace. The most reliable: reset the emulator to title, then the attract demo will load a level (which writes $0773). Actually, from title, the game eventually starts the attract demo, which loads 1-1 with palette 2. Timing unpredictable (title sits ~10-20s before demo).
+    
+    Alternatively, from the title, press Start → begins game → level load → $0773=2 write. I can start the trace right after pressing Start if I time it so the trace catches the load. The load happens ~1-3s after Start (the "WORLD 1-1" card). Hmm.
+    
+    Actually, the best approach: use the emulator's pause + a *single frame stepping* won't work for trace (needs running).
+    
+    Hmm, what about trace_writes with frames=1 repeated? No.
+    
+    Alternative clean approach: I can trigger a level load by writing to RAM: set $0770 (GameMode) to 0 (title) then back to 1? That would cause the game to re-init? Risky.
+    
+    Alternative: The attract demo. Let me check: in title mode (GameMode 0), the game periodical… [+894 chars]
+    → screenshot {}
+    → read_memory {"address": 1882, "length": 1, "mem_type": "cpu"}
+    → read_memory {"address": 2040, "length": 3, "mem_type": "cpu"}
+    → read_memory {"address": 1904, "length": 1, "mem_type": "cpu"}
+[ 285 14:21:32] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-1414-sheet5b-entry-dispatch-palette/images/task-2/835de5b4bb08.png
+[ 287 14:21:32] RESULT read_memory
+    {"mem_type":"cpu","bytes":[2],"address":1882}
+[ 289 14:21:32] RESULT read_memory
+    {"mem_type":"cpu","bytes":[4,0,1],"address":2040}
+[ 291 14:21:32] RESULT read_memory
+    {"mem_type":"cpu","bytes":[0],"address":1904}
+[ 294 14:21:40] ASSISTANT (turn 2 step 35) · in 460 (cache 186880) out 1454
+    ▷ Now we're on the title screen (GameMode $0770 = 0), lives 2, timer [4,0,1]... wait the HUD shows TIME? Actually the title screen shows "TOP- 000000" and the demo Mario at the bottom. Interesting, the title screen displays the 1-1 level as a backdrop (the attract/title screen with the demo Mario). GameMode 0.
+    
+    So the game returned to title (maybe lives ran out → game over → title). Anyway, we're at the title screen now. 
+    
+    Now I can trace $0773 writes while the game is at the title. But the title doesn't load a level frequently... Actually, the title screen IS showing the 1-1 level backdrop! In SMB, the title screen has the level as a static backdrop, and Mario runs in the demo. When the demo runs, it's GameMode 0 still. Hmm.
+    
+    Actually, in SMB the title screen shows a static level scene with Mario standing. Then after a while, the attract demo plays a full 1-1 with GameMode 0. During the demo, the level was loaded when transitioning from title to demo. So a level load already happened when we got to the title (the title screen backdrop is loaded at boot), and again when the demo starts.
+    
+    Hmm. So the level load for the title screen backdrop also reads the palette ($8CC8 or whatever).
+    … [+3030 chars]
+    We're back at the title screen (GameMode 0). Rather than fight trace timing, let me inspect the other `STA $0773` sites directly — one should be the level-start palette queue.
+    → disassemble {"address": 34275, "length": 48}
+    → disassemble {"address": 34380, "length": 48}
+    → disassemble {"address": 34555, "length": 48}
+    → disassemble {"address": 35263, "length": 48}
+[ 296 14:21:40] RESULT disassemble
+    $85e3: ac 44 07    ldy 0x0744
+    $85e6: f0 06       beq 0x0000
+    $85e8: b9 c7 85    lda 0x85c7, y
+    $85eb: 8d 73 07    sta 0x0773
+    $85ee: ee 3c 07    inc 0x073c
+    $85f1: ae 00 03    ldx 0x0300
+    $85f4: a0 00       ldy #0x00
+    $85f6: ad 53 07    lda 0x0753
+    $85f9: f0 02       beq 0x0000
+    $85fb: a0 04       ldy #0x04
+    $85fd: ad 56 07    lda 0x0756
+    $8600: c9 02       cmp #0x02
+    $8602: d0 02       bne 0x0000
+    $8604: a0 08       ldy #0x08
+    $8606: a9 03       lda #0x03
+    $8608: 85 00       sta 0x00
+    $860a: b9 d7 85    lda 0x85d7, y
+    $860d: 9d 04 03    sta 0x0304, x
+    $8610: c8          iny 
+    $8611: e8          inx 
+[ 298 14:21:40] RESULT disassemble
+    $864c: 8d 73 07    sta 0x0773
+    $864f: 4c 45 87    jmp 0x8745
+    $8652: a9 00       lda #0x00
+    $8654: 20 08 88    jsr 0x8808
+    $8657: 4c 45 87    jmp 0x8745
+    $865a: 20 30 bc    jsr 0xbc30
+    $865d: ae 00 03    ldx 0x0300
+    $8660: a9 20       lda #0x20
+    $8662: 9d 01 03    sta 0x0301, x
+    $8665: a9 73       lda #0x73
+    $8667: 9d 02 03    sta 0x0302, x
+    $866a: a9 03       lda #0x03
+    $866c: 9d 03 03    sta 0x0303, x
+    $866f: ac 5f 07    ldy 0x075f
+    $8672: c8          iny 
+    $8673: 98          tya 
+    $8674: 9d 04 03    sta 0x0304, x
+    $8677: a9 28       lda #0x28
+    $8679: 9d 05 03    sta 0x0305, x
+[ 300 14:21:40] RESULT disassemble
+    $86fb: 8d 73 07    sta 0x0773
+    $86fe: 60          rts 
+    $86ff: ad 70 07    lda 0x0770
+    $8702: d0 4a       bne 0x0000
+    $8704: a9 1e       lda #0x1e
+    $8706: 8d 06 20    sta 0x2006
+    $8709: a9 c0       lda #0xc0
+    $870b: 8d 06 20    sta 0x2006
+    $870e: a9 03       lda #0x03
+    $8710: 85 01       sta 0x01
+    $8712: a0 00       ldy #0x00
+    $8714: 84 00       sty 0x00
+    $8716: ad 07 20    lda 0x2007
+    $8719: ad 07 20    lda 0x2007
+    $871c: 91 00       sta (0x00), y
+    $871e: c8          iny 
+    $871f: d0 02       bne 0x0000
+    $8721: e6 01       inc 0x01
+    $8723: a5 01       lda 0x01
+    $8725: c9 04       cmp #0x04
+    $8727: d0 f0       bne… [+36 chars]
+[ 302 14:21:40] RESULT disassemble
+    $89bf: 8d 73 07    sta 0x0773
+    $89c2: 60          rts 
+[ 305 14:21:48] ASSISTANT (turn 2 step 36) · in 1224 (cache 188672) out 1465
+    ▷ The disassembler works here. Let me look at $85E3:
+    ```
+    $85E3: ac 44 07    ldy $0744
+    $85E6: f0 06       beq $85EE
+    $85E8: b9 c7 85    lda $85C7,Y   ; table at $85C7 indexed by $0744
+    $85EB: 8d 73 07    sta $0773
+    $85EE: ee 3c 07    inc $073C
+    $85F1: ae 00 03    ldx $0300    ; VRAM buffer offset
+    ...
+    ```
+    So there's a routine at $85E3 that loads a palette selector from table $85C7 indexed by $0744, and stores it to $0773! Table at $85C7: earlier bytes at $85C7? The table $85C7 — recall the disassembly at $85C0 gave `4e 07 be` (garbage). Let me read $85C5-$85D7:
+    From the earlier disasm: $85C5: 8e 73 07 (STX $0773), $85C8: ...? and $85C7 is the middle of the STX instruction (the 0x07 byte)! Hmm, that can't be a table.
+    
+    Wait: $85E8: `b9 c7 85` = LDA $85C7,Y. So the table is at $85C7. But $85C5 is `8e 73 07` = STX $0773, so $85C7 = 0x07. Hmm, so the table at $85C7 starts with 0x07? And $0744 is the area type index. Table $85C7 = [07, ...]. Hmm, but the pointers table for the NMI is at $805A/$806D...
+    
+    Wait, maybe I'm misreading. Let me re-derive $85C5. Earlier disassembly of $85C0 gave `4e 07 be` = LSR $BE07. That's clearly wrong alignment. Let me not trust it.
+    
+    Actually, let me directly read b… [+2469 chars]
+    The `$85E3` routine does `LDY $0744 / LDA $85C7,Y / STA $0773` — a palette selector chosen by `$0744`. The disassembler is misaligned here, so let me read the raw bytes.
+    → read_memory {"address": 1408, "length": 112, "mem_type": "prgRom"}
+[ 307 14:21:48] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[133,227,133,67,134,255,134,50,135,73,135,32,32,130,32,25,142,173,112,7,240,50,162,3,76,197,133,173,68,7,72,173,86,7,72,169,0,141,86,7,169,2,141,68,7,32,241,133,104,141,86,7,104,141,68,7,76,69,135,1,2,3,4,172,78,7,190,187,133,142,115,7,76,69,135,0,9,10,4,34,34,15,15,15,34,15,15,34,22,39,24,34,48,39,25,34,55,39,22,172,68,7,240,6,185,199,133,141,115,7,238,60],"address":1408}
+[ 310 14:22:11] ASSISTANT (turn 2 step 37) · in 251 (cache 191360) out 5769
+    ▷ Now let me decode. offset 0x580 = CPU $8580. bytes index i → CPU $8580+i.
+    
+    i: byte
+    0: 133 (0x85) → $8580
+    1: 227 (0xE3) → $8581
+    2: 133 (0x85) → $8582
+    3: 67 (0x43) → $8583
+    4: 134 (0x86) → $8584
+    5: 255 (0xFF) → $8585
+    6: 134 (0x86) → $8586
+    7: 50 (0x32) → $8587
+    8: 135 (0x87) → $8588
+    9: 73 (0x49) → $8589
+    10: 135 (0x87) → $858A
+    11: 32 (0x20) → $858B
+    12: 32 (0x20) → $858C
+    13: 130 (0x82) → $858D
+    14: 32 (0x20) → $858E
+    15: 25 (0x19) → $858F
+    16: 142 (0x8E) → $8590
+    17: 173 (0xAD) → $8591
+    18: 112 (0x70) → $8592
+    19: 7 (0x07) → $8593
+    20: 240 (0xF0) → $8594
+    21: 50 (0x32) → $8595
+    22: 162 (0xA2) → $8596
+    23: 3 (0x03) → $8597
+    24: 76 (0x4C) → $8598
+    25: 197 (0xC5) → $8599
+    26: 133 (0x85) → $859A
+    27: 173 (0xAD) → $859B
+    28: 68 (0x44) → $859C
+    29: 7 (0x07) → $859D
+    30: 72 (0x48) → $859E
+    31: 173 (0xAD) → $859F
+    32: 86 (0x56) → $85A0
+    33: 7 (0x07) → $85A1
+    34: 72 (0x48) → $85A2
+    35: 169 (0xA9) → $85A3
+    36: 0 → $85A4
+    37: 141 (0x8D) → $85A5
+    38: 86 (0x56) → $85A6
+    39: 7 → $85A7
+    40: 169 (0xA9) → $85A8
+    41: 2 → $85A9
+    42: 141 (0x8D) → $85AA
+    43: 68 (0x44) → $85AB
+    44: 7 → $85AC
+    45: 32 (0x20) → $85AD
+    46: 241 (0xF1) → $85AE
+    47: 133 (0x85) → $85AF
+    48: 104 (0x68) → $85B0
+    49: 141 (0x8D) → $85B1
+    50: 86 (0x56) → $85B2
+    51: 7 → $85B3
+    5… [+13572 chars]
+    Raw bytes confirm a **level-init state machine** at `$8567` (dispatches on `$073C`), whose step 9 is `$85BF`: `LDY $074E / LDX $85BB,Y / STX $0773 / JMP $8745`, with table `$85BB = [01,02,03,04]`. That is the area-palette loader. Let me reach real gameplay and confirm `$074E` and the palette write during a reload.
+    → play_input {"script": [{"buttons": ["start"], "frames": 4}, {"buttons": [], "frames": 90}, {"buttons": ["start"], "frames": 4}, {"buttons": [], "frames": 150}], "watch": [1904, 1870, 1875, 1907, 1910]}
+[ 312 14:22:15] RESULT play_input
+    {"port":0,"was_paused":false,"sample_frames":[5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145,150,155,160,165,170,175,180,185,190,195,200,205,210,215,220,225,230,235,240,245,248],"frames":248,"watch":[{"last":1,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":0,"address":1904,"address_hex":"0x0770"},{"last":1,"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":1,"address":1870,"address_hex":"0x074E"},{"last":0,"… [+770 chars]
+[ 316 14:22:21] ASSISTANT (turn 2 step 38) · in 13601 (cache 197376) out 799
+    ▷ The play_input watch gave:
+    - $0770 (GameMode) 0→1 at ~frame 95 (second Start). Good, in gameplay.
+    - $074E = 1 throughout. So for 1-1, $074E = 1 → table $85BB[1] = 2 → selector 2 = $8CC8. This matches the live palette! Excellent.
+    - $0773 spiked to 6 at frames 10-15 and back to 6 at frames 230-240. Interesting: value 6 → pointer $0341 (RAM buffer). So the title/level transitions queue buffer state6 (which is $0341) — probably a nametable/HUD update. Not the palette. Good.
+    - $0753 = 0.
+    
+    So $074E=1 for World 1-1, and the palette selector table $85BB[1]=2 gives $8CC8. This strongly supports $85BF as the area-palette loader.
+    
+    Now let me do a definitive trace: trace_writes on $0773 during the level load. To guarantee, I'll set the timer to 001 and trace during the reload. Let me do it properly this time.
+    
+    Actually, better: since we now know $074E=1 and table gives selector 2, and the level-init state machine at $8567 step 9 ($85BF) does this, I have strong static+dynamic evidence. But let me get the dynamic proof of the routine reading $85BB and writing $0773 with value 2 during a level load.
+    
+    Let me trace reads on the table $85BB (address 0x85BB length 4) during a level load. To guarante… [+1334 chars]
+    `$074E = 1` for World 1-1, and `$85BB[1] = 2` → selector 2 → the `$8CC8` block — exactly the live palette. Let me trace a read of that table during a forced reload for dynamic proof.
+    → pause_emulator {}
+[ 318 14:22:21] RESULT pause_emulator
+    {"paused":true}
+[ 322 14:22:24] ASSISTANT (turn 2 step 39) · in 12844 (cache 211712) out 261
+    ▷ Let me write the timer to 001 and trace reads on the table $85BB (address 0x85BB = 34235, length 4) for 600 frames.
+    
+    Actually, tracing reads on table $85BB — during a level reload, the routine at $85BF reads $85BB,Y. That would confirm. But maybe the table is read only once. Let me also trace reads on the palette data to correlate. Actually I already have the read-trace on $8CC8 proving the NMI copies the overworld block.
+    
+    The missing dynamic link is the routine that sets $0773=2. Tracing reads on $85BB during the reload will give PC $85C5 (after LDX $85C2) with value at the table. Let me do it.
+    
+    Write timer then resume then trace. Let me do pause already done. Write.
+    → write_memory {"address": 2040, "bytes": [0, 0, 1], "mem_type": "cpu"}
+[ 324 14:22:24] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":3,"address":2040,"persistent":false}
+[ 327 14:22:25] ASSISTANT (turn 2 step 40) · in 210 (cache 224640) out 25
+    ▷ 
+    → resume_emulator {}
+[ 329 14:22:25] RESULT resume_emulator
+    {"resumed":true}
+[ 333 14:22:29] ASSISTANT (turn 2 step 41) · in 12886 (cache 224768) out 242
+    ▷ Now trace reads on table $85BB (0x85BB = 34235) length 4, mode read, frames 600. Also I'd like to trace writes to $0773, but one at a time. Let me trace reads on $85BB first.
+    
+    Actually, let me trace the range covering the table and palette read: no, one range. Let me trace reads on $85BB (4 bytes).
+    
+    Hmm, but if the routine reads $85BB with LDX $85BB,Y, the read address is $85BB+Y. Y=$074E=1, so reads $85BC. The trace on range $85BB-$85BE will catch it, at PC $85C5.
+    
+    Let me go.
+    → trace_writes {"address": 34235, "length": 4, "mode": "read", "frames": 600}
+[ 335 14:22:39] RESULT trace_writes
+    {"recorded_accesses":1,"total_accesses":1,"writers":[{"origin":{"mem_type":"prgRom","mem_type_id":45,"address":1477},"last_address":34236,"last_value":2,"count":1,"samples":[{"value":2,"frame":363,"address":34236}],"pc":34245,"last_frame":363,"pc_hex":"0x85C5","origin_hex":"prgRom 0x5C5"}],"frames":600,"length":4,"address":34235,"mem_type":"cpu","mode":"read","truncated":false,"note":"Disassemble around a writer's pc (CPU address) to see what it copies from; origin_hex is that code's ROM offset."}
+[ 338 14:23:10] ASSISTANT (turn 2 step 42) · in 249 (cache 237824) out 7698
+    ▷ The trace caught exactly one read of the table: at frame 363, address $85BC (=$85BB+1, since Y=$074E=1), value 2, PC $85C5 (after `LDX $85BB,Y` at $85C2). This is exactly the level reload: the routine at $85BF read the palette selector 2 from table $85BB[$074E=1] and then stored it to $0773 (STX $0773 at $85C5).
+    
+    This is the level-start area palette loader. Proven dynamically.
+    
+    Now let me also verify the NMI writes that selector to PPU. I already have:
+    - The read-trace on $8CC8 (the overworld palette block) during a reload (frame 189) showing PCs $8E96/$8E9C/$8EBB/$8EE2 (the VRAM buffer writer).
+    - The direct experiment: writing $0773=1 swapped the whole palette to block $8CA4 and back.
+    
+    Together, this fully establishes the palette path:
+    $85BF (level-init state machine step 9) reads $074E → table $85BB → selector → $0773 → NMI ($80B6-$80C3: LDA $805A,X / LDA $806D,X → pointer) → $8EDD/$8E92 buffer writer → $2006/$2007 → PPU palette.
+    
+    Now, is $85BF the right "routine entry"? It's the target of the $073C jump table (step 9) at $856D. And its "entry" is $85BF. Good.
+    
+    Hmm, but the task says: "the routine that loads an area's background and sprite colors when a level starts". $85BF is a … [+13105 chars]
+    Dynamic proof obtained: during the forced World 1-1 reload, the table `$85BB` was read exactly once — PC `$85C5` (after `LDX $85BB,Y`), address `$85BC` (`$85BB + $074E`, with `$074E=1`), value **2**. That is the level-init routine at `$85BF` choosing 1-1's palette block.
+    
+    I now have both routines proven. Let me record them.
+    → record_mapping {"mapping_type": "routine", "id": "0x8212", "name": "GameEngine - per-frame dispatch on GameMode ($0770)", "length": 6, "notes": "The game-mode dispatch. Runs once per frame from the NMI: at CPU $8175 the NMI does JSR $8212, guarded by LDA $0776 / LSR A / BCS (skip) at $816F-$8173, so it only runs when OperMode bit 0 is clear. Entry $8212: LDA $0770 (GameMode) ; JSR $8E04 (jump engine), and the 4-… [+1089 chars]
+    → record_mapping {"mapping_type": "routine", "id": "0x85BF", "name": "LoadAreaPalette - pick the area's background+sprite palette when a level starts", "length": 12, "notes": "The routine that loads an area's background and sprite colours at level start. It is step 9 of the level-initialization state machine at $8567 (LDA $073C / JSR $8E04 with the address table at $856D; one of its targets is $85BF). Entry $85BF:… [+1475 chars]
+    → record_mapping {"mapping_type": "routine", "id": "0x8EDD", "name": "WriteVRAMBuffer - NMI routine that writes palette/VRAM via $2006/$2007", "length": 17, "notes": "The code that actually puts the area palette on the hardware, i.e. the $2006/$2007 writer the task suspected (\"possibly from a RAM buffer that the frame interrupt copies\"). The NMI calls it at $80C3 with $00/$01 already pointing at the buffer chose… [+1249 chars]
+    → record_mapping {"mapping_type": "address", "id": "0x074E", "name": "area_palette_index", "length": 1, "format": "binary (0-based index into table $85BB)", "notes": "Index into the area-palette selector table $85BB (=$01,$02,$03,$04), read by LoadAreaPalette at $85BF. World 1-1 holds 1 -> selector 2 -> the overworld palette block at $8CC8. Found with no reference: read 1 throughout World 1-1 play (play_input watc… [+121 chars]
+    → record_mapping {"mapping_type": "address", "id": "0x0773", "name": "vram_buffer_selector", "length": 1, "format": "binary (index into $805A/$806D pointer tables)", "notes": "Selects which buffer the NMI's VRAM transfer ($8EDD) copies. The NMI reads $805A,X and $806D,X with X=$0773 and drops the result into $00/$01. Entries: 0 -> $0301, 1 -> $8CA4, 2 -> $8CC8, 3 -> $8CEC, 4 -> $8D10 (four [3F 00 20 <32 palette by… [+406 chars]
+    → record_mapping {"mapping_type": "note", "id": "level_start_palette_chain", "name": "How a level's colours reach the PPU (World 1-1 example)", "notes": "Chain proven with no reference. Level-init state machine $8567 (LDA $073C / JSR $8E04, table $856D) step 9 -> $85BF (LoadAreaPalette): LDY $074E / LDX $85BB,Y / STX $0773. Table $85BB = $01,$02,$03,$04; 1-1 has $074E=1 so $0773=2. Next NMI ($80B6-$80C3): LDX $077… [+821 chars]
+[ 340 14:23:10] RESULT record_mapping
+    {"mapping_type":"routine","id":"0x8212","name":"GameEngine - per-frame dispatch on GameMode ($0770)","length":6,"category":null,"group":null,"notes":"The game-mode dispatch. Runs once per frame from the NMI: at CPU $8175 the NMI does JSR $8212, guarded by LDA $0776 / LSR A / BCS (skip) at $816F-$8173, so it only runs when OperMode bit 0 is clear. Entry $8212: LDA $0770 (GameMode) ; JSR $8E04 (jump engine), and the 4-entry target table follows at $8218: $8231 (mode 0 = title screen / attract demo), $AEDC (mode 1 = game / in a level), $838B (mode 2 = victory), $9218 (mode 3 = game over). $8E04 i… [+963 chars]
+[ 342 14:23:10] RESULT record_mapping
+    {"mapping_type":"routine","id":"0x85BF","name":"LoadAreaPalette - pick the area's background+sprite palette when a level starts","length":12,"category":null,"group":null,"notes":"The routine that loads an area's background and sprite colours at level start. It is step 9 of the level-initialization state machine at $8567 (LDA $073C / JSR $8E04 with the address table at $856D; one of its targets is $85BF). Entry $85BF: LDY $074E (area palette index) ; LDX $85BB,Y (selector table at $85BB = $01,$02,$03,$04) ; STX $0773 (VRAM-buffer selector) ; JMP $8745. The NMI then does at $80B6-$80C3: LDX $077… [+1349 chars]
+[ 344 14:23:10] RESULT record_mapping
+    {"mapping_type":"routine","id":"0x8EDD","name":"WriteVRAMBuffer - NMI routine that writes palette/VRAM via $2006/$2007","length":17,"category":null,"group":null,"notes":"The code that actually puts the area palette on the hardware, i.e. the $2006/$2007 writer the task suspected (\"possibly from a RAM buffer that the frame interrupt copies\"). The NMI calls it at $80C3 with $00/$01 already pointing at the buffer chosen from tables $805A/$806D by the selector $0773. Entry $8EDD: LDX $2002 ; LDY #$00 ; LDA ($00),Y ; BNE $8E92 - a zero first byte ends the transfer with two STA $2005 and RTS. The n… [+1123 chars]
+[ 346 14:23:10] RESULT record_mapping
+    {"mapping_type":"address","id":"0x074E","name":"area_palette_index","length":1,"format":"binary (0-based index into table $85BB)","category":null,"group":null,"notes":"Index into the area-palette selector table $85BB (=$01,$02,$03,$04), read by LoadAreaPalette at $85BF. World 1-1 holds 1 -> selector 2 -> the overworld palette block at $8CC8. Found with no reference: read 1 throughout World 1-1 play (play_input watch) and the value read from the table during the 1-1 reload was $85BC (=$85BB+1) = 2.","confidence":1,"source":"trace and disassembly","recorded":true,"event_type":"mapping_discovered… [+2 chars]
+[ 348 14:23:10] RESULT record_mapping
+    {"mapping_type":"address","id":"0x0773","name":"vram_buffer_selector","length":1,"format":"binary (index into $805A/$806D pointer tables)","category":null,"group":null,"notes":"Selects which buffer the NMI's VRAM transfer ($8EDD) copies. The NMI reads $805A,X and $806D,X with X=$0773 and drops the result into $00/$01. Entries: 0 -> $0301, 1 -> $8CA4, 2 -> $8CC8, 3 -> $8CEC, 4 -> $8D10 (four [3F 00 20 <32 palette bytes> 00] palette blocks), 5 -> $0300, 6 -> $0341 (RAM buffers). The NMI clears it to 0 every frame at $80DB, so it is a one-frame request. Found with no reference: trace_writes on $0… [+287 chars]
+[ 350 14:23:10] RESULT record_mapping
+    {"mapping_type":"note","id":"level_start_palette_chain","name":"How a level's colours reach the PPU (World 1-1 example)","category":null,"group":null,"notes":"Chain proven with no reference. Level-init state machine $8567 (LDA $073C / JSR $8E04, table $856D) step 9 -> $85BF (LoadAreaPalette): LDY $074E / LDX $85BB,Y / STX $0773. Table $85BB = $01,$02,$03,$04; 1-1 has $074E=1 so $0773=2. Next NMI ($80B6-$80C3): LDX $0773 / LDA $805A,X / STA $00 / LDA $806D,X / STA $01 / JSR $8EDD. The pointer tables $805A/$806D map selector 1..4 to the four PRG palette records $8CA4,$8CC8,$8CEC,$8D10, each [3F … [+708 chars]
+[ 353 14:23:13] ASSISTANT (turn 2 step 43) · in 2725 (cache 245760) out 201
+    ▷ All recorded. Now promote_mappings once at the end.
+    
+    Let me update the todo list and promote.
+    All recorded. Now promote the confirmed discoveries.
+    → promote_mappings {}
+    → todo_write {"todos": [{"content": "Confirm $8212 GameEngine dispatch and record it", "status": "completed"}, {"content": "Start real gameplay (Start, wait, Start) and confirm World 1-1", "status": "completed"}, {"content": "Locate area palette table reference via trace_writes read on $8CCB during a level load", "status": "completed"}, {"content": "Disassemble and prove the palette-load routine entry", "statu… [+99 chars]
+[ 355 14:23:13] RESULT promote_mappings
+    Promoted 6 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 14 tiles, 7 palettes, 0 sprites, 14 addresses. 0 hypotheses skipped.
+[ 358 14:23:13] RESULT todo_write
+    Updated todo list: 0 pending, 0 in progress, 5 completed.
+[ 362 14:23:19] ASSISTANT (turn 2 step 44) · in 15217 (cache 248576) out 1226
+    ▷ Everything is promoted. Now I should resume the emulator to leave it running? The game is running. The emulator is currently running (I resumed earlier). Anyway.
+    
+    Let me write the final report. Two routines, their entries, what they do, evidence.
+    
+    Let me be concise but complete.
+    Done. Both routines are found, proven, recorded, and the six confirmed discoveries are promoted to the ROM's mapping file.
+    
+    ## 1. Game-mode dispatch — entry `$8212`
+    
+    **What it does:** the per-frame switch that picks the title / in-level / victory / game-over handler.
+    
+    ```
+    $8212: AD 70 07   LDA $0770        ; GameMode
+    $8215: 20 04 8E   JSR $8E04        ; JumpEngine
+    $8218: 31 82      .dw $8231        ; mode 0 = title screen / attract demo
+    $821A: DC AE      .dw $AEDC        ; mode 1 = game (in a level)
+    $821C: 8B 83      .dw $838B        ; mode 2 = victory
+    $821E: 18 92      .dw $9218        ; mode 3 = game over
+    ```
+    
+    `$8E04` (JumpEngine) is `ASL A / TAY / PLA / STA $04 / PLA / STA $05 / INY / LDA ($04),Y / STA $06 / INY / LDA ($04),Y / STA $07 / JMP ($0006)` — it pops its return address (the table at `$8218`) and indexes it with the mode.
+    
+    **Evidence**
+    - The NMI calls it every frame at `$8175`: `LDA $0776 / LSR A / BCS skip / JSR $8212`.
+    - Found by searching PRG for `AD 70 07` (`LDA $0770`); `$8212` is the match in the per-frame path.
+    - Emulator: watching `$0770` while pressing Start read **0** on the title/attract screen and flipped to **1** exactly when the second Start began World 1-1; the known `LoseLife` sets `$0770=3`, which is mode 3 → `$9218` (game over).
+    
+    ## 2. Area palette loader — entry `$85BF`
+    
+    **What it does:** at level start, chooses which of four 32-byte palette blocks the NMI copies to the PPU.
+    
+    ```
+    $85BF: AC 4E 07   LDY $074E        ; area palette index
+    $85C2: BE BB 85   LDX $85BB,Y      ; selector table $85BB = 01 02 03 04
+    $85C5: 8E 73 07   STX $0773        ; queue the VRAM/palette transfer
+    $85C8: 4C 45 87   JMP $8745
+    ```
+    
+    This is **step 9** of the level-init state machine at `$8567` (`LDA $073C / JSR $8E04`, table at `$856D`). The NMI then does (`$80B6`–`$80C3`) `LDX $0773 / LDA $805A,X / STA $00 / LDA $806D,X / STA $01 / JSR $8EDD`; `$8EDD`/`$8E92` is the actual hardware writer — `STA $2006` (`=$3F`) / `STA $2006` (`=$00`) then `LDA ($00),Y / STA $2007` ×32 — loading all 4 BG + 4 sprite palettes at once from the selected PRG records `$8CA4` (1), **`$8CC8` (2, overworld / 1-1)**, `$8CEC` (3), `$8D10` (4), each `[3F 00 20 <32 bytes> 00]`.
+    
+    **Evidence**
+    - `trace_writes` **read** on the selector table `$85BB` during a forced 1-1 reload (time-up death) returned exactly one access: PC `$85C5` (after `LDX $85BB,Y`), address `$85BC` = `$85BB + $074E` with `$074E=1`, value **2**.
+    - `trace_writes` read over `$8CA0`–`$8D27` during another reload caught the NMI writer reading `$8CC8`–`$8CEB` (PCs `$8E96/$8E9C/$8EBB/$8EE2`) into `$2007`.
+    - Direct test: writing `$0773=1` while paused then `step_frame 1` swapped the entire level to the `$8CA4` palette (pipes turned blue/pink, ground green — screenshot); `$0773=2` restored the normal overworld colours. The live 1-1 palette matches the `$8CC8` block exactly.
+    - `$074E` read 1 during World 1-1 play.
+    
+    **Recorded** (source `trace and disassembly`): routine `$8212` (GameEngine), routine `$85BF` (LoadAreaPalette), plus the supporting hardware writer `$8EDD` (WriteVRAMBuffer), addresses `$074E`/`$0773`, and the `level_start_palette_chain` note. `promote_mappings` wrote all six into the ROM's mapping file.
+[ 364 14:23:19] ─── turn 2 end: {"kind":"completed"}
+

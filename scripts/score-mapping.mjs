@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 export function words(text) {
   const raw = String(text ?? "")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/(\d)-(\d)/g, "$1-$2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
     .toLowerCase()
     .split(/[^a-z0-9-]+/)
     .flatMap((w) => (/^\d+-\d+$/.test(w) ? [w] : w.split("-")))
@@ -70,8 +70,12 @@ export function lineFor(claim, lines) {
   const ctx = claim.context ? ` ${claim.context}` : "";
   // The head of the name decides; a parenthetical is description, like notes ("screen_scroll_x (level's left
   // edge)" is the scroll, not the level: eval/runs/20261009-1135-sheet3-hud-position).
-  const head = String(claim.name ?? "").replace(/\([^)]*\)/g, " ");
-  return tryText(`${head}${ctx}`) ?? tryText(`${claim.name}${ctx}`) ?? tryText(`${claim.name}${ctx} ${claim.notes ?? ""}`);
+  // So is anything after a " - " separator, the worker's usual name style ("WriteVRAMBuffer - NMI routine that writes
+  // palette", eval/runs/20261009-1414): the head alone decides first.
+  const head = String(claim.name ?? "").split(/\s+[-–—:]\s+/)[0].replace(/\([^)]*\)/g, " ");
+  // Never the notes: they mention neighbours ("the level loader reads it"), and a notes match put a VRAM selector on
+  // the level line (eval/runs/20261009-1414-sheet5b-entry-dispatch-palette). A name no line takes is graded loosely.
+  return tryText(`${head}${ctx}`) ?? tryText(`${claim.name}${ctx}`);
 }
 
 /** A reference symbol's extent in bytes: the line's span, the symbol's size, or for a PRG label the gap to the next label (capped). */
@@ -183,7 +187,8 @@ export function claimsFromRecord(rec, where, extra = {}) {
   } else if (["tile", "palette", "sprite", "scene", "note"].includes(kind)) {
     out.push({ ...common, kind });
   }
-  for (const o of rec.rom_origins ?? []) {
+  // A routine's rom_origins are its own code bytes, graded by its entry; as origin claims they landed on table lines.
+  for (const o of kind === "routine" ? [] : rec.rom_origins ?? []) {
     // The parent entry's type is vocabulary too: an origin recorded on a palette entry is a palette table.
     out.push({ ...common, kind: kind === "level" ? "level" : "origin", context: kind, mem: o.mem, offset: o.offset, length: o.length, name: kind === "level" ? `${rec.id} ${name}` : name });
   }

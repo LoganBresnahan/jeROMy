@@ -1,6 +1,6 @@
 ## Against 20261009-1209-holdout-sheet3
 
-Both runs graded under Legend of Zelda, The (USA) v1.
+Both runs graded under Legend of Zelda, The (USA) v2.
 
 | line | before | now | change |
 |---|---|---|---|

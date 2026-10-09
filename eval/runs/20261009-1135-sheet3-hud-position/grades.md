@@ -1,6 +1,6 @@
 # Grades: 20261009-1135-sheet3-hud-position
 
-Reference: smbdis (doppelganger), ca65 port by threecreepio. Spec: Super Mario Bros. (World) v2. One row per claim (eval/README.md); `final` is the reference verdict held to the proof step.
+Reference: smbdis (doppelganger), ca65 port by threecreepio. Spec: Super Mario Bros. (World) v4. One row per claim (eval/README.md); `final` is the reference verdict held to the proof step.
 
 | line | claim | at | evidence (proof) | reference | final | grader | image |
 |---|---|---|---|---|---|---|---|

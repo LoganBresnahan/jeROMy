@@ -69,11 +69,14 @@ export function apply(mapping, spec, decisions, runs) {
   }
   // Side discoveries (ADR-0022 §3): entries a run promoted that no in-scope line owns fill gaps only.
   for (const r of runs) {
+    // A claim this run graded wrong never enters as a side discovery (20261009-1414: a mis-assigned claim nearly did).
+    const wrongKeys = new Set(r.rows.filter((x) => WRONG.has(x.final) && RECORD[x.kind]).map((x) => `${RECORD[x.kind]}.${x.id}`));
     for (const rec of ["addresses", "routines", "levels", "scenes"]) {
       for (const [k, v] of Object.entries(r.copy?.[rec] ?? {})) {
         const key = `${rec}.${k}`;
         if (owned.has(key) || decisions.some((d) => d.action === "replace" && `${d.record}.${d.key}` === key)) continue;
         if (spec.lines.some((l) => inScope.has(l.id) && l.entry === key)) continue;
+        if (wrongKeys.has(key)) { changes.push(`  skipped ${key} (graded wrong in ${r.id})`); continue; }
         mapping[rec] ??= {};
         if (!mapping[rec][k]) { mapping[rec][k] = v; changes.push(`+ ${key} (side discovery, from ${r.id})`); }
       }

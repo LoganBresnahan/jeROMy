@@ -31,11 +31,14 @@ change bought; if the failure comes back, reopen it with the new run.
   with one resume each (r1's resume failed in four seconds, r3's after 15
   calls). Five of fifteen tasks so far. The error is not deterministic: a
   manual resume of r3's session later completed. Runner now resumes up to
-  three times. A debug line in the dsh checkout (env-gated,
-  `JEROMY_DEBUG_TOOLJSON`) logs the provider's raw tool arguments on the
-  next occurrence; it is removed at the end of the session.
-- **A re-run checks:** when a task's `config.md` shows "resumed once", the
-  resumed stream recorded what the first stream had found.
+  three times. Root cause (`20261009-1414-sheet5b`, captured by an env-gated
+  debug line in the dsh checkout, removed at the end of the session): the
+  model writes hex literals in JSON tool arguments
+  (`{"address": 0x8182, "length": 80}`), carrying the prompt's prose hex
+  rule into JSON. Changed: a prompt line, "tool arguments are JSON with
+  decimal numbers" (checked live).
+- **A re-run checks:** no `MALFORMED_RESPONSE` across the next runs' tasks;
+  if one appears, the debug capture says whether it is still hex.
 
 ## F2. A value that play cannot change quickly has nothing to diff
 

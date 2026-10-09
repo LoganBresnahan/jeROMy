@@ -210,4 +210,10 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("Writing hex");
     expect(prompt).toContain("`0x29`");
   });
+
+  it("says tool arguments are JSON with decimal numbers (eval/failures.md F1: a hex literal in tool input ended five turns)", () => {
+    const prompt = buildSystemPrompt();
+    expect(prompt).toContain('`{"address": 33154}`');
+    expect(prompt).toContain("never `{\"address\": 0x8182}`");
+  });
 });

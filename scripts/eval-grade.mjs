@@ -116,7 +116,9 @@ function main(argv) {
   writeFileSync(join(dir, "grades.json"), JSON.stringify({ run: run.id, spec: `${spec.game} v${spec.spec_version}`, reference: reference.source, totals, stages: dist.stages, rows }, null, 2) + "\n");
 
   const gradesMd = join(dir, "grades.md");
-  const judged = existsSync(gradesMd) && /\| claude \| (confirmed|rejected)/.test(readFileSync(gradesMd, "utf8"));
+  // Columns run "final | grader": a Claude-judged row reads "| confirmed | claude |". The old pattern looked for the
+  // reverse order and let a regrade overwrite judged rows (caught 2026-10-09, restored from git).
+  const judged = existsSync(gradesMd) && /\| (confirmed|rejected) \| claude \|/.test(readFileSync(gradesMd, "utf8"));
   if (!judged || force) {
     const out = [
       `# Grades: ${run.id}`,

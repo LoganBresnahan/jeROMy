@@ -1,6 +1,6 @@
 ## Against 20261009-1144-sheet3-hud-rerun
 
-Both runs graded under Super Mario Bros. (World) v3.
+Both runs graded under Super Mario Bros. (World) v4.
 
 | line | before | now | change |
 |---|---|---|---|

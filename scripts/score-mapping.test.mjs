@@ -46,6 +46,7 @@ describe("score-mapping words", () => {
     expect(words("Player_XPos")).toEqual(["player", "x", "position"]);
     expect(words("NumberOfLives")).toEqual(["number", "of", "live"]);
     expect(words("1-1 area")).toEqual(["1-1", "area"]);
+    expect(words("WriteVRAMBuffer")).toEqual(["write", "vram", "buffer"]);
   });
 });
 
@@ -59,6 +60,12 @@ describe("score-mapping lines", () => {
     const lines = [...SPEC.lines, { id: "scroll", type: "address", match: [["scroll"]], ref: [] }, { id: "level", type: "address", match: [["level"]], ref: [] }];
     expect(lineFor({ kind: "address", name: "screen_scroll_x (level's left edge, mod 256)" }, lines)?.id).toBe("scroll");
     expect(lineFor({ kind: "address", name: "the (level) number" }, lines)?.id).toBe("level");
+    expect(lineFor({ kind: "address", name: "screen_scroll - the level's left edge" }, lines)?.id).toBe("scroll");
+  });
+  it("never assigns by the notes, and a routine's own code bytes are not an origin claim", () => {
+    expect(lineFor({ kind: "address", name: "vram_buffer_selector", notes: "the timer and the lives read it" }, SPEC.lines)).toBeNull();
+    const claims = claimsFromRecord({ mapping_type: "routine", id: "0x8050", name: "NMI", rom_origins: [{ mem: "prgRom", offset: 0x50, length: 16 }] }, "t");
+    expect(claims.map((c) => c.kind)).toEqual(["routine"]);
   });
   it("only gives a claim to a line of its own kind", () => {
     expect(lineFor({ kind: "routine", name: "lives" }, SPEC.lines)).toBeNull();
