@@ -46,6 +46,14 @@ describe("eval-promote", () => {
     expect(mapping.addresses["0x075A"].description).toBe("lives");
   });
 
+  it("names a side entry on the spec line it answers, so a later run holds it back", () => {
+    const spec = { lines: [{ id: "metatiles" }] };
+    const runs = [{ id: "r1", rows: [{ line: "metatiles", kind: "origin", context: "tile", id: "chr:0x153", final: "unproven", proof: null }],
+      copy: { tiles: { "chr:0x153": { name: "? block" } }, notes: [] } }];
+    apply({ tiles: {}, notes: [] }, spec, decide(spec.lines, runs), runs);
+    expect(spec.lines[0].entry).toBe("tiles.chr:0x153");
+  });
+
   it("promotes an origin line by the parent entry that carries the origin", () => {
     const spec = { lines: [{ id: "metatiles" }] };
     const runs = [{ id: "r1", rows: [{ line: "metatiles", kind: "origin", context: "tile", id: "chr:0x153", final: "agrees", proof: "write+reset+look" }],

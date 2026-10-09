@@ -87,7 +87,13 @@ export function apply(mapping, spec, decisions, runs) {
         if (spec.lines.some((l) => inScope.has(l.id) && l.entry === key)) continue;
         if (wrongKeys.has(key)) { changes.push(`  skipped ${key} (graded wrong in ${r.id})`); continue; }
         mapping[rec] ??= {};
-        if (!mapping[rec][k]) { mapping[rec][k] = v; changes.push(`+ ${key} (side discovery, from ${r.id})`); }
+        if (!mapping[rec][k]) {
+          mapping[rec][k] = v; changes.push(`+ ${key} (side discovery, from ${r.id})`);
+          // An entry that answers a spec line must be held back when that line runs (ledger F10), so the line names it.
+          const owner = r.rows.find((x) => x.line && `${recordOf(x)}.${x.id}` === key);
+          const line = owner && spec.lines.find((l) => l.id === owner.line);
+          if (line && !line.entry) { line.entry = key; changes.push(`  ${line.id} entry = ${key} (held back when it runs)`); }
+        }
       }
     }
     for (const n of r.copy?.notes ?? []) if (!mapping.notes.includes(n)) { mapping.notes.push(n); changes.push(`+ note (from ${r.id})`); }
