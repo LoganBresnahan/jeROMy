@@ -1,0 +1,1215 @@
+# session-07cbc972-5c92-4e46-8f89-d8d3fed70f00 · Find Super Mario Bros. RAM addresses
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-10T04:40:46.981Z
+
+[   3 23:40:47] QUEUED <user> for next-turn: Mapping sheet 3 (the RAM a hacker reaches for), Super Mario Bros.: find the RAM byte that selects which area of the world the game loads (so that a write followed by starting a game loads a different … [+1399 chars]
+[   4 23:40:47] ━━━ turn 1 ━━━
+[   8 23:40:47] USER <user>
+    Mapping sheet 3 (the RAM a hacker reaches for), Super Mario Bros.: find the RAM byte that selects which area of the world the game loads (so that a write followed by starting a game loads a different area), and the high byte (screen page) of Mario's vertical position. Prove the area byte by writing it, starting the game, and a screenshot of the different area; prove the vertical page byte by writing it and looking (or by watching it while Mario falls into a pit). Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again, and take a screenshot to confirm World 1-1 began. Holding Right for about four seconds from the start of 1-1 runs into the first enemy and loses a life. World 2-2 is under water. In 1-1 the first ? block gives a coin; in the row of bricks and ? blocks to its right, the left ? block gives a super mushroom that slides right, and touching it makes Mario big; big Mario can crouch by holding Down. Each play_input call is at most 600 frames; chain calls; save_state when a useful state is reached and load_state to retry. No reference is available. Use the find-variable skill. Prove each address as the task says, then record it with record_mapping: mapping_type address, a plain name, format, notes with the encoding and the proof, source 'differential search' (or 'disassembly' if you found it in code). Call promote_mappings once at the end. Report each address, its encoding and what the proof showed.
+[   9 23:40:47] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 23:40:47] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 23:40:48] ASSISTANT (turn 1 step 1) · in 1196 (cache 14720) out 49
+    ▷ Let me load the find-variable skill first.
+    → skill {"name": "find-variable"}
+[  18 23:40:48] RESULT skill
+    <skill_content name="find-variable">
+    <skill_resources>
+    Base directory for this skill: /home/oof/jeROMy/skills/find-variable
+    Resolve relative paths mentioned by this skill against the base directory before using them. Load referenced resources only as needed.
+    </skill_resources>
+    
+    <skill_instructions>
+    
+    # Find a variable by differential search
+    
+    Most games have no reference. This procedure needs only the running game:
+    `snapshot_memory`, `play_input`, `diff_memory`, then `write_memory` and a
+    screenshot for the proof (ADR-0019). Written from the blind session of
+    2026-10-06 on Super Mario Bros. (World… [+6512 chars]
+[  21 23:40:49] ASSISTANT (turn 1 step 2) · in 2019 (cache 15872) out 55
+    ▷ There was no thinking block in my previous message. I only responded with the word "Received".
+    → screenshot {}
+    → get_rom_info {}
+[  23 23:40:49] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/d8c8f08fdf08.png
+[  25 23:40:49] RESULT get_rom_info
+    {"sha1":"33D23C2F2CFA4C9EFEC87F7BC1321CE3CE6C89BD","name":"Super Mario Bros. (World).nes","path":"C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes"}
+[  29 23:41:25] ASSISTANT (turn 1 step 3) · in 34553 (cache 17920) out 7302
+    ▷ Let me start working. There's a rich mapping already. The current state shows World 1-4, Mario standing. Let me first take stock.
+    
+    The task: find the RAM byte that selects which area of the world the game loads (so that a write followed by starting a game loads a different area), and the high byte (screen page) of Mario's vertical position.
+    
+    From the mappings, I know a lot already:
+    - $075F = world number
+    - $075C = level number
+    - $074E = area palette index
+    - $074F = area index within type
+    - $0750 = level/area type
+    
+    Wait, the "area of the world the game loads" - that likely refers to the level/area selector. Actually in SMB, there's a byte that selects which level to load when the game starts. The area is determined by $075F (world) and $075C (level). Hmm, but "which area of the world the game loads" - write followed by starting a game loads a different area.
+    
+    Actually the mappings already have $075F (world) and $075C (level) both proven via the death card. The task asks specifically for "the RAM byte that selects which area of the world the game loads (so that a write followed by starting a game loads a different area)". Hmm. That's likely the level number byte $075C, or potentially… [+25651 chars]
+    I'll load the find-variable skill's guidance (done) and start by getting to a known state. The mapping already has leads — `$075C` (level) and `$075F` (world) — but the task requires a fresh proof of "write → start game → different area," plus the vertical page byte which isn't mapped yet.
+    
+    Let me reset to the title screen first.
+    → reset_emulator {}
+[  31 23:41:25] RESULT reset_emulator
+    {"frames_waited":30,"paused":false,"reset":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[  34 23:41:27] ASSISTANT (turn 1 step 4) · in 6340 (cache 53504) out 25
+    ▷ Now screenshot.
+    → screenshot {}
+[  36 23:41:27] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/0c0424a4b0d2.png
+[  39 23:41:30] ASSISTANT (turn 1 step 5) · in 464 (cache 59776) out 248
+    ▷ Title screen. Now save state at title, then test writing the area byte.
+    
+    Let me save_state slot 1.
+    
+    Then write $075C=1 (1884) and $075F=1 (1887). Then play_input to start.
+    
+    Actually wait — let me first confirm what $075F/$075C read on the title. Let me read memory 0x075C and 0x075F. And also the game mode $0770.
+    
+    Let me batch reads.
+    Title screen confirmed. Let me inspect the current area-selection bytes and save a title state.
+    → read_memory {"address": 1884, "length": 8}
+    → read_memory {"address": 1904, "length": 1}
+    → save_state {"slot": 1}
+[  41 23:41:30] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0,0,0,0,0,2,0,0],"address":1884}
+[  43 23:41:30] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0],"address":1904}
+[  45 23:41:30] RESULT save_state
+    {"slot":1,"stepped_frames":0,"paused":false,"bytes":5914,"action":"saved"}
+[  48 23:41:33] ASSISTANT (turn 1 step 6) · in 171 (cache 60416) out 439
+    ▷ $075C=0, $075F=0. $075E=2 (coin counter? it's the binary coin counter, value 2). $0770=0 (game mode title). Good.
+    
+    Now write $075F=1, $075C=1 to attempt World 2-2 (0-based world 1, level 1). Then start.
+    
+    Let me write memory addresses 1884 (0x075C) = 1, and 1887 (0x075F) = 1.
+    
+    Then play_input [{start,6},{none,60},{start,6},{none,90}] and screenshot.
+    
+    Actually, the mapping scene says after second Start, the WORLD 1-1 card draws and level appears, use step_frame 40. Let me use play_input then screenshot.
+    
+    Let me write and play.
+    
+    Note: writes are live memory, might be overwritten by the game on Start. Let's see.
+    
+    Let me write both. write_memory address 1884 bytes [1], address 1887 bytes [1].
+    
+    Then read them to confirm.
+    
+    Then play_input.
+    
+    Actually, I want to check whether writing $075F/$075C on the title survives the new-game init. Let me write, then immediately read, then play start, then read again after.
+    
+    Let me do writes and reads.
+    `$075C`=0, `$075F`=0 on the title (1-1), game mode `$0770`=0. Now the key test: write the area bytes to select World 2-2 (underwater) and press Start.
+    → write_memory {"address": 1884, "bytes": [1]}
+    → write_memory {"address": 1887, "bytes": [1]}
+[  50 23:41:33] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1884,"persistent":false}
+[  52 23:41:33] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1887,"persistent":false}
+[  55 23:41:35] ASSISTANT (turn 1 step 7) · in 160 (cache 60928) out 236
+    ▷ Now start the game. play_input [{start,6},{none,60},{start,6},{none,120}]. Then screenshot.
+    
+    Let me also watch $075C, $075F, $0770 to see if they get overwritten. Watch list up to 16 addresses. Let me watch 1884, 1887, 1904, and game mode 1904? Actually $0770 = 1904. Yes watch [1884, 1887, 1904].
+    
+    But play_input watch samples at end of each frame, thinned. Let's include them.
+    
+    Let me run.
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 60}, {"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 120}], "watch": [1884, 1887, 1904]}
+[  57 23:41:38] RESULT play_input
+    {"frames":192,"segments":4,"frames_run":192,"was_paused":false,"polls":192,"port":0,"watch":[{"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"first":0,"last":0,"address":1884,"address_hex":"0x075C"},{"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"first":0,"last":0,"address":1887,"address_hex":"0x075F"},{"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":0,"last":1,"address":1904,"address_hex":"0x0770"}],"sample_… [+406 chars]
+[  60 23:41:41] ASSISTANT (turn 1 step 8) · in 581 (cache 61312) out 345
+    ▷ Interesting! The watch shows $075C and $075F stayed 0 (all samples 0)? Wait, but I wrote them to 1 right before. The watch first sample at frame 4 shows 0. So the writes got overwritten immediately — before the first sample? Hmm, or maybe my write didn't persist because... Actually the writes said "persistent": false which is expected for CPU RAM. But they should hold until overwritten. The watch first sample is at frame 4 of the play run, which is after the game ran 4 frames. During title screen the game might reset $075C/$075F every frame (the mode-0 handler). Indeed likely the attract mode continuously zeroes them.
+    
+    Wait, but $0770 went 0→1 at frame ~64, meaning the first Start press at frames 1-6 didn't take effect until later? Hmm, actually the first Start press on the title screen during the attract demo returns to the title, and the second Start begins. But here $0770 went 1 at frame ~64-68, which corresponds to the second Start (frames 67-72). Good.
+    
+    So $075C/$075F read 0 throughout, and the game began. Screenshot needed to see which area.
+    
+    Let me screenshot.
+    
+    If it's 1-1, then the writes were overwritten. Indeed the values read 0 at frame 4 already, so the writes were over… [+85 chars]
+    → screenshot {}
+[  62 23:41:41] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/86ded7847852.png
+[  65 23:41:48] ASSISTANT (turn 1 step 9) · in 394 (cache 62208) out 1273
+    ▷ It loaded World 1-1 (overworld). So the writes were overwritten by the title-screen handler (which zeroes $075C/$075F every frame). So this approach doesn't work.
+    
+    I need to find the byte that, when written and then start pressed, loads a different area. Since the title handler resets world/level, the relevant byte must be one that is NOT reset — or the write must happen at a different point.
+    
+    Hmm. Wait — maybe the byte is not $075C/$075F. Let me reconsider.
+    
+    Actually — maybe the game doesn't zero $075C/$075F every frame on title. Let me verify: I wrote them, then play_input. The watch first sample (frame 4) read 0. So yes, zeroed within 4 frames. Hmm, but wait — maybe the write_memory to CPU RAM was immediately overwritten because the game is running (not paused). Yes, the game continuously runs the attract mode. So my write lasted <1 frame.
+    
+    To make a write survive to "starting a game", I need to pause, write, then resume/start. But play_input resumes a paused game. Hmm. Let me think: pause_emulator, write, then play_input start... The title handler runs each frame and would overwrite on the next frame before Start takes effect.
+    
+    Unless the title handler does NOT overwrite $075C/… [+3480 chars]
+    World 1-1 loaded — the title/attract handler zeroed my writes within frames. I need to check whether those bytes are simply overwritten every frame on the title, or whether a paused write will hold. Let me test with the emulator paused.
+    → reset_emulator {}
+[  67 23:41:49] RESULT reset_emulator
+    {"frames_waited":30,"paused":false,"reset":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[  70 23:41:50] ASSISTANT (turn 1 step 10) · in 200 (cache 63744) out 74
+    ▷ Pause now.
+    → pause_emulator {}
+    → read_memory {"address": 1884, "length": 8}
+[  72 23:41:50] RESULT pause_emulator
+    {"paused":true}
+[  74 23:41:50] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0,0,0,0,0,2,0,0],"address":1884}
+[  78 23:41:54] ASSISTANT (turn 1 step 11) · in 34150 (cache 64000) out 429
+    ▷ The emulator is paused, $075C=0, $075F=0. I need to determine whether the title handler overwrites these. Let me write 1,1 while paused, step 1, read. If they hold, then resume with start.
+    
+    Actually, better: write while paused, then step frames and read. If the title screen zeroes them each frame, they'd go back to 0 after 1 step.
+    
+    Let me write and step.
+    
+    But wait — is the mode-0 (title) handler setting $075C/$075F? The attract demo (which loops 1-1) might. The title screen itself (with logo) might not. Since we reset and it's showing the title, it should be the title, not the demo. But my earlier run: after reset, I wrote 1,1 while running, then play_input; the first watch sample (frame 4) read 0. That means within 4 frames they were 0. Could be the title handler sets them to 0 each frame, OR the write happened and the game immediately zeroed.
+    
+    Let me test with pause: write, step 1, read.
+    
+    Let me do write (address 1884=1, 1887=1), step_frame 1, read. Sequential.
+    
+    Actually I can write both, then step, then read. Let me do writes together, then step, then read.
+    Emulator paused. Let me test whether the title handler overwrites `$075C`/`$075F` while paused-stepping.
+    → write_memory {"address": 1884, "bytes": [1]}
+    → write_memory {"address": 1887, "bytes": [1]}
+[  80 23:41:54] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1884,"persistent":false}
+[  82 23:41:54] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1887,"persistent":false}
+[  85 23:41:56] ASSISTANT (turn 1 step 12) · in 209 (cache 98432) out 92
+    ▷ Now step 1 frame and read.
+    → step_frame {"count": 1}
+    → read_memory {"address": 1884, "length": 8}
+[  87 23:41:56] RESULT step_frame
+    {"paused":true,"stepped":1}
+[  89 23:41:56] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1,0,0,1,0,2,0,0],"address":1884}
+[  92 23:42:00] ASSISTANT (turn 1 step 13) · in 232 (cache 98560) out 624
+    ▷ After stepping 1 frame while paused, $075C=1 and $075F=1 held. So the title screen handler does NOT overwrite them per frame. Earlier, my write while running got zeroed — probably because the attract demo was running, or the game was in attract mode and loaded 1-1.
+    
+    Wait, but actually the game was "RUNNING" and showing the title. Hmm. The earlier write sequence: I wrote 1,1 then play_input. The watch first sample frame 4 = 0. So during those 4 frames, the game zeroed them. Maybe when running (not paused), the attract demo sequence zeroes. But when paused-stepping 1 frame, it didn't. Odd. Maybe the zeroing happens at a specific point in the attract cycle (e.g. each frame the title handler writes world/level for the demo). Hmm, but step 1 didn't zero.
+    
+    Hold on — maybe the earlier write was overwritten because I wrote while the game was running and the attract demo was mid-load. But now paused and stepping 1 held it. Let me step more frames to be sure.
+    
+    Let me step 10 frames and read.
+    
+    Actually, more importantly: I want to press Start and have it load 2-2. Let me step a few frames to see if it holds, then use play_input to press start. But play_input resumes the game — during the star… [+767 chars]
+    `$075C`/`$075F` held at 1 through a paused frame — so the title handler doesn't rewrite them per frame; my earlier live write was likely eaten by the attract/demo cycle. Let me confirm they hold over several frames.
+    → step_frame {"count": 10}
+    → read_memory {"address": 1884, "length": 8}
+[  94 23:42:00] RESULT step_frame
+    {"paused":true,"stepped":10}
+[  96 23:42:00] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1,0,1,1,0,2,0,0],"address":1884}
+[  99 23:42:03] ASSISTANT (turn 1 step 14) · in 147 (cache 99328) out 374
+    ▷ $075C=1, $075F=1 held for 11 frames. Good. So on the title screen (mode 0), these aren't zeroed. Now let me press Start. But play_input resumes the game (unpauses). During the press, will the title handler keep them? Let's try. Use the known start sequence. But there's a risk: when the game starts a new game, it might reset $075F/$075C to 0.
+    
+    Let me try: play_input [{start,6},{none,60},{start,6},{none,120}] with watch on 1884,1887,1904.
+    
+    Actually the first Start during the attract demo only returns to title; the second begins. But we're on the title (not demo). In the mapping: "From the title screen or the attract demo: press Start (6 frames), wait ~60 frames, press Start again". So first Start begins... hmm, actually the mapping says the first start may be from the title and the second needed if in attract. Confusing. Let me just do the two-start sequence and watch $0770.
+    
+    Let me run and then screenshot.
+    They held. Now press Start to begin a game and watch whether the world/level survive into the load.
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 60}, {"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 150}], "watch": [1884, 1887, 1904]}
+[ 101 23:42:07] RESULT play_input
+    {"frames":222,"segments":4,"frames_run":222,"was_paused":false,"polls":222,"port":0,"watch":[{"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"first":0,"last":0,"address":1884,"address_hex":"0x075C"},{"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"first":0,"last":0,"address":1887,"address_hex":"0x075F"},{"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":0,"last":1,… [+486 chars]
+[ 105 23:42:22] ASSISTANT (turn 1 step 15) · in 34719 (cache 99840) out 2917
+    ▷ The watch shows $075C/$075F stayed 0 throughout, and $0770 went 0→1. So the write was overwritten. Hmm. So during the start sequence, the game zeroed them. Let me screenshot to see what area loaded.
+    
+    Actually, likely it loaded 1-1 again because the new game init set world/level to 0. So $075C/$075F are reset by the new-game code.
+    
+    Hmm. So these bytes can't satisfy "write then start game loads a different area". So the task's "area byte" must be a different byte, one that survives the new-game init.
+    
+    Let me think about what SMB byte selects the area and is NOT reset. Actually maybe the new-game init doesn't reset world/level; maybe it's the attract mode that did. Wait: in this run, I wrote while paused, stepped 10 frames holding 1,1; then play_input pressed start. The samples all read 0 from frame 4 onward. So within the first 4 frames of play_input they became 0. So some code zeroed them before/what Start processed.
+    
+    Hmm. But when paused-stepping 10 frames they held. So the zeroing is tied to game state change (Start press begins new game → init sets 0,0).
+    
+    So to load a different area via a RAM write, we need a byte NOT set by the init. Candidates:
+    - $0750 (AreaType) - the "AreaTyp… [+9835 chars]
+    The world/level stayed 0 through the Start sequence — so the new-game init (triggered by the first Start) resets them, and the second Start then used 0/0. The trick must be to write **between** the first Start (which returns to the title) and the second Start. Let me test that.
+    → reset_emulator {}
+[ 107 23:42:22] RESULT reset_emulator
+    {"frames_waited":30,"paused":false,"reset":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 110 23:42:24] ASSISTANT (turn 1 step 16) · in 201 (cache 137344) out 32
+    ▷ Now pause and do the first Start.
+    → pause_emulator {}
+[ 112 23:42:24] RESULT pause_emulator
+    {"paused":true}
+[ 116 23:42:27] ASSISTANT (turn 1 step 17) · in 34200 (cache 137472) out 167
+    ▷ Now the game is reset and paused. Let me do the first Start (play_input from paused pauses at end), then check bytes.
+    
+    play_input [{start,6},{none,45}] with watch [1884,1887,1904].
+    Now, from a paused reset state, run the **first** Start and watch the area bytes — this tells me whether the first Start resets them.
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 45}], "watch": [1884, 1887, 1904]}
+[ 118 23:42:28] RESULT play_input
+    {"frames":51,"segments":2,"frames_run":51,"was_paused":true,"polls":51,"port":0,"watch":[{"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"first":0,"last":0,"address":1884,"address_hex":"0x075C"},{"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"first":0,"last":0,"address":1887,"address_hex":"0x075F"},{"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":1,"last":1,"address":1904,"address_hex":"0x07… [+421 chars]
+[ 121 23:42:33] ASSISTANT (turn 1 step 18) · in 661 (cache 171776) out 738
+    ▷ Interesting! From the paused reset state, pressing Start made $0770 go to 1 IMMEDIATELY (frame 1). So this time, Start began a game (mode 1) right away. And $075C/$075F stayed 0.
+    
+    So the state right after reset is the actual title screen (where Start begins a game), unlike earlier when I had run 30 frames and it may have entered attract mode.
+    
+    So earlier: after reset, I let 30 frames run (reset_emulator waits 30 frames), then wrote and ran play_input. In that window, the attract demo took over (mode 0 demo), so the first Start returned to title. Hmm.
+    
+    Anyway, now the game started (mode 1) with $075F/$075C = 0, so it's loading 1-1. The game is paused at frame 51 (still on the card/black screen probably). Let me look at the current state.
+    
+    Now the key test: from THIS title state (right after reset, before attract kicks in), if I write $075F/$075C and press Start, does it load a different area? The catch is that the new-game init resets world/level... but wait, we don't know that; earlier the reset happened before the write. Let me test properly: reset, pause, write $075F=1,$075C=1, step few frames to confirm hold, then press Start and see.
+    
+    Actually wait: this run shows $0770=1 from … [+1360 chars]
+    The first Start here began the game immediately (`$0770`=1 on frame 1) with world/level 0. Now let me test the decisive sequence: reset → pause → write world=1, level=1 (World 2-2) → verify the write holds → press Start.
+    → reset_emulator {}
+[ 123 23:42:34] RESULT reset_emulator
+    {"frames_waited":30,"paused":false,"reset":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 126 23:42:35] ASSISTANT (turn 1 step 19) · in 188 (cache 173056) out 40
+    ▷ Pause immediately.
+    → pause_emulator {}
+    → screenshot {}
+[ 128 23:42:35] RESULT pause_emulator
+    {"paused":true}
+[ 130 23:42:35] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/50b943cda049.png
+[ 133 23:42:38] ASSISTANT (turn 1 step 20) · in 473 (cache 173184) out 231
+    ▷ Title screen, paused. Now write $075F=1, $075C=1, then step 2, read. Then I'll press Start.
+    
+    Actually wait — I should first save this title state so I can retry. save_state slot 2.
+    
+    Let me save_state 2, write, step, read.
+    Title screen paused (fresh, so Start will begin a game). Save this state, write world=1/level=1, and verify it holds.
+    → save_state {"slot": 2}
+    → write_memory {"address": 1884, "bytes": [1]}
+    → write_memory {"address": 1887, "bytes": [1]}
+[ 135 23:42:38] RESULT save_state
+    {"slot":2,"stepped_frames":1,"paused":true,"bytes":5923,"action":"saved"}
+[ 137 23:42:38] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1884,"persistent":false}
+[ 139 23:42:38] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1887,"persistent":false}
+[ 142 23:42:40] ASSISTANT (turn 1 step 21) · in 161 (cache 173824) out 102
+    ▷ Now step 3 frames, read, then press Start. Let me step and read.
+    → step_frame {"count": 3}
+    → read_memory {"address": 1884, "length": 8}
+[ 144 23:42:40] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 146 23:42:40] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1,0,0,1,0,2,0,0],"address":1884}
+[ 149 23:42:42] ASSISTANT (turn 1 step 22) · in 194 (cache 173952) out 201
+    ▷ Held. Now press Start (play_input from paused) and watch. Let me run [{start,6},{none,150}] with watch, then screenshot.
+    
+    Actually, note that from this fresh title, Start begins immediately. If the new-game init resets world/level, we'll see 0. Let's test.
+    
+    Run play_input [{start,6},{none,150}] watch [1884,1887,1904]. Then screenshot.
+    Held at 1. Now press Start and watch whether the load uses my value.
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 150}], "watch": [1884, 1887, 1904, 1874]}
+[ 151 23:42:45] RESULT play_input
+    {"frames":156,"segments":2,"frames_run":156,"was_paused":true,"polls":156,"port":0,"watch":[{"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":1,"last":1,"address":1884,"address_hex":"0x075C"},{"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":1,"last":1,"address":1887,"address_hex":"0x075F"},{"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":1,"last":1,"address":1904,"address_h… [+633 chars]
+[ 154 23:42:47] ASSISTANT (turn 1 step 23) · in 746 (cache 174336) out 135
+    ▷ Excellent! $075C=1, $075F=1 held at 1 throughout, and $0770=1. So the new-game init did NOT reset them this time! So the game should have loaded World 2-2 (underwater). Let me screenshot.
+    
+    Note the difference from before: earlier I wrote while the emulator was running and after a screenshot/save, so the attract demo state may have interfered. This time it held.
+    
+    Screenshot now.
+    The writes held at 1 through Start. Let me see what area loaded.
+    → screenshot {}
+[ 156 23:42:47] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/1b44479edcde.png
+[ 159 23:42:50] ASSISTANT (turn 1 step 24) · in 482 (cache 175104) out 163
+    ▷ Screen is blank periwinkle. Hmm — the game is transitioning (fade / loading). The level card maybe. Let me step some frames and screenshot. Actually the screen is entirely periwinkle (backdrop), meaning maybe the palette is the underwater palette but no tiles loaded yet, or it's mid-fade.
+    
+    Let me step frames and screenshot. Since paused, step 60 frames and screenshot.
+    
+    Actually maybe world 2-2 needs more load time. Let me step 80 frames.
+    Transitional blank frame. Let me advance and look again.
+    → step_frame {"count": 90}
+    → screenshot {}
+[ 161 23:42:50] RESULT step_frame
+    {"paused":true,"stepped":90}
+[ 163 23:42:50] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/1b44479edcde.png
+[ 166 23:42:54] ASSISTANT (turn 1 step 25) · in 392 (cache 175744) out 486
+    ▷ Still blank. Hmm. The game may be stuck, or the level failed to load (crash/hang). The backdrop is periwinkle ($22). Hmm.
+    
+    Maybe the game is paused via $0776 (Start toggled pause)? Let me check $0776 and $0770 and other state.
+    
+    Actually, when I pressed Start while paused game... wait, the "start" press toggled the game's pause? No, at title screen Start begins game. But maybe the play_input start press at frame 1 began the game, then... Hmm.
+    
+    Actually, the blank periwinkle screen suggests the game is in a fade/transition or hung. Let me read $0770, $0776, $0750, $074E, $074F, and the level pointers. Also check the PPU mask.
+    
+    Let me read a bunch: 1904 ($0770), 1910 ($0776), 1872 ($0750), 1870 ($074E), 1871 ($074F), and $E7 231... Actually $E7=231, $E8=232, $E9=233, $EA=234.
+    
+    Let me read 1904 len 1, 1910 len 1, 1870 len 8 (covers $074E,$074F,$0750,$0751,$0752,$0753,$0754,$0755). And 231 len 4.
+    
+    Let me do that.
+    Still blank — possibly hung or mid-load. Let me inspect the game state.
+    → read_memory {"address": 1904, "length": 8}
+    → read_memory {"address": 1870, "length": 8}
+    → read_memory {"address": 231, "length": 4}
+    → get_cpu_state {}
+[ 168 23:42:54] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1,0,3,0,0,0,0,0],"address":1904}
+[ 170 23:42:54] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1,8,40,0,0,0,1,40],"address":1870}
+[ 172 23:42:54] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[207,167,81,159],"address":231}
+[ 174 23:42:54] RESULT get_cpu_state
+    {"a":144,"cycle":10122884,"pc":32856,"y":3,"ppu_cycle":19,"scanline":240,"x":5,"status":133,"sp":255}
+[ 177 23:43:03] ASSISTANT (turn 1 step 26) · in 267 (cache 176512) out 1661
+    ▷ Let me decode:
+    - $0770 ($0770=1904) = 1 (game mode). $0771=0, $0772=3, ... $0776=0 (position 6 = 1910 → 0). So not paused.
+    - $074E=1 (area palette index), $074F=8 (area index), $0750=40 (0x28), $0751=0, $0752=0, $0753=0, $0754=1, $0755=40.
+      Wait address 1870 = 0x074E. bytes [1,8,40,0,0,0,1,40] → $074E=1, $074F=8, $0750=0x28 (40), $0751=0, $0752=0, $0753=0, $0754=1, $0755=0x28.
+      
+    Hmm, $0750 should be the area type. For World 2-2 (underwater), area type should be 0 or such. $0750=40=0x28? That's odd. Hmm, the mapping says $9C22 does LDA $0750 / JSR $9C09. $9C09 maps $0750 to an area type index. Hmm.
+    
+    - $E7/$E8 = 207,167 = 0xCF,0xA7 → $E7=0xCF, $E8=0xA7 → pointer $A7CF. $E9/$EA = 81,159 = 0x51,0x9F → $9F51.
+    
+    Hmm, so the level pointer is $A7CF. Is that World 2-2? Possibly. The screen being blank might mean the level is loading but the camera is at a position with no tiles? Or the level is legitimately blank at the start? Underwater 2-2 starts with... Actually World 2-2 starts above water? Hmm.
+    
+    Wait, area index $074F=8. For 1-1 it was 5. So area 8. That's consistent with 2-2 in the same area-type table? Possibly.
+    
+    The PC = 32856 = 0x8058, which is the idle loop (JMP $8057). So the CP… [+3590 chars]
+    CPU is in its idle loop (PC `0x8058`), so not crashed. The level pointer loaded as `$E7/$E8 = $A7CF` with area index `$074F`=8. Let me give it more frames.
+    → step_frame {"count": 120}
+    → screenshot {}
+[ 179 23:43:03] RESULT step_frame
+    {"paused":true,"stepped":120}
+[ 181 23:43:03] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/f8676a5e1f42.png
+[ 184 23:43:44] ASSISTANT (turn 1 step 27) · in 392 (cache 178432) out 8466
+    ▷ Now the screen shows "WORLD 2-2" in the HUD, and a castle-like structure with brown bricks and green trees. Hmm, that's not underwater — it looks like a castle/fortress area. Wait, the HUD says WORLD 2-2. And the graphics are brown brick castle with trees. Hmm, that's actually the World 2-2... no.
+    
+    Wait, World 2-2 in SMB is underwater. But this looks like a castle level (brown bricks, black doorways) with overworld trees. Hmm, that's odd. Actually, this might be World 7-4 or some castle. Hmm.
+    
+    Actually, hold on. The HUD displays "WORLD 2-2". And the level shown is... Let me reconsider. Actually, maybe I mis-set: $075F=1 → world 2, $075C=1 → level 2. The area pointer resolved to $A7CF. Maybe $A7CF is not World 2-2 properly; maybe the area type (world header) is wrong because that's stored elsewhere.
+    
+    Actually, SMB's area data selection: The "area type" comes from the level header ($0750), which is looked up from the world/level in a ROM table. When we change $075F/$075C, the game should look up the correct header. It displayed WORLD 2-2 and loaded area $A7CF with $074E=1.
+    
+    Hmm, but World 2-2 underwater has its own area type (water = 0?). The mapping says $074E=1 gave the overworld p… [+28973 chars]
+    The HUD reads **WORLD 2-2** but the level looks like a castle, not underwater — the area *type* didn't follow my world/level write. Let me find the code that reads these bytes to understand the load path.
+    → search_memory {"hex": "5f 07", "max_results": 32}
+    → search_memory {"hex": "5c 07", "max_results": 32}
+    → search_memory {"hex": "50 07", "max_results": 32}
+[ 186 23:43:44] RESULT search_memory
+    {"start":0,"mem_type":"prgRom","truncated":false,"memory_size":32768,"offsets":[693,783,1029,1061,1127,1145,1648,2129,4152,4586,4690,5235,5877,6390,7188,13064,16604,16633,16662,16955,18101,20760,20810,22382,24359,27156],"searched":32768,"pattern_length":2,"offsets_hex":["0x2B5","0x30F","0x405","0x425","0x467","0x479","0x670","0x851","0x1038","0x11EA","0x1252","0x1473","0x16F5","0x18F6","0x1C14","0x3308","0x40DC","0x40F9","0x4116","0x423B","0x46B5","0x5118","0x514A","0x576E","0x5F27","0x6A14"]}
+[ 188 23:43:44] RESULT search_memory
+    {"start":0,"mem_type":"prgRom","truncated":false,"memory_size":32768,"offsets":[1139,1661,2136,4161,4591,4602,13054,13057,24383],"searched":32768,"pattern_length":2,"offsets_hex":["0x473","0x67D","0x858","0x1041","0x11EF","0x11FA","0x32FE","0x3301","0x5F3F"]}
+[ 190 23:43:44] RESULT search_memory
+    {"start":0,"mem_type":"prgRom","truncated":false,"memory_size":32768,"offsets":[7175,7203,7210,16963,24368],"searched":32768,"pattern_length":2,"offsets_hex":["0x1C07","0x1C23","0x1C2A","0x4243","0x5F30"]}
+[ 193 23:43:48] ASSISTANT (turn 1 step 28) · in 511 (cache 187264) out 472
+    ▷ The offsets include +1 for the operand byte? The search matches the bytes 5F 07 where 5F is the low byte of $075F. The instruction would be LDA $075F (AD 5F 07) so the match at offset+1.
+    
+    Relevant candidates: prgRom offsets around 0x1038 (CPU $9038), 0x11EA (CPU $91EA), 0x1252 ($9252), 0x3308 ($B308), etc. The level-setup code is around $91CD (LoseLife) and $91E9 (world/level setup). $91EA offset = 0x11EA → CPU $91EA. Yes! That's in the LoseLife/world-setup region. Let me disassemble around CPU $91E9 and $91EA.
+    
+    Also $9252 (0x1252) = CPU $9252.
+    
+    Let me disassemble $91E0-$9270 and $9030-$9060.
+    
+    The routine at $91E9 is "the world/level setup that draws the next life". Let me disassemble.
+    
+    Let me disassemble address 37344? No: CPU $91E9 = 37353 decimal. prgRom offset = CPU - 0x8000 + 0x10 (header) but disassemble uses CPU address. Let me disassemble CPU 0x91E0 (37344) length 160.
+    
+    Also CPU 0x9030 (36912) len 96.
+    
+    Let me do it.
+    `$075F` is read around CPU `$91EA` (the level-setup code). Let me disassemble that region and the `$9030` region.
+    → disassemble {"address": 37344, "length": 150}
+    → disassemble {"address": 36912, "length": 80}
+[ 195 23:43:48] RESULT disassemble
+    $91e0: 8d 72 07    sta 0x0772
+    $91e3: a9 03       lda #0x03
+    $91e5: 8d 70 07    sta 0x0770
+    $91e8: 60          rts 
+    $91e9: ad 5f 07    lda 0x075f
+    $91ec: 0a          asl a
+    $91ed: aa          tax 
+    $91ee: ad 5c 07    lda 0x075c
+    $91f1: 29 02       and #0x02
+    $91f3: f0 01       beq 0x0000
+    $91f5: e8          inx 
+    $91f6: bc bd 91    ldy 0x91bd, x
+    $91f9: ad 5c 07    lda 0x075c
+    $91fc: 4a          lsr a
+    $91fd: 98          tya 
+    $91fe: b0 04       bcs 0x0000
+    $9200: 4a          lsr a
+    $9201: 4a          lsr a
+    $9202: 4a          lsr a
+    $9203: 4a          lsr a
+    $9204: 29 0f       and #0x0f
+    $9206: cd 1a 07    cmp 0… [+272 chars]
+[ 197 23:43:48] RESULT disassemble
+    (no instructions decoded)
+[ 200 23:43:54] ASSISTANT (turn 1 step 29) · in 606 (cache 188160) out 897
+    ▷ Interesting. At $91E9:
+    - LDA $075F (world) ; ASL A ; TAX
+    - LDA $075C (level) ; AND #$02 ; BEQ ; INX
+    - LDY $91BD,X  ← table at $91BD indexed by (world*2 + bit1(level))
+    - LDA $075C ; LSR A ; TYA ; BCS ... ; LSR A x4 ; AND #$0F
+    - CMP $071A ; BEQ ; BCC ; LDA #0 ; STA $075B
+    - JSR $9282 ; JMP $9264
+    
+    So this routine computes something from world and level. $91BD is a table (32 bytes? world*2+bit). Y = table value. Then depending on bit0 of level (LSR A → carry = bit0), shift Y right 0 or 4, AND #$0F → a value 0-15. Then compare with $071A (camera page!). Hmm, if different and less, set $075B=0.
+    
+    Hmm, this looks like the routine that selects the level header index? Actually it's the "LoseLife next level" setup. Hmm.
+    
+    Wait, this is at $91E9, which the mapping says is "the world/level setup that draws the next life". So it's the death-respawn level setup. Not the new-game start.
+    
+    Let me look at the other references: $9252 (0x1252) and $9038 (0x1038, = offset 0x1038 → CPU $9038). Let me disassemble CPU $9038 region and CPU $9240-$9282.
+    
+    Also, the table at $91BD is data. Let me read $91BD.
+    
+    Hmm, this is the level header logic! Let me think: In SMB, the "level header" table is indexed by (World… [+1140 chars]
+    → disassemble {"address": 36920, "length": 120}
+    → disassemble {"address": 37440, "length": 90}
+    → read_memory {"address": 37309, "length": 24}
+[ 202 23:43:54] RESULT disassemble
+    (no instructions decoded)
+[ 204 23:43:54] RESULT disassemble
+    $9240: 10 d0       bpl 0x0000
+    $9242: 05 ad       ora 0xad
+    $9244: a0 07       ldy #0x07
+    $9246: d0 39       bne 0x0000
+    $9248: a9 80       lda #0x80
+    $924a: 85 fc       sta 0xfc
+    $924c: 20 82 92    jsr 0x9282
+    $924f: 90 13       bcc 0x0000
+    $9251: ad 5f 07    lda 0x075f
+    $9254: 8d fd 07    sta 0x07fd
+    $9257: a9 00       lda #0x00
+    $9259: 0a          asl a
+    $925a: 8d 72 07    sta 0x0772
+    $925d: 8d a0 07    sta 0x07a0
+    $9260: 8d 70 07    sta 0x0770
+    $9263: 60          rts 
+    $9264: 20 03 9c    jsr 0x9c03
+    $9267: a9 01       lda #0x01
+    $9269: 8d 54 07    sta 0x0754
+    $926c: ee 57 07    inc 0x0757
+    $926f: a9 00       … [+505 chars]
+[ 206 23:43:54] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[86,64,101,112,102,64,102,64,102,64,102,96,101,112,0,0,238,116,7,169,0,141,34,7],"address":37309}
+[ 209 23:43:58] ASSISTANT (turn 1 step 30) · in 828 (cache 189568) out 496
+    ▷ The disassemble at 36920 returned nothing (maybe misaligned). Let me try again at 36912+? Actually earlier disassemble 36912 returned nothing. Hmm, maybe there's a decode issue at that address. Let me try 36944 (0x9050).
+    
+    But more useful: the routine at $9264 is the "start next level" routine: JSR $9C03 (which is likely "load level header / set area type"), then set $0754=1, INC $0757, clear $0747/$0756, STA $0E, $0772=0, $0770=1 (game mode). 
+    
+    And $9C03! The mapping mentioned LoadAreaData at $9C22 and there's a routine $9C09 (called by $9C22). $9C03 is just before. Let me disassemble $9C00-$9C22. This is likely "LoadLevelHeader": it uses $075F/$075C to find the header and sets $0750 (AreaType) etc.
+    
+    Let me disassemble CPU $9C00 (39936) length 40.
+    
+    Also read the table $91BD: bytes at 37309 = $91BD? 37309 decimal = 0x91BD. Yes: [86,64,101,112,102,64,102,64,102,64,102,96,101,112,0,0,...]. Hmm those look like 6-bit packed values (86=0x56, 64=0x40, 101=0x65, 112=0x70...). Hmm.
+    
+    Let me disassemble $9C00.
+    The level-start routine at `$9264` calls `$9C03` (right before LoadAreaData). Let me disassemble that.
+    → disassemble {"address": 39936, "length": 40}
+    → disassemble {"address": 37353, "length": 30}
+[ 211 23:43:58] RESULT disassemble
+    $9c00: 0a          asl a
+    $9c01: 26 40       rol 0x40
+    $9c03: 20 13 9c    jsr 0x9c13
+    $9c06: 8d 50 07    sta 0x0750
+    $9c09: 29 60       and #0x60
+    $9c0b: 0a          asl a
+    $9c0c: 2a          rol a
+    $9c0d: 2a          rol a
+    $9c0e: 2a          rol a
+    $9c0f: 8d 4e 07    sta 0x074e
+    $9c12: 60          rts 
+    $9c13: ac 5f 07    ldy 0x075f
+    $9c16: b9 b4 9c    lda 0x9cb4, y
+    $9c19: 18          clc 
+    $9c1a: 6d 60 07    adc 0x0760
+    $9c1d: a8          tay 
+    $9c1e: b9 bc 9c    lda 0x9cbc, y
+    $9c21: 60          rts 
+    $9c22: ad 50 07    lda 0x0750
+    $9c25: 20 09 9c    jsr 0x9c09
+[ 213 23:43:58] RESULT disassemble
+    $91e9: ad 5f 07    lda 0x075f
+    $91ec: 0a          asl a
+    $91ed: aa          tax 
+    $91ee: ad 5c 07    lda 0x075c
+    $91f1: 29 02       and #0x02
+    $91f3: f0 01       beq 0x0000
+    $91f5: e8          inx 
+    $91f6: bc bd 91    ldy 0x91bd, x
+    $91f9: ad 5c 07    lda 0x075c
+    $91fc: 4a          lsr a
+    $91fd: 98          tya 
+    $91fe: b0 04       bcs 0x0000
+    $9200: 4a          lsr a
+    $9201: 4a          lsr a
+    $9202: 4a          lsr a
+    $9203: 4a          lsr a
+    $9204: 29 0f       and #0x0f
+[ 216 23:44:09] ASSISTANT (turn 1 step 31) · in 647 (cache 190848) out 2180
+    ▷ Now it's clearer.
+    
+    $9C13 (called by $9C03):
+    - LDY $075F (world)
+    - LDA $9CB4,Y  ← table at $9CB4 indexed by world
+    - CLC; ADC $0760  ← add $0760
+    - TAY
+    - LDA $9CBC,Y ← table at $9CBC indexed by (world_base + $0760)
+    - RTS
+    
+    $9C03: JSR $9C13; STA $0750 (AreaType). Then $9C09: AND #$60; ASL; ROL; ROL; ROL; STA $074E (area palette index).
+    
+    So the AreaType comes from a table indexed by world and **$0760**, NOT $075C! $0760 is probably "level number within world" (a different variable).
+    
+    So $075C might be the "displayed level" while $0760 is the actual "level/area index" used to select the header. Hmm. Interesting! Let me check $0760.
+    
+    Actually wait: the mapping said "world_number $075F" and "level_number $075C" proven by the death card. But here the header lookup uses $075F and $0760. So $0760 is likely the "level number" used for loading, and $075C is the displayed one? Or $0760 is the "current area within the level" (for multi-area levels like 1-1 has only one area, but castles/underground have multiple?).
+    
+    In SMB, each world-level can have multiple "areas" (e.g., 1-2 has 3 areas? no). Actually SMB levels are divided into "areas" with a "level header" that lists areas. $0760 might be the … [+4680 chars]
+    Found it — `$9C03` loads AreaType from a table indexed by **world `$075F` + `$0760`**, not `$075C`. So `$0760` is the actual "area" index. Let me pin it down.
+    → read_memory {"address": 1872, "length": 16}
+    → search_memory {"hex": "60 07", "max_results": 40}
+    → search_memory {"hex": "8d 60 07", "max_results": 20}
+    → read_memory {"address": 40116, "length": 40}
+[ 218 23:44:09] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[40,0,0,0,1,40,0,0,0,0,2,0,1,1,0,1],"address":1872}
+[ 220 23:44:09] RESULT search_memory
+    {"start":0,"mem_type":"prgRom","truncated":false,"memory_size":32768,"offsets":[791,796,1136,6387,6820,7195,13078,24380],"searched":32768,"pattern_length":2,"offsets_hex":["0x317","0x31C","0x470","0x18F3","0x1AA4","0x1C1B","0x3316","0x5F3C"]}
+[ 222 23:44:09] RESULT search_memory
+    {"start":0,"mem_type":"prgRom","truncated":false,"memory_size":32768,"offsets":[1135,24379],"searched":32768,"pattern_length":3,"offsets_hex":["0x46F","0x5F3B"]}
+[ 224 23:44:09] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0,5,10,14,19,23,27,32,37,41,192,38,96,40,41,1,39,98,36,53,32,99,34,41,65,44,97,42,49,38,98,46,35,45,96,51,41,1,39,100],"address":40116}
+[ 227 23:44:42] ASSISTANT (turn 1 step 32) · in 357 (cache 193664) out 8349
+    ▷ Read at 1872 = $0750: bytes [40,0,0,0,1,40,0,0,0,0,2,0,1,1,0,1].
+    So:
+    - $0750 = 40 (0x28) AreaType
+    - $0751 = 0
+    - $0752 = 0
+    - $0753 = 0
+    - $0754 = 1
+    - $0755 = 40 (0x28)
+    - $0756 = 0
+    - $0757 = 0
+    - $0758 = 0
+    - $0759 = 0
+    - $075A = 2 (lives minus one)
+    - $075B = 0
+    - $075C = 1 (level number)
+    - $075D = 1
+    - $075E = 0 (coin count binary)
+    - $075F = 1 (world number)
+    
+    Wait, I read 1872 = 0x0750, length 16 → $0750..$075F. So $075C=1, $075D=1, $075F=1. Good. I didn't read $0760. Let me read 1888 ($0760).
+    
+    The STA $0760 is at prgRom offset 0x46F → CPU $846F. Let me disassemble around $8460-$8480. Also 0x5F3B → CPU $DF3B. Hmm.
+    
+    Read $9CB4 table: address 40116 = 0x9CB4. Bytes: [0,5,10,14,19,23,27,32,37,41,192,38,96,40,41,1,39,98,36,53,32,99,34,41,65,44,97,42,49,38,98,46,35,45,96,51,41,1,39,100]. So $9CB4 = [0,5,10,14,19,23,27,32] (8 worlds), then $9CBC = [37,41,192,38,...]. Hmm, $9CBC entries look like 16-bit? No, they're area-header indices? Actually $9CBC,Y with Y = $9CB4[world] + $0760. Values: 37,41,192,38,96,40,41,1,39,98,36,53,... Hmm, these look like level header bytes maybe. Actually 0x25=37, 0x29=41, 0xC0=192, 0x26=38, 0x60=96, 0x28=40... Hmm.
+    
+    Hmm wait, these might be the "area type" base val… [+19059 chars]
+    Let me read the full level-loader and the code that sets `$0760`.
+    → disassemble {"address": 39970, "length": 90}
+    → disassemble {"address": 33872, "length": 60}
+    → read_memory {"address": 1888, "length": 4}
+[ 229 23:44:42] RESULT disassemble
+    $9c22: ad 50 07    lda 0x0750
+    $9c25: 20 09 9c    jsr 0x9c09
+    $9c28: a8          tay 
+    $9c29: ad 50 07    lda 0x0750
+    $9c2c: 29 1f       and #0x1f
+    $9c2e: 8d 4f 07    sta 0x074f
+    $9c31: b9 e0 9c    lda 0x9ce0, y
+    $9c34: 18          clc 
+    $9c35: 6d 4f 07    adc 0x074f
+    $9c38: a8          tay 
+    $9c39: b9 e4 9c    lda 0x9ce4, y
+    $9c3c: 85 e9       sta 0xe9
+    $9c3e: b9 06 9d    lda 0x9d06, y
+    $9c41: 85 ea       sta 0xea
+    $9c43: ac 4e 07    ldy 0x074e
+    $9c46: b9 28 9d    lda 0x9d28, y
+    $9c49: 18          clc 
+    $9c4a: 6d 4f 07    adc 0x074f
+    $9c4d: a8          tay 
+    $9c4e: b9 2c 9d    lda 0x9d2c, y
+    $9c51: 85 e7       s… [+665 chars]
+[ 231 23:44:42] RESULT disassemble
+    $8450: 00 8d       brk 0x8d
+    $8452: 19 07 c9    ora 0xc907, y
+[ 233 23:44:42] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0,2,0,0],"address":1888}
+[ 236 23:45:08] ASSISTANT (turn 1 step 33) · in 853 (cache 202368) out 5874
+    ▷ $0760 = 0 currently. Good.
+    
+    The disassembly at 33872 (0x8450) is misaligned. The STA $0760 was at prgRom 0x46F → CPU offset 0x846F. Let me disassemble at 33888 (0x8460) length 40. Actually 0x8460 = 33888. Let me try 33886? Hmm. The CPU address = prgRom offset + 0x8000 - 0x10 = offset + 0x7FF0. So offset 0x46F → CPU 0x845F. So STA $0760 is at CPU $845F. Let me disassemble at 33840 (0x8430) length 80.
+    
+    Also, the LoadAreaData at $9C22: $074E and $074F. For our load: $0750=0x28. $9C09(0x28): AND #$60=0x20; ASL=0x40; ROL=0x80; ROL=0x00 c1; ROL=0x01. So Y=1, $074E=1. Then LDA $0750=0x28; AND #$1F=0x08; STA $074F=8. Ah I see! $074F = $0750 & 0x1F, not $074E! I misread the mapping. Good: $074F = $0750 & 0x1F = 8. ✓ matches our read. And for 1-1, $0750=0x25 → $074F=5. ✓.
+    
+    Great, so $0750 = the area header byte, whose low 5 bits ($074F) index the layout/enemy pointer tables (within the given area type), and bits 5-6 select the palette ($074E).
+    
+    So the header byte encodes: bits 0-4 = area index within the type/palette group, bits 5-6 = palette/type group. And the header is looked up from table $9CBC indexed by [$9CB4[world] + $0760].
+    
+    Now for 2-2 underwater, which header? The palette group ($… [+14833 chars]
+    `$0760`=0. The header table is indexed by world `$075F` + area `$0760`. Let me disassemble the code that sets `$0760` to learn the correct area numbers.
+    → disassemble {"address": 33840, "length": 80}
+    → disassemble {"address": 33904, "length": 60}
+[ 238 23:45:08] RESULT disassemble
+    $8430: c0 03       cpy #0x03
+    $8432: b0 0f       bcs 0x0000
+    $8434: c0 03       cpy #0x03
+    $8436: d0 04       bne 0x0000
+    $8438: a9 04       lda #0x04
+    $843a: 85 fc       sta 0xfc
+    $843c: 98          tya 
+    $843d: 18          clc 
+    $843e: 69 0c       adc #0x0c
+    $8440: 8d 73 07    sta 0x0773
+    $8443: ad 49 07    lda 0x0749
+    $8446: 18          clc 
+    $8447: 69 04       adc #0x04
+    $8449: 8d 49 07    sta 0x0749
+    $844c: ad 19 07    lda 0x0719
+    $844f: 69 00       adc #0x00
+    $8451: 8d 19 07    sta 0x0719
+    $8454: c9 07       cmp #0x07
+    $8456: 90 08       bcc 0x0000
+    $8458: a9 06       lda #0x06
+    $845a: 8d a1 07    sta 0x07a… [+383 chars]
+[ 240 23:45:08] RESULT disassemble
+    $8470: 60          rts 
+[ 243 23:45:13] ASSISTANT (turn 1 step 34) · in 2456 (cache 207232) out 829
+    ▷ Now this is the "next level" routine at CPU $8461:
+    ```
+    $8461: LDA $07A1
+    $8464: BNE ...
+    $8466: LDY $075F
+    $8469: CPY #$07
+    $846B: BCS ...
+    $846D: LDA #$00
+    $846F: STA $0760      ; area = 0
+    $8472: STA $075C      ; level = 0
+    $8475: STA $0772
+    $8478: INC $075F      ; world++
+    $847B: JSR $9C03      ; load area type
+    ...
+    ```
+    So this increments the world and resets $0760=0, $075C=0. This is the "advance to next world" path, not helpful for level progression within a world.
+    
+    Hmm, so where is $0760 set for progressing within a world (e.g., 1-1 → 1-2)? Let me search for other writes. The search for "8d 60 07" returned only offsets 1135 (0x46F) and 24379 (0x5F3B). So only two STA $0760 in the ROM. The other at CPU $DF3B. Let me disassemble around CPU $DF00-$DF60.
+    
+    Hmm, so $0760 is set either at $846F (next world, =0) or at $DF3B.
+    
+    Hmm, but then how does the game advance 1-1→1-2? Maybe it increments $0760 elsewhere (INC $0760 = EE 60 07). Let me search for "ee 60 07" and "60 07" reads.
+    
+    Wait, also maybe $0760 is set via an indexed store or a different addressing. Let me disassemble around $DF3B.
+    
+    Also search for "ee 60 07" (INC $0760).
+    
+    Let me do both.
+    
+    Actually, wait. Maybe the progression is: after… [+756 chars]
+    → search_memory {"hex": "ee 60 07", "max_results": 20}
+    → disassemble {"address": 57088, "length": 70}
+    → read_memory {"address": 37305, "length": 4}
+[ 245 23:45:13] RESULT search_memory
+    {"start":0,"mem_type":"prgRom","truncated":false,"memory_size":32768,"offsets":[13077],"searched":32768,"pattern_length":3,"offsets_hex":["0x3315"]}
+[ 247 23:45:13] RESULT disassemble
+    (no instructions decoded)
+[ 249 23:45:13] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[7,133,14,96],"address":37305}
+[ 252 23:45:15] ASSISTANT (turn 1 step 35) · in 189 (cache 210432) out 277
+    ▷ INC $0760 at prgRom offset 0x3315 → CPU $B305. Let me disassemble around CPU $B2E0-$B320.
+    
+    This is likely the "level completed, advance area" routine.
+    
+    Let me disassemble CPU 45728 (0xB300) length 64. Actually 0xB305 = 45829. Let me disassemble 45800 (0xB2E8) length 80.
+    
+    The read_memory at 37305 = 0x91B9 (since 37305 = 0x91B9). Bytes [7,133,14,96] = $91B9=7, $91BA=133(0x85), $91BB=14(0x0E), $91BC=96(0x60). Hmm, the table $91BD starts at 37309. So $91B9-$91BC is before. The table $91BD. Let me read more later.
+    
+    Let me disassemble $B2E8.
+    → disassemble {"address": 45792, "length": 90}
+[ 254 23:45:15] RESULT disassemble
+    $b2e0: 8d 23 07    sta 0x0723
+    $b2e3: ad 90 04    lda 0x0490
+    $b2e6: 4a          lsr a
+    $b2e7: b0 0d       bcs 0x0000
+    $b2e9: ad 46 07    lda 0x0746
+    $b2ec: d0 03       bne 0x0000
+    $b2ee: ee 46 07    inc 0x0746
+    $b2f1: a9 20       lda #0x20
+    $b2f3: 8d c4 03    sta 0x03c4
+    $b2f6: ad 46 07    lda 0x0746
+    $b2f9: c9 05       cmp #0x05
+    $b2fb: d0 2b       bne 0x0000
+    $b2fd: ee 5c 07    inc 0x075c
+    $b300: ad 5c 07    lda 0x075c
+    $b303: c9 03       cmp #0x03
+    $b305: d0 0e       bne 0x0000
+    $b307: ac 5f 07    ldy 0x075f
+    $b30a: ad 48 07    lda 0x0748
+    $b30d: d9 c2 b2    cmp 0xb2c2, y
+    $b310: 90 03       bcc 0x0000
+    $b312… [+459 chars]
+[ 257 23:45:31] ASSISTANT (turn 1 step 36) · in 741 (cache 210816) out 3151
+    ▷ Now I see. At $B2FD:
+    ```
+    INC $075C      ; level++
+    LDA $075C
+    CMP #$03
+    BNE ...        ; if level != 3, skip
+    LDY $075F
+    LDA $0748
+    CMP $B2C2,Y    ; compare something with table
+    BCC ...
+    INC $075D
+    INC $0760      ; area++
+    JSR $9C03
+    ...
+    ```
+    Hmm, so $0760 is incremented only in a specific case (level reached 3 and some condition on $0748). Hmm, that doesn't look like normal level progression either.
+    
+    Hmm, wait. This routine at $B2F6+: LDA $0746; CMP #$05; BNE. So when $0746 reaches 5, it does INC $075C (level++). If $075C == 3, then check $0748 vs table $B2C2[world]; if >= then INC $075D; INC $0760; JSR $9C03. Hmm.
+    
+    Hmm, so $0760 increments only when level becomes 3 (the castle) and a condition. That's the "after castle, go to next world"? But there's already the routine at $8461 for next world.
+    
+    Hmm, confusing. Let me look at $B213 (the routine called) — maybe it sets up the next level's data using $075C etc.
+    
+    Actually, maybe I'm wrong that $0760 selects the area. Let me reconsider: $9C03 uses $9CB4[$075F] + $0760. If $0760 stays 0 through levels 1-3 of a world and increments only after the castle... then the header would be the same for all levels in a world? That can't be.
+    
+    Hmm, unless $0… [+8162 chars]
+    Now I understand the loader: `$9C13` reads `$075F` (world) and `$0760` (area index) to pick the area header. Let me test the cleanest single-byte proof: on the title, write `$0760`=1 (World 1, second area) and press Start.
+    → load_state {"slot": 2}
+    → screenshot {}
+[ 259 23:45:31] RESULT load_state
+    {"slot":2,"stepped_frames":1,"paused":true,"bytes":5923,"action":"loaded"}
+[ 261 23:45:31] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/6479d4e18e7d.png
+[ 264 23:45:33] ASSISTANT (turn 1 step 37) · in 458 (cache 214656) out 94
+    ▷ Title restored. Now write $0760=1, step, read, then Start.
+    
+    Let me write 1888=1, step 2, read 1888.
+    → write_memory {"address": 1888, "bytes": [1]}
+[ 266 23:45:33] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1888,"persistent":false}
+[ 269 23:45:36] ASSISTANT (turn 1 step 38) · in 201 (cache 215040) out 119
+    ▷ Step 2, read, then Start.
+    
+    Let me combine step + read, then play_input.
+    
+    Actually, do step+read, then play_input in the next turn.
+    → step_frame {"count": 3}
+    → read_memory {"address": 1884, "length": 8}
+[ 271 23:45:36] RESULT step_frame
+    {"paused":true,"stepped":3}
+[ 273 23:45:36] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0,0,0,0,1,2,0,0],"address":1884}
+[ 276 23:45:39] ASSISTANT (turn 1 step 39) · in 251 (cache 215168) out 221
+    ▷ Read $075C..$0763: [0,0,0,0,1,2,0,0]. Wait, 1884 = 0x075C. So $075C=0, $075D=0, $075E=0, $075F=0, $0760=1, $0761=2, $0762=0, $0763=0. Good, $0760=1 held, $075F=0.
+    
+    Now press Start and screenshot.
+    `$0760`=1 held (world `$075F` still 0). Now press Start.
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 240}], "watch": [1884, 1887, 1888, 1904]}
+[ 278 23:45:43] RESULT play_input
+    {"frames":246,"segments":2,"frames_run":246,"was_paused":true,"polls":246,"port":0,"watch":[{"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"first":0,"last":0,"address":1884,"address_hex":"0x075C"},{"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"first":0,"last":0,"address":1887,"address_hex":"0x075F"},{"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":1,"last":1,"address":1888,"address_hex":"0x0760"… [+625 chars]
+[ 281 23:45:45] ASSISTANT (turn 1 step 40) · in 803 (cache 215552) out 51
+    ▷ $0760=1 held, $075F=0, $075C=0, $0770=1. Let me screenshot.
+    → screenshot {}
+[ 283 23:45:45] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/b11d11e9e19f.png
+[ 286 23:45:59] ASSISTANT (turn 1 step 41) · in 456 (cache 216320) out 2874
+    ▷ Now the loaded area is completely different from 1-1: a castle/fortress with pipes and clouds. HUD says WORLD 1-1. So writing $0760=1 loaded a different area (some fortress/castle-ish area). Not underground, but definitely different.
+    
+    Hmm, so $0760 controls the area. But the visuals are castle-like. Hmm, maybe this is 1-2 rendered with the wrong palette? 1-2 in SMB is underground (blue). Here we see overworld colors with a fortress. So the palette is overworld.
+    
+    Hmm. So $0760 changes the layout BUT the area type/palette stays overworld because... hmm. Actually $0750/$074E are computed from the header (0x29) which has $074E=1 (overworld). So the header 0x29 itself is an overworld-type header. So the layout loaded is the one at $074F=9 within the overworld group. Hmm.
+    
+    Wait, but $9CBC[1]=0x29 → $074F = 0x29 & 0x1F = 9. And $9D2C/$9D4E indexed by base[$074E=1] + $074F. Hmm. So this is "area 9 of the overworld group". Hmm.
+    
+    So the game's area table isn't a simple world/level mapping; it's grouped by area type. The header byte selects the group and the index within the group. So $0760 selects an entry in $9CBC, and each entry is a header (area type + index). So $0760 does select "which … [+6108 chars]
+    `$0760`=1 loaded a clearly different area (fortress with pipes) while the HUD stayed 1-1 — so `$0760` is the area selector. To match the "under water" hint, let me identify the water palette and which header uses it.
+    → read_memory {"address": 3236, "length": 40, "mem_type": "prgRom"}
+    → read_memory {"address": 3272, "length": 40, "mem_type": "prgRom"}
+    → read_memory {"address": 3308, "length": 40, "mem_type": "prgRom"}
+    → read_memory {"address": 3344, "length": 40, "mem_type": "prgRom"}
+[ 288 23:45:59] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[63,0,32,15,21,18,37,15,58,26,15,15,48,18,15,15,39,18,15,34,22,39,24,15,16,48,39,15,22,48,39,15,15,48,16,0,63,0,32,15],"address":3236}
+[ 290 23:45:59] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[63,0,32,15,41,26,15,15,54,23,15,15,48,33,15,15,39,23,15,15,22,39,24,15,26,48,39,15,22,48,39,15,15,54,23,0,63,0,32,15],"address":3272}
+[ 292 23:45:59] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[63,0,32,15,41,26,9,15,60,28,15,15,48,33,28,15,39,23,28,15,22,39,24,15,28,54,23,15,22,48,39,15,12,60,28,0,63,0,32,15],"address":3308}
+[ 294 23:45:59] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[63,0,32,15,48,16,0,15,48,16,0,15,48,22,0,15,39,23,0,15,22,39,24,15,28,54,23,15,22,48,39,15,0,48,16,0,63,0,4,34],"address":3344}
+[ 297 23:46:14] ASSISTANT (turn 1 step 42) · in 414 (cache 219648) out 3195
+    ▷ Let me decode the four palette blocks (each is 32 bytes after [3F 00 20]):
+    
+    Block 1 ($8CA4, selector 1, $074E=0): palette bytes:
+    15,21,18,37,  15,58,26,15,  15,48,18,15,  15,39,18,15,  34,22,39,24,  15,16,48,39,  15,22,48,39,  15,15,48,16
+    Wait, the record is 3F 00 20 then 32 bytes: bytes 3..34 = [15,21,18,37,15,58,26,15,15,48,18,15,15,39,18,15,34,22,39,24,15,16,48,39,15,22,48,39,15,15,48,16].
+    So BG palettes:
+    - BG0: 15,21,18,37 = $0F black, $15 magenta, $12 bright blue, $25 pink. Backdrop $0F black.
+    - BG1: 15,58,26,15 = $0F, $3A pale green, $1A green, $0F
+    - BG2: 15,48,18,15 = $0F, $30 white, $12 bright blue, $0F
+    - BG3: 15,39,18,15 = $0F, $27 orange, $12 bright blue, $0F
+    - Sprite palettes: 34,22,39,24 = $22,$16,$27,$18; 15,16,48,39 = $0F,$16,$30,$27; 15,22,48,39 = $0F,$16,$30,$27; 15,15,48,16 = $0F,$0F,$30,$16.
+    
+    Hmm, backdrop $0F black. This could be underground or castle.
+    
+    Block 2 ($8CC8, selector 2, $074E=1, overworld): bytes [15,41,26,15, 15,54,23,15, 15,48,33,15, 15,39,23,15, ...]. BG0 backdrop $0F black, $29 lime, $1A green. Wait, the mapping said $8CC8 gives backdrop $22 periwinkle. Hmm, but here the record's first palette byte is 15 = $0F black. Hmm, the mapping noted the back… [+7354 chars]
+    Block 3 (`$8CEC`, teal `$1C`) looks like the water palette. In world 2 that palette is used by the `0x60` header at area index 4. Let me test `$075F`=1, `$0760`=4.
+    → load_state {"slot": 2}
+    → write_memory {"address": 1887, "bytes": [1]}
+    → write_memory {"address": 1888, "bytes": [4]}
+[ 299 23:46:14] RESULT load_state
+    {"slot":2,"stepped_frames":1,"paused":true,"bytes":5923,"action":"loaded"}
+[ 301 23:46:14] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1887,"persistent":false}
+[ 303 23:46:14] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1888,"persistent":false}
+[ 306 23:46:16] ASSISTANT (turn 1 step 43) · in 249 (cache 223104) out 107
+    ▷ Now step 2, read, then play_input start + screenshot.
+    
+    Let me step and read, then play.
+    → step_frame {"count": 2}
+    → read_memory {"address": 1884, "length": 8}
+[ 308 23:46:16] RESULT step_frame
+    {"paused":true,"stepped":2}
+[ 310 23:46:16] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0,0,0,1,4,2,0,0],"address":1884}
+[ 313 23:46:18] ASSISTANT (turn 1 step 44) · in 159 (cache 223360) out 110
+    ▷ $075F=1, $0760=4 held. Now press Start and screenshot.
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 260}], "watch": [1884, 1887, 1888, 1904]}
+[ 315 23:46:22] RESULT play_input
+    {"frames":266,"segments":2,"frames_run":266,"was_paused":true,"polls":266,"port":0,"watch":[{"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"first":0,"last":0,"address":1884,"address_hex":"0x075C"},{"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":1,"last":1,"address":1887,"address_hex":"0x075F"},{"values":[4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4],"first":4,"last":4,"address":188… [+673 chars]
+[ 318 23:46:24] ASSISTANT (turn 1 step 45) · in 768 (cache 223616) out 39
+    ▷ $075F=1, $0760=4 held. Screenshot.
+    → screenshot {}
+[ 320 23:46:24] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/a1d2e3570d7a.png
+[ 323 23:46:32] ASSISTANT (turn 1 step 46) · in 541 (cache 224256) out 1323
+    ▷ Hmm, this shows an underground-ish level (black background, gray/white bricks) with HUD "WORLD 2-1". Hmm. That's index 9? But wait, it says WORLD 2-1 (because $075C=0). The level is a dark underground with white brick platforms. Hmm, this resembles World 1-2 or 2-2? Actually with a black background and white/gray bricks, it's the underground tileset. Hmm, but the bricks are white-ish. Could be underwater? No, underwater has coral and a blue backdrop.
+    
+    Hmm, actually the black background with white bricks is the "underground" tileset. So $075F=1,$0760=4 gives an underground level.
+    
+    Hmm, so block 3 palette ($8CEC) with backdrop $0F black = underground, not underwater. Right — SMB underwater has a blue backdrop, but maybe it's also $0F? Hmm, no.
+    
+    Wait, hold on. $074E for header 0x60 was 2 → selector 3 → $8CEC. The palette block 3: BG0 = 15,41,26,9 → backdrop $0F black. Hmm. Underground SMB has black background with blue bricks. Here bricks are white/gray. Hmm.
+    
+    OK, I'm burning time. Let me reconsider.
+    
+    Maybe I'm wrong that header 0x60 is index 9. Let me verify what header this level used. Let me read $0750, $074E, $074F, $E7/$E8 now.
+    
+    Actually, the level shown (black bg, white bricks) … [+2901 chars]
+    Let me confirm the loaded header matches my model.
+    → read_memory {"address": 1870, "length": 10}
+    → read_memory {"address": 231, "length": 4}
+[ 325 23:46:32] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[3,2,98,0,0,0,1,40,0,0],"address":1870}
+[ 327 23:46:32] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[145,162,176,157],"address":231}
+[ 330 23:47:21] ASSISTANT (turn 1 step 47) · in 145 (cache 226048) out 11250
+    ▷ Read 1870 = $074E: [3,2,98,0,0,0,1,40,0,0] → 
+    $074E=3, $074F=2, $0750=98 (0x62), $0751=0, $0752=0, $0753=0, $0754=1, $0755=40 (0x28), $0756=0, $0757=0.
+    
+    Hmm! $0750=0x62, not 0x60. And $074E=3, $074F=2. So header = $9CBC[?]=0x62. Let me find: $9CBC values: index0=37(0x25),1=41(0x29),2=192(0xC0),3=38(0x26),4=96(0x60),5=40(0x28),6=41(0x29),7=1,8=39(0x27),9=98(0x62). Wait, index9=98=0x62! I miscounted earlier. Let me recount the read from 40116:
+    bytes: [0,5,10,14,19,23,27,32, 37,41,192,38,96,40,41,1,39,98,36,53,32,99,34,41,65,44,97,42,49,38,98,46,35,45,96,51,41,1,39,100]
+    $9CB4 (indices 0-7): 0,5,10,14,19,23,27,32
+    $9CBC (indices 0-...): 37,41,192,38,96,40,41,1,39,98,...
+    So $9CBC[0]=37(0x25), [1]=41(0x29), [2]=192(0xC0), [3]=38(0x26), [4]=96(0x60), [5]=40(0x28), [6]=41(0x29), [7]=1(0x01), [8]=39(0x27), [9]=98(0x62), [10]=36(0x24), ...
+    
+    So for $075F=1 (base 5), $0760=4 → index 9 → $9CBC[9]=98=0x62. ✓ matches $0750=0x62. And $9C09(0x62): &0x60=0x60; ASL→0xC0 c0; ROL→0x80 c1; ROL→0x01 c0; ROL→0x02 → $074E=2? But we read $074E=3. Hmm.
+    
+    Wait, let me redo $9C09:
+    ```
+    AND #$60
+    ASL A
+    ROL A
+    ROL A
+    ROL A
+    STA $074E
+    ```
+    A=0x62 → AND 0x60 = 0x60.
+    ASL A: 0x60<<1 = 0xC0, bit7=0 → C=0.
+    ROL A: A = (0xC0<<1… [+32162 chars]
+    Confirmed: the loader reads **`$0760`**, not `$075C`. Let me find the underwater area by testing world 2, area 2.
+    → load_state {"slot": 2}
+    → write_memory {"address": 1887, "bytes": [1]}
+    → write_memory {"address": 1888, "bytes": [2]}
+[ 332 23:47:21] RESULT load_state
+    {"slot":2,"stepped_frames":1,"paused":true,"bytes":5923,"action":"loaded"}
+[ 334 23:47:21] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1887,"persistent":false}
+[ 336 23:47:21] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1888,"persistent":false}
+[ 339 23:47:23] ASSISTANT (turn 1 step 48) · in 227 (cache 237312) out 60
+    ▷ 
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 260}]}
+[ 341 23:47:27] RESULT play_input
+    {"frames":266,"segments":2,"frames_run":266,"was_paused":true,"polls":266,"port":0,"watch":[],"sample_frames":[],"end_frame":113525,"paused":true,"sample_every":5,"start_frame":113259,"note":"Ran 266 frames of input on port 0. The game was paused before and is paused again now."}
+[ 344 23:47:29] ASSISTANT (turn 1 step 49) · in 258 (cache 237440) out 22
+    ▷ 
+    → screenshot {}
+[ 346 23:47:29] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/327218cd78d6.png
+[ 349 23:47:55] ASSISTANT (turn 1 step 50) · in 372 (cache 237696) out 6011
+    ▷ This is underwater! Blue background, green seaweed-like ground, pink coral. And a bubble. So $075F=1, $0760=2 loads the underwater area (World 2-2)! HUD says WORLD 2-1 (because $075C=0), but the area is clearly underwater. 
+    
+    So the underwater area is at $075F=1 (world 2), $0760=2 (area index 2).
+    
+    Wait, but earlier $0760=0 gave a castle tower, $0760=1 gave a fortress+pipe, $0760=2 gives underwater. Hmm. So world 2 areas: 0=?, 1=?, 2=2-2 (water). Hmm, that means the "area" isn't a simple level index. Fine.
+    
+    Hmm interesting: so 2-2 underwater = $075F=1, $0760=2. Header = $9CB4[1]+2 = 7 → $9CBC[7]=0x01. And $9C09(0x01): &0x60=0 → $074E=0 → selector 1 = $8CA4. And $074F = 0x01 & 0x1F = 1. So the underwater area uses header 0x01, palette block 1.
+    
+    Wait, earlier I predicted 0xC0 for $0760=2, but 0xC0 was index2 for world 0 (base0). For world 1 (base5), $0760=2 → index7 → $9CBC[7]=0x01. Yes! I mis-indexed earlier. Good.
+    
+    So underwater = header 0x01. And $074F=1, $074E=0.
+    
+    Now, to make the HUD show WORLD 2-2, I should also set $075C=1. Let me redo the proof cleanly: from the title, write $075F=1 (world 2), $0760=2 (area index), $075C=1 (level 2 display), press Start → screenshot shows WORLD… [+15769 chars]
+    This is the underwater area — **World 2-2**! So `$075F`=1 (world 2) and `$0760`=2 (area index 2) load the water level. Let me redo it with the level digit set so the HUD reads 2-2, for a clean proof screenshot.
+    → load_state {"slot": 2}
+    → write_memory {"address": 1884, "bytes": [1]}
+    → write_memory {"address": 1887, "bytes": [1]}
+    → write_memory {"address": 1888, "bytes": [2]}
+[ 351 23:47:55] RESULT load_state
+    {"slot":2,"stepped_frames":1,"paused":true,"bytes":5923,"action":"loaded"}
+[ 353 23:47:55] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1884,"persistent":false}
+[ 355 23:47:55] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1887,"persistent":false}
+[ 357 23:47:55] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1888,"persistent":false}
+[ 360 23:47:58] ASSISTANT (turn 1 step 51) · in 236 (cache 243968) out 103
+    ▷ Now play + screenshot. Also watch the addresses to confirm.
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 260}], "watch": [1884, 1887, 1888, 1904]}
+[ 362 23:48:02] RESULT play_input
+    {"frames":266,"segments":2,"frames_run":266,"was_paused":true,"polls":266,"port":0,"watch":[{"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":1,"last":1,"address":1884,"address_hex":"0x075C"},{"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":1,"last":1,"address":1887,"address_hex":"0x075F"},{"values":[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],"first":2,"last":2,"address":188… [+673 chars]
+[ 365 23:48:04] ASSISTANT (turn 1 step 52) · in 838 (cache 244224) out 22
+    ▷ 
+    → screenshot {}
+[ 367 23:48:04] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/883758697c51.png
+[ 370 23:48:15] ASSISTANT (turn 1 step 53) · in 452 (cache 244992) out 1828
+    ▷ Now the HUD reads "WORLD 2-2" and the level is underwater (blue background, green sea-floor, pink coral, a bubble, Mario in swim/stand). 
+    
+    So the area byte proof: `$0760` = area index (0-based) used by the level loader together with world `$075F`; writing `$0760`=2 with `$075F`=1 loads World 2-2 (underwater).
+    
+    Now let me record this mapping. But first, let me also do the vertical-position page byte, which is the second task.
+    
+    Let me now think about the vertical page byte.
+    
+    Known: $00CE = Mario's Y screen position (0-255, down = larger). The task wants "the high byte (screen page) of Mario's vertical position". So there should be a byte that is the page/high byte of a 16-bit vertical position.
+    
+    By analogy to X ($006D page, $0086 low), maybe Y has a page byte near $00CE or in the $006D area. Hmm. Actually, maybe Mario's vertical position is also 16-bit with a page. Let me think: in SMB, is the vertical position 16-bit? The mapping note says $00CE is "the screen y of the top of Mario's sprite box". Hmm.
+    
+    Actually, let me reconsider: maybe the "high byte (screen page)" of Mario's vertical position is the byte at $03B8's counterpart, or a byte we can find by watching Mario fall into a p… [+5014 chars]
+    **Proven**: `$0760`=2 with world `$075F`=1 loads **World 2-2 underwater** (HUD reads 2-2, blue water, coral). 
+    
+    Now the vertical-position page byte. Let me examine the physics routine that updates `$00CE`.
+    → disassemble {"address": 49111, "length": 130}
+[ 372 23:48:15] RESULT disassemble
+    $bfd7: 48          pha 
+    $bfd8: bd 16 04    lda 0x0416, x
+    $bfdb: 18          clc 
+    $bfdc: 7d 33 04    adc 0x0433, x
+    $bfdf: 9d 16 04    sta 0x0416, x
+    $bfe2: a0 00       ldy #0x00
+    $bfe4: b5 9f       lda 0x9f, x
+    $bfe6: 10 01       bpl 0x0000
+    $bfe8: 88          dey 
+    $bfe9: 84 07       sty 0x07
+    $bfeb: 75 ce       adc 0xce, x
+    $bfed: 95 ce       sta 0xce, x
+    $bfef: b5 b5       lda 0xb5, x
+    $bff1: 65 07       adc 0x07
+    $bff3: 95 b5       sta 0xb5, x
+    $bff5: bd 33 04    lda 0x0433, x
+    $bff8: 18          clc 
+    $bff9: 65 00       adc 0x00
+    $bffb: 9d 33 04    sta 0x0433, x
+    $bffe: b5 9f       lda 0x9f, x
+    $c000: 69 … [+1264 chars]
+[ 375 23:48:28] ASSISTANT (turn 1 step 54) · in 1185 (cache 247168) out 2598
+    ▷ Excellent! The vertical physics routine at $BFD7 works on a 16-bit vertical position:
+    - $0416,X = low byte of a subpixel accumulator? Actually:
+    ```
+    LDA $0416,X
+    CLC
+    ADC $0433,X
+    STA $0416,X
+    ```
+    Hmm, that's a subpixel accumulator ($0416 = subpixel, $0433 = fraction?).
+    
+    Then:
+    ```
+    LDY #0
+    LDA $9F,X      ; vertical speed (signed)
+    BPL +1
+    DEY            ; Y = $FF if negative
+    STY $07        ; sign extension byte
+    ADC $CE,X      ; A = speed + $00CE (low byte)
+    STA $CE,X      ; store low byte
+    LDA $B5,X      ; high byte!
+    ADC $07        ; add sign
+    STA $B5,X      ; store high byte
+    ```
+    
+    So **$00B5** is the high byte (page) of the player's vertical position (with $00CE the low byte)! And the speed is added with sign extension. So writing $00CE=... and $00B5...
+    
+    So Mario's vertical position is 16-bit: low $00CE, high/page $00B5. The page ($00B5) increments when $00CE overflows past 255, and decrements below 0 (when Mario goes above the top of the screen).
+    
+    That's the answer: $00B5!
+    
+    Let me verify: read $00B5 (181 decimal) while in a level. In 1-1, Mario's y=176, so $00B5 should be 0. And when Mario jumps, y decreases; if y goes below 0, $00B5 borrows to 255.
+    
+    Hmm, so $00B5 is the "page" of the vertica… [+6621 chars]
+    The physics routine reveals Mario's vertical position is **16-bit**: low byte `$00CE`, high byte `$00B5` (`STA $B5,X` with sign extension from the vertical speed). Let me verify against live RAM.
+    → read_memory {"address": 181, "length": 1}
+    → read_memory {"address": 206, "length": 1}
+    → read_memory {"address": 159, "length": 1}
+[ 377 23:48:28] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1],"address":181}
+[ 379 23:48:28] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[176],"address":206}
+[ 381 23:48:28] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0],"address":159}
+[ 384 23:48:50] ASSISTANT (turn 1 step 55) · in 141 (cache 250880) out 4549
+    ▷ Interesting! $00B5 = 1 already! And $00CE = 176. Hmm, so in the underwater 2-2 area, Mario's y page is 1? That means his vertical position is 256+176 = 432. Hmm, that's odd. But the drawing uses $00CE=176, so he appears at screen y=176.
+    
+    Hmm, wait, maybe the underwater level uses a vertical page of 1 because the level's vertical layout? Hmm. Actually, maybe $00B5 isn't the page but something else... but the routine clearly shows it's the high byte.
+    
+    Hmm, but $00B5=1 with $00CE=176 in 2-2. In 1-1, $00B5 should be 0 with $00CE=176 (or the mapping's $00CE=176). Let me check in 1-1 later.
+    
+    Actually, wait — maybe $00B5 is shared with something and in 2-2 the value 1 is from an enemy? No, X=0 for the player. Hmm.
+    
+    Hmm, actually — hold on. Maybe the underwater level's "water level" flag sets the vertical page. Actually, maybe SMB's underwater levels have Mario at page 1 because the water surface is at the top and Mario is "below" it. Hmm. Actually no.
+    
+    Hmm, let me reconsider: maybe $00B5 is not the player's Y page but something else, and the routine uses $B5,X where X is the object index. For the player X=0. Hmm.
+    
+    Actually, wait: maybe the "vertical position" page for the player is indeed… [+13896 chars]
+    `$00B5` reads **1** here with `$00CE`=176 (in water, the level's origin is one page up). This confirms the pair. Let me save this useful water state, then go to 1-1 to observe the page changing.
+    → save_state {"slot": 3}
+    → load_state {"slot": 2}
+[ 386 23:48:50] RESULT save_state
+    {"slot":3,"stepped_frames":1,"paused":true,"bytes":4575,"action":"saved"}
+[ 388 23:48:50] RESULT load_state
+    {"slot":2,"stepped_frames":1,"paused":true,"bytes":5923,"action":"loaded"}
+[ 391 23:48:52] ASSISTANT (turn 1 step 56) · in 155 (cache 255488) out 151
+    ▷ Now start 1-1 normally and read. play_input [{start,6},{none,200}]. Then read $00B5/$00CE and screenshot.
+    
+    Let me do play_input and read + screenshot.
+    
+    Actually, let me combine: play_input, then read, then screenshot (screenshot after play). Let me call play_input first.
+    
+    Let me call play_input [{start,6},{none,200}]. Then screenshot + reads.
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 220}]}
+[ 393 23:48:56] RESULT play_input
+    {"frames":226,"segments":2,"frames_run":226,"was_paused":true,"polls":226,"port":0,"watch":[],"sample_frames":[],"end_frame":114020,"paused":true,"sample_every":4,"start_frame":113794,"note":"Ran 226 frames of input on port 0. The game was paused before and is paused again now."}
+[ 396 23:48:59] ASSISTANT (turn 1 step 57) · in 149 (cache 255744) out 112
+    ▷ 
+    → read_memory {"address": 181, "length": 1}
+    → read_memory {"address": 206, "length": 1}
+    → screenshot {}
+[ 398 23:48:59] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1],"address":181}
+[ 400 23:48:59] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[176],"address":206}
+[ 402 23:48:59] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261009-2340-sheet3-player-state/images/task-1/4638828759c8.png
+[ 405 23:49:16] ASSISTANT (turn 1 step 58) · in 411 (cache 256000) out 3355
+    ▷ Hmm! In World 1-1, $00B5 also reads 1, and $00CE=176. So $00B5=1 in 1-1 too. Then the total y = 432. Hmm.
+    
+    Wait, so $00B5=1 even in 1-1? Then maybe $00B5 isn't the y page, or the initial value is 1 in both levels. Hmm.
+    
+    Hmm, that's odd. Let me reconsider. Maybe $00B5 is a different variable and the `STA $B5,X` is storing to a different address due to X? X for the player is 0. Hmm.
+    
+    Hmm, wait, maybe zero-page indexing with X: `95 B5` = STA $B5,X → address $00B5 + X. If X=0 → $00B5. But maybe the player's index in this routine is not 0? The routine $BFD7 is called with X = the object/player index. For the player, the "player object" might be at index 0 or another index. Hmm. In SMB, the player's position arrays start at $0086 (index 0) and $00CE (index 0). But the physics routine uses $9F,X and $CE,X — for the player X=0. So $B5,X = $00B5. Hmm.
+    
+    But $00B5=1 in both levels. Hmm. Maybe $00B5 is not the high byte but something else, or the high byte is naturally 1 (the level is at page 1). Hmm.
+    
+    Actually, maybe SMB's coordinate system: screen y = $00CE, and the level's vertical origin is at page 1. So the "high byte" is 1 for all ground positions. Hmm. Then when Mario jumps, $00B5 might… [+9414 chars]
+    1-1 also has `$00B5`=1 (ground), `$00CE`=176 — so the pair is a 16-bit vertical position with origin at page 1. Let me watch `$00B5` while Mario falls into a pit.
+    → play_input {"script": [{"buttons": ["right"], "frames": 250}, {"buttons": ["right", "a"], "frames": 24}, {"buttons": ["right"], "frames": 326}], "watch": [206, 181, 159, 134]}
+[ 407 23:49:26] RESULT play_input
+    {"frames":600,"segments":3,"frames_run":600,"was_paused":true,"polls":600,"port":0,"watch":[{"values":[176,176,176,176,176,176,176,176,176,176,176,176,176,176,176,176,176,176,176,176,160,134,123,127,147,183,225,12,54,96,139,181,223,10,52,95,137,179,222,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,176,176,176,176,176],"first":176,"last":176,"address":206,"address_hex":"0x00CE"},{"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,3,3,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1],"first":1,"last":1,"address":181,"address_hex":"0x00B5"},{"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0… [+905 chars]
+[ 410 23:49:48] ASSISTANT (turn 1 step 59) · in 866 (cache 259712) out 5103
+    ▷ Excellent! The watch shows:
+    - $00CE (206): 176 (ground) → around frame 210-220 he jumps (160,134,123,127,147...) then falls: 147,183,225,12,54,96,139,181,223,10,52,95,137,179,222,4,... and then 0s (death/reset) and back to 176.
+    - $00B5 (181): 1,1,...,1 → 2 (frame ~270) → 3 (frames ~340-390) → 4 (frame 400) → 0 (death/menu) → 1 (frame 560, respawn).
+    
+    So $00B5 went 1→2→3→4 as Mario fell into the pit! This is the definitive proof: the high byte of Mario's vertical position increments as he falls off the bottom of the screen. At frame 200-220 he jumped (y 176→123) and then fell into a pit: y increased past 255 repeatedly (225, then 12 after wrap, etc.), with $00B5 counting 1→2→3→4. Then he died (all zeros) and respawned ($00CE=176, $00B5=1).
+    
+    So $00B5 is confirmed as the high byte (screen page) of Mario's vertical position. 
+    
+    Now, the "writing it and looking" proof would be nice too, but the pit-watch is exactly what the task suggested and is very strong. Let me also do a quick write proof to be thorough: write $00B5 and see Mario's position change. Actually, the pit-watch is sufficient ("or by watching it while Mario falls into a pit").
+    
+    Hmm, but the task says "Prove the vertical page… [+11940 chars]
+    **Definitive proof of the vertical page byte**: watching `$00B5` (index 181) during the run, it stepped `1→2→3→4` exactly as `$00CE` wrapped (225→12, 223→10, …) while Mario fell into the pit; the death zeroed both, and respawn restored 176/1. So `$00B5` is the high byte of Mario's 16-bit vertical position.
+    
+    Let me record both discoveries.
+    → record_mapping {"mapping_type": "address", "id": "0x0760", "name": "area_number (which area of the world the level loader loads)", "length": 1, "format": "binary, 0-based area index within the world; header = table[$9CB4[$075F] + $0760]", "category": "other", "source": "disassembly", "notes": "$0760 is the area selector the level loader actually reads. CPU $9C13 does LDY $075F (world) / LDA $9CB4,Y (per-world ba… [+997 chars]
+    → record_mapping {"mapping_type": "address", "id": "0x00B5", "name": "player_y_page (high byte / screen page of Mario's vertical position)", "length": 1, "format": "binary; high byte of the 16-bit vertical position whose low byte is $00CE (total y = $00B5*256 + $00CE)", "category": "player", "source": "disassembly", "notes": "Mario's vertical position is 16-bit: low byte $00CE, high byte/page $00B5. The vertical-m… [+945 chars]
+[ 412 23:49:48] RESULT record_mapping
+    {"mapping_type":"address","id":"0x0760","name":"area_number (which area of the world the level loader loads)","length":1,"format":"binary, 0-based area index within the world; header = table[$9CB4[$075F] + $0760]","category":"other","group":null,"notes":"$0760 is the area selector the level loader actually reads. CPU $9C13 does LDY $075F (world) / LDA $9CB4,Y (per-world base) / CLC / ADC $0760 / TAY / LDA $9CBC,Y, and $9C03 stores that header byte into $0750 (AreaType); $074E (palette block) and $074F (area index) and hence the layout/enemy pointer tables $9D2C/$9D4E + $9CE4/$9D06 all derive f… [+860 chars]
+[ 414 23:49:48] RESULT record_mapping
+    {"mapping_type":"address","id":"0x00B5","name":"player_y_page (high byte / screen page of Mario's vertical position)","length":1,"format":"binary; high byte of the 16-bit vertical position whose low byte is $00CE (total y = $00B5*256 + $00CE)","category":"player","group":null,"notes":"Mario's vertical position is 16-bit: low byte $00CE, high byte/page $00B5. The vertical-move routine at CPU $BFD7 does LDY #$00 / LDA $9F,X (signed vertical speed) / (DEY if negative) / STY $07 / ADC $CE,X / STA $CE,X / LDA $B5,X / ADC $07 / STA $B5,X - i.e. it adds the signed speed to the pair with carry into $0… [+808 chars]
+[ 417 23:49:51] ASSISTANT (turn 1 step 60) · in 1011 (cache 265600) out 116
+    ▷ Now promote_mappings once at the end. Let me call it.
+    
+    Also, let me consider whether to do a "write it and look" proof for $00B5 as well, to be extra safe. The task offered either. I did the pit watch. That's fine.
+    
+    Let me also take a final screenshot? The current state is after the run (probably 1-1 respawn or death card). Not needed.
+    
+    Let me promote.
+    → promote_mappings {}
+[ 419 23:49:51] RESULT promote_mappings
+    Promoted 2 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 63 tiles, 5 palettes, 3 sprites, 27 addresses. 0 hypotheses skipped.
+[ 423 23:49:58] ASSISTANT (turn 1 step 61) · in 35105 (cache 266624) out 1239
+    ▷ Both mappings recorded and promoted. Now let me write the final report.
+    
+    Let me summarize the two addresses, encodings, and proofs.
+    
+    1. Area byte: $0760 (CPU RAM, 1 byte), area_number. Encoding: 0-based area index within the world; combined with world byte $075F; loader at CPU $9C13 indexes the header table $9CB4[$075F] + $0760 → $9CBC[], stored into $0750 (AreaType), which sets $074E/$074F and the layout/enemy pointers. Proof: paused at title, wrote $075F=1, $075C=1, $0760=2, pressed Start → loaded WORLD 2-2 underwater (HUD 2-2, blue water/coral). Also $0760=1 alone (world 1) loaded a different area (fortress+pipes). And $075C does not affect the load.
+    
+    2. Vertical page byte: $00B5 (CPU RAM, 1 byte), high byte of Mario's 16-bit vertical position; low byte $00CE. Total y = $00B5*256 + $00CE. Proof: watched during a jump + pit fall: $00CE wrapped 225→12 etc. while $00B5 stepped 1→2→3→4; death zeroed both; respawn returned to 176/1. Physics routine $BFD7 does the carry add.
+    
+    Let me write the final answer concisely.
+    
+    Note about hex formatting: use code spans.
+    
+    Let me also mention the underwater screenshot proof.
+    
+    I'll be concise.
+    Both addresses are proven and recorded (promoted into the ROM mapping file).
+    
+    ## 1. Area byte — `$0760` (CPU RAM, 1 byte)
+    
+    **Name:** `area_number` — which area of the world the level loader loads.
+    **Encoding:** a plain 0‑based area index. The loader at CPU `$9C13` does:
+    `LDY $075F` (world) → `LDA $9CB4,Y` (per‑world base) → `CLC/ADC $0760` → `TAY` → `LDA $9CBC,Y`; `$9C03` stores that header byte into `$0750` (AreaType), from which `$074E` (palette block), `$074F` (area index) and the layout/enemy pointers (`$9D2C/$9D4E`, `$9CE4/$9D06`) all derive. So the loaded area = header table entry `[$9CB4[$075F] + $0760]`, i.e. `$075F` picks the world and **`$0760` picks the area within it**.
+    
+    **Proof (write → Start → screenshot):** paused on the title screen (`$0770`=0, `$075F`=`$075C`=`$0760`=0), wrote `$075F`=1, `$075C`=1 and `$0760`=2; the write held for 2 stepped frames, then `play_input [{start,6},{},260]` ran. The game loaded **World 2‑2 under water** — HUD read `WORLD 2-2`, screen showed the blue water backdrop, green sea floor, pink coral and a bubble. Control runs: writing only `$0760`=1 (world 1 unchanged) also loaded a different area (brick fortress with warp pipes). Writing `$075C` alone does **not** change the loaded area (with `$075F`=1, `$075C`=1 but `$0760`=0 the loader used header `$9CBC[5]`=`$28`) — `$075C` is HUD/card only. World companion byte: `$075F`.
+    
+    ## 2. Vertical page byte — `$00B5` (CPU RAM, 1 byte)
+    
+    **Name:** `player_y_page` — high byte / screen page of Mario's vertical position.
+    **Encoding:** Mario's vertical position is 16‑bit: low byte `$00CE`, high byte `$00B5`, total y = `$00B5*256 + $00CE`. The vertical‑move routine at CPU `$BFD7` adds the signed speed `$009F` to the pair with carry:
+    `LDA $9F,X` → sign‑extend → `ADC $CE,X / STA $CE,X` → `LDA $B5,X / ADC $07 / STA $B5,X`.
+    
+    **Proof (watching a pit fall, as the task suggests):** from the World 1‑1 start I ran `play_input [{right,250},{right+a,24},{right,326}]` with a per‑frame watch on `$00CE` and `$00B5`. After the jump, `$00CE` fell into a pit and wrapped `225→12`, `223→10`, `222→4`, while `$00B5` stepped `1` (standing) → `2` → `3` → `4` — exactly one page per 256 px of fall. The fall death then zeroed the pair (both 0) and after respawn both returned to `$00CE`=176, `$00B5`=1. The drawn sprite's screen y is the low byte `$00CE` (copied to `$03B8` by the `$F171` routine), so `$00B5` is the off‑screen vertical page.
+    
+    Both were `record_mapping`'d (source `disassembly`, confidence 1) and `promote_mappings` saved them — the file now holds 27 addresses.
+[ 425 23:49:58] ─── turn 1 end: {"kind":"completed"}
+

@@ -1,7 +1,7 @@
 {
   "rom_sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
   "rom_name": "Super Mario Bros. (World).nes",
-  "version": 19,
+  "version": 20,
   "schema": 3,
   "contributors": [],
   "description": "Auto-discovered mappings for Super Mario Bros. (World).nes",
@@ -694,8 +694,74 @@
     "0x0760": {
       "address": "0x0760",
       "mem_type": "cpu",
-      "description": "level/area index that selects which area the game loads: This is how the game picks the area it loads, proven in the emulator. The level-init area selector at CPU $9C00-$9C12 (prgRom 0x1C00) does JSR $9C13, where $9C13: LDY $075F (world) / LDA $9CB4,Y (world base table = 0,5,10,14,19,23,27,32 for worlds 1-8) / CLC / ADC $0760 / TAY / LDA $9CBC,Y (level-header table) / RTS. The returned header is stored to $0750 at $9C06; then $9C09-$9C0F derives the palette group with (header & $60) << 1 as a 4x ROL, storing $074E, and LoadAreaData ($9C22-$9C2E) sets $074F = header & $1F. The layout pointer is $9D28[$074E] + $074F indexing the low/high tables $9D2C/$9D4E; the enemy pointer is $9CE0[$074E] + $074F indexing $9CE4/$9D06. For World 1 ($075F=0, base 0) the header index = $0760: index 0 -> header $25 -> $074E=1, $074F=5 -> World 1-1 (layout $A68E); index 2 -> header $C0 -> $074E=2 (underground), $074F=0 -> World 1-2 (layout header $AC35, records $AC37). $074E selects the palette block through $85BB = $01,$02,$03,$04: $074E=0 -> selector 1 $8CA4, 1 -> selector 2 $8CC8 (overworld), 2 -> selector 3 $8CEC (underground, black cave + $1C teal bricks), 3 -> selector 4 $8D10 (castle grayscale). PROOF: with $075F=0, writing $0760=1 on the title and starting gave $074E=1/$074F=9 (an overworld-looking area at layout $A832); writing $0760=2 gave $074E=2/$074F=0/$0750=$C0 and World 1-2's black underground screen with layout pointer $00E7/$00E8=$AC37 (see the 'underground' scene). Death reloads do NOT re-run this selector - they reuse the latched $074E/$074F - so the write must happen before Start (or before the next-level transition), not on the WORLD x-y card.",
-      "format": "binary (index added to the world base table $9CB4)"
+      "description": "area_number (which area of the world the level loader loads): $0760 is the area selector the level loader actually reads. CPU $9C13 does LDY $075F (world) / LDA $9CB4,Y (per-world base) / CLC / ADC $0760 / TAY / LDA $9CBC,Y, and $9C03 stores that header byte into $0750 (AreaType); $074E (palette block) and $074F (area index) and hence the layout/enemy pointer tables $9D2C/$9D4E + $9CE4/$9D06 all derive from it. PROOF (write + start + screenshot): on the title screen (game mode $0770=0, $075F=$075C=$0760=0) I paused, wrote CPU $0760=2 with $075F=1 and $075C=1, stepped 2 frames (the write held), then ran play_input [{start,6},{},260] and the game loaded WORLD 2-2 UNDER WATER - the HUD read WORLD 2-2 and the screen showed the blue water backdrop, green sea floor, pink coral and a bubble. Control: writing only $0760=1 (world 1 unchanged) also loaded a different area (brick fortress with warp pipes) while the HUD still said WORLD 1-1, proving $0760 picks the area independently. $075C (level digit) does NOT select the area: with $075F=1,$075C=1 but $0760=0 the loader used header $9CBC[5]=$28 (a non-water area) - $075C only changes the HUD/card. World byte is $075F.",
+      "length": 1,
+      "format": "binary, 0-based area index within the world; header = table[$9CB4[$075F] + $0760]",
+      "source": "disassembly"
+    },
+    "0x00B5": {
+      "address": "0x00B5",
+      "mem_type": "cpu",
+      "description": "player_y_page (high byte / screen page of Mario's vertical position): Mario's vertical position is 16-bit: low byte $00CE, high byte/page $00B5. The vertical-move routine at CPU $BFD7 does LDY #$00 / LDA $9F,X (signed vertical speed) / (DEY if negative) / STY $07 / ADC $CE,X / STA $CE,X / LDA $B5,X / ADC $07 / STA $B5,X - i.e. it adds the signed speed to the pair with carry into $00B5. PROOF (watching, per the task's fall-into-a-pit method): from the World 1-1 start I ran play_input [{right,250},{right+a,24},{right,326}] with a per-frame watch on $00CE and $00B5. $00CE left 176 on the jump, reached an apex and then fell into a pit, wrapping 225->12, 223->10, 222->4, while $00B5 stepped 1 (standing) -> 2 -> 3 -> 4 - exactly one page per 256 px of fall. The fall death then zeroed the pair (both 0) and after respawn both returned to $00CE=176, $00B5=1. On the ground in both World 1-1 and World 2-2 the pair reads (page 1, low 176). The drawn sprite's screen y is the low byte $00CE (copied to $03B8 by the $F171 routine), so $00B5 is the off-screen/vertical page, not an on-screen coordinate.",
+      "length": 1,
+      "format": "binary; high byte of the 16-bit vertical position whose low byte is $00CE (total y = $00B5*256 + $00CE)",
+      "source": "disassembly"
+    },
+    "0x0756": {
+      "address": "0x0756",
+      "mem_type": "cpu",
+      "description": "player_power_state (small/big/fire): Mario's power-up state. Found in the game's own item/power-up routine (no reference imported): CPU $D80C LDA $39 (item type) / CMP #$02 / BCC $D820; at $D820 LDA $0756 / BEQ $D840 -> $D840 LDA #$01 / STA $0756 (small -> big); if $0756==1 -> $D82B LDA #$02 / STA $0756 (big -> fire) then JSR $85F1, and $85FD tests $0756==2 to load the fire sprite palette. WRITE PROOF: writing $0756 alone does NOT redraw Mario, because the drawn size follows the companion byte $0754 (grow/shrink animation at CPU $B260 LDA $0754 / EOR #$01 / STA $0754). At the World 1-1 start with Mario small, write_memory $0756=1 together with the size byte $0754=0 then step_frame 3 changed Mario's OAM from the 16x16 small form (2x2, tiles $3A/$37/$4F at y=193/201, 4 blank $FC fillers) to the 16x32 big form (2x4 grid, tiles $00/$01/$4C/$4D/$4A/$4B at y=177/185/193/201) - list_sprites, screenshot at the 1-1 start. Writing $0754=1 (small) returned the 16x16 form. So $0756 is the logical small/big/fire state and $0754 is the sprite size it drives.",
+      "length": 1,
+      "format": "binary: 0 = small, 1 = big, 2 = fire",
+      "source": "disassembly"
+    },
+    "0x0754": {
+      "address": "0x0754",
+      "mem_type": "cpu",
+      "description": "player_size (sprite size flag): The flag the player sprite form is drawn from; it is the visible half of the power state $0756. The grow/shrink animation toggles its low bit: CPU $B260 LDA $0754 / $B263 EOR #$01 / STA $0754. WRITE PROOF (no reference): at the World 1-1 start Mario read $0754=1 and was 16x16 (list_sprites: visible tiles $3A,$37 at y=193 and $4F,$4F-hflip at y=201, plus 4 blank $FC entries). write_memory $0754=0 + step_frame 3 -> list_sprites returned the 2-wide x 4-tall 16x32 sprite (tiles $00,$01 at y=177, $4C,$4D at y=185, $4A at y=193, $4B at y=201) and the screenshot shows tall big Mario at the same spot. write_memory $0754=1 (or 2) returned him to the 16x16 small form (screenshot).",
+      "length": 1,
+      "format": "binary: 0 = big (16x32 sprite), nonzero (1) = small (16x16 sprite)",
+      "source": "disassembly"
+    },
+    "0x079F": {
+      "address": "0x079F",
+      "mem_type": "cpu",
+      "description": "star_invincibility_timer: Star / invincibility timer. While nonzero Mario's sprite palette cycles (the star flash) and he is invincible; at 0 he renders normally. Found in code (no reference imported): the Starman pickup at CPU $D816 LDA #$23 / $D818 STA $079F (item type 2 -> star timer = $23 = 35), read back by CPU $D7F2 LDA $079F / BNE $D92C, and $D7EA-$D7F7 gate the star logic on it. WRITE PROOF (write_memory, no reference): in World 1-1 I wrote $079F=$23 (35) and stepped - Mario's palette flashed, with captured frames showing him dark/black and then green while red in the off phase (screenshots). A play_input watch over 120 frames with the value written as 23 read $079F = 23,22,22,...,17, i.e. it counts down ~1 unit every 20 frames; 35 units is ~700 frames (~11.7 s), the standard star duration. Writing $079F=0 stopped the flashing immediately. A 540-frame run of World 1-1 as big Mario never raised it naturally (no Starman collected), so the discovery rests on the code plus the write/countdown proof.",
+      "length": 1,
+      "format": "binary countdown (0 = off; Starman sets it to $23 = 35; decrements about 1 unit per 20 frames)",
+      "source": "disassembly"
+    },
+    "0x0714": {
+      "address": "0x0714",
+      "mem_type": "cpu",
+      "description": "player_crouching_flag (big Mario ducking): Set while big Mario crouches (holding Down on the ground). ENCODING: 0 = standing/not crouching; 4 = crouching (the value is $000B AND #$04, the Down direction bit). FOUND BY DIFFERENTIAL SEARCH (no reference). In World 1-1 with Mario made big ($0756=1,$0754=0), three hold-Down/release cycles gave diff 'increased' survivors 26 -> 20; $0714 went 0->4 on every Down hold and back to 0 on release, and it is NOT a raw input mirror. CONTROL: from the same spot I shrank Mario to small ($0754=1), held Down 40 frames - small Mario cannot crouch and $0714 stayed 0, while $000B/$06FC/$074A (the raw button bytes) still showed the Down bit $04. PROOF BY WATCHING (task method): play_input script [{none,10},{down,40},{none,30},{down,30}] with a watch on $0714 sampled every 2 frames read 0,0,0,0,0, then 4 for every frame Down was held, back to 0 for every released frame, then 4 again on the second Down hold - the byte is set exactly while big Mario crouches. Corroborated by disassembly: CPU $B330-$B338 does LDA $1D / BNE / LDA $0B / AND #$04 / STA $0714 (the ducking code), and the walking routine at $B644 (LDA $0714 / BNE skips the walk frame) and the sprite routine at $BD57 (LDA $0714 / BNE picks the short crouch hitbox) read it. Source: differential search + play_input watch (disassembly for corroboration).",
+      "format": "binary/bitfield (0 = not crouching; 4 = crouching - it holds the Down button bit $04, so nonzero = crouching)",
+      "source": "differential search"
+    },
+    "0x0704": {
+      "address": "0x0704",
+      "mem_type": "cpu",
+      "description": "player_swimming_flag (water-area flag): Set while Mario swims, i.e. while the current area is a water area. ENCODING: 1 = water area (Mario uses swim physics), 0 = anywhere else. It is a per-area flag, set once for the whole level, not a per-frame input flag. FOUND BY DIFFERENTIAL SEARCH (no reference). Reached World 2-2 by pausing on the title screen and writing $075F=1,$075C=1,$0760=2, then play_input [{start,6},{},280] (HUD read WORLD 2-2 over the blue water). In water, holding A changed $0706/$0707/$0708 (0/0/0 -> 1/1/176), but a control jump with A on land in 1-1 produced the SAME 1/1/176, so those are the jump/swim force parameters, not the swim flag; comparing the $0700-$071F page between 1-1 (big Mario) and 2-2 isolated $0704 = 0 on land vs 1 in water. PROOF BY WATCHING (task method): a 200-frame play_input in 2-2, script [{a,40},{right,80},{right+a,80}], sampling $0704 every 4 frames read 1 for every one of the 50 samples while Mario swam up and swam right; the same byte read 0 on land in World 1-1 and in the World 1-2 area loaded with $075F=0,$075C=1,$0760=1 (there $074E=1). Corroborated by disassembly: the player (re)init block at CPU $914D-$9153 does LDA $074E / BNE +1 / INY / STY $0704, i.e. $0704 = 1 iff the area type $074E is 0 (water); the player physics reads it at CPU $B393 (LDA $0704 / BEQ ; when set: JSR $B58F, clamp vertical speed to #$18) and at CPU $B48F (LDA $0704 / BEQ ; when set it runs the swim-stroke branch that sets $0707/$0708 and $001D). Source: differential search + play_input watch; disassembly used to name it and confirm it is the water/swim switch.",
+      "format": "binary (0 = not a water area / Mario is not swimming; 1 = water area / Mario is swimming)",
+      "source": "differential search"
+    },
+    "0x000F": {
+      "address": "0x000F",
+      "mem_type": "cpu",
+      "description": "enemy_active_flag (Enemy_Flag): One byte per enemy slot: $000F-$0014 = slots 0-5 (stride 1, count 6), the same object-slot indexing as the documented $0016 / $006E / $0087 / $00CF enemy arrays. LEAD (disassembly): the enemy spawner sets it - CPU $C20A LDA #$01 / $C20C STA $0F,X, and the special-enemy path $C136-$C138 LDA #$01 / STA $0F,X - and $C211 reads it back (LDA $0F,X / BNE) to check the slot is live. PROOF (write + screenshot + list_sprites, World 1-1 with the first Goomba on screen, paused): $000F slot0 read 1, and the walking Goomba's 6-tile OAM block (slots 34-39, tiles $FC/$FC/$70-$73, palette 7, origin (212,185)) was on screen. write_memory address 15 = 0, step_frame 2 -> the Goomba vanished: list_sprites returned only the HUD coin sprite (OAM 0) + Mario's 8 entries (count 9, no palette-7 enemy), the screenshot showed the right side empty, and RAM read $000F-$0014 = [0,0,0,0,0,0]. load_state 2 restored it.",
+      "stride": 1,
+      "count": 6,
+      "format": "binary per-slot: 1 = enemy slot active (spawned and being processed), 0 = slot empty / despawned",
+      "source": "disassembly (spawner) + write proof"
+    },
+    "0x001E": {
+      "address": "0x001E",
+      "mem_type": "cpu",
+      "description": "enemy_state (Enemy_State): One byte per enemy slot: $001E-$0023 = slots 0-5 (stride 1, count 6). DIFFERENTIAL: snapshot s_preStomp (first Goomba walking, $001E slot0 = 0) vs s_stomp (Mario made to fall onto it; score '100' popped) with filter 'changed' listed $001E 0 -> 4 (175 movers total). DISASSEMBLY confirms the stomp handler at CPU $D9D4: LDA #$04 / STA $1E,X, then INC $0484 (100-point combo) and LDA #$FC / STA $009F (flip/fall speed), LDA #$30 / STA $012C,X. Other writers: $C228 LDA #$00 / STA $1E,X (spawner init = walking), $C321-$C323 LDA #$01 / STA $1E,X, $E09D LDA #$03 / STA $1E,X, $C7F2 LDA $03A0 / STA $1E,X; $E0D0 reads it with AND #$80 (bit7 = dying). PROOF (write + screenshot + list_sprites): from the clean walking Goomba ($001E slot0 = 0, tiles $FC/$FC/$70-$73 upright), paused and write_memory address 30 = 4, step_frame 2 -> the Goomba was drawn flipped/stomped: OAM slots 12-17 at origin (208,186) became tile $FC at (208,186) and $FC at (216,186) (h-flip), then tile $EF (239) at (208,202)/(216,202) with flip_v = true - i.e. upside-down, and the screenshot showed a flattened brown shape on the ground where the upright Goomba had been. Caveat: the byte reads back 0 on the following frame (the state-4 update recycles the slot when there is no real collision), so the proof is the rendered squashed pose, not a persistent value.",
+      "stride": 1,
+      "count": 6,
+      "format": "binary per-slot: 0 = normal/walking, 4 = stomped (drawn flipped/dying); 1 and 3 are set by other enemy behaviors; bit 7 = dying flag",
+      "source": "differential search + disassembly"
     }
   },
   "notes": [

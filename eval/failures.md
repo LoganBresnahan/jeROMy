@@ -169,6 +169,9 @@ change bought; if the failure comes back, reopen it with the new run.
   "small Mario sprite palette" on the metasprite); the matcher now lets a
   tile's `group` decide first and picture lines take only their `kinds`
   (spec v13), so both landed right on regrade.
+  `20261009-2340-sheet3-player-state` tied twice more (`player_y_page` on
+  the x-page and y lines; `player_swimming_flag (water-area flag)` on the
+  area line, since `swimming` is no prefix match for `swim`); spec v14.
 - **A re-run checks:** when a proven claim grades `disagrees`, check the
   line against the source before calling the claim wrong, and record a
   spec change as a spec version, never silently.
