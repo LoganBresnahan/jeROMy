@@ -1,7 +1,7 @@
 {
   "rom_sha1": "799459548f9636dd263200da494f04058f5540e2",
   "rom_name": "Legend of Zelda, The (USA).nes",
-  "version": 1,
+  "version": 3,
   "schema": 3,
   "contributors": [],
   "description": "Auto-discovered mappings for Legend of Zelda, The (USA).nes",
@@ -31,6 +31,43 @@
       "description": "overworld_screen_location: Which overworld screen Link is on. Value = row*16 + column, i.e. (row&lt;&lt;4)|col; north = -16, south = +16, east = +1, west = -1. Start screen = 0x77 (119, row 7 col 7). Found by differential search across two real screen scrolls: snapshot on start screen (0x77) -> walk north -> snapshot (0x67 = 103, row 6 col 7) -> walk back south -> snapshot (0x77). Only 0x00EB (and its shadow 0x00EC) returned to the exact prior value across the round trip. PROOF: wrote 0x00EB = 0x67 while the start screen was still displayed (value stuck at 103), then held Up 170 frames -> the transition started from the written value: Link landed on a THIRD screen and 0x00EB/0x00EC became 0x57 (87, row 5 col 7). Repeated writing ONLY 0x00EB (leaving 0x00EC=0x77): same third screen, both bytes ->0x57, so 0x00EB is authoritative and 0x00EC is a copy synced at room load. Writing the byte alone does not re-render the room (loader only runs on a transition).",
       "length": 1,
       "format": "row*16+col (high nibble=row, low nibble=column)",
+      "source": "differential search"
+    },
+    "0x0670": {
+      "address": "0x0670",
+      "mem_type": "cpu",
+      "description": "heart_fraction (fill of the rightmost heart): Fill amount of the rightmost heart in the meter (the $0670 byte paired with $066F). Discovered by differential search: it decremented along with $066F on every hit (3 hearts 0xFF -> 2 hearts 0xFE -> death 0x00). PROOF: load_state, wrote $066F=0x22 and $0670=0x40 -> screenshot showed 2 full hearts + 1 half heart (2.5); with $0670=0xFF the same $066F gave 3 full hearts. The heart draw routine at PC $6E79 loads this byte into $0F and compares it with #$80: >=0x80 draws the last heart full, nonzero-but-<$80 draws it half, 0 leaves it empty.",
+      "format": "0x00 = empty, 0x01-0x7F = half heart, 0x80-0xFF = full heart",
+      "source": "differential search"
+    },
+    "0x0098": {
+      "address": "0x0098",
+      "mem_type": "cpu",
+      "description": "link_facing_direction: Direction Link faces on the overworld. Encoding is a one-hot bitmask: up=$08, down=$04, left=$02, right=$01. Proven by D-pad watch: from a clean start (0x0098=8=up), play_input segments Down/Left/Up/Right with watch on 0x0098 sampled 4,4,...(down) then 2,2,...(left) then 8,8,...(up) then 1,1,...(right) - exactly one value per direction. Sprite confirms: up pose = CHR tiles 12/14, down = 90/8(flip), left = 0/2, right = 4/6 (walking right uses 2/0 with flip_h). WRITE PROOF: wrote 0x0098=1 while the game showed the down pose; after 10 frames Link rendered the right-facing pose (tiles 4/6, screenshot changed) and 0x0098 stayed 1. NOTE: the byte alone does not redraw instantly - the sprite is rebuilt when the main loop processes the direction, so give it a few frames. Companion registers 0x00FA and 0x03F8 carry the same encoding and are the transient render copy (0x00FA drops to 0 while idle); writing 0x00FA=8 immediately flipped the rendered sprite to the up pose (tiles 12/14).",
+      "format": "one-hot bitmask: up=0x08, down=0x04, left=0x02, right=0x01",
+      "source": "differential search"
+    },
+    "0x0015": {
+      "address": "0x0015",
+      "mem_type": "cpu",
+      "description": "frame_counter: Global frame counter in zero page, incremented exactly once per frame (wraps 255->0). Encoding: plain binary, +1 per frame. PROOF/differential search: snapshot, 1 real frame (play_input), snapshot -> 'increased' left 18 hits including 0x0015 37->38; second one-frame round narrowed to 9 hits, 0x0015 38->39; a 60-frame play_input watch on 0x0015 sampled exactly 40,41,...,99 (perfect +1 every frame). Write proof: wrote 0x0015=100, then 30 frames of play sampled 101,102,...,130 - the game incremented from my written value once per frame. NOT the same as 0x0341/0x0342 (a mod-40 animation timer, counts 0-39) or 0x061B-0x061D (short 8/12-frame animation timers).",
+      "format": "binary",
+      "source": "differential search"
+    },
+    "0x00E0": {
+      "address": "0x00E0",
+      "mem_type": "cpu",
+      "description": "pause_flag: Game pause flag on the overworld; the game ignores controller input and freezes the action while it is 1. Found by differential search on the first overworld screen (clean start from save state file A): snapshot while playing (0x00E0=0), press Select ~8 frames, wait -> 0x00E0=1 and the diff of the 2KiB was dominated by frame/scratch noise, with 0x00E0 the clean 0->1 bit. Behavioural check: with 0x00E0=1, holding Right 60 frames left Link's X (0x0070) at 120 (frozen). Pressing Select again dropped 0x00E0 to 0 and the same Right hold moved Link (0x0070 120->174). CAUSAL PROOF BY WRITE: from a fresh state (0x00E0=0), wrote 0x00E0=1, then held Right 40 frames -> 0x0070 stayed 120 the whole time and the byte stayed 1 (game did not overwrite it); wrote 0x00E0=0, held Right 30 frames -> 0x0070 climbed 121->160. Distinct from 0x00E1 (game_mode: 0 overworld, 8 item subscreen open). NOTE: the rendered screen is static while paused, so a screenshot cannot confirm pause by itself; the 0x0070 test is the tell. Also note a previous session mapped 0x00FA as a 'render copy' of Link's facing; 0x00FA is actually the controller-1 state byte (see that mapping).",
+      "length": 1,
+      "format": "binary (0 = playing, 1 = paused)",
+      "source": "differential search"
+    },
+    "0x00FA": {
+      "address": "0x00FA",
+      "mem_type": "cpu",
+      "description": "controller1_buttons: Player-1 controller state as the game reads it: the held-buttons byte for the current frame. The controller-read routine at CPU $E640-$E678 writes it directly: it latches $4016 (write 1 then 0), shifts 8 reads into a register, then at $E66C-$E676 stores the merged state to 0x00FA,X (X=0 player 1 -> 0x00FA; X=1 player 2 -> 0x00FB). The same routine stores the NEWLY-PRESSED edges to 0x00F8 (player 1) / 0x00F9 (player 2) = current AND NOT previous. Found via trace_writes read on $4016: 1920 reads/120 frames all at PC $E651, then disassembled. PROOF by play_input watch on 0x00FA, one button at a time: Right -> 1 (0x01), Up -> 8 (0x08), A -> 128 (0x80), Select -> 32 (0x20), Start -> 16 (0x10), each held for the full 12-frame press and returning to 0 between presses. Standard LSB-first NES order (A first read -> bit7, Right last -> bit0). NOTE: a previous session mis-recorded 0x00FA as a transient render copy of Link's facing direction; the watch above shows it is the raw controller-1 byte (it equals the direction value only because holding a D-pad sets that bit).",
+      "length": 1,
+      "format": "bitmask: A=0x80, B=0x40, Select=0x20, Start=0x10, Up=0x08, Down=0x04, Left=0x02, Right=0x01",
       "source": "differential search"
     }
   },

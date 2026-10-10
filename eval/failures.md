@@ -251,7 +251,9 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Changed:** nothing (holdout: ADR-0020 §5).
 - **Status:** `holdout-only`. SMB runs record line by line; if an SMB
   four-line task shows it, the change is a task or skill line "record each
-  value as soon as its proof screenshot is taken".
+  value as soon as its proof screenshot is taken". `holdout-hud-start2`
+  (2026-10-10): r2 recorded all four (three right), r1 and r3 again
+  nothing; the five-line `holdout-engine` run recorded every line.
 - **A re-run checks:** a claim per proven value, in the order proven.
 
 ## F14. search_memory refused the CPU address space

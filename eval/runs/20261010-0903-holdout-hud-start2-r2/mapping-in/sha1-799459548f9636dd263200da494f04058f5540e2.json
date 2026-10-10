@@ -1,0 +1,73 @@
+{
+  "rom_sha1": "799459548f9636dd263200da494f04058f5540e2",
+  "rom_name": "Legend of Zelda, The (USA).nes",
+  "version": 2,
+  "schema": 3,
+  "contributors": [],
+  "description": "Auto-discovered mappings for Legend of Zelda, The (USA).nes",
+  "tiles": {},
+  "palettes": {},
+  "sprites": {},
+  "addresses": {
+    "0x0070": {
+      "address": "0x0070",
+      "mem_type": "cpu",
+      "description": "link_x_screen_position: Link's horizontal position on the screen, one byte, direct screen pixel (0=left edge, increases rightward). Found by differential search: snapshot, hold Right 30 frames, snapshot -> 30 'increased' survivors including 0x0070 (120->160); hold Left 30 -> 0x0070 160->119; hold Right 30 -> 119->160. PROOF: saved state, wrote 60 to 0x0070 while paused, stepped 2 frames -> screenshot showed Link teleported to the left path (x~56) with the value settling to 56; writing 0x0084=40 in the same test moved him vertically only. Zero-page copies/mirrors also track X: 0x0000 and the OAM shadow bytes 0x024B/0x024F.",
+      "length": 1,
+      "format": "binary",
+      "source": "differential search"
+    },
+    "0x0084": {
+      "address": "0x0084",
+      "mem_type": "cpu",
+      "description": "link_y_screen_position: Link's vertical position on the screen, one byte, direct screen pixel (0=top, increases downward). Found by differential search: snapshot, hold Down 30 frames, snapshot -> 31 'increased' survivors including 0x0084 (141->181, +40). PROOF: loaded saved state, wrote 40 to 0x0084 while paused, stepped 2 frames -> screenshot showed Link teleported straight up to the top edge (y~45, x unchanged at ~160) and the value settled to 45. Zero-page copy 0x0001 and OAM shadow bytes 0x0248/0x024C track Y likewise.",
+      "length": 1,
+      "format": "binary",
+      "source": "differential search"
+    },
+    "0x00EB": {
+      "address": "0x00EB",
+      "mem_type": "cpu",
+      "description": "overworld_screen_location: Which overworld screen Link is on. Value = row*16 + column, i.e. (row&lt;&lt;4)|col; north = -16, south = +16, east = +1, west = -1. Start screen = 0x77 (119, row 7 col 7). Found by differential search across two real screen scrolls: snapshot on start screen (0x77) -> walk north -> snapshot (0x67 = 103, row 6 col 7) -> walk back south -> snapshot (0x77). Only 0x00EB (and its shadow 0x00EC) returned to the exact prior value across the round trip. PROOF: wrote 0x00EB = 0x67 while the start screen was still displayed (value stuck at 103), then held Up 170 frames -> the transition started from the written value: Link landed on a THIRD screen and 0x00EB/0x00EC became 0x57 (87, row 5 col 7). Repeated writing ONLY 0x00EB (leaving 0x00EC=0x77): same third screen, both bytes ->0x57, so 0x00EB is authoritative and 0x00EC is a copy synced at room load. Writing the byte alone does not re-render the room (loader only runs on a transition).",
+      "length": 1,
+      "format": "row*16+col (high nibble=row, low nibble=column)",
+      "source": "differential search"
+    },
+    "0x067D": {
+      "address": "0x067D",
+      "mem_type": "cpu",
+      "description": "rupee_count: Rupee count, one byte 0-255, drawn as the top HUD counter (diamond icon) with a two-digit decimal display (X + digit). Found by differential search + write proofs: a 15-byte probe of $0671-$067F showed 13 when $067D=13; load_state then wrote $067D=4 and after 40 idle frames the HUD rupee field showed 4, and $066E=8/$0658=9 showed in the key/bomb fields. Verified by the game's own code: the spend/use routine at PC $6CE5 does DEC $067D (and DEC $067E) when a rupee is spent. Display is event/animation-gated: writing only the byte sometimes needs a HUD redraw to become visible on the top counter. Related bytes: $066D is a scratch that INC/DECs alongside, $067E is decremented with $067D in the same routine.",
+      "format": "binary",
+      "source": "differential search"
+    },
+    "0x066E": {
+      "address": "0x066E",
+      "mem_type": "cpu",
+      "description": "key_count: Key count, one byte 0-255, drawn as the middle HUD counter; the icon tile loaded in CHR RAM is a key (bow + toothed shaft). Proof: load_state, wrote $066E=7 -> HUD middle counter showed 7; a second run wrote $066E=8 -> showed 8 (nametable digit tile 8 at row 5 col 13). Corroborated by ROM: the routine at PC $6D3E loads $066E to draw it, and there is a DEC $066E instruction in PRG ROM at offset 0x1527F (using a key).",
+      "format": "binary",
+      "source": "differential search"
+    },
+    "0x0658": {
+      "address": "0x0658",
+      "mem_type": "cpu",
+      "description": "bomb_count: Bomb count, one byte 0-255, drawn as the bottom HUD counter; the icon tile loaded in CHR RAM is a round bomb with a lit fuse. Proof: load_state, wrote $0658=6 -> HUD bottom counter showed 6; a second run wrote $0658=9 -> showed 9 (nametable digit tile 9 at row 6 col 13). Corroborated by ROM: PC $6D46 loads $0658 to draw it, and PRG ROM has STA $0658 at offset 0x4B8F.",
+      "format": "binary",
+      "source": "differential search"
+    },
+    "0x066F": {
+      "address": "0x066F",
+      "mem_type": "cpu",
+      "description": "heart_meter (containers + current hearts): Link's heart meter, one byte packing both the container count and the current hearts. High nibble = (max/container hearts - 1); low nibble = (whole hearts - 1); the rightmost heart's fill is completed by $0670. Found by differential search: snapshot, take an Octorok hit (3->2 hearts), snapshot -> 144 decreased survivors; a clean single hit on one screen narrowed it to 23; intersecting the two runs left 10, then a fatal hit left 4 candidates ($0439,$043A,$066F,$0670); writing 0x0439/0x043A did nothing, and writing $066F alone changed the HUD, isolating it. PROOF screenshots: $066F=0x22 -> 3 full hearts (baseline); $066F=0x42,$0670=0xFF -> 3 filled + 2 empty outline hearts (5 containers); $066F=0x44,$0670=0xFF -> 5 full hearts. The draw routine at PC $6D0B loads $066F into $0E and $0670 into $0F and calls $6E79, which splits $066F into nibbles (15 - low, 15 - high) to decide the heart count.",
+      "format": "packed high/low nibbles: high nibble = heart containers - 1, low nibble = whole hearts - 1",
+      "source": "differential search"
+    },
+    "0x0670": {
+      "address": "0x0670",
+      "mem_type": "cpu",
+      "description": "heart_fraction (fill of the rightmost heart): Fill amount of the rightmost heart in the meter (the $0670 byte paired with $066F). Discovered by differential search: it decremented along with $066F on every hit (3 hearts 0xFF -> 2 hearts 0xFE -> death 0x00). PROOF: load_state, wrote $066F=0x22 and $0670=0x40 -> screenshot showed 2 full hearts + 1 half heart (2.5); with $0670=0xFF the same $066F gave 3 full hearts. The heart draw routine at PC $6E79 loads this byte into $0F and compares it with #$80: >=0x80 draws the last heart full, nonzero-but-<$80 draws it half, 0 leaves it empty.",
+      "format": "0x00 = empty, 0x01-0x7F = half heart, 0x80-0xFF = full heart",
+      "source": "differential search"
+    }
+  },
+  "notes": []
+}
