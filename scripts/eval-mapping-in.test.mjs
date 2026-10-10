@@ -26,7 +26,14 @@ describe("eval-mapping-in", () => {
     const { mapping: out, removed } = stripLines(mapping, spec, ["A3.bush", "A6.hud"]);
     expect(Object.keys(out.tiles)).toEqual(["chr:0x145"]);
     expect(out.notes).toEqual(["cloud is the bush"]);
-    expect(removed).toContain("tiles.chr:0x125");
+    expect(removed).toContain("tiles.chr:0x125 (hold)");
+  });
+
+  it("applies a line's holds even when the line has no entry of its own", () => {
+    const mapping = { addresses: { "0x0016": { description: "enemy type; flag at $0F,x" }, "0x0086": {} }, notes: [] };
+    const spec = { lines: [{ id: "C3.enemy_flag", holds: ["addresses.0x0016"] }] };
+    const { mapping: out } = stripLines(mapping, spec, ["C3.enemy_flag"]);
+    expect(Object.keys(out.addresses)).toEqual(["0x0086"]);
   });
 
   it("also holds back entries and notes that name a held-back address", () => {
