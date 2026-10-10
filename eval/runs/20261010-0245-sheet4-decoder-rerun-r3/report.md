@@ -2,7 +2,7 @@
 
 The re-run of D1.area_format (the area object decoder) after one change:
 the `find-routine` skill (ledger F18), named in the task. Runs
-`20261010-0228-…-r1`, `0236-…-r2`, `0251-…-r3`; $0.36 for the series; 62,
+`20261010-0228-…-r1`, `0236-…-r2`, `0251-…-r3`; $0.33 for the series; 62,
 79, 119 tool calls. Held back as holds: the 1-1 and 1-2 level entries and
 the notes naming the parser.
 
