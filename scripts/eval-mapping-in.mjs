@@ -24,6 +24,14 @@ export function stripLines(mapping, spec, ids) {
     // `holds`: entries of other lines that give this one away (the cloud is the bush's tiles): held back, never replaced.
     const holds = new Set(line.holds ?? []);
     for (const entry of [line.entry, ...(line.entries ?? []), ...(line.holds ?? [])].filter(Boolean)) {
+      if (entry.startsWith("notes:")) {
+        // `notes:<regex>`: the notes a pattern matches, for a note that answers a line in words its vocabulary lacks.
+        const re = new RegExp(entry.slice(6), "i");
+        const kept = (out.notes ?? []).filter((n) => !re.test(n));
+        if (kept.length < (out.notes ?? []).length) removed.push(`${(out.notes ?? []).length - kept.length} note(s) (${line.id}, /${entry.slice(6)}/)`);
+        out.notes = kept;
+        continue;
+      }
       if (entry === "notes") {
         // A line answered by a note ("HUD layout") owns the notes its vocabulary matches; they are its answer too.
         const hit = (n) => (line.match ?? []).some((g) => g.every((kw) => n.toLowerCase().includes(kw.toLowerCase())));

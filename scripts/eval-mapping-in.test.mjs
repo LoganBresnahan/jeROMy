@@ -29,6 +29,12 @@ describe("eval-mapping-in", () => {
     expect(removed).toContain("tiles.chr:0x125 (hold)");
   });
 
+  it("holds back the notes a notes:<regex> hold matches", () => {
+    const mapping = { notes: ["chain: records $8CA4,$8CC8", "other"] };
+    const spec = { lines: [{ id: "B1.water_palette", holds: ["notes:8ca4|8cc8"] }] };
+    expect(stripLines(mapping, spec, ["B1.water_palette"]).mapping.notes).toEqual(["other"]);
+  });
+
   it("applies a line's holds even when the line has no entry of its own", () => {
     const mapping = { addresses: { "0x0016": { description: "enemy type; flag at $0F,x" }, "0x0086": {} }, notes: [] };
     const spec = { lines: [{ id: "C3.enemy_flag", holds: ["addresses.0x0016"] }] };
