@@ -29,8 +29,8 @@ describe("parseSkillFile (ADR-0008)", () => {
 describe("shipped skills directory", () => {
   const skills = loadSkillFiles(SKILLS_DIR);
 
-  it("contains the skills drafted from the 2026-10-05 sessions, each matching its directory name", () => {
-    expect(skills.map((s) => s.name)).toEqual(["find-variable", "identify-click", "palette-swap", "persist-edit"]);
+  it("contains the skills drafted from the 2026-10-05 sessions and the eval runs, each matching its directory name", () => {
+    expect(skills.map((s) => s.name)).toEqual(["find-variable", "identify-click", "palette-swap", "persist-edit", "play-to-reach"]);
     for (const s of skills) {
       expect(s.description.length).toBeGreaterThan(20);
       expect(s.content).toContain("## Steps");
@@ -47,6 +47,8 @@ describe("shipped skills directory", () => {
       "mem_type", "ledger_warning", "rom_path", "chr_tile", "hit_tile", "sprite_hit",
       // find-variable (ADR-0019): snapshot and diff names, tool parameters.
       "s_start", "s_after1", "s_after2", "d1", "d2", "decreased", "increased", "equals", "value", "changed", "from", "name", "watch", "source", "mapping_type", "id", "category",
+      // play-to-reach (eval/runs/20261010-0016): record fields it names.
+      "reach", "note",
       // Example mapping names the skills suggest for record_mapping.
       "pipe_bush_hill_green", "title_logo_box",
     ]);

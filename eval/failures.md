@@ -278,3 +278,17 @@ change bought; if the failure comes back, reopen it with the new run.
   `nes_color_hex`.
 - **A re-run checks:** each claimed tile id renders as what its name says.
 
+## F16. A target far into a level is never reached
+
+- **Seen:** `20261010-0016-sheet1-powerups-koopa-flag` task 3: to reach the
+  Koopa and the flagpole the worker wrote Mario's position and the camera
+  bytes; the screen did not follow and the cap ran out (216 calls, nothing
+  recorded). Playing (held Right+B, jumps) did make progress, too late.
+- **Lines hit:** A4.koopa, A3.flagpole (and anything placed late in a level:
+  A4.star, sheet 4's later objects).
+- **Changed:** a new skill, `play-to-reach` (checkpointed stretches of play;
+  never teleport by writing position).
+- **Status:** `changed`; the re-run measures it.
+- **A re-run checks:** the target is on screen in a screenshot, reached by
+  play with save states, before half the cap.
+

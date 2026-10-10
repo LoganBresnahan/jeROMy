@@ -1,17 +1,11 @@
 {
   "rom_sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
   "rom_name": "Super Mario Bros. (World).nes",
-  "version": 20,
+  "version": 21,
   "schema": 3,
   "contributors": [],
   "description": "Auto-discovered mappings for Super Mario Bros. (World).nes",
   "tiles": {
-    "0x20-0x27": {
-      "name": "big Mario 2x4 sprite set (16x32)",
-      "category": "player",
-      "group": "mario",
-      "notes": "Super Mario is 8 x 8x8 OAM entries in a 2-wide x 4-tall grid = 16x32. In this frame: rows y=163/171/179/187 at x=68/76 with tiles $21/$20, $23/$22, $25/$24, $27/$26, all h-flipped (facing left), palette 4. $25 = body tile (red $16 with black/olive detail). Small Mario would be only 4 entries."
-    },
     "0x2E": {
       "name": "HUD coin icon (background)",
       "category": "decoration",
@@ -23,12 +17,6 @@
       "category": "decoration",
       "group": "hud",
       "notes": "Sprite tile $FF, only rows 5-6 have pixels (a few dark pixels at the coin's base). Emitted as OAM #0 at (88,25), sprite palette 7, behind_background = true, so the background coin tile $2E covers it and it is normally invisible. Palette 7 is therefore shared between the Goomba and this HUD coin sprite. Do not treat OAM #0 as a Goomba."
-    },
-    "0x08-0x17": {
-      "name": "big Mario pose sets (facing right)",
-      "category": "player",
-      "group": "mario",
-      "notes": "Unflipped (attr 0) 8-tile blocks: $08-$0F and $10-$17 are two poses of the same 2x4 16x32 stack, both palette 4. Seen at (112,177)-(127,208) while walking right; $0C/$14 are the middle-left body tiles (red $16 with $18 dark shading). SMB1 stores left/right poses as separate tiles (turn 2's left-facing Mario used $20-$27 with every OAM entry h-flipped)."
     },
     "chr:0x153": {
       "name": "question block top-left",
@@ -483,6 +471,26 @@
       "tiles": [],
       "palette_id": 0,
       "notes": "World 1-1 coin that pops out of a ? block when hit from below. PROOF: jumped into the first ? block (coin counters $075E and $07EE went 0->1), paused while the coin was in the air, and list_sprites decodes a 2-entry OAM group at slots 52-53, origin (102,85), both tile $61 (97) in sprite palette 6 (OAM attr low bits = 2):\n- $61 (97), (+0,+0), no flips (attr $02) - upper half of the coin\n- $61 (97), (+0,+8), flip_v (attr $82) - lower half, mirrored to close the oval\nSo it is an 8x16 vertical coin metasprite made of one tile used twice with a vertical mirror. Sprite palette 6 live = [15,22,48,39] = [$0F,$16,$30,$27] (slot1 red $16, slot2 white $30, slot3 orange $27); tile $61 uses index1 for the red center, index2 for the white bottom-left highlight and index3 for the orange edge. Confirmed by hit-test: list_sprites at (104,88) returned OAM index 52 tile $61 palette 6, get_pixel_color (104,88) = $27 orange = palette-6 slot 3. Found with no reference."
+    },
+    "big_mario": {
+      "tiles": [],
+      "palette_id": 0,
+      "notes": "Super Mario (the big form) in World 1-1, paused after he touched the super mushroom from the left ? block of the brick row ($0754 small flag 1->0, $0756 big flag 0->1, score +1000 to 001200). list_sprites (paused, game_mode $0770=1) decodes an 8-entry OAM group at slots 1-8, all sprite palette 4, no behind_background, origin (142,177) = top-left of a 16x32 metasprite (2 tiles wide x 4 tall), exactly twice the height of small Mario. Slots 1-8 are all drawn (no blank $FC filler, unlike the 16x32 small form which has 4 $FC fillers above the 16x16). Entries as (tile id, x/y offset from origin, flips):\n\n- $00 (0), (+0,+0), no flips - row 1 upper-left (hat top)\n- $01 (1), (+8,+0), no flips - row 1 upper-right (hat top/brim)\n- $4C (76), (+0,+8), no flips - row 2 left (face/sideburn)\n- $4D (77), (+8,+8), no flips - row 2 right (face/eye)\n- $4A (74), (+0,+16), no flips - row 3 left (shirt/overalls)\n- $4A (74), (+8,+16), flip_h (attr $40) - row 3 right, mirror of row 3 left\n- $4B (75), (+0,+24), no flips - row 4 left (leg/shoe)\n- $4B (75), (+8,+24), flip_h (attr $40) - row 4 right, mirror of row 4 left\n\nSo big Mario is a 16x32 metasprite made of six distinct CHR tiles ($00,$01,$4C,$4D,$4A,$4B) with the bottom two rows' right halves horizontally mirrored, all drawn from sprite pattern table $0000 in sprite palette 4 = [15,22,39,24] = [$0F $16 $27 $18] (slot1 red $16 hat/shirt, slot2 orange $27 skin, slot3 olive $18 hair/eyes/shoes). OAM slot 0 (tile $FF, (88,25), palette 7) is the invisible HUD coin sprite, not Mario. Proof: the growth-flag watch ($0754 1->0, $0756 0->1 over the 110 no-input frames) plus a screenshot of the visibly taller red-clad Mario and the list_sprites block above. Reached with no reference: small Mario positioned under the ? block via $006D/$0086 writes, jumped to spawn the mushroom, then let the mushroom bounce off the pipe back into him."
+    },
+    "mushroom": {
+      "tiles": [],
+      "palette_id": 0,
+      "notes": "World 1-1 super mushroom, paused the moment it sat on top of the left ? block of the brick row (level x=336). list_sprites (paused, game_mode $0770=1) decodes a 4-entry OAM group at slots 42-45, origin (142,131) = top-left of a 16x16 metasprite, all sprite palette 6 and all behind_background=true, no flips:\n\n- $76 (118), (+0,+0), no flips — upper-left (red cap top-left + white spot)\n- $77 (119), (+8,+0), no flips — upper-right (red cap top-right + white spot)\n- $78 (120), (+0,+8), no flips — lower-left (cap brim + stem)\n- $79 (121), (+8,+8), no flips — lower-right (cap brim + stem)\n\nSprite palette 6 live = [15,22,48,39] = [$0F $16 $30 $27] (slot1 red $16 cap, slot2 white $30 spots, slot3 orange $27 stem/shading). So the mushroom is one 16x16 sprite form made of four consecutive CHR tiles $76-$79 (sprite pattern table $0000), palette 6. It emerges from the ? block and then slides right; it is drawn behind_background (attr $22 per entry). Proof: three screenshots - the block being hit from below, the red cap emerging above the block, and the full mushroom sitting on the block - plus the list_sprites block above. Reached with no reference: Mario placed under the block via RAM writes to player_x ($006D/$0086) with $0057/$0700 zeroed so he jumps straight up."
+    },
+    "fire_flower": {
+      "tiles": [],
+      "palette_id": 0,
+      "notes": "World 1-1 fire flower, paused on top of the used left ? block of the brick row (level x≈336, screen origin (183,132)). PROOF: while big, Mario jumped into that ? block; the block became a used block and the flower rose out of it. list_sprites (paused, game_mode $0770=1) decodes a 4-entry OAM group at slots 28-31, all CHR tiles $D6/$D9 in SPRITE PATTERN TABLE $0000, all sprite palette 5 (OAM attr low bits = 1; attrs $21/$61), all behind_background = true. Origin (183,132) = top-left of a 16x16 metasprite. Entries as (tile id, x/y offset from origin, flips):\n- $D6 (214), (+0,+0), no flips — upper-left (mirror half of the petal art)\n- $D6 (214), (+8,+0), flip_h (attr $61) — upper-right\n- $D9 (217), (+0,+8), no flips — lower-left\n- $D9 (217), (+8,+8), flip_h (attr $61) — lower-right\nread_tile $D6 = the flower's head: index-2 white petals around an index-3 orange centre with an index-1 green edge; read_tile $D9 = the lower half: an index-1 green stem/leaf shape. The sprite is symmetric, so only 2 distinct CHR tiles are used, each drawn once plain and once horizontally mirrored. Sprite palette 5 live = [15,26,48,39] = [$0F,$1A,$30,$27] (slot1 $1A green, slot2 $30 white, slot3 $27 orange). Confirmed by pixel: get_pixel_color on the head (187,136) = rgb(234,158,34) = $27 orange (palette-5 slot 3). OAM slot 0 (tile $FF, (88,25), palette 7) is the invisible HUD coin sprite and slots 52-57 are a left-facing Goomba. Reached by: fresh World 1-1, write $0756=1/$0754=0 so Mario is big, place him under the left ? block of the brick row at level x≈343 and jump; the mushroom block gives a fire flower instead of a mushroom. Found with no reference."
+    },
+    "fireball": {
+      "tiles": [],
+      "palette_id": 0,
+      "notes": "World 1-1 fireball thrown by Fire Mario. REACH: after collecting the fire flower (player state $0756 went 1 -> 2 = Fire), press B on the ground; the ball is spawned at Mario's hand and travels right. PROOF (paused while one was in flight, game_mode $0770=1): list_sprites decodes a SINGLE 8x8 OAM entry (not a multi-tile metasprite) for the ball:\n- sample A (paused right after the throw): OAM index 50, CHR tile $65 (101), screen x=226, y=200, attr $02 -> sprite palette 6, behind_background=false, flip_v=false, flip_h=false; hit-test returns an opaque pixel (pixel_value 2).\n- sample B (5 frames later, same object): OAM index 32, tile $64 (100), x=246, y=191, attr $C2 -> sprite palette 6, flip_v=true, flip_h=true. So it moves ~+4 px/frame to the right, bounces in y, and its CHR tile cycles through the rotation set $64-$67 while OAM flips give the intermediate orientations.\nThe fireball is one tile drawn from SPRITE PATTERN TABLE $0000 in SPRITE PALETTE 6, live = [15,22,48,39] = [$0F,$16 red,$30 white,$27 orange]. read_tile $65 shows a round ball: index-1 red outline, index-3 orange body, index-2 white highlight. Confirmed by pixel: get_pixel_color on the ball (229,203) = rgb(181,49,32) = $16 red = palette-6 slot 1. Other OAM entries in the same frame: slot 0 tile $FF (invisible HUD coin, palette 7), slots 1-8 Mario in palette 4 (Fire Mario pose: tiles $00/$01/$4C/$4D/$4A/$4B), and a Goomba (tiles $70-$73) in palette 7. Found with no reference."
     }
   },
   "addresses": {
