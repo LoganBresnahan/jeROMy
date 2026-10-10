@@ -91,6 +91,17 @@ commit is the record; a file of ticked boxes stops being read.
 
 ## Agent / tools
 
+- **The read-only shell can read ROM files and reference material.**
+  2026-10-10, Logan's session `ff5f8d4d`: the model opened the SMB ROM file
+  and the disassembly's directory with Python through the `jeromy`
+  preset's shell, and ran `find` for `.nes` files, to render a pattern
+  table it could not otherwise see. Nothing was written, and no eval run
+  has a shell (the headless profile has none). Mitigated by `view_tiles` and
+  a prompt rule (ADR-0025); not enforced, since dsh's read-only sandbox has
+  no per-path read deny and Logan kept the shell (roadmap item 11). If a
+  session does it again: drop the shell from the preset, or ask dsh for a
+  read deny on the ROM and reference paths.
+
 - **A plugin row that names a package *directory* fails with "failed to
   import".** dsh's loader imports an absolute `name:` as a file URL, and
   Node cannot import a directory; mount by package name (`jeromy-dsh`) or

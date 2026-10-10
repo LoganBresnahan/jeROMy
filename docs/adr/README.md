@@ -40,3 +40,4 @@ Template: `_template.md`.
 | [0022](0022-eval-runs-promote-into-their-own-copy.md) | An eval run promotes into its own copy; the campaign mapping takes a line only from a run that graded it right | Accepted | 2026-10-09 |
 | [0023](0023-holdout-runs-start-from-a-hand-made-save-state.md) | Holdout runs start from a save state the person made by hand; load_state reads Mesen's SaveStates folder | Accepted | 2026-10-09 |
 | [0024](0024-mapping-a-game-is-a-driven-campaign.md) | "Map this game" is a driven campaign: a coverage file, short blind worker sessions, proof as the gate, a person or a second model as judge | Proposed | 2026-10-10 |
+| [0025](0025-the-first-session-on-a-mapped-game.md) | The model sees tiles through view_tiles, undoes ROM edits newest first, and reaches the game's bytes only through the tools | Accepted | 2026-10-10 |

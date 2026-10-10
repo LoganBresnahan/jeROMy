@@ -273,6 +273,17 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
       (f) the Zelda reference re-imported with PRG offsets per bank and its
       sheet-3 spec written. Then `20261009-1144-sheet3-hud-rerun` (3 of 4 right; spec v2, the `find-variable` extent step) and the first holdout, `20261009-1209-holdout-sheet3` (position and location carried, 3 of 3; HUD counters did not, 0 of 4). Open: item 18's other sheets through runs.
 
+- [x] **25. The first session on a mapped game** (ADR-0025; Logan's "play
+      as Bowser" session `ff5f8d4d`, 2026-10-10, then "document and fix
+      all"). `undo_edit` refuses an out-of-order overlapping undo (the
+      session left `$50 $50` in the emulator's PRG with an empty ledger);
+      `export_rom` adds `.nes`; `view_tiles`, a pattern table or an
+      assembled metasprite as an image; prompt rules for tools over the
+      shell, reading the mapping's tables first, playing rather than
+      teleporting, undoing newest first. The mapping's unnamed enemy rows
+      became spec line `B3.enemy_rows` (v22). Open: the shell rule is not
+      enforced (`docs/issues.md`).
+
 ## Next
 
 - [ ] **24. "Map this game": the campaign driver** (ADR-0024, Proposed

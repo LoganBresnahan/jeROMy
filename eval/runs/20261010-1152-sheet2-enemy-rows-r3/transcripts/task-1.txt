@@ -1,0 +1,799 @@
+# session-976e3bdf-7b2d-4c1e-9de0-6d800a29e12c · Map Super Mario Bros enemy sprite rows
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-10T16:52:22.076Z
+
+[   3 11:52:22] QUEUED <user> for next-turn: Mapping sheet 2 (where the pictures come from), Super Mario Bros.: the mapping you start from has a note on the enemy sprite layout table, a PRG ROM table of 6-byte rows; each row is the tile ids of o… [+1760 chars]
+[   4 11:52:22] ━━━ turn 1 ━━━
+[   8 11:52:22] USER <user>
+    Mapping sheet 2 (where the pictures come from), Super Mario Bros.: the mapping you start from has a note on the enemy sprite layout table, a PRG ROM table of 6-byte rows; each row is the tile ids of one enemy frame in drawing order (top left, top right, middle left, middle right, bottom left, bottom right; $FC is a blank tile). Name what every row draws. read_memory the table, including a few rows before and after the bounds the note gives, since those bounds may be off. For each row call view_tiles with tiles = that row's six ids and columns 2, colored with the sprite palette that enemy uses (try 5, 6 or 7 when 4 looks wrong), and name the enemy and the frame. The table's first and last rows are where the rows stop making sense as enemy frames. Record with record_mapping mapping_type note, id 'enemy sprite layout rows', name 'enemy sprite layout rows', notes listing every row as 'prgRom 0x.... = six bytes = enemy, frame', then the first and last row, and rom_origins giving mem prgRom, offset and length of the whole table. Record as soon as the rows are named, before the proof; record again with the proof added if time allows. The proof: before any ROM write, new_hack named eval-sheet2-rows-c with description 'eval run', then use_hack eval-sheet2-rows-c; write the Goomba's row with another enemy's six bytes (ledgered write_memory to prgRom, with a reason), reset_emulator, start 1-1, and take a screenshot in which the first Goomba is drawn as that other enemy; then undo_edit and use_hack default. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again. The first Goomba of 1-1 reaches Mario within a few seconds of the start; pause_emulator to inspect it. Each play_input call is at most 600 frames. No reference is available. Call promote_mappings once at the end.
+[   9 11:52:22] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 11:52:22] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-routine`: Find the entry address of the code that does something (writes a counter, reads level data, copies to the PPU) with no disassembly to lean on: trace the access to get a PC inside the routine, disassemble around it, and settle the entry by who calls it (a JSR/JMP or a pointer-table target), not by where a loop starts. Use when asked which routine does X, before recording a routine, or when a persistent edit needs the code rather than the data.
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    - `play-to-reach`: Get the player to a place far into a level by playing, in short checkpointed runs: save_state, a run of held direction plus timed jumps, a look, load_state on any setback. Use when a task needs something that is only on screen further into a level (an enemy past the pipes, the flagpole, a hidden block), or when writing the player's position did not bring the screen along.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 11:52:24] ASSISTANT (turn 1 step 1) · in 1131 (cache 15616) out 340
+    ▷ Let me start by understanding the task. I need to:
+    
+    1. Read the mapping note about the enemy sprite layout table in PRG ROM.
+    2. Read the table including a few rows before and after the given bounds.
+    3. For each row, call view_tiles with tiles = row's six ids and columns 2, colored with sprite palette 4/5/6/7.
+    4. Name each row's enemy and frame.
+    5. Record mapping note.
+    6. Proof: new_hack eval-sheet2-rows-c, use_hack, write Goomba's row with another enemy's bytes, reset, start 1-1, screenshot, undo_edit, use_hack default.
+    7. promote_mappings.
+    
+    Let me first look at the mapping. There's no direct tool to read the mapping file... but maybe lookup_symbol? No reference available. Hmm, "the mapping you start from has a note on the enemy sprite layout table". Maybe I should check list_hacks or something. Let me start with getting ROM info and list_hacks.
+    
+    Actually the mapping may be accessible via... I don't have a "read mapping" tool. Maybe record_mapping notes are visible somehow. Let me just start by exploring. Let me take a screenshot first and get ROM info.
+    
+    Let me begin.
+    I'll start by getting oriented: ROM info, current screen, and the existing hacks/mapping context.
+    → get_rom_info {}
+    → list_hacks {}
+    → screenshot {}
+[  18 11:52:24] RESULT get_rom_info
+    {"name":"Super Mario Bros. (World).nes","sha1":"33D23C2F2CFA4C9EFEC87F7BC1321CE3CE6C89BD","path":"C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes"}
+[  20 11:52:24] RESULT list_hacks
+    {"game_dir":"/home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd","active":"default","hacks":[{"name":"default","description":"Migrated from the single ledger of ADR-0009","created":"2026-10-06T02:38:40.937Z","edits":0,"exports":1,"last_export":{"version":1,"file":"default-v1.ips","format":"ips","edits":1,"at":"2026-10-10T16:20:11.142Z"},"active":true},{"name":"eval-sheet2-rows-a","description":"eval run","created":"2026-10-10T16:39:54.990Z","edits":0,"exports":0,"active":false},{"name":"eval-sheet2-rows-b","description":"eval run","created":"2026-10-10T16:49:34.718Z","edits":… [+174 chars]
+[  22 11:52:24] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/acd3f8e73221.png
+[  26 11:52:29] ASSISTANT (turn 1 step 2) · in 55897 (cache 17024) out 825
+    ▷ Let me digest the task. The mapping note about the "enemy sprite layout table" says:
+    
+    - Table at prgRom 0x6744 through 0x683D (observed grid), 6-byte rows.
+    - Goomba entry at 0x6792 = FC FC 70 71 72 73.
+    - Neighbouring entries: 0x6750 FC A0 A1 A2 A3 A4, 0x6756 69 A5 6A A7 A8 A9, 0x6780 DC DC DD DD DE DE, 0x678C FC FC B6 B3 B7 B5, 0x6798 FC FC 6E 6E 6F 6F, 0x6838 FC FC F0 F0 FC FC.
+    
+    The note gives bounds: "observed from prgRom 0x6744 through 0x683D (0x683E onward is small signed data, not sprite forms)". The task says read including a few rows before and after those bounds since bounds may be off.
+    
+    So I need to read_memory prgRom from maybe 0x6730 to 0x6850, then identify 6-byte rows. But rows might not be on a simple grid aligned at 0x6744? The note says "a run of such 6-byte entries on a fixed 6-byte grid observed from prgRom 0x6744 through 0x683D"; the Goomba entry at 0x6792 is the 11th entry counting from 0x6750. Hmm 0x6792 - 0x6750 = 0x42 = 66 = 11*6. So grid starts at 0x6750? But 0x6744 = 0x6750 - 12, so maybe entries start at 0x6744. 0x6792-0x6744=0x4E=78=13*6. Whatever. Let me read the actual bytes.
+    
+    Task: "The table's first and last rows are where the rows stop making sense a… [+637 chars]
+    I have the mapping note: an enemy sprite layout table in PRG ROM of 6-byte rows, Goomba entry at prgRom 0x6792 = `FC FC 70 71 72 73`, observed grid 0x6744-0x683D. Let me read the bytes around those bounds and get the live palettes.
+    → read_memory {"address": 26368, "length": 352, "mem_type": "prgRom"}
+    → get_all_palettes {}
+[  28 11:52:29] RESULT read_memory
+    {"address":26368,"mem_type":"prgRom","bytes":[178,235,198,7,16,241,172,234,6,104,240,47,201,3,240,43,133,0,165,9,74,41,3,13,202,3,153,2,2,153,6,2,166,0,202,240,6,153,10,2,153,14,2,185,6,2,9,64,153,6,2,185,14,2,9,64,153,14,2,76,100,235,252,252,170,171,172,173,252,252,174,175,176,177,252,165,166,167,168,169,252,160,161,162,163,164,105,165,106,167,168,169,107,160,108,162,163,164,252,252,150,151,152,153,252,252,154,155,156,157,252,252,143,142,142,143,252,252,149,148,148,149,252,252,220,220,223,223,220,220,221,221,222,222,252,252,178,179,180,181,252,252,182,179,183,181,252,252,112,113,114,115,252,2… [+770 chars]
+[  30 11:52:29] RESULT get_all_palettes
+    {"palettes":[{"type":"background","palette_id":0,"colors":[34,41,26,15]},{"type":"background","palette_id":1,"colors":[15,54,23,15]},{"type":"background","palette_id":2,"colors":[15,48,33,15]},{"type":"background","palette_id":3,"colors":[15,39,23,15]},{"type":"sprite","palette_id":4,"colors":[34,22,39,24]},{"type":"sprite","palette_id":5,"colors":[15,26,48,39]},{"type":"sprite","palette_id":6,"colors":[15,22,48,39]},{"type":"sprite","palette_id":7,"colors":[15,15,54,23]}]}
+[  33 11:53:34] ASSISTANT (turn 1 step 3) · in 934 (cache 73728) out 18472
+    ▷ Let me map the bytes. Read started at 26368 = 0x6700, length 352 = 0x160, so covers 0x6700-0x685F.
+    
+    Let me index. bytes[0] at 0x6700.
+    
+    Let me find 0x6744 = 26368 + (0x6744-0x6700) = 26368 + 0x44 = 26368+68 = index 68.
+    
+    Let me list bytes by index and address. Address = 0x6700 + i.
+    
+    i: byte
+    0: 178 (0xB2)
+    1: 235
+    2: 198
+    3: 7
+    4: 16
+    5: 241
+    6: 172
+    7: 234
+    8: 6
+    9: 104
+    10: 240
+    11: 47
+    12: 201
+    13: 3
+    14: 240
+    15: 43
+    16: 133
+    17: 0
+    18: 165
+    19: 9
+    20: 74
+    21: 41
+    22: 3
+    23: 13
+    24: 202
+    25: 3
+    26: 153
+    27: 2
+    28: 2
+    29: 153
+    30: 6
+    31: 2
+    32: 166
+    33: 0
+    34: 202
+    35: 240
+    36: 6
+    37: 153
+    38: 10
+    39: 2
+    40: 153
+    41: 14
+    42: 2
+    43: 185
+    44: 6
+    45: 2
+    46: 9
+    47: 64
+    48: 153
+    49: 6
+    50: 2
+    51: 185
+    52: 14
+    53: 2
+    54: 9
+    55: 64
+    56: 153
+    57: 14
+    58: 2
+    59: 76
+    60: 100
+    61: 235
+    62: 252
+    63: 252
+    64: 170
+    65: 171
+    66: 172
+    67: 173
+    68: 252
+    69: 252
+    70: 174
+    71: 175
+    72: 176
+    73: 177
+    74: 252
+    75: 165
+    76: 166
+    77: 167
+    78: 168
+    79: 169
+    80: 252
+    81: 160
+    82: 161
+    83: 162
+    84: 163
+    85: 164
+    86: 105
+    87: 165
+    88: 106
+    89: 167
+    90: 168
+    91: 169
+    92: 107
+    93: 160
+    94: 108
+    95: 162
+    96: 163
+    97: 164
+    98: 252
+    99: 252
+    100: 150
+    101: 151
+    102: 152
+    103: 153
+    104: 252
+    105: 252
+    106: 154
+    107: 155
+    108: 156
+    109: 157
+    110: 252
+    111: 252
+    112: 143
+    113: 142
+    114: 142
+    115: 143
+    116: 252
+    117: 252
+    118: 149
+    1… [+41655 chars]
+    I have the table bytes. The note's grid is anchored at 0x6744 (Goomba at 0x6792 confirmed: `FC FC 70 71 72 73`). Sprite data actually begins at 0x673E (code `JMP $EB64` ends at 0x673D), and signed data begins at 0x6840, so the table is 0x673E–0x683F = 43 six-byte rows. Let me view them. Starting the first batch with sprite palette 4.
+    → view_tiles {"tiles": [252, 252, 170, 171, 172, 173], "columns": 2, "palette": 4}
+    → view_tiles {"tiles": [252, 252, 174, 175, 176, 177], "columns": 2, "palette": 4}
+    → view_tiles {"tiles": [252, 165, 166, 167, 168, 169], "columns": 2, "palette": 4}
+    → view_tiles {"tiles": [252, 160, 161, 162, 163, 164], "columns": 2, "palette": 4}
+    → view_tiles {"tiles": [105, 165, 106, 167, 168, 169], "columns": 2, "palette": 4}
+    → view_tiles {"tiles": [107, 160, 108, 162, 163, 164], "columns": 2, "palette": 4}
+    → view_tiles {"tiles": [252, 252, 150, 151, 152, 153], "columns": 2, "palette": 4}
+    → view_tiles {"tiles": [252, 252, 154, 155, 156, 157], "columns": 2, "palette": 4}
+    → view_tiles {"tiles": [252, 252, 143, 142, 142, 143], "columns": 2, "palette": 4}
+    → view_tiles {"tiles": [252, 252, 149, 148, 148, 149], "columns": 2, "palette": 4}
+[  35 11:53:34] RESULT view_tiles
+    Tiles $FC $FC / $AA $AB / $AC $AD from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/6c95ede4ea58.png
+[  37 11:53:34] RESULT view_tiles
+    Tiles $FC $FC / $AE $AF / $B0 $B1 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/96bdd5b7ba71.png
+[  39 11:53:34] RESULT view_tiles
+    Tiles $FC $A5 / $A6 $A7 / $A8 $A9 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/b4a3a981ad29.png
+[  41 11:53:34] RESULT view_tiles
+    Tiles $FC $A0 / $A1 $A2 / $A3 $A4 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/99831e179aa5.png
+[  43 11:53:34] RESULT view_tiles
+    Tiles $69 $A5 / $6A $A7 / $A8 $A9 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/77f4fe650ab8.png
+[  45 11:53:34] RESULT view_tiles
+    Tiles $6B $A0 / $6C $A2 / $A3 $A4 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/5587c9d8d76c.png
+[  47 11:53:35] RESULT view_tiles
+    Tiles $FC $FC / $96 $97 / $98 $99 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/6cb0e43d7b76.png
+[  49 11:53:35] RESULT view_tiles
+    Tiles $FC $FC / $9A $9B / $9C $9D from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/552a05a0dc37.png
+[  51 11:53:35] RESULT view_tiles
+    Tiles $FC $FC / $8F $8E / $8E $8F from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/377c4b82af4b.png
+[  53 11:53:35] RESULT view_tiles
+    Tiles $FC $FC / $95 $94 / $94 $95 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/4682124eaf64.png
+[  56 11:53:57] ASSISTANT (turn 1 step 4) · in 4587 (cache 93056) out 4821
+    ▷ The images: palette 4 renders index0 transparent as dark grey (#222? actually "drawn dark grey"). 
+    
+    R0 (FC FC AA AB AC AD): I see a rounded brown/olive blob, like a mushroom-ish? Actually it looks like a rounded creature with an eye. Hmm. AA-AD. In SMB, tiles $AA-$AD? Let me think: this looks like a Buzzy Beetle? Or a Goomba-like? Hmm. Actually R0 and R1 (AA-AD and AE-B1) look nearly identical, both a rounded blob with a small eye and feet. These might be Buzzy Beetle or Spiny? Wait, AA-AD looks like a rounded dome with a small eye and two orange feet at bottom. Hmm, that could be a "Buzzy Beetle" walking frame.
+    
+    Hold on. In SMB CHR, tiles around $AA-$AD: I'm not certain. Let me think about the actual SMB sprite tiles:
+    - Goomba: $70-$73
+    - Koopa Troopa: $A0-$A9 (green/red)
+    - Buzzy Beetle: $DC-$DF? Hmm the mapping for Buzzy? Actually $DC-$DF might be "Buzzy Beetle".
+    - Spiny: $F0-$F5? Hmm rows 39-42 have E8-EA, F0-F3.
+    - Hammer Bro: ?
+    
+    Wait, but the images for R2 (FC A5/A6 A7/A8 A9) showed something with a rounded brown shell and a green/tan thing - looks like a Koopa. Actually R2 image: a round shell with crosshatch and an orange/tan head with an eye at top right. That's a Koopa Troop… [+10098 chars]
+    First rows render as recognizable metasprites: R0/R1 (`AA–AD`, `AE–B1`) look like a round dome creature with feet; R2–R5 (`A0–A9` + `$69–$6C`) look like Koopa Troopa walk frames. Let me continue.
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 220, 220, 223, 223]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [220, 220, 221, 221, 222, 222]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 178, 179, 180, 181]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 182, 179, 183, 181]}
+    → view_tiles {"columns": 2, "palette": 7, "tiles": [252, 252, 112, 113, 114, 115]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 110, 110, 111, 111]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 109, 109, 111, 111]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 111, 111, 110, 110]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 111, 111, 109, 109]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 244, 244, 245, 245]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 245, 245, 244, 244]}
+[  58 11:53:57] RESULT view_tiles
+    Tiles $FC $FC / $DC $DC / $DF $DF from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/bfb9c41bbf09.png
+[  60 11:53:57] RESULT view_tiles
+    Tiles $DC $DC / $DD $DD / $DE $DE from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/9c92513e1225.png
+[  62 11:53:57] RESULT view_tiles
+    Tiles $FC $FC / $B2 $B3 / $B4 $B5 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/02e02bfaf95b.png
+[  64 11:53:57] RESULT view_tiles
+    Tiles $FC $FC / $B6 $B3 / $B7 $B5 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/9ed03b2df0e6.png
+[  66 11:53:57] RESULT view_tiles
+    Tiles $FC $FC / $70 $71 / $72 $73 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 7 ($0F $0F $36 $17); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/d282f5291b7f.png
+[  68 11:53:57] RESULT view_tiles
+    Tiles $FC $FC / $6E $6E / $6F $6F from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/82586c842076.png
+[  70 11:53:58] RESULT view_tiles
+    Tiles $FC $FC / $6D $6D / $6F $6F from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/8a298bfdf099.png
+[  72 11:53:58] RESULT view_tiles
+    Tiles $FC $FC / $6F $6F / $6E $6E from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/328e4b1cac39.png
+[  74 11:53:58] RESULT view_tiles
+    Tiles $FC $FC / $6F $6F / $6D $6D from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/3d3e30d2942c.png
+[  76 11:53:58] RESULT view_tiles
+    Tiles $FC $FC / $F4 $F4 / $F5 $F5 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/e7da8ad11f56.png
+[  78 11:53:58] RESULT view_tiles
+    Tiles $FC $FC / $F5 $F5 / $F4 $F4 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/9c7304c094b6.png
+[  81 11:54:20] ASSISTANT (turn 1 step 5) · in 7067 (cache 100352) out 4934
+    ▷ Now I have more shapes:
+    
+    R10 (FC FC DC DC DF DF): an orange/tan shape - two triangular shapes, looks like... wings? It shows two pointed shapes meeting in the middle, like a "Piranha Plant" head? Hmm. Actually looks like two wings/ears. Hmm.
+    
+    R11 (DC DC DD DD DE DE): a full shape with a body and legs - looks like a creature with legs at bottom (like a "Spiny" walking? or "Buzzy Beetle"?). Actually the image shows a symmetric creature with a rounded top, crosshatched body, and small legs. Could be a "Buzzy Beetle"!
+    
+    Hmm, DC-DF: In SMB, Buzzy Beetle tiles are $DC-$DF? Hmm.
+    
+    R12 (FC FC B2 B3 B4 B5): a shape that looks like a fish or a "Cheep Cheep"? It has fins. Actually it looks like something with an eye and fins - could be a "Cheep Cheep" (fish) with a tail. Hmm.
+    
+    R13 (FC FC B6 B3 B7 B5): similar, slightly different.
+    
+    Hmm, B2-B7: could be "Bullet Bill"? No, Bullet Bill is a bullet. Actually the images look like a creature with wing/ear shapes.
+    
+    R14 Goomba confirmed (palette 7) - clear Goomba: brown dome, black eyes, feet.
+    
+    R15-R18 (6D/6E/6F): shapes that look like legs/lower body only (feet), 4 frames. These are likely the "Goomba's feet"? Or a "squashed" animation? Actually R15-R1… [+11113 chars]
+    Good — R14 is a clear Goomba (palette 7: brown dome, black eyes, feet). Continuing with rows 23–33.
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 252, 252, 239, 239]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [185, 184, 187, 186, 188, 188]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 189, 189, 188, 188]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [122, 123, 218, 219, 216, 216]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [205, 205, 206, 206, 207, 207]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [125, 124, 209, 140, 211, 210]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [125, 124, 137, 136, 139, 138]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [213, 212, 227, 226, 211, 210]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [213, 212, 227, 226, 139, 138]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [229, 229, 230, 230, 235, 235]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [236, 236, 237, 237, 238, 238]}
+[  83 11:54:20] RESULT view_tiles
+    Tiles $FC $FC / $FC $FC / $EF $EF from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/5e0808252905.png
+[  85 11:54:20] RESULT view_tiles
+    Tiles $B9 $B8 / $BB $BA / $BC $BC from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/e31f2458826a.png
+[  87 11:54:20] RESULT view_tiles
+    Tiles $FC $FC / $BD $BD / $BC $BC from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/4862112492e2.png
+[  89 11:54:20] RESULT view_tiles
+    Tiles $7A $7B / $DA $DB / $D8 $D8 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/f7760b34be4e.png
+[  91 11:54:20] RESULT view_tiles
+    Tiles $CD $CD / $CE $CE / $CF $CF from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/9e64ecb04c6c.png
+[  93 11:54:20] RESULT view_tiles
+    Tiles $7D $7C / $D1 $8C / $D3 $D2 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/acc8d5683dc4.png
+[  95 11:54:21] RESULT view_tiles
+    Tiles $7D $7C / $89 $88 / $8B $8A from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/f161216c203f.png
+[  97 11:54:21] RESULT view_tiles
+    Tiles $D5 $D4 / $E3 $E2 / $D3 $D2 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/3ef78d0a9832.png
+[  99 11:54:21] RESULT view_tiles
+    Tiles $D5 $D4 / $E3 $E2 / $8B $8A from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/99a9bfef00da.png
+[ 101 11:54:21] RESULT view_tiles
+    Tiles $E5 $E5 / $E6 $E6 / $EB $EB from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/d5d32456e2c0.png
+[ 103 11:54:21] RESULT view_tiles
+    Tiles $EC $EC / $ED $ED / $EE $EE from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/0dc7cd346b94.png
+[ 106 11:54:34] ASSISTANT (turn 1 step 6) · in 5046 (cache 112256) out 2130
+    ▷ Now I have a lot of shapes. Let me continue with rows 34-42, plus a few extras (rows before 0x673E: check 0x6738 misalignment; and after 0x683A: 0x6838, 0x683E).
+    
+    Let me view:
+    R34 [252,252,208,208,215,215]
+    R35 [191,190,193,192,194,252]
+    R36 [196,195,198,197,200,199]
+    R37 [191,190,202,201,194,252]
+    R38 [196,195,198,197,204,203]
+    R39 [252,252,232,231,234,233]
+    R40 [242,242,243,243,242,242]
+    R41 [241,241,241,241,252,252]
+    R42 [240,240,252,252,252,252]
+    And the note's misaligned candidate at 0x6838 = [252,252,240,240,252,252], and rows around: 0x6828 etc already done.
+    
+    Also check the bytes before 0x673E: view [235,252,252,170,171,172]? no, that's code.
+    
+    Let me view rows 34-42 plus 0x6838 candidate.
+    
+    Also, I want to identify more definitively. Let me think about the shapes I have:
+    
+    R24 (B9 B8 BB BA BC BC): shows a broad creature with a wide face/eyes, orange with green top. Could be "Hammer Bro"? Actually it looks like a wide bird/frog face. Hmm, R24 image: two big eyes (green) at top with orange, and a wide body with legs — looks like a "Hammer Bro" or "Lakitu"? Hmm. Actually the shape with big eyes and wide body: maybe "Bullet Bill"? no.
+    
+    Hmm. Wait, R24's image shows what looks like a large f… [+2843 chars]
+    Now the final rows, plus the note's possibly-misaligned last-row address 0x6838 for comparison.
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 208, 208, 215, 215]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [191, 190, 193, 192, 194, 252]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [196, 195, 198, 197, 200, 199]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [191, 190, 202, 201, 194, 252]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [196, 195, 198, 197, 204, 203]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 232, 231, 234, 233]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [242, 242, 243, 243, 242, 242]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [241, 241, 241, 241, 252, 252]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [240, 240, 252, 252, 252, 252]}
+    → view_tiles {"columns": 2, "palette": 4, "tiles": [252, 252, 240, 240, 252, 252]}
+[ 108 11:54:34] RESULT view_tiles
+    Tiles $FC $FC / $D0 $D0 / $D7 $D7 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/9179ed444630.png
+[ 110 11:54:34] RESULT view_tiles
+    Tiles $BF $BE / $C1 $C0 / $C2 $FC from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/0d876fed2ccc.png
+[ 112 11:54:35] RESULT view_tiles
+    Tiles $C4 $C3 / $C6 $C5 / $C8 $C7 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/1ebd77645289.png
+[ 114 11:54:35] RESULT view_tiles
+    Tiles $BF $BE / $CA $C9 / $C2 $FC from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/9268c53622ff.png
+[ 116 11:54:35] RESULT view_tiles
+    Tiles $C4 $C3 / $C6 $C5 / $CC $CB from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/f50d3ddd5ae5.png
+[ 118 11:54:35] RESULT view_tiles
+    Tiles $FC $FC / $E8 $E7 / $EA $E9 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/f7b3a11ee0de.png
+[ 120 11:54:35] RESULT view_tiles
+    Tiles $F2 $F2 / $F3 $F3 / $F2 $F2 from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/19c95caf3b9e.png
+[ 122 11:54:35] RESULT view_tiles
+    Tiles $F1 $F1 / $F1 $F1 / $FC $FC from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/6b7fe21cb1c2.png
+[ 124 11:54:35] RESULT view_tiles
+    Tiles $F0 $F0 / $FC $FC / $FC $FC from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/ab34f62c7bc7.png
+[ 126 11:54:36] RESULT view_tiles
+    Tiles $FC $FC / $F0 $F0 / $FC $FC from the PPU's pattern tables, 2 per row, drawn edge to edge as one picture; colored with live palette 4 ($22 $16 $27 $18); index 0 is transparent, drawn dark grey. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).
+    🖼 128x192 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/9ffc388db8a5.png
+[ 129 11:55:10] ASSISTANT (turn 1 step 7) · in 4504 (cache 119424) out 7213
+    ▷ Now I see R40/R41/R42 are actually horizontal-bar-like patterns (looks like a 16px-wide bar with segments) — these are likely "Spiny's egg"? No. Actually R40 (F2 F2/F3 F3/F2 F2) shows a horizontal band with vertical stripes — this looks like a "ground" piece? Hmm. Actually F0-F3 might be the "firebar" / "podoboo"? Hmm.
+    
+    Wait, R41 (F1 F1/F1 F1/FC FC) shows a horizontal band with diagonal stripes — like a "brick" or "platform"? And R40 shows a horizontal band with vertical segments. R42 (F0 F0/FC FC/FC FC) shows a small band at the top. Hmm. These three could be the "castle bridge"? Or "firebar" segments? Or "bullet bill blaster"? 
+    
+    Hmm, F0/F1/F2/F3 in the sprite table. In SMB, the "firebar" fireballs are sprite? Actually Firebar is a sprite made of fireball tiles. Hmm.
+    
+    Actually wait, these rows R40-R42 render as horizontal bars because the four tiles F0,F1,F2,F3 are each horizontal stripes. In a 16x24 arrangement: F2 F2 / F3 F3 / F2 F2 → a vertical repeating pattern of stripes = it's not a creature but a repeating texture. This strongly suggests these are not enemy frames but rather the "flagpole"? No, flagpole is BG.
+    
+    Hmm, actually F0-F3 are likely the **"firebar"** graphic (the b… [+20627 chars]
+    The last three rows (F0–F3) render as horizontal striped bars, not creature frames — likely a boundary artifact or a non-enemy sprite. Before naming everything, let me check whether there's a pointer/index table that associates rows with enemy types.
+    → search_memory {"hex": "92 e7", "mem_type": "prgRom"}
+    → search_memory {"hex": "3e e7 44 e7", "mem_type": "prgRom"}
+    → search_memory {"hex": "3e e7", "mem_type": "prgRom"}
+[ 131 11:55:10] RESULT search_memory
+    {"pattern_length":2,"truncated":false,"offsets":[],"mem_type":"prgRom","start":0,"searched":32768,"memory_size":32768,"offsets_hex":[]}
+[ 133 11:55:10] RESULT search_memory
+    {"pattern_length":4,"truncated":false,"offsets":[],"mem_type":"prgRom","start":0,"searched":32768,"memory_size":32768,"offsets_hex":[]}
+[ 135 11:55:10] RESULT search_memory
+    {"pattern_length":2,"truncated":false,"offsets":[27563],"mem_type":"prgRom","start":0,"searched":32768,"memory_size":32768,"offsets_hex":["0x6BAB"]}
+[ 138 11:55:15] ASSISTANT (turn 1 step 8) · in 242 (cache 131072) out 633
+    ▷ Interesting: "3e e7" found at 0x6BAB. The note mentioned "only LDA $E73E,X / $E73F,X at prgRom 0x6BAA/0x6BAF, a different pointer table". So 0x6BAB is part of `LDA $E73E,X` (opcode BD 3E E7 at 0x6BAA, so 0x6BAB is the 3E E7 operand). Yes.
+    
+    And "92 e7" not found → no pointer to $E792. So the table is indexed arithmetically, not via pointers. The note's claim holds.
+    
+    So the game reads the table at $E73E with an X index (LDA $E73E,X) at CPU $6BAA region. That means the table is read byte-by-byte with an index! Let me disassemble around $6B9x/$6BAx to understand. The note said "only LDA $E73E,X / $E73F,X at prgRom 0x6BAA/0x6BAF, a different pointer table". Wait 0x6BAA is prgRom offset; CPU = $8000+0x6BAA = $EBAA. The note said CPU $E73E; but the prgRom offset 0x6BAA → CPU $EBAA. Hmm, the note said "LDA $E73E,X / $E73F,X at prgRom 0x6BAA/0x6BAF". So CPU $EBAA has LDA $E73E,X? That's reading table base $E73E. OK.
+    
+    Wait, $E73E = base at CPU. But prgRom offset 0x673E = CPU $E73E only if PRG is mapped at $8000 (yes, 0x673E+0x8000 = $E73E). Good.
+    
+    So at prgRom 0x6BAA (CPU $EBAA) there's code reading $E73E,X. Let me disassemble that region to understand the indexing: maybe it's `LDA $E73E,X` … [+166 chars]
+    No pointer table — only one reader: `LDA $E73E,X` at prgRom 0x6BAA (the disjoint read the note mentions). Let me disassemble around it to learn the indexing.
+    → disassemble {"address": 60320, "length": 96}
+[ 140 11:55:15] RESULT disassemble
+    $eba0: b5 b6       lda 0xb6, x
+    $eba2: c9 02       cmp #0x02
+    $eba4: d0 03       bne 0x0000
+    $eba6: 20 98 c9    jsr 0xc998
+    $eba9: 60          rts 
+    $ebaa: bd 3e e7    lda 0xe73e, x
+    $ebad: 85 00       sta 0x00
+    $ebaf: bd 3f e7    lda 0xe73f, x
+    $ebb2: 85 01       sta 0x01
+    $ebb4: 4c 82 f2    jmp 0xf282
+    $ebb7: 18          clc 
+    $ebb8: 7d e5 06    adc 0x06e5, x
+    $ebbb: a8          tay 
+    $ebbc: a9 f8       lda #0xf8
+    $ebbe: 4c c1 e5    jmp 0xe5c1
+    $ebc1: 18          clc 
+    $ebc2: 7d e5 06    adc 0x06e5, x
+    $ebc5: a8          tay 
+    $ebc6: 20 4a ec    jsr 0xec4a
+    $ebc9: 99 10 02    sta 0x0210, y
+    $ebcc: 60          r… [+650 chars]
+[ 143 11:55:51] ASSISTANT (turn 1 step 9) · in 837 (cache 131840) out 7696
+    ▷ At $EBAA: `lda $E73E,X` / `sta $00` / `lda $E73F,X` / `sta $01` / `jmp $F282`. So it loads a 2-byte pointer from the table at $E73E indexed by X, and jumps to $F282 with that pointer in $00/$01. Wait, that means $E73E holds 16-bit pointers, NOT tile ids! Hmm. But our bytes at $E73E: FC FC AA AB AC AD... which as pointers would be $FCFC, $ABAA, ... that doesn't make sense.
+    
+    Wait, maybe the disassembler's address $ebaa is CPU address, and prgRom offset 0x6BAA. The instruction bytes at $ebaa = bd 3e e7 = LDA $E73E,X. Yes. So the table base $E73E read as 2-byte pointer. But the table's first bytes are FC FC AA AB... as pointers → $FCFC, $ABAA. Hmm, that's nonsense.
+    
+    Unless X is large, e.g. X indexes into a pointer table that is elsewhere... but it says $E73E.
+    
+    Hmm, wait, maybe this routine is not the enemy graphics loader. It loads a pointer from a table at $E73E (2 bytes) and jmp $F282 with it in $00/$01. This smells like the "load sprite graphics from a pointer table" for something else, e.g., the object graphics. And the table at $E73E might be a pointer table, not our 6-byte rows!
+    
+    Uh oh. Maybe I mis-identified the table. The note claims 0x6744-0x683D is the enemy sprite layout tab… [+22882 chars]
+    The reader at $EBAA reads $E73E,X as a 2-byte pointer — which conflicts with 6-byte tile rows. I'll settle the row meanings empirically: get to 1-1 with the Goomba's slot active, then probe enemy type $0016 and read back the tiles. First, current state.
+    → pause_emulator {}
+    → read_memory {"address": 1904, "length": 1, "mem_type": "cpu"}
+    → read_memory {"address": 15, "length": 12, "mem_type": "cpu"}
+    → read_memory {"address": 22, "length": 12, "mem_type": "cpu"}
+    → list_sprites {}
+[ 145 11:55:51] RESULT pause_emulator
+    {"paused":true}
+[ 147 11:55:51] RESULT read_memory
+    {"address":1904,"mem_type":"cpu","bytes":[1]}
+[ 149 11:55:51] RESULT read_memory
+    {"address":15,"mem_type":"cpu","bytes":[0,0,0,0,0,0,0,0,0,0,0,0]}
+[ 151 11:55:51] RESULT read_memory
+    {"address":22,"mem_type":"cpu","bytes":[0,0,0,0,0,0,0,0,0,0,0,0]}
+[ 153 11:55:51] RESULT list_sprites
+    {"large_sprites":false,"count":9,"mask_source":"frame","sprite_pattern_addr":0,"sprites":[{"y":25,"chr_tile":255,"flip_h":false,"flip_v":false,"height":8,"x":88,"tile":255,"index":0,"palette":7,"behind_background":true,"width":8,"attr":35},{"y":177,"chr_tile":252,"flip_h":false,"flip_v":false,"height":8,"x":40,"tile":252,"index":1,"palette":4,"behind_background":false,"width":8,"attr":0},{"y":177,"chr_tile":252,"flip_h":false,"flip_v":false,"height":8,"x":48,"tile":252,"index":2,"palette":4,"behind_background":false,"width":8,"attr":0},{"y":185,"chr_tile":252,"flip_h":false,"flip_v":false,"hei… [+895 chars]
+[ 157 11:56:34] ASSISTANT (turn 1 step 10) · in 55880 (cache 140288) out 9071
+    ▷ Game mode is 1, but no enemies active ($000F all zero) and only Mario + HUD coin on screen. So we're in 1-1 but the Goomba hasn't spawned yet (it spawns when Mario advances to a certain camera x? Actually SMB spawns enemies when they come within range). Hmm, at the level start the first Goomba is at level x~290, and the spawner activates enemies near the camera. It said all $000F = 0. So no enemy. The screenshot earlier showed TIME 372 and Mario on the hill — maybe it's the attract demo? But $0770=1. Hmm, or the game is in 1-1 but paused at start with the Goomba not yet spawned (needs camera advance).
+    
+    Let me just advance: play_input [{right, ...}] to move right and spawn the Goomba, then pause. Per mapping: "played title Start/60/Start/120 then held Right 190 frames to 1-1's first Goomba". So hold right ~120-190 frames.
+    
+    But the game is paused now (I paused it). play_input resumes and re-pauses after. Let me run play_input [{right, 150}] and then check $000F/$0016 and list_sprites.
+    
+    Actually, let me reconsider the whole plan. The empirical probe requires being able to render each enemy type. That's a big detour. Given the eval expectations, maybe I should instead just name the row… [+30267 chars]
+    The mapping is clear that `$0016` (enemy type) drives which sprite form is drawn. I'll probe it on the first 1-1 Goomba to anchor rows to enemy types. First I need the Goomba on screen — currently no enemy slot is active.
+    → play_input {"script": [{"buttons": ["right"], "frames": 150}], "watch": [134, 15, 22, 207]}
+[ 159 11:56:36] RESULT play_input
+    {"frames":150,"segments":1,"was_paused":false,"frames_run":150,"sample_frames":[3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93,96,99,102,105,108,111,114,117,120,123,126,129,132,135,138,141,144,147,150],"sample_every":3,"watch":[{"address":134,"last":235,"values":[40,40,41,42,44,46,48,51,54,57,61,64,69,73,78,82,87,91,96,100,105,109,114,118,123,127,132,136,141,145,150,154,159,163,168,172,177,181,186,190,195,199,204,208,213,217,222,226,231,235],"first":40,"address_hex":"0x0086"},{"address":15,"last":1,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0… [+766 chars]
+[ 163 11:56:46] ASSISTANT (turn 1 step 11) · in 55847 (cache 205184) out 1512
+    ▷ Good: the Goomba is active. $0016 slot0 = 6, $000F slot0 = 1, $00CF slot0 = 184. Player x = 235, camera? The Goomba is at level x page 1, low 34 → screen x = 34 - scroll. Camera scroll ~? Player x=235, camera probably ~145. Screen x = 290-145=145. Fine.
+    
+    Now let me probe enemy IDs. I'll write $0016 = n and step, then list_sprites. Let me pick a set of IDs likely to reveal distinct enemies: 0,1,2,3,4,5,7,8,9,10,12,13,14,15. Hmm.
+    
+    Actually, let me first check: does writing $0016 immediately change the sprite? Let me try n=11 (known red Koopa) to validate methodology, then n=5,4,2 etc.
+    
+    Hmm, this is going to be many cycles. Let me reconsider the time. I've already spent a lot. Let me be decisive: I'll do a handful of probes for the most ambiguous groups, and otherwise rely on visual + standard SMB knowledge.
+    
+    Actually, let me reconsider: Since $0016 controls graphics, I can determine the row for each enemy ID cheaply (one list_sprites per ID, and list_sprites doesn't need a screenshot). The tile set reveals which row(s) the enemy uses. Then, to *name* the enemy, I need to know what enemy ID n is. I can get that from a screenshot for a few, but actually I can infer from tile sets + kno… [+3115 chars]
+    Goomba active ($0016 slot0=6, $000F=1). Now let me probe enemy type → tile row. Test with type 11 (known red Koopa) to confirm the method, then sweep.
+    → write_memory {"address": 22, "bytes": [11]}
+    → step_frame {"count": 2}
+    → list_sprites {}
+[ 165 11:56:46] RESULT write_memory
+    {"address":22,"bytes_written":1,"mem_type":"cpu","persistent":false}
+[ 167 11:56:46] RESULT step_frame
+    {"paused":true,"stepped":2}
+[ 169 11:56:46] RESULT list_sprites
+    {"large_sprites":false,"count":0,"mask_source":"frame","sprite_pattern_addr":0,"sprites":[],"sprites_enabled":true,"background_pattern_addr":4096}
+[ 173 11:57:13] ASSISTANT (turn 1 step 12) · in 55201 (cache 262528) out 5296
+    ▷ The write + step + list_sprites in one message: list_sprites returned count 0 — meaning after writing $0016=11 the enemy despawned or the sprites were all off? Actually count 0 means no sprites at all, even Mario! That's odd. Maybe the game crashed or Mario fell? Or the sprite rendering disabled. Hmm, count 0 sprites_enabled true.
+    
+    Wait, maybe writing $0016=11 to slot 0 changed the enemy type, and the enemy became a red Koopa which behaves differently... but Mario should still be there. count 0 means OAM empty? Could the game be in a transition (e.g., Mario died)? Hmm.
+    
+    Actually, maybe list_sprites ran BEFORE the step rendered? No, count 0.
+    
+    Hmm, possibly the write changed the enemy and then it collided with Mario, killing him, and the screen is in death animation where sprites are hidden. Let me screenshot to see the state.
+    
+    Actually, the earlier snapshot had Mario at x=235 and the Goomba at level x 290, screen x ~145. Writing $0016=11 makes it a red Koopa. The Koopa might have immediately... no.
+    
+    Let me take a screenshot and re-read $0770, $0016, $000F.
+    
+    Actually, maybe the game returned to the title or game over. Let me screenshot.
+    
+    Hmm, wait — count 0 could also happen if the g… [+16063 chars]
+    The write+step+list order worked (sprite list came back empty, likely a transient). Rather than brute-forcing every enemy type, let me try to find the routine that consumes the 6-byte rows — its index would name the rows.
+    → search_memory {"hex": "20 aa eb", "mem_type": "prgRom"}
+    → disassemble {"address": 60288, "length": 80}
+[ 175 11:57:13] RESULT search_memory
+    {"pattern_length":3,"truncated":false,"offsets":[27213,27216,27219],"mem_type":"prgRom","start":0,"searched":32768,"memory_size":32768,"offsets_hex":["0x6A4D","0x6A50","0x6A53"]}
+[ 177 11:57:13] RESULT disassemble
+    $eb80: 4a          lsr a
+    $eb81: 48          pha 
+    $eb82: 90 05       bcc 0x0000
+    $eb84: a9 10       lda #0x10
+    $eb86: 20 b7 eb    jsr 0xebb7
+    $eb89: 68          pla 
+    $eb8a: 4a          lsr a
+    $eb8b: 48          pha 
+    $eb8c: 90 05       bcc 0x0000
+    $eb8e: a9 08       lda #0x08
+    $eb90: 20 b7 eb    jsr 0xebb7
+    $eb93: 68          pla 
+    $eb94: 4a          lsr a
+    $eb95: 90 12       bcc 0x0000
+    $eb97: 20 b7 eb    jsr 0xebb7
+    $eb9a: b5 16       lda 0x16, x
+    $eb9c: c9 0c       cmp #0x0c
+    $eb9e: f0 09       beq 0x0000
+    $eba0: b5 b6       lda 0xb6, x
+    $eba2: c9 02       cmp #0x02
+    $eba4: d0 03       bne 0x0000
+    $eba6: 20 9… [+530 chars]
+[ 180 11:57:21] ASSISTANT (turn 1 step 13) · in 805 (cache 322944) out 1220
+    ▷ At $EB9A: `LDA $16,X / CMP #$0C / BEQ ...` — checks enemy type == $0C (12). And $EBA0: `LDA $B6,X / CMP #2`. So the routine at $EB9A is part of an enemy handler. $EBAA is a separate routine reached by JSR $EBAA from 0x6A4D/0x6A50/0x6A53 (CPU $EA4D etc.). Let me disassemble around CPU $EA40-$EA60 (prgRom 0x6A40) to see the caller and how X is set.
+    
+    JSR $EBAA at 0x6A4D, 0x6A50, 0x6A53 — three consecutive calls! That's interesting: three calls with presumably different X. This looks like a routine that draws three parts of a sprite, each via $EBAA, loading a pointer from $E73E,X. Wait, but $EBAA loads a *pointer* from $E73E,X and jumps to $F282. Hmm, but if called three times, it draws three sprites.
+    
+    Hold on! Maybe $EBAA's read of $E73E,X as a 16-bit value stored into $00/$01, then $F282 is a routine that uses $00/$01 as a *pointer to a sprite layout list*? If the table is pointers, then $E73E,X for X = something... but our bytes at 0x673E are FC FC AA AB... as pointer $FCFC.
+    
+    Unless X is LARGE, e.g. X indexes into a *pointer table* elsewhere and $E73E is a *different* table... no.
+    
+    Wait, maybe I've mis-assumed the base. `lda $e73e,x` — the operand bytes at 0x6BAB are 3E E7 → $E73E. … [+2447 chars]
+    → disassemble {"address": 59936, "length": 80}
+[ 182 11:57:21] RESULT disassemble
+    $ea20: d0 15       bne 0x0000
+    $ea22: a5 09       lda 0x09
+    $ea24: 39 76 e8    and 0xe876, y
+    $ea27: d0 0e       bne 0x0000
+    $ea29: a5 ed       lda 0xed
+    $ea2b: 29 a0       and #0xa0
+    $ea2d: 0d 47 07    ora 0x0747
+    $ea30: d0 05       bne 0x0000
+    $ea32: 8a          txa 
+    $ea33: 18          clc 
+    $ea34: 69 06       adc #0x06
+    $ea36: aa          tax 
+    $ea37: a5 ed       lda 0xed
+    $ea39: 29 20       and #0x20
+    $ea3b: f0 0e       beq 0x0000
+    $ea3d: a5 ef       lda 0xef
+    $ea3f: c9 04       cmp #0x04
+    $ea41: 90 08       bcc 0x0000
+    $ea43: a0 01       ldy #0x01
+    $ea45: 8c 09 01    sty 0x0109
+    $ea48: 88          dey 
+    $ea4… [+489 chars]
+[ 185 11:58:39] ASSISTANT (turn 1 step 14) · in 724 (cache 324864) out 18679
+    ▷ At $EA4B: `LDY $EB` then `JSR $EBAA` three times. But $EBAA uses X, not Y. And X was set at $EA32-$EA36 (`TXA / ADC #6 / TAX`) or earlier. Hmm, at $EA4B Y=$EB. Then JSR $EBAA — but $EBAA reads $E73E,X. X here is the object slot (0..?) possibly plus 6.
+    
+    Hmm, so X is an object slot index (0-5?), and $E73E,X with X small reads the first ~6 bytes of the table! That would mean $E73E holds *pointers* indexed by object slot. But object slots are 0-5, so $E73E,X reads at most 6 bytes: FC FC AA AB AC AD... as pointers $FCFC, $ABAA, ... Hmm.
+    
+    Wait, no. This suggests $E73E is NOT the enemy graphics table at all; it's a pointer table indexed by object slot (X). And the "enemy graphics table" of 6-byte rows is coincidentally at the same address? Impossible.
+    
+    Hold on. Let me reconsider: maybe prgRom read offset convention differs from `disassemble` address convention! `disassemble` takes CPU address. `read_memory` prgRom takes... offset within PRG (headerless). Earlier, `search_memory` returned offsets like 0x6BAB for the bytes 3E E7, and search_memory docs say offsets are headerless ROM offsets. And disassemble at CPU $EBAA showed bytes BD 3E E7. CPU $EBAA - $8000 = 0x6BAA offset. And search fo… [+48281 chars]
+    I've now viewed all 43 six-byte rows (0x673E–0x683F, ending exactly where the signed data at 0x6840 begins), rendered each as a 2×3 metasprite, and confirmed the Goomba row. Let me record the note now (before the proof), as instructed.
+    → record_mapping {"mapping_type": "note", "id": "enemy sprite layout rows", "name": "enemy sprite layout rows", "confidence": 0.6, "notes": "ENEMY SPRITE LAYOUT ROWS (prgRom). Re-read with read_memory prgRom and rendered every row with view_tiles(tiles=<6 ids>, columns=2, palette=4 then 5/6/7). The table is a run of 6-byte rows on a FIXED 6-BYTE GRID. The note's old bounds (0x6744..0x683D) are off by a little at b… [+4814 chars]
+[ 187 11:58:39] RESULT record_mapping
+    {"mapping_type":"note","id":"enemy sprite layout rows","name":"enemy sprite layout rows","category":null,"group":null,"notes":"ENEMY SPRITE LAYOUT ROWS (prgRom). Re-read with read_memory prgRom and rendered every row with view_tiles(tiles=<6 ids>, columns=2, palette=4 then 5/6/7). The table is a run of 6-byte rows on a FIXED 6-BYTE GRID. The note's old bounds (0x6744..0x683D) are off by a little at both ends: the preceding bytes 0x6738-0x673D are code (0x99 0x0E 0x02 0x4C 0x64 0xEB = ... JMP $EB64) and 0x6840 begins small signed data (0C 0C 00 0C 0C A8 54 3C EA 18 ...), so the table is exactly… [+4786 chars]
+[ 190 11:58:44] ASSISTANT (turn 1 step 15) · in 2306 (cache 344192) out 404
+    ▷ Note recorded. Now the proof.
+    
+    Steps:
+    1. new_hack eval-sheet2-rows-c, description "eval run"
+    2. use_hack eval-sheet2-rows-c
+    3. write_memory prgRom 0x6792 (address 26430+0x54 = 26430+84 = 26514) with another enemy's six bytes. Let me pick the Koopa row 0x674A bytes: FC A5 A6 A7 A8 A9 = [252,165,166,167,168,169]. Address 0x6792 = 0x6700+0x92=26368+146=26514. Yes.
+       reason: "prove the Goomba's six-byte row is the enemy sprite layout table entry by drawing it as the Koopa Troopa row"
+    4. reset_emulator
+    5. Start 1-1 and screenshot the Goomba.
+    
+    Let me do steps 1-2 (new_hack then use_hack). Note new_hack doesn't switch; use_hack does. use_hack reverts default's edits (none) and applies eval-sheet2-rows-c (none yet), then resets.
+    
+    Then write.
+    
+    Let me sequence: new_hack + use_hack can be in one message? use_hack depends on new_hack existing. I'll do new_hack first, then use_hack.
+    
+    Actually, I can create the hack and use it in one message only if ordered. Safer sequential. Let me do new_hack now.
+    Note recorded. Now the proof. Step 1: create the hack.
+    → new_hack {"name": "eval-sheet2-rows-c", "description": "eval run"}
+[ 192 11:58:44] RESULT new_hack
+    {"created":{"name":"eval-sheet2-rows-c","description":"eval run","created":"2026-10-10T16:58:44.154Z","edits":0,"exports":0,"active":false},"active":"default","note":"Call use_hack eval-sheet2-rows-c to switch the emulator and the ledger to it."}
+[ 195 11:58:47] ASSISTANT (turn 1 step 16) · in 240 (cache 346752) out 70
+    ▷ Now use_hack eval-sheet2-rows-c. This resets the emulator. Then write the ROM bytes.
+    → use_hack {"name": "eval-sheet2-rows-c"}
+[ 197 11:58:47] RESULT use_hack
+    {"from":"default","to":"eval-sheet2-rows-c","reverted":[],"applied":[],"reset":false,"note":"Switched: both ledgers are empty, so the emulator's bytes are unchanged; ROM writes now ledger into this hack."}
+[ 201 11:58:52] ASSISTANT (turn 1 step 17) · in 55216 (cache 347008) out 293
+    ▷ Now write the Koopa row bytes over the Goomba row at prgRom 0x6792 (address 26514). Bytes [252,165,166,167,168,169] = FC A5 A6 A7 A8 A9.
+    
+    Then reset_emulator, then start 1-1, reach the Goomba, screenshot.
+    
+    Let me write.
+    Now write the Goomba's six-byte row (prgRom 0x6792) with the Koopa Troopa row's six bytes (from 0x674A: `FC A5 A6 A7 A8 A9`), ledgered.
+    → write_memory {"address": 26514, "bytes": [252, 165, 166, 167, 168, 169], "mem_type": "prgRom", "reason": "prove the Goomba's 6-byte row at prgRom 0x6792 is the enemy sprite layout entry by overwriting it with the Koopa Troopa row (0x674A = FC A5 A6 A7 A8 A9)"}
+[ 203 11:58:52] RESULT write_memory
+    {"address":26514,"bytes_written":6,"mem_type":"prgRom","persistent":true,"ledger":{"seq":1,"file":"/home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd/eval-sheet2-rows-c/edits.json"}}
+[ 206 11:58:55] ASSISTANT (turn 1 step 18) · in 184 (cache 402432) out 128
+    ▷ Verify the write by read_memory prgRom 0x6792 len 6, then reset_emulator. Then start 1-1.
+    
+    Let me read back + reset.
+    → read_memory {"address": 26514, "length": 6, "mem_type": "prgRom"}
+    → reset_emulator {}
+[ 208 11:58:55] RESULT read_memory
+    {"address":26514,"mem_type":"prgRom","bytes":[252,165,166,167,168,169]}
+[ 210 11:58:56] RESULT reset_emulator
+    {"frames_waited":30,"cleared_palette_overrides":0,"reset":true,"paused":false,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 213 11:59:02] ASSISTANT (turn 1 step 19) · in 160 (cache 402688) out 728
+    ▷ Now the edited ROM is loaded. Need to reach 1-1 and see the first Goomba. The reset goes to title. Press Start, wait, Start again, then wait for the Goomba. play_input max 600 frames.
+    
+    Script: [{start,6},{none,60},{start,6},{none,90}] then screenshot? The level card takes ~? The mapping said Start/60/Start/120 then held Right 190. But actually the first Goomba walks toward Mario; if I wait ~150 frames after the level starts, the Goomba should be on screen. But Mario may get hit and die. Let me do: [{start,6},{none,60},{start,6},{none,150}] = 222 frames, ends paused (was_paused false since game running... actually play_input pauses at end only if started paused; the emulator was reset and is running, so it won't pause). Then I'll pause_emulator and screenshot.
+    
+    Let me run play_input then pause, then screenshot and list_sprites.
+    
+    Actually I can do play_input, then pause_emulator + list_sprites + screenshot in the next message. Let me run play_input first.
+    
+    Hmm, the mapping said the first Goomba "reaches Mario within a few seconds of the start". If it reaches him, Mario dies. Let me instead hold right a bit to meet it early then pause. Actually, the safest: after starting the level, p… [+950 chars]
+    ROM edit applied and verified (`FC A5 A6 A7 A8 A9` at 0x6792) and console reset. Now start 1-1 and bring the first Goomba on screen.
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 60}, {"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 60}, {"buttons": ["right"], "frames": 150}], "watch": [134, 15, 22, 207]}
+[ 215 11:59:07] RESULT play_input
+    {"frames":282,"segments":5,"was_paused":false,"frames_run":282,"sample_frames":[5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,105,110,115,120,125,130,135,140,145,150,155,160,165,170,175,180,185,190,195,200,205,210,215,220,225,230,235,240,245,250,255,260,265,270,275,280,282],"sample_every":5,"watch":[{"address":134,"last":187,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,40,40,42,45,48,53,58,64,72,79,87,94,102,109,117,124,132,139,147,154,162,169,177,184,187],"first":0,"address_hex":"0x0086"},{"address":15,"last":1,"values":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0… [+770 chars]
+[ 219 11:59:11] ASSISTANT (turn 1 step 20) · in 55988 (cache 403456) out 131
+    ▷ The watch showed player x climbing to 187, enemy slot0 active type 6 (Goomba), y 184. So the Goomba is active. Now pause and screenshot + list_sprites to see the modified Goomba.
+    
+    Note the game is still running. Let me pause and screenshot.
+    The Goomba is active (type 6, y=184). Let me pause and capture the modified sprite.
+    → pause_emulator {}
+    → screenshot {}
+    → list_sprites {}
+[ 221 11:59:11] RESULT pause_emulator
+    {"paused":true}
+[ 223 11:59:12] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-1152-sheet2-enemy-rows-r3/images/task-1/441f802a6706.png
+[ 225 11:59:12] RESULT list_sprites
+    {"large_sprites":false,"count":15,"mask_source":"frame","sprite_pattern_addr":0,"sprites":[{"y":25,"chr_tile":255,"flip_h":false,"flip_v":false,"height":8,"x":88,"tile":255,"index":0,"palette":7,"behind_background":true,"width":8,"attr":35},{"y":125,"chr_tile":252,"flip_h":false,"flip_v":false,"height":8,"x":112,"tile":252,"index":1,"palette":4,"behind_background":false,"width":8,"attr":0},{"y":125,"chr_tile":252,"flip_h":false,"flip_v":false,"height":8,"x":120,"tile":252,"index":2,"palette":4,"behind_background":false,"width":8,"attr":0},{"y":133,"chr_tile":252,"flip_h":false,"flip_v":false,"… [+1830 chars]
+[ 229 11:59:30] ASSISTANT (turn 1 step 21) · in 56461 (cache 459520) out 3154
+    ▷ The screenshot shows: Mario (small) mid-screen, a green hill/bush, floating blocks on the right, and... near the hill there's a small brown/dark shape at around x=130,y=195 — that's the "Goomba". But what's visible? Let me look: the screenshot shows at the bottom-center a green bush with a brownish creature on it (that's actually a Goomba walking on the bush/ground?). And the list_sprites confirms: OAM indices 34-39 (enemy) now carry chr_tile 165,252,167,166,169,168 with palette 7 and flip_h — i.e. the Goomba is now drawn with the Koopa row's tiles (FC A5 A6 A7 A8 A9 → emitted as A5,FC,A7,A6,A9,A8 with flip_h, palette 7). Exactly like the mapping's Koopa OAM order but in palette 7! 
+    
+    Wait, the list shows index 34 tile 165 (A5), index 35 tile 252 (FC), index 36 tile 167 (A7), index 37 tile 166 (A6), index 38 tile 169 (A9), index 39 tile 168 (A8), all palette 7, flip_h. That's the Koopa metasprite shape drawn in the Goomba's palette-7 slot. So the Goomba is now rendered as a Koopa-shaped enemy. 
+    
+    The screenshot: I need to describe concretely. At around (122-130, 185-208) there should be a green/brown Koopa-like shape. In the screenshot, near the bottom center on the green bush, there… [+9985 chars]
+    The Goomba's sprite group now decodes with the Koopa Troopa tiles: OAM slots 34–39 carry `$A5,$FC,$A7,$A6,$A9,$A8` (palette 7, flip_h) instead of `$FC,$FC,$70,$71,$72,$73`. Let me hit-test the on-screen enemy to tie the visible sprite to those Koopa tiles.
+    → list_sprites {"x": 126, "y": 196}
+    → get_pixel_color {"x": 128, "y": 196}
+[ 231 11:59:30] RESULT list_sprites
+    {"large_sprites":false,"count":1,"mask_source":"frame","sprite_pattern_addr":0,"sprites":[{"y":193,"cell":{"y":193,"height":8,"width":8,"x":122},"opaque":true,"chr_tile":167,"flip_h":true,"flip_v":false,"height":8,"x":122,"tile":167,"index":54,"palette":7,"hit_tile":167,"pixel_value":3,"behind_background":false,"width":8,"attr":67}],"sprites_enabled":true,"background_pattern_addr":4096}
+[ 233 11:59:30] RESULT get_pixel_color
+    {"x":128,"y":196,"rgb":[136,216,0],"nes_color":41,"nes_color_hex":"0x29","name":"lime green"}
+[ 236 11:59:39] ASSISTANT (turn 1 step 22) · in 288 (cache 519040) out 1101
+    ▷ Interesting: at (126,196) the sprite that covers it is OAM index 54, chr_tile 167 (A7), palette 7, flip_h — that's the Koopa row's middle-left tile! Wait, but earlier list_sprites (whole screen) showed the enemy group at OAM indices 34-39 with tiles A5,FC,A7,A6,A9,A8. Now at (126,196) it reports OAM index 54 with tile 167. Hmm, that's inconsistent — unless there are now more sprites (the frame changed? We're paused, should be same frame). Actually the full list ran before the pause? No, I paused then did list_sprites (full) which gave 15 sprites and the enemy at 34-39. Then now list_sprites(x,y) gives index 54. That suggests the OAM changed between calls — but paused. Unless list_sprites whole-screen and hit-test use different frames.
+    
+    Hmm, index 54 vs 34 — maybe the enemy group moved within OAM as Mario/other sprites changed. But paused shouldn't change.
+    
+    Actually wait: get_pixel_color at (128,196) returned lime green $29 = background (the bush/hill), not a sprite color. So (128,196) is background. The sprite at OAM 54 covers (122,193) cell with tile 167. So the enemy is at x122,y193 — the middle row tile A7 (167) → consistent with the Koopa row! Good: tile 167 = $A7 which is in t… [+2537 chars]
+    The on-screen enemy is drawn with CHR tile `$A7` (167) — a **Koopa Troopa row** tile, not a Goomba tile ($70–$73) — in sprite palette 7. That's the proof. Now restore and switch back.
+    → undo_edit {"seq": 1}
+[ 238 11:59:39] RESULT undo_edit
+    {"undone":true,"seq":1,"mem":"prgRom","offset":26514,"restored":[252,252,112,113,114,115],"remaining_edits":0,"note":"Reset the emulator if the game already copied these bytes elsewhere."}
+[ 241 11:59:42] ASSISTANT (turn 1 step 23) · in 179 (cache 520320) out 115
+    ▷ Restored. Now verify and use_hack default.
+    → read_memory {"address": 26514, "length": 6, "mem_type": "prgRom"}
+    → use_hack {"name": "default"}
+[ 243 11:59:42] RESULT read_memory
+    {"address":26514,"mem_type":"prgRom","bytes":[252,252,112,113,114,115]}
+[ 245 11:59:42] RESULT use_hack
+    {"from":"eval-sheet2-rows-c","to":"default","reverted":[],"applied":[],"reset":false,"note":"Switched: both ledgers are empty, so the emulator's bytes are unchanged; ROM writes now ledger into this hack."}
+[ 249 11:59:55] ASSISTANT (turn 1 step 24) · in 55229 (cache 520576) out 2834
+    ▷ The restore is confirmed (0x6792 = FC FC 70 71 72 73) and we're back on default.
+    
+    Now record the proof note (confidence 1), and then promote_mappings.
+    
+    Let me record the note with the proof added. record_mapping with same id should update. I'll set confidence 1 and include the proof text.
+    
+    Then promote_mappings.
+    
+    Let me write the record_mapping with the proof appended and confidence 1. I'll include the same row list plus the proof paragraph. To save tokens, I could shorten the row list? The task says record notes listing every row; I already recorded the full list with confidence 0.6. Now I record again with the proof added. The tool result will echo the full notes (huge). That's expensive but necessary. Let me include the full list again (required "record again with the proof added").
+    
+    Given the enormous token cost, I'll write a somewhat condensed but complete row listing (all 43 rows, format as required) plus the proof. That should satisfy.
+    
+    Let me compose and call record_mapping.
+    
+    Actually, the earlier record with 0.6 already exists. Recording again with same id presumably replaces it. Good.
+    
+    Let me write it. I'll keep the notes text a bit more compact than before.
+    
+    Then promote… [+10 chars]
+    Restore confirmed (0x6792 = `FC FC 70 71 72 73`) and the active hack is back to `default`. Now record the note again with the proof added, at confidence 1.
+    → record_mapping {"confidence": 1, "id": "enemy sprite layout rows", "mapping_type": "note", "name": "enemy sprite layout rows", "notes": "ENEMY SPRITE LAYOUT ROWS (prgRom) - every 6-byte row named, plus the proof that the table really is the enemy sprite layout.\nTABLE EXTENT (proven): the rows sit on a FIXED 6-BYTE GRID at prgRom 0x673E..0x683F = 258 bytes = 43 rows. The old note's bounds (0x6744..0x683D) are of… [+5693 chars]
+[ 251 11:59:55] RESULT record_mapping
+    {"mapping_type":"note","id":"enemy sprite layout rows","name":"enemy sprite layout rows","category":null,"group":null,"notes":"ENEMY SPRITE LAYOUT ROWS (prgRom) - every 6-byte row named, plus the proof that the table really is the enemy sprite layout.\nTABLE EXTENT (proven): the rows sit on a FIXED 6-BYTE GRID at prgRom 0x673E..0x683F = 258 bytes = 43 rows. The old note's bounds (0x6744..0x683D) are off at both ends: 0x6738-0x673D is code (0x99 0x0E 0x02 0x4C 0x64 0xEB = ... JMP $EB64), and 0x6840 begins small signed data (0C 0C 00 0C 0C A8 54 3C EA 18 ...). FIRST ROW = 0x673E (FC FC AA AB AC … [+5665 chars]
+[ 254 12:00:00] ASSISTANT (turn 1 step 25) · in 2585 (cache 578560) out 44
+    ▷ Now call promote_mappings once at the end.
+    
+    Then summarize.
+    
+    Let me call promote_mappings.
+    → promote_mappings {}
+[ 256 12:00:00] RESULT promote_mappings
+    Promoted 1 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 66 tiles, 8 palettes, 10 sprites, 35 addresses. 1 hypotheses skipped.
+[ 260 12:00:07] ASSISTANT (turn 1 step 26) · in 57517 (cache 581120) out 856
+    ▷ Done. Summarize concisely.
+    
+    Note: the promote_mappings result says "1 hypotheses skipped" — that's the 0.6 note? Actually it promoted 1 discovery (the confidence-1 note) and skipped 1 hypothesis. Good.
+    
+    Let me give the final summary.
+    Done. Here's the run summary.
+    
+    ## Enemy sprite layout rows — mapped and proven
+    
+    **Table extent corrected (note's bounds were slightly off):**
+    - Rows are on a fixed **6-byte grid at prgRom `0x673E`..`0x683F`** = **258 bytes = 43 rows**.
+    - `0x6738`-`0x673D` is code (`… JMP $EB64`); `0x6840` starts small signed data (`0C 0C 00 0C 0C A8 54 3C EA …`).
+    - **First row = `0x673E`** (`FC FC AA AB AC AD`), **last row = `0x683A`** (`F0 F0 FC FC FC FC`). The note's `0x6838 = FC FC F0 F0 FC FC` is a mis-aligned read off the `0x673E+6k` grid.
+    
+    **Every row named** (view_tiles with the six ids + `columns 2`, palette 4/5/6/7). Highlights: `0x6792` = **Goomba**, `0x674A`/`0x6750` = Koopa Troopa, `0x6756`/`0x675C` = Paratroopa, `0x673E`/`0x6744` = Buzzy‑Beetle‑like walker, `0x6762`/`0x6768` = Spiny‑like, `0x6786`/`0x678C` = fish, the `0x67B0`–`0x67C2` two‑tile walker, `0x67C8` = flat/stomped pose, `0x67CE`–`0x67E0` big‑eyed, `0x67E6`–`0x67F8` long‑necked, `0x6810`–`0x6822` curved‑shell, and `0x682E`–`0x683A` horizontal bar/segment sprites (not creature frames). Both notes carry the full list, plus `rom_origins: prgRom 0x673E, length 258`.
+    
+    **The proof (hack `eval-sheet2-rows-c`, `eval run`):**
+    1. Created the hack and `use_hack`'d it.
+    2. Ledgered `write_memory prgRom 0x6792` = the Koopa row `FC A5 A6 A7 A8 A9` (reason recorded; read back exact).
+    3. `reset_emulator`, then Start→wait→Start→Right into World 1‑1.
+    4. The first Goomba now decoded as OAM tiles **`$A5,$FC,$A7,$A6,$A9,$A8`** (palette 7, flip_h) — exactly the Koopa Troopa metasprite order — instead of `FC FC 70 71 72 73`; a hit‑test on the drawn sprite returned **chr_tile `$A7` (Koopa row)** opaque, palette 7. Screenshot captured.
+    5. `undo_edit` seq 1 restored `0x6792 = FC FC 70 71 72 73` (verified), then `use_hack default`.
+    
+    **Recorded** the note twice (initial 0.6, then confidence 1 with the proof) and called **`promote_mappings`** once (promoted the note; skipped the earlier hypothesis). ROM is back to clean and the active hack is `default`.
+[ 262 12:00:07] ─── turn 1 end: {"kind":"completed"}
+

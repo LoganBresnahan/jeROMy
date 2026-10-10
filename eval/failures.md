@@ -361,3 +361,38 @@ change bought; if the failure comes back, reopen it with the new run.
 - **A re-run checks:** the recorded range ends inside the reference's span,
   and the notes say how the end was found.
 
+
+## F21. Pictures assembled right, named wrong
+
+- **Seen:** `20261010-1129`/`1141`/`1152-sheet2-enemy-rows` r1-r3: every
+  row of SMB's enemy sprite layout table drawn as its 2x3 metasprite with
+  `view_tiles` (the image byte-identical to a render from the ROM file),
+  and 10, 11, 12 of 43 rows named right. Bowser's four rows were named
+  Bullet Bill, a Piranha Plant head, and "a curved-shell creature"; the
+  shells, the Princess and the retainer were misnamed in most repeats. A
+  live check before the runs showed the same: Bowser's assembled front and
+  rear read as "a green turtle-like creature".
+- **Lines hit:** B3.enemy_rows; any picture line where the worker must name
+  an object it cannot place in play (sheet 1 named its objects from play,
+  where position and behaviour helped).
+- **Changed:** nothing yet; the choice (a stronger vision worker for
+  naming, or a play step per object) is Logan's (ADR-0024 Open 1).
+- **Status:** `open`.
+- **A re-run checks:** Bowser's rows named and at least 35 of 43 right.
+
+## F22. The origin grader passes a table recorded with the wrong bounds
+
+- **Seen:** `20261010-0319-sheet2-enemy-table-rerun-r2` was graded agrees
+  and promoted with bounds `0x6744-0x683D`; the table is `0x673E-0x683F`.
+  An origin claim agrees when its offset falls inside a reference label
+  (ADR-0020 §3), so a start one row late inside the same label passes.
+  Found when `sheet2-enemy-rows` r1-r3 (3 of 3) read past those bounds.
+- **Lines hit:** B3.enemy_sprites (corrected in the mapping from r1-r3);
+  every origin line whose bounds a later edit relies on.
+- **Changed:** nothing in the grader yet.
+- **Status:** `open`. The fix is in `score-mapping.mjs`: for a table
+  origin, grade the start against the label's address and the end against
+  the next label, as F20's check does by hand, with a falsification fixture
+  first (ADR-0020 §7).
+- **A re-run checks:** a seeded origin one row late inside its label grades
+  wrong.

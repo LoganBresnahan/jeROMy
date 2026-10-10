@@ -1,0 +1,10 @@
+# Grades: 20261010-1141-sheet2-enemy-rows-r2
+
+Reference: smbdis (doppelganger), ca65 port by threecreepio. Spec: Super Mario Bros. (World) v22. One row per claim (eval/README.md); `final` is the reference verdict held to the proof step.
+
+| line | claim | at | evidence (proof) | reference | final | grader | image |
+|---|---|---|---|---|---|---|---|
+| B3.enemy_rows | enemy sprite layout rows — Super Mario Bros. (World) enemy sprite layout table, read with read_memory prgRom + view_tiles. The table is a flat arra | enemy sprite layout rows | look, promoted | needs-judge | rejected | claude | task-1/759797ef2c5c.png: bounds right and the next table found and decoded (EnemyGfxTableOffsets at 0x6840, row offsets per enemy type), but 11 of 43 rows right (Buzzy Beetle x2, Koopa x4, Cheep Cheep x2, Goomba, defeated, Podoboo); Bowser's rows named Piranha Plant head; Goomba given five frames that are the Koopa shell's |
+| (none) | enemy sprite layout rows — Super Mario Bros. (World) enemy sprite layout table, read with read_memory prgRom + view_tiles. The table is a flat arra | $E73E-$E83F | write+reset+look, not in any diff, promoted | agrees | agrees | reference |  |
+| B3.enemy_rows | enemy sprite layout rows — Super Mario Bros. (World) enemy sprite layout table, read with read_memory prgRom + view_tiles (palettes 4/5/7). Structu | enemy sprite layout rows | look, promoted | needs-judge | rejected | claude | task-1/759797ef2c5c.png: bounds right and the next table found and decoded (EnemyGfxTableOffsets at 0x6840, row offsets per enemy type), but 11 of 43 rows right (Buzzy Beetle x2, Koopa x4, Cheep Cheep x2, Goomba, defeated, Podoboo); Bowser's rows named Piranha Plant head; Goomba given five frames that are the Koopa shell's |
+| (none) | enemy sprite layout rows — Super Mario Bros. (World) enemy sprite layout table, read with read_memory prgRom + view_tiles (palettes 4/5/7). Structu | $E73E-$E83F | write+reset+look, not in any diff, promoted | agrees | agrees | reference |  |
