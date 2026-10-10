@@ -161,6 +161,10 @@ change bought; if the failure comes back, reopen it with the new run.
   pattern says the matcher's tie-break (first line wins) deserves a rule,
   e.g. prefer the line whose reference agrees only when both tied lines
   are of the same class.
+  `20261009-2240-sheet1-overworld-title` tied twice ("ground brick" on brick,
+  "small Mario sprite palette" on the metasprite); the matcher now lets a
+  tile's `group` decide first and picture lines take only their `kinds`
+  (spec v13), so both landed right on regrade.
 - **A re-run checks:** when a proven claim grades `disagrees`, check the
   line against the source before calling the claim wrong, and record a
   spec change as a spec version, never silently.
@@ -186,6 +190,19 @@ change bought; if the failure comes back, reopen it with the new run.
   a held-back address or a held-back entry's ROM origin (the world/level
   series' copy was clean). Fixed: `sheet3-x-rerun` and `sheet3-hud-rerun3`
   copies named none of their answers.
+  Seen a third time in `20261009-2240-sheet1-overworld-title`, a first run:
+  hand-made entries from 2026-10-05 that no spec line named (sprite
+  `mario_small_standing`, sprite palette 4, the cloud tiles the bush shares,
+  font digit 0, and the `statusbar_text_table` note giving the HUD layout
+  and every letter's tile id) were in the prompt; task 2 read the sprite's
+  tile ids from it. Those five lines (bush, small Mario, Mario's palette,
+  HUD, font) were not promoted (`eval-promote.mjs --skip`, which also keeps
+  their claims out as side discoveries) and are re-run. The entries are now
+  the lines' `entry`/`entries`; a line may own `notes` (held back by its
+  vocabulary), and only address and routine keys count as addresses when
+  holding back what names them.
+- **A first run checks too:** before a sheet's first run, list the
+  mapping's entries no line names, and tie any that answer an in-scope line.
 - **A re-run checks:** `config.md` lists the entries held back, and the
   session's prompt (`dsh-log.mjs show <id> --system --full`) does not
   contain them. A one-step session's prompt has no mapping at all (the

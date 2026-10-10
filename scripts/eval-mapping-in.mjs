@@ -20,16 +20,28 @@ export function stripLines(mapping, spec, ids) {
   const named = [];
   for (const line of spec.lines ?? []) {
     if (!ids.includes(line.id) || !line.entry) continue;
-    const [record, key] = [line.entry.slice(0, line.entry.indexOf(".")), line.entry.slice(line.entry.indexOf(".") + 1)];
-    if (out[record] && key in out[record]) {
-      // Its ROM origins name the answer too, as a PRG offset or (fixed-bank PRG at $8000) a CPU address.
-      for (const o of out[record][key].rom_origins ?? []) if (o.mem === "prgRom") named.push(o.offset, (spec.prg_base ?? 0x8000) + o.offset);
-      delete out[record][key]; removed.push(line.entry);
+    // A picture line may own several entries (`entries`: the rest of a bush's tiles), all of them its answer.
+    for (const entry of [line.entry, ...(line.entries ?? [])]) {
+      if (entry === "notes") {
+        // A line answered by a note ("HUD layout") owns the notes its vocabulary matches; they are its answer too.
+        const hit = (n) => (line.match ?? []).some((g) => g.every((kw) => n.toLowerCase().includes(kw.toLowerCase())));
+        const kept = (out.notes ?? []).filter((n) => !hit(n));
+        if (kept.length < (out.notes ?? []).length) removed.push(`${(out.notes ?? []).length - kept.length} note(s) (${line.id})`);
+        out.notes = kept;
+        continue;
+      }
+      const [record, key] = [entry.slice(0, entry.indexOf(".")), entry.slice(entry.indexOf(".") + 1)];
+      if (out[record] && key in out[record]) {
+        // Its ROM origins name the answer too, as a PRG offset or (fixed-bank PRG at $8000) a CPU address.
+        for (const o of out[record][key].rom_origins ?? []) if (o.mem === "prgRom") named.push(o.offset, (spec.prg_base ?? 0x8000) + o.offset);
+        delete out[record][key]; removed.push(entry);
+      }
     }
   }
   // Other entries and notes that name a held-back address give the answer away too ("$03AD = $0086 - $071C",
   // "page 0x006D + low 0x0086"): hold them back as well (ledger F10, found before sheet3-x-rerun).
-  const addrs = [...removed.map((e) => e.slice(e.indexOf(".") + 1)).filter((k) => /^0x[0-9a-f]+$/i.test(k)).map((k) => parseInt(k, 16)), ...named];
+  // Only an address or routine key is an address; a tile id (0x24) is not, and matched every "$24" in sight.
+  const addrs = [...removed.filter((e) => /^(addresses|routines)\./.test(e)).map((e) => e.slice(e.indexOf(".") + 1)).filter((k) => /^0x[0-9a-f]+$/i.test(k)).map((k) => parseInt(k, 16)), ...named];
   if (addrs.length) {
     const re = new RegExp(`(0x|\\$)0*(${addrs.map((n) => n.toString(16)).join("|")})(?![0-9a-f])`, "i");
     for (const record of ["tiles", "palettes", "sprites", "addresses", "scenes", "levels", "routines"]) {

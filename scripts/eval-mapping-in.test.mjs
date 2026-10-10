@@ -17,6 +17,18 @@ describe("eval-mapping-in", () => {
     expect(Object.keys(mapping.addresses)).toHaveLength(2);
   });
 
+  it("holds back every entry of a multi-tile picture line, and the notes a note line's vocabulary matches", () => {
+    const mapping = { tiles: { "chr:0x135": {}, "chr:0x125": {}, "chr:0x145": {} }, notes: ["HUD layout: MARIO at row 2", "cloud is the bush"] };
+    const spec = { lines: [
+      { id: "A3.bush", entry: "tiles.chr:0x135", entries: ["tiles.chr:0x125"] },
+      { id: "A6.hud", entry: "notes", match: [["hud"], ["status", "bar"]] },
+    ] };
+    const { mapping: out, removed } = stripLines(mapping, spec, ["A3.bush", "A6.hud"]);
+    expect(Object.keys(out.tiles)).toEqual(["chr:0x145"]);
+    expect(out.notes).toEqual(["cloud is the bush"]);
+    expect(removed).toContain("tiles.chr:0x125");
+  });
+
   it("also holds back entries and notes that name a held-back address", () => {
     const mapping = { addresses: { "0x0086": { description: "x" }, "0x03AD": { description: "screen x = $0086 - scroll" }, "0x0860": { description: "unrelated" } }, notes: ["page 0x006D + low 0x0086", "other"] };
     const spec = { lines: [{ id: "x", entry: "addresses.0x0086" }] };

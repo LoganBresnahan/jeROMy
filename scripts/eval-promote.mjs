@@ -7,7 +7,8 @@
 // claim; anything else changes nothing. Given several runs (the three
 // repeats of a re-run, eval/README.md), the majority decides.
 //
-// Usage: scripts/eval-promote.mjs <eval/runs/<id>> [<eval/runs/<id>> ...] [--dry-run]
+// Usage: scripts/eval-promote.mjs <eval/runs/<id>> [<eval/runs/<id>> ...] [--dry-run] [--skip <line,ids>]
+//   --skip: lines a run graded right but must not promote (their answer leaked into the run; they get a clean re-run).
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,7 +38,13 @@ export function decide(lines, runs) {
       // A real entry beats a note: look in every repeat for a right claim whose entry the run promoted.
       const entryOf = (o) => o.run.rows.filter((x) => x.line === line.id && RIGHT.has(x.final) && PROVEN.has(x.proof ?? "") && recordOf(x) !== "notes").find((x) => o.run.copy?.[recordOf(x)]?.[x.id]);
       const o = outcomes.find((x) => x.right && entryOf(x));
-      if (o) { const x = entryOf(o); return { line, action: "replace", record: recordOf(x), key: x.id, entry: o.run.copy[recordOf(x)][x.id], from: o.run.id, votes: `${nRight}/${runs.length} right` }; }
+      if (o) {
+        const x = entryOf(o);
+        // A picture line is often several entries (a bush is five tiles): the same run's other right entries on the line go with it.
+        const more = o.run.rows.filter((y) => y !== x && y.line === line.id && recordOf(y) === recordOf(x) && y.id !== x.id && RIGHT.has(y.final) && PROVEN.has(y.proof ?? "") && o.run.copy?.[recordOf(y)]?.[y.id])
+          .filter((y, i, a) => a.findIndex((z) => z.id === y.id) === i).map((y) => ({ key: y.id, entry: o.run.copy[recordOf(y)][y.id] }));
+        return { line, action: "replace", record: recordOf(x), key: x.id, entry: o.run.copy[recordOf(x)][x.id], more, from: o.run.id, votes: `${nRight}/${runs.length} right` };
+      }
       const noted = outcomes.find((x) => x.right && recordOf(x.right) === "notes");
       return noted ? { line, action: "note", from: noted.run.id, votes: `${nRight}/${runs.length} right` }
         : { line, action: "none", why: "graded right, but no run promoted the entry into its copy", votes: `${nRight}/${runs.length} right` };
@@ -51,21 +58,25 @@ export function decide(lines, runs) {
 }
 
 /** Apply decisions to a mapping and its spec lines; returns what changed. Side entries of the copies fill gaps. */
-export function apply(mapping, spec, decisions, runs) {
+export function apply(mapping, spec, decisions, runs, skip = []) {
   const changes = [];
   const inScope = new Set(decisions.map((d) => d.line.id));
-  const owned = new Set(spec.lines.filter((l) => l.entry).map((l) => l.entry));
+  const owned = new Set(spec.lines.flatMap((l) => [l.entry, ...(l.entries ?? [])]).filter(Boolean));
   for (const d of decisions) {
     const line = spec.lines.find((l) => l.id === d.line.id);
     if (d.action === "replace") {
-      if (line.entry && line.entry !== `${d.record}.${d.key}`) {
-        const [rec, k] = [line.entry.slice(0, line.entry.indexOf(".")), line.entry.slice(line.entry.indexOf(".") + 1)];
-        if (mapping[rec]?.[k]) { delete mapping[rec][k]; changes.push(`- ${line.entry} (${line.id}, replaced)`); }
+      const now = new Set([d.key, ...(d.more ?? []).map((m) => m.key)].map((k) => `${d.record}.${k}`));
+      for (const old of [line.entry, ...(line.entries ?? [])].filter(Boolean)) {
+        if (now.has(old)) continue;
+        const [rec, k] = [old.slice(0, old.indexOf(".")), old.slice(old.indexOf(".") + 1)];
+        if (mapping[rec]?.[k]) { delete mapping[rec][k]; changes.push(`- ${old} (${line.id}, replaced)`); }
       }
       mapping[d.record] ??= {};
       mapping[d.record][d.key] = d.entry;
       changes.push(`+ ${d.record}.${d.key} (${line.id}, ${d.votes}, from ${d.from})`);
+      for (const m of d.more ?? []) { mapping[d.record][m.key] = m.entry; changes.push(`+ ${d.record}.${m.key} (${line.id}, with ${d.key})`); }
       Object.assign(line, { status: "promoted", run: d.from, verdict: "agrees", entry: `${d.record}.${d.key}` });
+      if (d.more?.length) line.entries = d.more.map((m) => `${d.record}.${m.key}`); else delete line.entries;
     } else if (d.action === "note") {
       // The note itself arrives with the run's notes below; the line points at the notes.
       Object.assign(line, { status: "promoted", run: d.from, verdict: "agrees", entry: "notes" });
@@ -86,9 +97,11 @@ export function apply(mapping, spec, decisions, runs) {
     for (const rec of ["addresses", "routines", "levels", "scenes", "tiles", "sprites", "palettes"]) {
       for (const [k, v] of Object.entries(r.copy?.[rec] ?? {})) {
         const key = `${rec}.${k}`;
-        if (owned.has(key) || decisions.some((d) => d.action === "replace" && `${d.record}.${d.key}` === key)) continue;
+        if (owned.has(key) || decisions.some((d) => d.action === "replace" && [d.key, ...(d.more ?? []).map((m) => m.key)].some((k) => `${d.record}.${k}` === key))) continue;
         if (spec.lines.some((l) => inScope.has(l.id) && l.entry === key)) continue;
         if (wrongKeys.has(key)) { changes.push(`  skipped ${key} (graded wrong in ${r.id})`); continue; }
+        // A skipped line's claims stay out entirely, or its own leaked answer would be in the mapping its re-run starts from.
+        if (r.rows.some((x) => skip.includes(x.line) && `${recordOf(x)}.${x.id}` === key)) { changes.push(`  skipped ${key} (line skipped)`); continue; }
         // A claim on a line that got a decision is that line's candidate; only the decision's entry goes in, never a twin.
         const decided = new Set(decisions.filter((d) => d.action === "replace" || d.action === "note").map((d) => d.line.id));
         if (r.rows.some((x) => x.line && decided.has(x.line) && `${recordOf(x)}.${x.id}` === key)) continue;
@@ -109,7 +122,9 @@ export function apply(mapping, spec, decisions, runs) {
 }
 
 function main(argv) {
-  const dirs = argv.slice(2).filter((a) => !a.startsWith("--"));
+  const si = argv.indexOf("--skip");
+  const skip = si > 0 ? (argv[si + 1] ?? "").split(",") : [];
+  const dirs = argv.slice(2).filter((a, i, all) => !a.startsWith("--") && all[i - 1] !== "--skip");
   if (dirs.length === 0) { console.error("usage: scripts/eval-promote.mjs <eval/runs/<id>> [...] [--dry-run]"); process.exit(2); }
   const runs = dirs.map((d) => {
     const dir = resolve(d);
@@ -121,12 +136,13 @@ function main(argv) {
   });
   const specPath = runs[0].specPath;
   const spec = JSON.parse(readFileSync(specPath, "utf8"));
-  const lines = spec.lines.filter((l) => runs[0].run.lines.includes(l.id));
+  const lines = spec.lines.filter((l) => runs[0].run.lines.includes(l.id) && !skip.includes(l.id));
+  if (skip.length) console.log(`[eval-promote] skipped (not promoted): ${skip.join(", ")}`);
   const mapFile = resolve("mappings", `sha1-${spec.sha1}.json`);
   const mapping = JSON.parse(readFileSync(mapFile, "utf8"));
   const decisions = decide(lines, runs);
   for (const d of decisions) console.log(`[eval-promote] ${d.line.id}: ${d.action} (${d.votes})${d.why ? ` ${d.why}` : ""}`);
-  const changes = apply(mapping, spec, decisions, runs);
+  const changes = apply(mapping, spec, decisions, runs, skip);
   for (const c of changes) console.log(`  ${c}`);
   if (argv.includes("--dry-run")) { console.log("[eval-promote] dry run; nothing written"); return; }
   writeFileSync(mapFile, JSON.stringify(mapping, null, 2) + "\n");

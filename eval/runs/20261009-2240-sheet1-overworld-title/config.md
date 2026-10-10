@@ -27,3 +27,4 @@ Mapping sheet 1 (what the pictures are), Super Mario Bros., scenes: the title sc
 ```
 
 [eval-mapping-in] no in-scope entries to hold back
+- balance after: $4.87 · ended: 2026-10-09T22:46:29-05:00

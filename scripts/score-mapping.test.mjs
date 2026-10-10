@@ -70,6 +70,18 @@ describe("score-mapping lines", () => {
   it("only gives a claim to a line of its own kind", () => {
     expect(lineFor({ kind: "routine", name: "lives" }, SPEC.lines)).toBeNull();
   });
+  it("narrows a picture line to its kinds, and lets a tile's group decide before its name (20261009-2240)", () => {
+    const lines = [
+      { id: "brick", type: "picture", kinds: ["tile"], match: [["brick"]] },
+      { id: "ground", type: "picture", kinds: ["tile"], match: [["ground"]] },
+      { id: "small_mario", type: "picture", kinds: ["sprite"], match: [["mario"], ["small", "mario"]] },
+      { id: "mario_pal", type: "picture", kinds: ["palette"], match: [["mario", "palette"]] },
+    ];
+    const tile = claimsFromRecord({ mapping_type: "tile", id: "0xB4", table: 1, name: "ground brick top-left", group: "ground" }, "t")[0];
+    expect(lineFor(tile, lines)?.id).toBe("ground");
+    expect(lineFor({ kind: "palette", name: "small Mario sprite palette" }, lines)?.id).toBe("mario_pal");
+    expect(lineFor({ kind: "address", name: "x", group: "brick" }, lines)).toBeNull();
+  });
   it("takes an origin's parent entry type as vocabulary", () => {
     const c = claimsFromRecord({ mapping_type: "palette", id: "0", name: "green", rom_origins: [{ mem: "prgRom", offset: 0x102, length: 1 }] }, "t").find((k) => k.kind === "origin");
     expect(lineFor(c, SPEC.lines)?.id).toBe("grass_pal");

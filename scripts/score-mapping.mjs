@@ -56,7 +56,7 @@ export function lineFor(claim, lines) {
     const cw = words(text);
     let best = null;
     for (const line of lines) {
-      if (!(LINE_TAKES[line.type] ?? []).includes(claim.kind)) continue;
+      if (!(line.kinds ?? LINE_TAKES[line.type] ?? []).includes(claim.kind)) continue;
       if ((line.exclude ?? []).some((x) => has(cw, x))) continue;
       for (const group of line.match ?? []) {
         if (group.every((kw) => words(kw).every((k) => has(cw, k)))) {
@@ -75,7 +75,9 @@ export function lineFor(claim, lines) {
   const head = String(claim.name ?? "").split(/\s+[-–—:]\s+/)[0].replace(/\([^)]*\)/g, " ");
   // Never the notes: they mention neighbours ("the level loader reads it"), and a notes match put a VRAM selector on
   // the level line (eval/runs/20261009-1414-sheet5b-entry-dispatch-palette). A name no line takes is graded loosely.
-  return tryText(`${head}${ctx}`) ?? tryText(`${claim.name}${ctx}`);
+  // A tile's group names the object it belongs to ("ground"), where the name may also describe it ("ground brick top-left"
+  // tied brick with ground: eval/runs/20261009-2240-sheet1-overworld-title), so the group decides first.
+  return (claim.group && (claim.kind === "tile" || claim.kind === "sprite") ? tryText(claim.group) : null) ?? tryText(`${head}${ctx}`) ?? tryText(`${claim.name}${ctx}`);
 }
 
 /** A reference symbol's extent in bytes: the line's span, the symbol's size, or for a PRG label the gap to the next label (capped). */
@@ -180,7 +182,7 @@ export function claimsFromRecord(rec, where, extra = {}) {
   const kind = rec.mapping_type;
   const name = String(rec.name ?? "");
   const notes = rec.notes ?? "";
-  const common = { where, name, notes, source: rec.source, confidence: rec.confidence ?? 1, id: String(rec.id ?? ""), ...extra };
+  const common = { where, name, notes, source: rec.source, confidence: rec.confidence ?? 1, id: String(rec.id ?? ""), ...(rec.group ? { group: String(rec.group) } : {}), ...extra };
   if (kind === "address" || kind === "routine") {
     const address = parseAddr(rec.id);
     if (Number.isFinite(address)) out.push({ ...common, kind, address, length: rec.length ?? (rec.stride && rec.count ? rec.stride * rec.count : undefined) });

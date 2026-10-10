@@ -48,6 +48,26 @@ describe("eval-promote", () => {
     expect(spec.lines[0]).toMatchObject({ status: "promoted", entry: "tiles.chr:0x145" });
   });
 
+  it("takes every right tile of a picture line from the deciding run, and replaces all of the line's old ones", () => {
+    const spec = { lines: [{ id: "A3.bush", entry: "tiles.0x35", entries: ["tiles.0x36"] }] };
+    const t = (id) => ({ line: "A3.bush", kind: "tile", id, final: "confirmed", proof: "look" });
+    const runs = [{ id: "r1", rows: [t("chr:0x135"), t("chr:0x136"), t("chr:0x125")], copy: { tiles: { "chr:0x135": { name: "a" }, "chr:0x136": { name: "b" }, "chr:0x125": { name: "c" } }, notes: [] } }];
+    const mapping = { tiles: { "0x35": {}, "0x36": {} }, notes: [] };
+    const d = decide(spec.lines, runs);
+    apply(mapping, spec, d, runs);
+    expect(Object.keys(mapping.tiles).sort()).toEqual(["chr:0x125", "chr:0x135", "chr:0x136"]);
+    expect(spec.lines[0]).toMatchObject({ entry: "tiles.chr:0x135", entries: ["tiles.chr:0x136", "tiles.chr:0x125"] });
+  });
+
+  it("keeps a skipped line's claims out of the mapping, side discoveries included", () => {
+    const spec = { lines: [{ id: "A3.hill" }, { id: "A3.bush" }] };
+    const t = (line, id) => ({ line, kind: "tile", id, final: "confirmed", proof: "look" });
+    const runs = [{ id: "r1", rows: [t("A3.hill", "chr:0x130"), t("A3.bush", "chr:0x135")], copy: { tiles: { "chr:0x130": {}, "chr:0x135": {} }, notes: [] } }];
+    const mapping = { tiles: {}, notes: [] };
+    apply(mapping, spec, decide([spec.lines[0]], runs), runs, ["A3.bush"]);
+    expect(Object.keys(mapping.tiles)).toEqual(["chr:0x130"]);
+  });
+
   it("adds side discoveries only where the mapping has nothing", () => {
     const spec = { lines: [{ id: "x" }] };
     const runs = [{ id: "r1", rows: [], copy: copy({ "0x03AD": { description: "new" }, "0x075A": { description: "lives from run" } }) }];
