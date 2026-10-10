@@ -178,6 +178,12 @@ describe("MesenAdapter", () => {
     expect(mockRequest).toHaveBeenCalledWith("load_state", { slot: 3 });
   });
 
+  it("loadState passes a save state file name (ADR-0023)", async () => {
+    mockRequest.mockResolvedValue({ slot: "z_1.mss", action: "loaded" });
+    await adapter.loadState(0, "z_1.mss");
+    expect(mockRequest).toHaveBeenCalledWith("load_state", { slot: 0, file: "z_1.mss" });
+  });
+
   it("debugEventTypes sends debug_event_types", async () => {
     mockRequest.mockResolvedValue({ event_types: { inputPolled: 5 }, has_set_input: true, has_get_input: true });
     const result = await adapter.debugEventTypes();

@@ -385,13 +385,17 @@ export const agentTools: ToolSpec[] = [
   {
     name: "load_state",
     description:
-      "Restore a slot saved with save_state in this bridge session (gameplay state only; ledgered ROM edits stay). While paused one frame runs so the restore can happen.",
+      "Restore a slot saved with save_state in this bridge session, or a save state file the person made in Mesen (gameplay state only; ledgered ROM edits stay). While paused one frame runs so the restore can happen.",
     input_schema: {
       type: "object",
       properties: {
         slot: {
           type: "number",
           description: "Save state slot number (default: 0)",
+        },
+        file: {
+          type: "string",
+          description: "A file name in Mesen's SaveStates folder, e.g. \"Legend of Zelda, The (USA)_1.mss\" (Mesen's Shift+F1 writes slot 1 there); takes the place of slot",
         },
       },
     },
@@ -1310,7 +1314,7 @@ export async function executeTool(
     }
 
     case "load_state": {
-      const result = await adapter.loadState((input.slot as number) ?? 0);
+      const result = await adapter.loadState((input.slot as number) ?? 0, input.file as string | undefined);
       return { type: "text", text: JSON.stringify(result) };
     }
 

@@ -343,7 +343,13 @@ describe("executeTool", () => {
   it("load_state passes slot param", async () => {
     const adapter = mockAdapter();
     await executeTool("load_state", { slot: 3 }, adapter);
-    expect(adapter.loadState).toHaveBeenCalledWith(3);
+    expect(adapter.loadState).toHaveBeenCalledWith(3, undefined);
+  });
+
+  it("load_state passes a save state file (ADR-0023)", async () => {
+    const adapter = mockAdapter();
+    await executeTool("load_state", { file: "Legend of Zelda, The (USA)_1.mss" }, adapter);
+    expect(adapter.loadState).toHaveBeenCalledWith(0, "Legend of Zelda, The (USA)_1.mss");
   });
 
   describe("edit ledger (ADR-0009)", () => {

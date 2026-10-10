@@ -38,3 +38,4 @@ Template: `_template.md`.
 | [0020](0020-built-by-an-eval-loop.md) | jeROMy is built by an eval loop: a spec of "mapped", blind DeepSeek runs graded against the reference and judged from replays, a holdout game, Claude unattended | Accepted | 2026-10-09 |
 | [0021](0021-mapping-schema-3-scenes-levels-routines.md) | Mapping schema 3: scenes, levels, routines and notes are entries; tiles keyed in pattern space; addresses carry format and extent | Accepted | 2026-10-09 |
 | [0022](0022-eval-runs-promote-into-their-own-copy.md) | An eval run promotes into its own copy; the campaign mapping takes a line only from a run that graded it right | Accepted | 2026-10-09 |
+| [0023](0023-holdout-runs-start-from-a-hand-made-save-state.md) | Holdout runs start from a save state the person made by hand; load_state reads Mesen's SaveStates folder | Accepted | 2026-10-09 |

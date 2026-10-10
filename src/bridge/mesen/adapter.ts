@@ -206,9 +206,9 @@ export class MesenAdapter {
     return this.conn.request<StateResult>("save_state", { slot });
   }
 
-  /** Load emulator state from a slot. */
-  async loadState(slot: number = 0): Promise<StateResult> {
-    return this.conn.request<StateResult>("load_state", { slot });
+  /** Load emulator state from a slot, or from a file in Mesen's SaveStates folder (ADR-0023). */
+  async loadState(slot: number = 0, file?: string): Promise<StateResult> {
+    return this.conn.request<StateResult>("load_state", file ? { slot, file } : { slot });
   }
 
   /** Read a single 8x8 tile from CHR memory, decoded to a pixel grid. */

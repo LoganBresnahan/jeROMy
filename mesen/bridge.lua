@@ -1396,9 +1396,35 @@ function handlers.save_state(params)
   end)
 end
 
+-- A start state made by hand in Mesen (Shift+F1 writes SaveStates\<rom>_1.mss)
+-- loads by file name; the name may not contain a path separator, so no
+-- request reads outside Mesen's SaveStates folder (ADR-0023).
+local function read_state_file(name)
+  if type(name) ~= "string" or name == "" or name:find("[/\\]") or name:find("%.%.") then
+    error("file must be a bare file name in Mesen's SaveStates folder, e.g. \"Legend of Zelda, The (USA)_1.mss\"")
+  end
+  local ok, folder = pcall(function() return emu.getScriptDataFolder() end)
+  if not ok or type(folder) ~= "string" then error("getScriptDataFolder unavailable: cannot find Mesen's SaveStates folder") end
+  local root = folder:match("^(.*)[/\\][^/\\]+[/\\][^/\\]+[/\\]?$")
+  if not root then error("cannot derive Mesen's folder from " .. folder) end
+  local path = root .. "\\SaveStates\\" .. name
+  local f = io.open(path, "rb")
+  if not f then error("no save state file at " .. path) end
+  local blob = f:read("a")
+  f:close()
+  return blob
+end
+
 function handlers.load_state(params)
   local slot = params.slot or 0
   if not emu.loadSavestate then error("emu.loadSavestate is not available in this Mesen build") end
+  if params.file then
+    local blob = read_state_file(params.file)
+    return state_request(params.file, "loaded", function()
+      emu.loadSavestate(blob)
+      return #blob
+    end)
+  end
   local blob = state_slots[slot]
   if not blob then error("slot " .. slot .. " is empty in this script session (states live in the running bridge.lua; save_state first)") end
   return state_request(slot, "loaded", function()
