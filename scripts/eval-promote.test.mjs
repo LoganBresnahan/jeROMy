@@ -37,6 +37,17 @@ describe("eval-promote", () => {
     expect(spec.lines[0].entry).toBeUndefined();
   });
 
+  it("promotes a picture line Claude confirmed from the images (sheet 1)", () => {
+    const spec = { lines: [{ id: "A3.brick" }] };
+    const runs = [{ id: "r1", rows: [{ line: "A3.brick", kind: "tile", id: "chr:0x145", final: "confirmed", proof: "look" }], copy: { tiles: { "chr:0x145": { name: "brick" } }, notes: [] } }];
+    const mapping = { tiles: {}, notes: [] };
+    const d = decide(spec.lines, runs);
+    expect(d[0]).toMatchObject({ action: "replace", record: "tiles", key: "chr:0x145" });
+    apply(mapping, spec, d, runs);
+    expect(mapping.tiles["chr:0x145"]).toEqual({ name: "brick" });
+    expect(spec.lines[0]).toMatchObject({ status: "promoted", entry: "tiles.chr:0x145" });
+  });
+
   it("adds side discoveries only where the mapping has nothing", () => {
     const spec = { lines: [{ id: "x" }] };
     const runs = [{ id: "r1", rows: [], copy: copy({ "0x03AD": { description: "new" }, "0x075A": { description: "lives from run" } }) }];

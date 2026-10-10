@@ -2,9 +2,26 @@
 // the distribution per line, never a scalar. Rows are shaped like
 // scripts/score-mapping.mjs output; only the fields read here matter.
 import { describe, expect, it } from "vitest";
-import { compareRuns, distribution, finalVerdict } from "./eval-grade.mjs";
+import { applyJudgments, compareRuns, distribution, finalVerdict } from "./eval-grade.mjs";
 
 describe("eval-grade", () => {
+  it("applies Claude's picture verdicts by record id, never over a reference verdict or a missing proof", () => {
+    const rows = [
+      { id: "chr:0x145", line: "A3.bush", reference_verdict: "needs-judge", final: "needs-judge", proof: "look", grader: "claude" },
+      { id: "chr:0x146", line: "A3.hill", reference_verdict: "needs-judge", final: "needs-judge", proof: null, grader: "claude" },
+      { id: "0x075A", line: "C1.lives", reference_verdict: "agrees", final: "agrees", proof: "write+look", grader: "reference" },
+    ];
+    const unused = applyJudgments(rows, [
+      { id: "chr:0x145", verdict: "confirmed", line: "A3.brick", image: "a.png", why: "brown brick at (64,176)" },
+      { id: "chr:0x146", verdict: "confirmed", image: "b.png", why: "green hill" },
+      { id: "0x075A", verdict: "rejected" },
+    ]);
+    expect(rows[0]).toMatchObject({ line: "A3.brick", final: "confirmed", grader: "claude", image: "a.png" });
+    expect(rows[1].final).toBe("unproven");
+    expect(rows[2].final).toBe("agrees");
+    expect(unused.map((j) => j.id)).toEqual(["0x075A"]);
+  });
+
   it("a reference agreement without its proof step is unproven", () => {
     expect(finalVerdict({ verdict: "agrees", proof: "write+look" })).toBe("agrees");
     expect(finalVerdict({ verdict: "agrees", proof: null })).toBe("unproven");

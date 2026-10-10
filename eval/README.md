@@ -57,9 +57,14 @@ eval/
      entry is never overwritten.
    - For picture claims: `scripts/dsh-log.mjs show <id> --images
      eval/runs/<run>/images`, Read each image the claim rests on, decide,
-     and write the row with `grader: claude` and the image filename. Say in
-     the row what in the image supports the verdict ("the 16x16 block at
-     (64,176) is brown with a rivet pattern; the claim says brick").
+     and write the verdict into `<run>/judged.json`, one object per claim:
+     `{ "id": "<the record's id>", "verdict": "confirmed" | "rejected",
+     "image": "<file>", "why": "...", "line": "<only to reassign>" }`. Say
+     in `why` what in the image supports the verdict ("the 16x16 block at
+     (64,176) is brown with a rivet pattern; the claim says brick"). Then
+     `scripts/eval-grade.mjs <run>` again: the rows read `grader: claude`
+     in `grades.md`, and `eval-promote.mjs` takes confirmed pictures like
+     any right line.
    - A claim the run recorded without the proof step (no write-and-look, no
      reset for an origin) is `unproven` whatever the reference says.
 6. **Report.** `report.md` holds the distribution (table below), two or

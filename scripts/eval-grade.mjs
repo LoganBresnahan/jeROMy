@@ -9,7 +9,9 @@
 //   Reads <run>/run.json (written by scripts/eval-run.sh) and <run>/streams/*.jsonl.
 //   Re-running overwrites grades.json and distribution.md; grades.md is only
 //   written when absent or when it holds no claude verdicts yet (pass --force
-//   to overwrite those too).
+//   to overwrite those too). Claude's picture verdicts go in <run>/judged.json
+//   ([{ id, verdict: "confirmed"|"rejected", why, image, line? }]); with it,
+//   every file is regenerated from the streams plus the judgments.
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -80,6 +82,25 @@ export function gradeStreams(dir, reference, spec) {
   return { rows, totals };
 }
 
+/**
+ * Claude's verdicts on needs-judge rows (eval/README.md step 5), matched by
+ * the record's id; `line` reassigns a claim the word matcher put on the wrong
+ * line. A judgment never overrides a reference verdict.
+ */
+export function applyJudgments(rows, judgments) {
+  const unused = [];
+  for (const j of judgments) {
+    const hit = rows.filter((r) => r.reference_verdict === "needs-judge" && r.id === String(j.id) && (!j.task || r.where === j.task));
+    if (!hit.length) { unused.push(j); continue; }
+    for (const r of hit) {
+      if (j.line) r.line = j.line;
+      r.final = j.verdict === "confirmed" && !PROVEN.has(r.proof ?? "") ? "unproven" : j.verdict;
+      Object.assign(r, { grader: "claude", image: j.image ?? "", why: j.why ?? "" });
+    }
+  }
+  return unused;
+}
+
 const RANK = { agrees: 3, confirmed: 3, disagrees: 1, rejected: 1, unproven: 1, "needs-judge": 1, unplaced: 1 };
 
 /**
@@ -112,6 +133,9 @@ function main(argv) {
   const inScope = spec.lines.filter((l) => run.lines.includes(l.id));
 
   const { rows, totals } = gradeStreams(dir, reference, spec);
+  const judgedFile = join(dir, "judged.json");
+  const hasJudgments = existsSync(judgedFile);
+  if (hasJudgments) for (const j of applyJudgments(rows, JSON.parse(readFileSync(judgedFile, "utf8")))) console.log(`[eval-grade] judgment for ${j.id} matched no needs-judge row`);
   const dist = distribution(inScope, rows);
   writeFileSync(join(dir, "grades.json"), JSON.stringify({ run: run.id, spec: `${spec.game} v${spec.spec_version}`, reference: reference.source, totals, stages: dist.stages, rows }, null, 2) + "\n");
 
@@ -119,7 +143,7 @@ function main(argv) {
   // Columns run "final | grader": a Claude-judged row reads "| confirmed | claude |". The old pattern looked for the
   // reverse order and let a regrade overwrite judged rows (caught 2026-10-09, restored from git).
   const judged = existsSync(gradesMd) && /\| (confirmed|rejected) \| claude \|/.test(readFileSync(gradesMd, "utf8"));
-  if (!judged || force) {
+  if (!judged || force || hasJudgments) {
     const out = [
       `# Grades: ${run.id}`,
       "",
@@ -127,7 +151,7 @@ function main(argv) {
       "",
       "| line | claim | at | evidence (proof) | reference | final | grader | image |",
       "|---|---|---|---|---|---|---|---|",
-      ...rows.map((r) => `| ${r.line ?? "(none)"} | ${cell(r.name)}${r.notes ? ` — ${cell(r.notes).slice(0, 120)}` : ""} | ${r.loc ?? r.id} | ${r.proof ?? "none"}${r.derived === true ? ", derived by diff" : r.derived === false ? ", not in any diff" : ""}${r.promoted ? ", promoted" : ""} | ${r.reference_verdict}${r.expected ? ` (expected ${cell(r.expected)}; here: ${cell(r.reference_at_claim)})` : ""} | ${r.final === "needs-judge" ? "pending" : r.final} | ${r.grader} | |`),
+      ...rows.map((r) => `| ${r.line ?? "(none)"} | ${cell(r.name)}${r.notes ? ` — ${cell(r.notes).slice(0, 120)}` : ""} | ${r.loc ?? r.id} | ${r.proof ?? "none"}${r.derived === true ? ", derived by diff" : r.derived === false ? ", not in any diff" : ""}${r.promoted ? ", promoted" : ""} | ${r.reference_verdict}${r.expected ? ` (expected ${cell(r.expected)}; here: ${cell(r.reference_at_claim)})` : ""} | ${r.final === "needs-judge" ? "pending" : r.final} | ${r.grader} | ${r.image ? `${cell(r.image)}: ${cell(r.why)}` : ""} |`),
       "",
     ];
     writeFileSync(gradesMd, out.join("\n"));
@@ -172,7 +196,7 @@ function main(argv) {
       if (worse.length) console.log(`[eval-grade] WORSE than ${run.rerun_of}: ${worse.join(", ")} (a stop condition unless the replay explains it)`);
     } else console.log(`[eval-grade] rerun_of ${run.rerun_of} not found under eval/runs`);
   }
-  console.log(`[eval-grade] ${rows.length} claim(s) · in scope ${s.in_scope} · proof ${s.reached_proof} · recorded ${s.recorded} · promoted ${s.promoted} · right ${s.right} · wrong ${s.wrong} · unproven ${s.unproven}${judged && !force ? " · grades.md kept (has claude verdicts)" : ""}`);
+  console.log(`[eval-grade] ${rows.length} claim(s) · in scope ${s.in_scope} · proof ${s.reached_proof} · recorded ${s.recorded} · promoted ${s.promoted} · right ${s.right} · wrong ${s.wrong} · unproven ${s.unproven}${judged && !force && !hasJudgments ? " · grades.md kept (has claude verdicts)" : ""}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main(process.argv);

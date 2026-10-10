@@ -13,7 +13,8 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PROVEN } from "./eval-grade.mjs";
 
-const RECORD = { address: "addresses", routine: "routines", level: "levels", scene: "scenes" };
+// Picture claims (sheet 1) promote by Claude's judgment like any other verdict.
+const RECORD = { address: "addresses", routine: "routines", level: "levels", scene: "scenes", tile: "tiles", sprite: "sprites", palette: "palettes", note: "notes" };
 // An origin claim lives on its parent entry (score-mapping.mjs `context`); promoting the line promotes that entry.
 const PARENT = { tile: "tiles", sprite: "sprites", palette: "palettes", address: "addresses", note: "notes" };
 const recordOf = (x) => (x.kind === "origin" ? PARENT[x.context] : RECORD[x.kind]);
