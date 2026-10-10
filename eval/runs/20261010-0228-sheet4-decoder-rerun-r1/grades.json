@@ -1,0 +1,46 @@
+{
+  "run": "20261010-0228-sheet4-decoder-rerun-r1",
+  "spec": "Super Mario Bros. (World) v19",
+  "reference": "smbdis (doppelganger), ca65 port by threecreepio",
+  "totals": {
+    "calls": 62,
+    "steps": 37,
+    "inTok": 5223261,
+    "outTok": 76531
+  },
+  "stages": {
+    "in_scope": 1,
+    "reached_proof": 1,
+    "recorded": 1,
+    "derived": 1,
+    "promoted": 1,
+    "right": 1,
+    "wrong": 0,
+    "unproven": 0
+  },
+  "rows": [
+    {
+      "where": "task-1",
+      "name": "area object decoder",
+      "notes": "The area object decoder: it reads a level's layout records and builds the level's objects/blocks from them. CODE SPAN $9508-$9588 (RTS at $9588) = prgRom 0x1508-0x1588. WHAT IT READS AND HOW: $9508 LDX #$02 / STX $08 / LDA #$00 / STA $0729 ; $9511 LDY $072C ; $9514 LDA ($E7),Y reads the current 2-byte layout record through the layout-data pointer $E7/$E8 (LoadAreaData $9C22 sets it; World 1-1 -> $A690) ; $9516 CMP #$FD is the end-of-object-data marker. Record encoding it decodes: byte0 high nibble = object X column (0-15), byte0 low nibble = object type; byte1 bit7 = page-advance flag ($9520 ASL A / BCC, set -> INC $072b then INC $072a, the object's page), byte1 bits 4-6 = object Y row, byte1 low nibble/bits6 = per-type parameter (pipe direction/length). Type $0D is handled specially at $9539-$9551 (byte1 & $40 direction, byte1 & $1F -> $072a). It calls $9595 (the per-type block/tile decoder, entry $9595; reads (E7),Y again) and $9589 (advance the record index: INC $072C / INC $072C / LDA #0 / STA $072b), and loops at $9571 (DEX over the 3 buffer slots / $08) and back to $9508 ($9581/$9586 BNE). So it walks the object stream record by record, converts each into a level block, and stops at the $FD terminator. HOW FOUND (no reference imported): trace_writes mode read on CPU $A690 length 16 (World 1-1 layout records, prgRom 0x2690) while the level reloaded, 600 frames. Reading PCs returned $9516 (72 reads), $95A1 (72), $95E9 (72), $9522 (69), $9533 (69), $95F3 (56), $962A (48), $964B (21), $9BC0/$9BC7 (8 each, the $9BBB 2-byte helper), $9600 (1). All the high-count PCs lie in $9508 or in $9595 which $9508 calls. Disassembling back from $9514 (LDA ($E7),Y): the routine's first instruction is $9508 LDX #$02 (its loop head is $950A two bytes later - the boundary trap the find-routine skill warns about), and JSR $9508 at CPU $9401 and $94D3 (prgRom 0x1401/0x14D3) confirms $9508 as the entry. Those callers sit inside the routine at $93FC, itself reached from the task dispatcher JSR $8E04 at $92C8 whose table at $92CB has $93FC as an entry, called from the per-frame/task routine $92B0 (called at $86E9 and $AF8F). PROOF by ledgered write: write_memory prgRom 0x2691 (byte1 of the first World 1-1 layout record) $81 -> $01 (ledger seq 1, reason 'clear page-advance flag of the first World 1-1 layout record'), reset_emulator, then started a game to World 1-1. The decoder built the object stream one page earlier: the normally empty first screen (hill + bush + ground + cloud only) now showed a ? block in the sky, a brick row with two ? blocks, a lone ? block at the far left and a green pipe at x~200. undo_edit restored $81. So the byte at prgRom 0x2691 is read and acted on by this routine.",
+      "source": "trace and disassembly",
+      "confidence": 1,
+      "id": "0x9508",
+      "kind": "routine",
+      "address": 38152,
+      "length": 129,
+      "proof": "disassemble",
+      "derived": true,
+      "promoted": true,
+      "line": "D1.area_format",
+      "loc": "$9508-$9588",
+      "verdict": "agrees",
+      "grader": "reference",
+      "symbol": "ProcessAreaData",
+      "expected": "ProcessAreaData $9508+2 | AreaParserTaskControl $86E6+3",
+      "reference_at_claim": "ProcessAreaData",
+      "reference_verdict": "agrees",
+      "final": "agrees"
+    }
+  ]
+}

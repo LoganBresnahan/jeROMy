@@ -160,5 +160,15 @@ print(f\"\nCost: \${r.get('cost_usd', '?')} (balance before \${r['balance_before
 "
 } > "$RUN/sessions.md"
 rm -f "$RUN/.capped"
+# A task cut off by the cap can leave its throwaway hack active, with edits live in Mesen's copy of the ROM
+# (20261010-0251-sheet4-decoder-rerun-r3); the next run would boot it. Put default back and reload the ROM.
+GAME_JSON="hacks/sha1-$(spec_get sha1 | tr 'A-F' 'a-f')/game.json"
+ACTIVE="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('active',''))" "$GAME_JSON" 2>/dev/null)"
+if [ -n "$ACTIVE" ] && [ "$ACTIVE" != "default" ]; then
+  echo "[eval-run] WARNING: the run left hack '$ACTIVE' active; restoring default and restarting Mesen"
+  echo "- left hack \`$ACTIVE\` active: restored \`default\`, Mesen restarted (its ledger is kept under hacks/ for the report)" >> "$RUN/config.md"
+  python3 -c "import json,sys; p=sys.argv[1]; g=json.load(open(p)); g['active']='default'; open(p,'w').write(json.dumps(g, indent=2)+'\n')" "$GAME_JSON"
+  scripts/up.sh --down >/dev/null 2>&1; scripts/mesen-up.sh --restart "$(spec_get rom_path)" >/dev/null 2>&1
+fi
 node scripts/eval-grade.mjs "$RUN"
 echo "[eval-run] record in $RUN: judge the pending rows from images/, then write report.md"

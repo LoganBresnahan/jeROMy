@@ -325,7 +325,22 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Lines hit:** D1.area_format (and any routine found by walking back).
 - **Changed:** a new skill, `find-routine` (the entry is settled by a caller:
   a JSR/JMP or a table word).
-- **Status:** `changed`; the D1 re-run measures it.
+- **Status:** `fixed`: `sheet4-decoder-rerun` r1 and r2 recorded `$9508`
+  with its callers quoted; r3 found it and was cut off in the proof.
 - **A re-run checks:** the recorded entry is a caller's target, quoted in
   the notes.
+
+## F19. A capped run left its throwaway hack active
+
+- **Seen:** `20261010-0251-sheet4-decoder-rerun-r3`: the cap ended the
+  session between a ledgered write and its undo, with `eval-sheet4-c`
+  active; the next boot would have applied its edits.
+- **Lines hit:** none graded; every later run's starting ROM.
+- **Changed:** `eval-run.sh` checks the active hack after the tasks; if it
+  is not `default`, it restores `default`, restarts Mesen, and notes it in
+  `config.md`.
+- **Status:** `fixed` (restored by hand this time; the bytes read back equal
+  to the ROM file).
+- **A re-run checks:** `config.md` has no "left hack" line, or the run's
+  report explains it.
 

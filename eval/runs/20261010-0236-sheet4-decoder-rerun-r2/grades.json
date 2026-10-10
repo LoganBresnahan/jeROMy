@@ -1,0 +1,45 @@
+{
+  "run": "20261010-0236-sheet4-decoder-rerun-r2",
+  "spec": "Super Mario Bros. (World) v19",
+  "reference": "smbdis (doppelganger), ca65 port by threecreepio",
+  "totals": {
+    "calls": 79,
+    "steps": 47,
+    "inTok": 7054869,
+    "outTok": 88544
+  },
+  "stages": {
+    "in_scope": 1,
+    "reached_proof": 1,
+    "recorded": 1,
+    "derived": 1,
+    "promoted": 1,
+    "right": 1,
+    "wrong": 0,
+    "unproven": 0
+  },
+  "rows": [
+    {
+      "where": "task-1",
+      "name": "area object decoder",
+      "notes": "World 1-1 area object decoder. FOUND by trace_writes read mode on the 1-1 layout records CPU $A690-$A78F (prgRom 0x2690, the records the layout pointer table resolves to: $074E=1/$074F=5 -> low $8E/high $A6) while the attract demo loaded and scrolled 1-1: 420 accesses, all LDA ($E7),Y; reported PCs (instruction address = pc-2) $9514/$9520/$9531 in this routine and $959F/$95E7/$95FE/$9628/$9649 in its helper. $E7/$E8 is the layout pointer built by LoadAreaData ($9C22); the decoder reads the record at offset $072C via LDA ($E7),Y, tests $FD (CMP #$FD, $9516/$95A1) as the end-of-area marker and stops, tests bit7 of the record's second byte for a page change ($9520 ASL A / $952A-$954E stashes the page offset in $072A), and calls the per-object decoder $9595 (JSR at $9565) which decodes one object's tile run and dispatches by object type through the jump engine $8E04 with the handler table at $9667. ENTRY $9508: the first instruction after the RTS at $9503 and the 4-byte table $9504-$9507, so $9508 = LDX #$02 / STX $08 / LDA #$00 / STA $0729 / LDY $072C / LDA ($E7),Y (the do-not-confuse-it-with-data A2 02: $9508 is the entry, not the loop head at $950A). CALLERS confirmed by search_memory prgRom '20 08 95' = JSR $9508 at CPU $9401 and $94D3, both inside the area-parser column builder at $9401 (it clears the 13-byte metatile column buffer $06A1-$06AD and writes the built column through the pointer at $06/$07). PROOF (ledgered in throwaway hack eval-sheet4-c, then undone): write_memory prgRom 0x2692 (CPU $A692, the first object-stream byte the decoder reads for the page-1 record group; was $47) = $FD, reset_emulator, Start to World 1-1, scroll to camera x=185 (play_input Start+300 then Right+200): compared with the unedited baseline, the brick-and-?-block row (screen x136-216, y152) and the second ? block (x176, y80) were GONE while the earlier lone ? block (level x 256, screen x72) remained - the decoder read $FD and stopped reading records. A second ledgered write of the same byte 0x2692 = $49 (type nibble 7 -> 9) rebuilt the same record as a lower plain brick bar (x136-216, y184) with two ? blocks above it (y152), an object-type change from the same one byte. read_memory prgRom 0x2692 confirmed $49 live and $47 after undo_edit; both writes were undone. Source: trace and disassembly.",
+      "source": "trace and disassembly",
+      "confidence": 1,
+      "id": "0x9508",
+      "kind": "routine",
+      "address": 38152,
+      "proof": "disassemble",
+      "derived": true,
+      "promoted": true,
+      "line": "D1.area_format",
+      "loc": "$9508",
+      "verdict": "agrees",
+      "grader": "reference",
+      "symbol": "ProcessAreaData",
+      "expected": "ProcessAreaData $9508+2 | AreaParserTaskControl $86E6+3",
+      "reference_at_claim": "ProcessAreaData",
+      "reference_verdict": "agrees",
+      "final": "agrees"
+    }
+  ]
+}
