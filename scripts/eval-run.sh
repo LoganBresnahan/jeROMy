@@ -13,6 +13,8 @@
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO"
+# Every eval run so far ran under 900 s; trio.sh's own 420 s default cut a holdout repeat short (2026-10-09).
+export TRIO_TIMEOUT="${TRIO_TIMEOUT:-900}"
 SPEC=""; SLUG=""; LINES=""; MIN=8; CAP="1.00"; HOLDOUT=false; TASKS=(); RERUN=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -51,7 +53,7 @@ MODEL="$(sed -n 's/^ *model: *//p' .dsh-dev/cordis.yml | head -1)"
   echo "- spec: \`$SPEC\` v$SPECV · lines: $LINES"
   echo "- model: ${MODEL:-?} · blind: true (JEROMY_BLIND=1) · holdout: $HOLDOUT"
   [ -n "$RERUN" ] && echo "- re-run of: \`$RERUN\` (eval/failures.md entries for these lines apply)"
-  echo "- caps: \$$CAP per run · min tool calls per task $MIN · trio timeout ${TRIO_TIMEOUT:-420} s"
+  echo "- caps: \$$CAP per run · min tool calls per task $MIN · trio timeout ${TRIO_TIMEOUT} s"
   echo "- balance before: \$$BEFORE"
   echo "- started: $(date -Iseconds)"
   echo
