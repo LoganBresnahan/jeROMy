@@ -55,11 +55,13 @@ change bought; if the failure comes back, reopen it with the new run.
   by `equals` the shown value and `unchanged` across play until every
   survivor is listed, then bisect with writes, a forced redraw and save
   states (commit after `06957a4`).
-- **Status:** `changed`; not measured. On SMB (`sheet3-worldlevel-rerun`)
+- **Status:** `changed`; partly measured. On SMB (`sheet3-worldlevel-rerun`)
   the one completed repeat went to the remembered block and skipped the
   route; on the holdout (`holdout-hud-f2` r1-r3) every repeat hit the time
-  cap first (F6), one of them mid-route. Question to Logan at the top of
-  `holdout-hud-f2-r3`'s report.
+  cap first (F6). From the hand-made start state (`holdout-hud-start`
+  r1-r3, ADR-0023) the route ran and reached the right bytes in every
+  repeat, but nothing was recorded (F13), so there is still no claim to
+  grade.
 - **A re-run checks:** the line's claim is `derived` (its address came out
   of the session's own search), not read from a guessed block.
 
@@ -109,10 +111,11 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Seen:** `20261009-1209-holdout-sheet3` task 1: name registration took
   dozens of calls; Link died twice during idle waits.
 - **Lines hit:** Zelda C1.* (holdout).
-- **Changed:** nothing.
-- **Status:** `holdout-only`, now blocking: `holdout-hud-f2` r1-r3 all hit
-  the 900 s cap (240, 199, 160 calls) with nothing recorded. SMB's setup is
-  two Start presses. Question to Logan in `holdout-hud-f2-r3`'s report.
+- **Changed:** holdout runs start from a save state Logan made by hand
+  (ADR-0023, his answer to `holdout-hud-f2-r3`'s question); `load_state`
+  takes a file from Mesen's SaveStates folder.
+- **Status:** `fixed` for the holdout: `holdout-hud-start` r1-r3 spent no
+  call on setup. SMB's setup is two Start presses.
 - **A re-run checks:** n/a until an SMB run shows it.
 
 ## F7. A broken tool
@@ -213,3 +216,28 @@ change bought; if the failure comes back, reopen it with the new run.
   remains (cosmetic; no line lost to it).
 - **A re-run checks:** no `reset_emulator` error in the streams, and the
   origin lines reach `write+reset+look`.
+
+## F13. Every record held until all values are settled; the cap ends it first
+
+- **Seen:** `20261009-2153`/`2209`/`2224-holdout-hud-start` r1-r3: each
+  repeat had written and seen the HUD follow at least one right byte
+  (hearts `$066F`/`$0670`; rupees, keys in r2-r3) and recorded none before
+  the 900 s cap, spending the time decoding the next value instead.
+- **Lines hit:** Zelda C1.rupees, C1.bombs, C1.keys, C1.hearts (holdout).
+- **Changed:** nothing (holdout: ADR-0020 §5).
+- **Status:** `holdout-only`. SMB runs record line by line; if an SMB
+  four-line task shows it, the change is a task or skill line "record each
+  value as soon as its proof screenshot is taken".
+- **A re-run checks:** a claim per proven value, in the order proven.
+
+## F14. search_memory refused the CPU address space
+
+- **Seen:** `20261009-2209` and `2224-holdout-hud-start`:
+  `search_memory {"mem_type":"cpuDebug"}` → `bridge.lua: invalid memory
+  type`; the tool's own description offers `cpuDebug`.
+- **Lines hit:** any line whose search is over RAM by value (sheet 3).
+- **Changed:** `bridge.lua` `search_memory` sizes `cpu`/`cpuDebug` as 64 KiB
+  and `ppu`/`ppuDebug` as 16 KiB when Mesen will not size them.
+- **Status:** `fixed` (checked live through the bridge before sheet 1).
+- **A re-run checks:** no `invalid memory type` in any stream.
+

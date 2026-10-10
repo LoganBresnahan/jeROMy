@@ -1,13 +1,13 @@
-# Config: 20261009-2145-holdout-hud-start-r1
+# Config: 20261009-2209-holdout-hud-start-r2
 
-- commit: `aa7e0e3`
+- commit: `f1c9512+dirty`
 - game: Legend of Zelda, The (USA) (sha1 `799459548f9636dd263200da494f04058f5540e2`)
 - spec: `eval/spec/zelda.json` v2 · lines: C1.rupees,C1.bombs,C1.keys,C1.hearts
 - model: deepseek-flash · blind: true (JEROMY_BLIND=1) · holdout: true
 - re-run of: `20261009-1358-holdout-hud-f2-r3` (eval/failures.md entries for these lines apply)
-- caps: $1.00 per run · min tool calls per task 8 · trio timeout 420 s
-- balance before: $5.39
-- started: 2026-10-09T21:45:31-05:00
+- caps: $1.00 per run · min tool calls per task 15 · trio timeout 900 s
+- balance before: $5.22
+- started: 2026-10-09T22:09:23-05:00
 
 ## Task 1
 
@@ -16,3 +16,4 @@ Mapping sheet 3 (the RAM a hacker reaches for), scene the first overworld screen
 ```
 
 [eval-mapping-in] no in-scope entries to hold back
+- balance after: $5.10 · ended: 2026-10-09T22:24:35-05:00

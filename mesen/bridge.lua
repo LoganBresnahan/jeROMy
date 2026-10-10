@@ -394,7 +394,14 @@ function handlers.search_memory(params)
   local mem_type = params.mem_type or "prgRom"
   local mt = MT[mem_type]
   if not mt then error("unknown mem_type: " .. tostring(mem_type)) end
-  local size = emu.getMemorySize(mt)
+  -- Mesen sizes only the backing memories; the CPU/PPU address spaces (cpu, cpuDebug, ppu,
+  -- ppuDebug) throw "invalid memory type" there (holdout 20261009-2209), so they get their bus width.
+  local BUS = { cpu = 0x10000, cpuDebug = 0x10000, ppu = 0x4000, ppuDebug = 0x4000 }
+  local ok_size, size = pcall(emu.getMemorySize, mt)
+  if not ok_size or not size or size <= 0 then
+    size = BUS[mem_type]
+    if not size then error("cannot size mem_type " .. mem_type .. ": " .. tostring(size)) end
+  end
   local start = params.start or 0
   local max_len = 64 * 1024
   local length = math.min(params.length or (size - start), size - start, max_len)

@@ -2,6 +2,9 @@
 
 ## Question for Logan (blocks the F2 measurement)
 
+**Answered 2026-10-09: (b).** Logan made the start state by hand; ADR-0023;
+the re-run is `20261009-2224-holdout-hud-start-r3`.
+
 The holdout cannot measure the `find-variable` route for values play
 cannot change: all three repeats hit the 900 s trio cap before recording
 anything. On Zelda the cap is spent on name registration, idle deaths, and
