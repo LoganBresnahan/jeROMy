@@ -43,8 +43,8 @@ looking for it by enemy-slot reads, and spent the rest of the cap there.
 
 ## The change the Koopa argues for
 
-A task fact, not a skill change: where the Koopa is on 1-1 (it is the only
-Koopa in the level, near the stairs after the last ? blocks), or a route
+A task fact, not a skill change: where the Koopa is on 1-1 (r1 found it
+at level x about 1650, page 6, and it spawns as the camera nears), or a route
 that spawns one: the enemy-type entry (sheet 3) turns a Goomba into a
 Koopa when written, which is how the old hand-made session drew one. The
 Koopa line stays open for the next sheet-1 run with the star.
