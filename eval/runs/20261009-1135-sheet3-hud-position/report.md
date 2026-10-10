@@ -6,6 +6,9 @@ position). deepseek-flash, $0.04, 97 tool calls, 410 s.
 
 ## Question for Logan (methodology, not blocking)
 
+**Answered 2026-10-09: leave as is.** SMB lines count when `agrees` and
+proven; `derived` stays a reported column (eval/failures.md F4).
+
 **deepseek-flash knows SMB's RAM map from training.** Task 1's reasoning
 says, before any search: "In SMB, TIME is stored as three separate digits
 at $07F8-$07FA... But I should find without reference". Task 2 found world

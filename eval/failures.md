@@ -87,9 +87,10 @@ change bought; if the failure comes back, reopen it with the new run.
   the method's.
 - **Changed:** the grader marks `derived` (commit `7593dc6`); nothing in
   the worker changes, by design.
-- **Status:** `open` (a measurement, not a defect to fix). Question to
-  Logan at the top of `20261009-1135`'s report: whether SMB lines should
-  count only when derived.
+- **Status:** `open` (a measurement, not a defect to fix). Logan decided
+  2026-10-09: SMB lines count when `agrees` and proven; `derived` is
+  reported beside it as the method's number, and the holdout carries the
+  claim that the method generalises.
 - **A re-run checks:** report `derived` beside `right`; a line right but
   not derived is not evidence the method works.
 
