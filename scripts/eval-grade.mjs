@@ -185,7 +185,10 @@ function main(argv) {
   if (run.rerun_of) {
     const prior = resolve("eval/runs", run.rerun_of);
     if (existsSync(prior)) {
-      const cmp = compareRuns(inScope, gradeStreams(prior, reference, spec).rows, rows);
+      const priorRows = gradeStreams(prior, reference, spec).rows;
+      // The earlier run's picture rows are pending until its own judgments are applied; without them "before" read needs-judge.
+      if (existsSync(join(prior, "judged.json"))) applyJudgments(priorRows, JSON.parse(readFileSync(join(prior, "judged.json"), "utf8")));
+      const cmp = compareRuns(inScope, priorRows, rows);
       writeFileSync(join(dir, "comparison.md"), [
         `## Against ${run.rerun_of}`, "",
         `Both runs graded under ${spec.game} v${spec.spec_version}.`, "",

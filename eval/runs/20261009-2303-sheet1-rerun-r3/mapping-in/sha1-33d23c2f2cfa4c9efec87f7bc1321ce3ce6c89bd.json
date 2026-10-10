@@ -1,0 +1,711 @@
+{
+  "rom_sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
+  "rom_name": "Super Mario Bros. (World).nes",
+  "version": 18,
+  "schema": 3,
+  "contributors": [],
+  "description": "Auto-discovered mappings for Super Mario Bros. (World).nes",
+  "tiles": {
+    "0x60-0x6A": {
+      "name": "warp_pipe_tile_set (palette 0)",
+      "category": "interactive",
+      "group": "pipe",
+      "notes": "Green pipe in 1-1 at NT1 cols 24-27, rows 22-25 (32px wide, 32px above ground, screen x 125-156). Row 22 = $60-$63 rim top (rounded corners), row 23 = $64-$67 rim lower, rows 24-25 = $68,$69,$26,$6A shaft ($26 carries the black/green shading under the lip). Index 1 = $29 lime green, 2 = $1A green, 3 = $0F black. Clicked tile was $64 at (132,184), rendered $29."
+    },
+    "0x70-0x73": {
+      "name": "goomba 2x2 sprite tiles (16x16)",
+      "category": "enemy",
+      "group": "goomba",
+      "notes": "Sprite pattern table. Goomba = 4 x 8x8 OAM entries, 2 wide x 2 tall (16x16), palette 7. $71 is the mirror of $70 (top half: brown dome + black eye), $73 mirrors $72 (bottom half: brown + peach feet). SMB draws a blank top row of $FC when it emits the 3-row form. OAM slots rotate every frame, so slot numbers change; identify by position+tiles."
+    },
+    "0x20-0x27": {
+      "name": "big Mario 2x4 sprite set (16x32)",
+      "category": "player",
+      "group": "mario",
+      "notes": "Super Mario is 8 x 8x8 OAM entries in a 2-wide x 4-tall grid = 16x32. In this frame: rows y=163/171/179/187 at x=68/76 with tiles $21/$20, $23/$22, $25/$24, $27/$26, all h-flipped (facing left), palette 4. $25 = body tile (red $16 with black/olive detail). Small Mario would be only 4 entries."
+    },
+    "0x69": {
+      "name": "pipe shaft highlight stripe (2nd column)",
+      "category": "interactive",
+      "group": "pipe",
+      "notes": "CHR $169 = solid palette index 1 with a 1px index-2 seam at column 5. Under BG palette 0 that is $29 lime green with a $1A green line, so it is the pipe's bright face. Stacked 4 rows tall in tall 1-1 pipes (NT0 cols 12-15 rows 22-25); the connected slot-1 run is 5 px wide x 32 px tall = 160 px. Slots 1-3 of BG palette 0 are all in use on screen, so it cannot be isolated by a tile edit."
+    },
+    "0x08-0x17": {
+      "name": "big Mario pose sets (facing right)",
+      "category": "player",
+      "group": "mario",
+      "notes": "Unflipped (attr 0) 8-tile blocks: $08-$0F and $10-$17 are two poses of the same 2x4 16x32 stack, both palette 4. Seen at (112,177)-(127,208) while walking right; $0C/$14 are the middle-left body tiles (red $16 with $18 dark shading). SMB1 stores left/right poses as separate tiles (turn 2's left-facing Mario used $20-$27 with every OAM entry h-flipped)."
+    },
+    "chr:0x153": {
+      "name": "question_block_16x16_metatile (tile ids 53 55 54 56, order TL/BL/TR/BR)",
+      "table": 1,
+      "category": "interactive",
+      "group": "block",
+      "notes": "The 16x16 ? block in World 1-1 is composed of four 8x8 BG tiles drawn from the BG pattern table ($1000): top row 0x53 (TL) / 0x54 (TR), bottom row 0x55 (BL) / 0x56 (BR), attribute palette 3. These ids come from a 4-byte metatile entry in PRG ROM at prgRom 0x6E8B... no: at prgRom 0xC8C = bytes 53 55 54 56 (column order TL, BL, TR, BR). Found by reading the live nametable (nametable 1 row 18 cols 10-11 = 0x53,0x54; row 19 = 0x55,0x56) then search_memory prgRom for '53 55', which hit 0xC8C and 0xC90 (two identical ?-block entries 4 bytes apart, part of a table of 4-byte metatiles at 0xC84-0xCA3: B0B1B2B3 / 77797779 / 53555456 / 53555456 / A5A7A6A8 / C2C4C3C5 / 5759585A / 7B7D7C7E). Proof (ledgered write, eval-sheet2-tiles seq 1): write_memory prgRom 0xC8C = 0x00 (was 0x53), reset_emulator, press Start twice, hold Right 150 frames -> PPU nametable 1 byte at (col 0,row 18) read 0x00 (was 0x53) and get_tile_at_pixel at screen (137,147) returned tile_id 0 / chr_tile 0x100, i.e. the first ? block (level x 256) now shows the HUD slashed-zero tile in its top-left cell; undo_edit restored 0x53. Note 0xC90 is an identical entry used by other ? blocks in 1-1 (the ones at level x 336), so the metatile table is the source for all of them.",
+      "rom_origins": [
+        {
+          "mem": "prgRom",
+          "offset": 3212,
+          "length": 4,
+          "notes": "? block 16x16 metatile entry [TL,BL,TR,BR] = 53 55 54 56; part of the 4-byte metatile table at 0xC84-0xCA3. 0xC90 is an identical entry for the other ? block variant."
+        }
+      ],
+      "source": "search and ledgered write"
+    },
+    "chr:0x145": {
+      "name": "brick top-left (same tile is also the top-right quadrant of the block)",
+      "table": 1,
+      "category": "background",
+      "group": "brick",
+      "notes": "CHR $145 (BG pattern table $1000, nametable tile id $45), top 8x8 row of the 16x16 breakable brick block in World 1-1. Pixel grid: row0 all index 1 (the block's top highlight), rows1-2 index 2 with index 3 at col7, row3 all index 3 (horizontal mortar), rows4-6 index 2 with index 3 at col3, row7 all index 3 - i.e. a brick texture designed to repeat horizontally. Placed in the live nametable twice: rows 18 cols 16 AND 17 both hold $45 (PPU $2650,$2651 = 45 45), so this one tile is both the top-left and the top-right quadrant of the block. Palette 1 (slot 1 $36 peach highlight, slot 2 $17 brown face, slot 3 $0F black mortar). Proof: get_region object mode at (232,152) returned 256 connected background palette-1 pixels, box (231,144)-(246,159), CHR 0x145/0x147; get_tile_at_pixel (233,148) and (241,148) both returned tile_id 69 ($45) / chr_tile 325; read_memory ppu 9808 len 2 = [69,69] and read_nametable 1 (16,18) = 45 45."
+    },
+    "chr:0x147": {
+      "name": "brick bottom-left (same tile is also the bottom-right quadrant of the block)",
+      "table": 1,
+      "category": "background",
+      "group": "brick",
+      "notes": "CHR $147 (BG pattern table $1000, nametable tile id $47), bottom 8x8 row of the 16x16 breakable brick block in World 1-1. Pixel grid is identical to $145 except row0 is all index 2 - no highlight, because the top-edge highlight belongs to the $145 half above it. Placed in the live nametable twice: rows 19 cols 16 AND 17 both hold $47 (PPU $2670,$2671 = 47 47), so this one tile is both the bottom-left and bottom-right quadrant of the block. Palette 1 (slot 1 $36 peach, slot 2 $17 brown, slot 3 $0F black mortar). Proof: same get_region object mode at (232,152) (background palette 1, box (231,144)-(246,159), CHR 0x145/0x147); get_tile_at_pixel (233,156) and (241,156) both returned tile_id 71 ($47) / chr_tile 327; read_memory ppu 9840 len 2 = [71,71] and read_nametable 1 (16,19) = 47 47. NOTE: ground/floor bricks are a different, non-repeating set ($B4-$B7 from CHR $1B4-$1B7) recorded under group 'ground'."
+    },
+    "chr:0x1B4": {
+      "name": "ground brick top-left (left edge + top highlight)",
+      "table": 1,
+      "category": "background",
+      "group": "ground",
+      "notes": "CHR $1B4. 16x16 ground brick block = 2x2 tiles: nametable row 26/28 cols even = $B4 (top-left), odd = $B5; row 27/29 = $B6/$B7. Pixel grid is index 2 fill with an index-1 line down the left column and across the top row: under BG palette 1 index 1 = $36 peach (the row's bright top highlight / left edge), index 2 = $17 brown. Proof: get_region object mode at (10,228) returned background palette 1, slots 1-3, box (0,208)-(63,239), CHR tiles 0x1B4/0x1B5/0x1B6/0x1B7."
+    },
+    "chr:0x1B5": {
+      "name": "ground brick top-right (mortar seams)",
+      "table": 1,
+      "category": "background",
+      "group": "ground",
+      "notes": "CHR $1B5. Top-right quadrant of the 16x16 ground brick: index-2 brown fill crossed by index-3 (black mortar) lines and index-1 ($36 peach) highlight dashes. Placed at nametable 0 rows 26 and 28, odd columns. Palette 1. Proof: same get_region as $B4 (object mode at (10,228))."
+    },
+    "chr:0x1B6": {
+      "name": "ground brick bottom-left (brick face + left edge)",
+      "table": 1,
+      "category": "background",
+      "group": "ground",
+      "notes": "CHR $1B6. Bottom-left quadrant of the 16x16 ground brick: index-1 ($36 peach) left edge, index-2 ($17 brown) face, index-3 ($0F) black mortar staircase. Placed at nametable 0 rows 27 and 29, even columns. Palette 1. Proof: same get_region as $B4 (object mode at (10,228)); get_tile_at_pixel(10,234) returned tile_id 183 / chr_tile 439 for the row below it."
+    },
+    "chr:0x1B7": {
+      "name": "ground brick bottom-right (mortar seams)",
+      "table": 1,
+      "category": "background",
+      "group": "ground",
+      "notes": "CHR $1B7. Bottom-right quadrant of the 16x16 ground brick: index-2 ($17 brown) fill with index-3 ($0F black) mortar lines and index-1 ($36 peach) edge dashes. Placed at nametable 0 rows 27 and 29, odd columns. Palette 1. Proof: same get_region as $B4 (object mode at (10,228))."
+    },
+    "chr:0x130": {
+      "name": "hill left slope edge",
+      "table": 1,
+      "category": "background",
+      "group": "hill",
+      "notes": "CHR $130. Index-3 ($0F black) diagonal from top-right to bottom-left with index-2 ($1A green) fill to its lower-right: the hill's descending left flank. Forms the hill's left staircase (nametable 0: col3 row22, col2 row23, col1 row24, col0 row25). Palette 0, slots 2+3. Proof: get_region object mode at (25,196) returned background palette 0, slots 2,3, box (0,173)-(63,207), CHR 0x126/0x130/0x131/0x132/0x133/0x134; nametable 0 (0,21) 12x6 read."
+    },
+    "chr:0x131": {
+      "name": "hill top-left slope",
+      "table": 1,
+      "category": "background",
+      "group": "hill",
+      "notes": "CHR $131. Opaque only in the bottom rows, filled index-2 ($1A green) with an index-3 ($0F black) top edge: the hill's upper-left slope just below the peak. Placed at nametable 0 col4 row21 (screen box (32,168)-(39,175)). Palette 0. Proof: get_region object mode at (25,196) (tiles list) plus nametable 0 (0,21)."
+    },
+    "chr:0x132": {
+      "name": "hill top-right slope",
+      "table": 1,
+      "category": "background",
+      "group": "hill",
+      "notes": "CHR $132. Mirror of $131: opaque bottom rows, index-2 ($1A green) fill with index-3 ($0F black) top edge rising to the right - the hill's upper-right slope just below the peak. Placed at nametable 0 col5 row21. Palette 0. Proof: get_region object mode at (25,196) (tiles list) plus nametable 0 (0,21)."
+    },
+    "chr:0x133": {
+      "name": "hill right slope edge",
+      "table": 1,
+      "category": "background",
+      "group": "hill",
+      "notes": "CHR $133. Mirror of $130: an index-3 ($0F black) diagonal from top-left to bottom-right with index-2 ($1A green) fill below-left - the hill's descending right flank (nametable 0: col6 row22, col7 row23, col8 row24, col9 row25). Palette 0. Proof: get_region object mode at (70,200) returned background palette 0 slots 2,3, box (38,173)-(79,207), CHR 0x126/0x131/0x132/0x133/0x134; nametable 0 (0,21)."
+    },
+    "chr:0x126": {
+      "name": "hill body fill",
+      "table": 1,
+      "category": "background",
+      "group": "hill",
+      "notes": "CHR $126. All 64 pixels are palette index 2 = $1A green under BG palette 0: the solid interior of the hill (and, recoloured, a generic solid fill). Fills nametable 0 cols 1-8 rows 22-25 inside the slopes. Proof: get_region object mode at (25,196) returned it as the dominant tile (background palette 0, slots 2,3); read_tile shows a uniform index-2 grid."
+    },
+    "chr:0x134": {
+      "name": "hill body with dark spot",
+      "table": 1,
+      "category": "background",
+      "group": "hill",
+      "notes": "CHR $134. Index-2 ($1A green) hill body carrying index-3 ($0F black) marks - a blob in the upper middle-right plus a 2-wide bar at the lower left - i.e. the hill's dark speckle/\"eye\" detail. Placed at nametable 0 col5 row22, col3 row24 and col6 row24, which is what puts the black marks on the hill in the screenshot (get_pixel_color(30,194) = $0F black). Palette 0, slots 2+3. Proof: get_region object mode at (25,196) listed CHR 0x134; read_tile shows the index-3 marks."
+    },
+    "chr:0x125": {
+      "name": "bush body fill (solid lime green)",
+      "table": 1,
+      "category": "background",
+      "group": "bush",
+      "notes": "CHR $125, BG pattern table $1000. All 64 pixels are palette index 1, so under BG palette 0 it is a solid $29 lime-green block: the bush's body fill. In the first screen of World 1-1 it fills nametable 0 row 25 (screen y 200-207) columns 24-29 (screen x 184-247), the lower half of the 8x2-tile bush; nametable tile id $25 (37). Part of the bush object get_region(object mode) at (215,200): background palette 0, slots 1,2,3, 740 connected pixels, bbox (184,192)-(246,207), CHR $125/$135/$136/$137/$138.",
+      "source": "get_region object mode + read_nametable + read_tile"
+    },
+    "chr:0x135": {
+      "name": "bush bottom-left end cap",
+      "table": 1,
+      "category": "background",
+      "group": "bush",
+      "notes": "CHR $135, BG pattern table $1000. Index-3 ($0F black) outline runs from the top-right corner down the left side, with index-1 ($29 lime green) fill to its lower-right: the rounded left end of the bush's base row. Placed at nametable 0 row 25 col 23 (screen x 184-191, y 200-207), i.e. one tile left of the body fill; nametable tile id $35 (53). Part of the bush object get_region(object mode) at (215,200) (background palette 0, slots 1,2,3, bbox (184,192)-(246,207)).",
+      "source": "get_region object mode + read_nametable + read_tile"
+    },
+    "chr:0x136": {
+      "name": "bush top bump A (outline on its right edge)",
+      "table": 1,
+      "category": "background",
+      "group": "bush",
+      "notes": "CHR $136, BG pattern table $1000. Index-3 ($0F black) outline at the top-right corner running diagonally down-left over an index-1 ($29 lime green) fill, with a little index-2 ($1A green) shading near the bottom: a rounded bush top. Used in the bush's upper row at nametable 0 row 24, alternating with $137: cols 24, 26 and 28 (screen x 192, 208, 224; y 192-199); nametable tile id $36 (54). Part of the bush object get_region(object mode) at (215,200) (background palette 0, slots 1,2,3, bbox (184,192)-(246,207)). Mirror partner: $137.",
+      "source": "get_region object mode + read_nametable + read_tile"
+    },
+    "chr:0x137": {
+      "name": "bush top bump B (outline on its left edge)",
+      "table": 1,
+      "category": "background",
+      "group": "bush",
+      "notes": "CHR $137, BG pattern table $1000. Mirror of $136: index-3 ($0F black) outline at the top-left corner running diagonally down-right over an index-1 ($29 lime green) fill, with index-2 ($1A green) shading: a rounded bush top facing the other way. Used in the bush's upper row at nametable 0 row 24, alternating with $136: cols 25, 27 and 29 (screen x 200, 216, 232; y 192-199); nametable tile id $37 (55). Part of the bush object get_region(object mode) at (215,200) (background palette 0, slots 1,2,3, bbox (184,192)-(246,207)). Mirror partner: $136.",
+      "source": "get_region object mode + read_nametable + read_tile"
+    },
+    "chr:0x138": {
+      "name": "bush bottom-right end cap",
+      "table": 1,
+      "category": "background",
+      "group": "bush",
+      "notes": "CHR $138, BG pattern table $1000. Index-3 ($0F black) outline fragments over an index-1 ($29 lime green) fill: the rounded right end of the bush's base row (the mirror role of $135). Placed at nametable 0 row 25 col 30 (screen x 240-247, y 200-207), one tile right of the body fill; nametable tile id $38 (56). Part of the bush object get_region(object mode) at (215,200) (background palette 0, slots 1,2,3, bbox (184,192)-(246,207)).",
+      "source": "get_region object mode + read_nametable + read_tile"
+    },
+    "chr:0x100": {
+      "name": "font digit 0",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x100: pixels form a closed oval '0' (index-1 outline). HUD score cells row3 cols 3-8, coin count cols 13-14, TIME cols 26-28."
+    },
+    "chr:0x101": {
+      "name": "font digit 1",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x101: a single vertical stroke with a small flag at the top and a full-width base - the numeral '1'. HUD world/level digit row3 col 19/21."
+    },
+    "chr:0x102": {
+      "name": "font digit 2",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x102: top bar, diagonal down-left then a full bottom bar - the numeral '2'."
+    },
+    "chr:0x103": {
+      "name": "font digit 3",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x103: top bar, a middle jog then a lower bowl - the numeral '3'. Read live at HUD TIME row3 col 26 = '3' (TIME 348 screenshot)."
+    },
+    "chr:0x104": {
+      "name": "font digit 4",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x104: a diagonal descending to a horizontal crossbar with a vertical stroke through it - the numeral '4'. Read live at HUD TIME row3 col 27 (TIME 348)."
+    },
+    "chr:0x105": {
+      "name": "font digit 5",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x105: top bar, left stem, then a bowl at the bottom right - the numeral '5'."
+    },
+    "chr:0x106": {
+      "name": "font digit 6",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x106: a left hook closing into a full lower loop - the numeral '6'."
+    },
+    "chr:0x107": {
+      "name": "font digit 7",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x107: a full top bar with a diagonal stroke descending to the left - the numeral '7'."
+    },
+    "chr:0x108": {
+      "name": "font digit 8",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x108: two stacked closed loops - the numeral '8'. Read live at HUD TIME row3 col 28 (TIME 348)."
+    },
+    "chr:0x109": {
+      "name": "font digit 9",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x109: an upper loop closing into a right-bowl tail - the numeral '9'."
+    },
+    "chr:0x128": {
+      "name": "font hyphen (world-level separator)",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x128: two rows of index-1 pixels in the middle of the tile only - a short dash. Read live in the HUD between the world and level digits: '1-1' = $01 $28 $01 at row3 cols 19-21."
+    },
+    "chr:0x129": {
+      "name": "font times x (coin separator)",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x129: two diagonals crossing in the middle rows - a lowercase 'x'. Read live in the HUD coin display 'x00' at row3 col 12 (between coin icon col 11 and count cols 13-14)."
+    },
+    "chr:0x12E": {
+      "name": "HUD coin icon",
+      "table": 1,
+      "category": "background",
+      "group": "hud",
+      "notes": "read_tile 0x12E: a rounded vertical oval, index-1 fill with a 1px index-3 line down the right edge (a coin's shading). Drawn under ATTRIBUTE PALETTE 3 (orange block face palette [$27 orange, $17 brown, $0F black]) at HUD row 3 col 11, i.e. the coin symbol before the 'xNN' count. Proof: read_nametable 0 row3 col11 = $2E with palette_id 3 while the surrounding HUD text is palette 2; the screenshot shows the yellow-orange coin left of 'x00'."
+    },
+    "chr:0x10A": {
+      "name": "font letter A",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x10A: two diagonals meeting at a peak with a crossbar across the middle - the letter 'A'. Read live in the HUD 'MARIO' at row2 col 4 ($16 $0A $1B $12 $18)."
+    },
+    "chr:0x10D": {
+      "name": "font letter D",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x10D: flat left stem with a rounded bowl on the right - the letter 'D'. Read live in the HUD 'WORLD' at row2 col 22 ($20 $18 $1B $15 $0D)."
+    },
+    "chr:0x10E": {
+      "name": "font letter E",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x10E: a left stem with full top, middle and bottom bars - the letter 'E'. Read live in the HUD 'TIME' at row2 col 28 ($1D $12 $16 $0E)."
+    },
+    "chr:0x112": {
+      "name": "font letter I",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x10E/0x112: a top bar, a central vertical stem and a bottom bar - the letter 'I'. Read live in the HUD 'MARIO' row2 col 6 and 'TIME' row2 col 26."
+    },
+    "chr:0x115": {
+      "name": "font letter L",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x115: a left stem with a full bottom bar - the letter 'L'. Read live in the HUD 'WORLD' at row2 col 21 ($20 $18 $1B $15 $0D)."
+    },
+    "chr:0x116": {
+      "name": "font letter M",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x116: two vertical stems joined by a middle V - the letter 'M'. Read live in the HUD 'MARIO' at row2 col 3 and 'TIME' at row2 col 27 (same tile, so the letterform is shared)."
+    },
+    "chr:0x118": {
+      "name": "font letter O",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x118: a closed oval - the letter 'O'. Read live in the HUD 'MARIO' row2 col 7 and 'WORLD' row2 col 19 (shared)."
+    },
+    "chr:0x11B": {
+      "name": "font letter R",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x11B: a left stem with a bowl at the top and a leg kicking out at the lower right - the letter 'R'. Read live in the HUD 'MARIO' row2 col 5 and 'WORLD' row2 col 20 (shared)."
+    },
+    "chr:0x11D": {
+      "name": "font letter T",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x11D: a full top bar with a single central vertical stem - the letter 'T'. Read live in the HUD 'TIME' at row2 col 25 ($1D $12 $16 $0E)."
+    },
+    "chr:0x120": {
+      "name": "font letter W",
+      "table": 1,
+      "category": "background",
+      "group": "font",
+      "notes": "read_tile 0x120: two outer stems with a central inverted-V making the middle notch - the letter 'W'. Read live in the HUD 'WORLD' at row2 col 18 ($20 $18 $1B $15 $0D)."
+    }
+  },
+  "palettes": {
+    "0": {
+      "name": "pipe_bush_hill_green",
+      "rom_origins": [
+        {
+          "mem": "prgRom",
+          "offset": 3276,
+          "length": 1,
+          "notes": "level palette table slot 1"
+        },
+        {
+          "mem": "prgRom",
+          "offset": 3275,
+          "length": 4,
+          "notes": "32-byte level palette block starts at 0xCCB (BG palettes 0-3 then sprite palettes 4-7); BG palette 0 slot 1 is at 0xCCC and was changed $29 -> $16"
+        }
+      ]
+    },
+    "1": {
+      "name": "overworld ground/brick BG palette",
+      "notes": "SMB1 World 1-1. Entry values [0F,36,17,0F]: index 1 = brick highlight (originally $36 peach, verified by writing $12 bright blue and seeing the top highlight line of the ground brick row turn blue at y=224), index 2 = brick brown ($17). Ground brick tile 181 (and 180) sample with palette_id 1."
+    },
+    "4": {
+      "name": "small_mario_sprite_palette (red cap/shirt, orange skin, olive-brown hair/shoes)",
+      "notes": "Sprite palette 4 = [$22, $16, $27, $18] in PPU RAM. What each slot paints on small Mario: slot 0 $22 periwinkle is never drawn (sprite pixel value 0 is transparent); slot 1 $16 red paints his cap and shirt (the large red areas); slot 2 $27 orange paints his face/skin and hands; slot 3 $18 olive-brown paints his hair, mustache and shoes (the dark detail). Proof (World 1-1, paused): baseline get_pixel_color(45,204) on the cap/shirt read $16 red, get_pixel_color(44,196) on the face read $27 orange. write_palette(4,1) $16 -> $2C cyan and step_frame 1: the cap and shirt turned cyan (get_pixel_color(45,204) = $2C cyan) while the face pixel (44,196) stayed $27 orange — so slot 1 is exactly the red cap/shirt, not the skin. clear_palette_overrides restored slot 1 and get_pixel_color(45,204) read $16 red again. Only Mario uses this palette on this screen (the Goomba is palette 7), so the change recoloured Mario alone.",
+      "source": "write_palette test + get_pixel_color"
+    },
+    "0 (background)": {
+      "name": "pipe_bush_hill_green + shared sky backdrop",
+      "notes": "World 1-1: slot 1 = $29 lime green (pipe/warp-pipe body), slot 2 = $1A green (pipe shading), slot 3 = $0F black (outline). Slot 0 = $22 periwinkle, the universal backdrop written at $3F00: every background palette renders index 0 as this colour, so it is the whole sky. Clicked pipe pixel (132,184) renders $29."
+    },
+    "2 (background)": {
+      "name": "cloud_white (white body, black outline)",
+      "notes": "Slot 1 = $30 white (cloud body), slot 3 = $0F black (1px outline, sampled on the big cloud at (119,60),(135,49),(150,70) = rgb 0,0,0), slot 2 = $21 sky blue. Palette RAM slot 0 reads $0F but the PPU renders index 0 as the $3F00 backdrop $22 periwinkle."
+    },
+    "3 (background)": {
+      "name": "question_block_orange",
+      "notes": "Slot 1 = $27 orange (block face), slot 2 = $17 brown (rivet dashes and ? glyph), slot 3 = $0F black (block border). Used by the 16x16 ? block: tiles $53/$54 (top half) $55/$56 (bottom half). Palette RAM slot 0 reads $0F; index 0 renders the $3F00 backdrop $22."
+    },
+    "7 (sprite)": {
+      "name": "goomba (brown body, black eye, peach feet)",
+      "notes": "Sprite palette 7 = $0F, $0F, $36 peach, $17 brown. Slot 3 brown = Goomba body, slot 1 black = eye, slot 2 peach = feet/underside; slot 0 is transparent for sprites. Sampled at (221,196) = rgb(153,78,0) = $17 on the left 1-1 Goomba."
+    }
+  },
+  "sprites": {
+    "small_mario": {
+      "tiles": [],
+      "palette_id": 0,
+      "notes": "Proof: list_sprites in the first screen of World 1-1 (game_mode $0770=1, small Mario standing on the left hill). Player y $00CE read 176, so the metasprite box top is OAM y=177. The game lays the player out as a 2-wide x 4-tall (16x32) OAM box; for small Mario the top two rows are blank $FC filler and only the bottom 16x16 carries his pixels. Every entry uses sprite palette 4. Entries, as (screen x, screen y) CHR tile, and offset from the box top-left (40,177), with flip:\n- (40,177) CHR $FC — blank filler, offset (0,0), no flip\n- (48,177) CHR $FC — blank filler, offset (8,0), no flip\n- (40,185) CHR $FC — blank filler, offset (0,8), no flip\n- (48,185) CHR $FC — blank filler, offset (8,8), no flip\n- (40,193) CHR $3A (OAM tile 58) — visible top-left, offset (0,16), no flip\n- (48,193) CHR $37 (OAM tile 55) — visible top-right, offset (8,16), no flip\n- (40,201) CHR $4F (OAM tile 79) — visible bottom-left, offset (0,24), no flip\n- (48,201) CHR $4F (OAM tile 79) — visible bottom-right, offset (8,24), h-flipped\nThe paired $4F tiles are the two shoes/feet (the right one mirrored); $3A/$37 are the cap+face half and the mirrored half. OAM slots rotate every frame, so identify Mario by position + these tiles.",
+      "source": "list_sprites decode"
+    }
+  },
+  "addresses": {
+    "0x075A": {
+      "address": "0x075A",
+      "mem_type": "cpu",
+      "description": "player_lives_counter: stores lives minus one (a 3-life game starts at 2) and decrements by one per death; the \"WORLD 1-1 x N\" card shows value + 1. Found by blind differential search (29 then 3 survivors over two deaths) and proven by writing 5 and watching the card follow; session b3d6d3a5, 2026-10-06.",
+      "source": "differential search"
+    },
+    "0x0086": {
+      "address": "0x0086",
+      "mem_type": "cpu",
+      "description": "player_x_position (Mario's horizontal level position within the page, low byte): Encoding: one byte, Mario's horizontal position within the current 256-pixel page; absolute level x = 0x006D*256 + 0x0086 (World 1-1 starts at 0x006D=0, 0x0086=40=0x28, and his on-screen sprite x = absolute x - camera). Found with no reference by differential search: three walking rounds (diff 'increased' 172 -> 57 -> 22 survivors) kept 0x0086, which rose ~1.5 px/frame; a 60-frame play_input watch showed it climb 244->255 then wrap to 0 and continue to 49 while the camera (0x073F) only reached 66, so a separate page byte had to exist. Proof by write_memory + screenshot: while paused, wrote 0x0086=150 (was 69) and stepped 2 frames - Mario's OAM entries (read with list_sprites) moved from screen x=0 to x=81 with the camera still at 69 (screenshot: Mario stands further right, next to the first Goomba). A second write 0x0086=200 with the camera at 114 put his OAM at screen x=86 = 200-114. Source: differential search.",
+      "length": 1,
+      "format": "binary",
+      "source": "differential search"
+    },
+    "0x00CE": {
+      "address": "0x00CE",
+      "mem_type": "cpu",
+      "description": "player_y_position (Mario vertical position): Encoding: one byte, the screen y of the top of Mario's sprite box; on the ground in 1-1 it reads 176, and it decreases as Mario rises (jump) and increases as he falls. Proof (differential + write): diff s3->s4 with filter 'decreased' after holding A for 10 frames showed $00CE 176 -> 141 (a copy moves with it at $03B8, 176 -> 141, and Mario's OAM y entries $0204/$0208 176 -> 141); then write_memory $00CE = 120 (0x78) while paused and stepping 2 frames left Mario hanging in mid-air at y~120 (screenshot: Mario floating in the sky above the bushes instead of standing on the ground). Source: differential search.",
+      "format": "binary, screen y (down is larger)",
+      "source": "differential search"
+    },
+    "0x075F": {
+      "address": "0x075F",
+      "mem_type": "cpu",
+      "description": "world_number: Encoding: the current world number, 0 = World 1, so World 1-1 holds 0. Proof (write + screenshot of the death card): in World 1-1, $075F read 0; write_memory $075F = 4 (together with $075C = 2), then held Right ~300 frames to die and let the card draw; the resulting screenshot showed both the fixed HUD and the black card reading 'WORLD 5-3' (world digit 5 = 4+1, level digit 3 = 2+1). The two values were distinct in the two positions, which fixes which address is world and which is level. Source: differential search / own judgement for a value that does not change by playing.",
+      "format": "binary, 0-based (displayed world = value + 1)",
+      "source": "differential search"
+    },
+    "0x075C": {
+      "address": "0x075C",
+      "mem_type": "cpu",
+      "description": "level_number: Encoding: the level number within the current world, 0 = the first level of the world, so World 1-1 holds 0. Proof (write + screenshot of the death card): $075C read 0 in 1-1; write_memory $075C = 2 (with $075F = 4), died by holding Right, and the 'WORLD 5-3' card screenshot confirmed the second digit is this byte (2 -> 3). Kept as the level number, not the world, because the two test values appeared in the positions matching their addresses. Source: differential search / own judgement for a value that does not change by playing.",
+      "format": "binary, 0-based (displayed level = value + 1)",
+      "source": "differential search"
+    },
+    "0x071C": {
+      "address": "0x071C",
+      "mem_type": "cpu",
+      "description": "screen_scroll_x (level's left edge, mod 256): Supporting variable found while chasing the horizontal position. $03AD (Mario's on-screen x) is computed as $0086 - $071C in the ROM routine at CPU $F171, so $071C is the x of the level's left edge (scroll) modulo 256. Watched during a hold-Right run: it climbed 1,6,14,24,38,...,119 and froze at 119 while Mario was blocked at a pipe at $0086=63 (screen x = 63-119 = 200). It does not wrap with Mario's byte (the two are on different 256-pixel pages once Mario has crossed one). Source: differential search.",
+      "format": "binary, 0-255",
+      "source": "differential search"
+    },
+    "0x03AD": {
+      "address": "0x03AD",
+      "mem_type": "cpu",
+      "description": "player_screen_x (derived on-screen x of Mario): Derived copy: ROM routine at CPU $F171 does LDA $0086,X / SEC / SBC $071C / STA $03AD,Y, so $03AD = player_x ($0086) - scroll ($071C) = Mario's x on the visible screen. Written every frame (trace_writes on $03AD gave PC $F17F, prgRom 0x717F, 60 writes in 30 frames). Writing $03AD directly has no effect: after write_memory $03AD = 200 and stepping one frame it was back to 40. Do not use it to move Mario; write $0086 instead. Source: differential search plus disassembly.",
+      "format": "binary, 0-255",
+      "source": "differential search"
+    },
+    "0x07ED": {
+      "address": "0x07ED",
+      "mem_type": "cpu",
+      "description": "coin_count_digits: Coin count shown next to the coin icon in the SMB HUD. Stored as two decimal digits, one per byte, at $07ED (tens) and $07EE (ones); the display redraws only when a coin is taken. Differential search: coin grabbed in 1-1 (score +200, coin x00 -> x01) gave d2 (332 'increased' survivors); a second coin after a death narrowed it, and intersecting with the 'new value = 1' set left 5 candidates for the ones digit, with the increase to 2 on the second coin leaving $07EE alone at a plausible low address. Proof by write: (a) with the HUD at x02, write_memory $07EE=$07 made the next coin show x08; (b) write_memory $07EE=$10 (16) then a coin: the increment routine added 1 in the ones byte, normalised 17>=10 to ones 7, tens+1, so RAM read $07ED=1,$07EE=7 and the screenshot showed the HUD coin count x17. The tens byte only moves on the 9->10 rollover, so the first differentials did not see it. Source: differential search.",
+      "length": 2,
+      "format": "one decimal digit per byte: 0x07ED = tens, 0x07EE = ones; count = 10*([0x07ED]) + [0x07EE]",
+      "source": "differential search"
+    },
+    "0x07F8": {
+      "length": 3,
+      "format": "one decimal digit per byte (0-9), hundreds/tens/ones; BCD-style, decrements with borrow",
+      "address": "0x07F8",
+      "mem_type": "cpu",
+      "description": "level_timer_digits (TIME): World 1-1 level timer shown as TIME. Encoding: three bytes, each holding one decimal digit 0-9 (not packed): $07F8 = hundreds (0 during play), $07F9 = tens, $07FA = ones. Differential search: snapshot s0->s1 (16 'decreased' survivors) showed $07F9 7->6 and $07FA 5->3, i.e. displayed TIME 075 -> 063 (-12 counts). A 300-frame play_input/watch on $07F8-$07FB showed $07F9 stepping 9->8 and $07FA stepping 8,7,6,...,0 then wrapping to 9 with $07F9 borrowing (98,97,...,90,89...), one step about every 24 frames (~0.4 s), while $07F8 stayed 0. Proof by write: while the HUD read TIME 085, write_memory $07F8-$07FA = 0,9,9; the game's own next decrement redrew the HUD and the screenshot showed TIME 097 (RAM 0,9,7), i.e. the display followed the written value and counted down from it. Source: differential search.",
+      "source": "differential search"
+    },
+    "0x006D": {
+      "address": "0x006D",
+      "mem_type": "cpu",
+      "description": "player_x_page (page / high byte of Mario's horizontal level position): Encoding: one byte, the page/high byte of Mario's horizontal level position; absolute level x = 0x006D*256 + 0x0086. Found with no reference by differential search: a 60-frame play_input watch showed 0x006D tick 0->1 at the exact frame 0x0086 wrapped 255->0, and a snapshot diff across a real crossing (q1->q2) reproduced it - 0x006D 0->1 while 0x0086 251->38 and the camera was still on page 0 at 113 - so it is the player's page, not the camera's. Proof by write_memory + screenshot: with the camera fixed at 114 and 0x0086=200 (page 0) Mario's OAM x read 86; after write_memory 0x006D=1 with 0x0086=100 and stepping, RAM kept 0x006D=1 / 0x0086=97 and Mario's OAM x jumped to 239 = (256+97)-114 (screenshot: Mario at the right edge of the screen, i.e. +256 level pixels despite a lower low byte). Note: setting a page more than one ahead of the camera's page (i.e. placing his computed screen x off the 0-255 range) makes the engine snap Mario back to the camera's left edge, so the proof uses a one-page step. Source: differential search.",
+      "length": 1,
+      "format": "binary",
+      "source": "differential search"
+    },
+    "0x075E": {
+      "address": "0x075E",
+      "mem_type": "cpu",
+      "description": "coin_count_binary (0-99; reaching 100 gives a 1-UP): Binary coin counter, separate from the two BCD HUD coin digits at $07ED/$07EE. The coin routine $BBFE does INC $075E at $BC0C, LDA $075E / CMP #$64 at $BC0F-$BC14, and if it reaches 100 does STA $075E=0 / INC $075A ($BC16-$BC1B) to grant an extra life. Observed: after one ? block coin, $075E=1 while $07EE=1. Found by disassembling the routine reached from the coin caller; the only PRG operands referencing $075E are inside $BBFE.",
+      "length": 1,
+      "format": "binary",
+      "source": "trace and disassembly"
+    },
+    "0x07DD": {
+      "address": "0x07DD",
+      "mem_type": "cpu",
+      "description": "score_digits: Six-digit score (plus a fixed 0 ones tile) shown under MARIO. Differential search + write proof. After a coin (+200 from 000000): c0->c1 'increased' left 332 candidates; a second coin (+200 from 000200 -> 000400) and filtering to values that went with the score left $07E1 (and $07DB) as the hundreds digit; only the hundreds digit changes for +200. Proof by write: while the HUD read 000400, write_memory $07E1=$09; collecting a coin (+200) redrew the HUD as 001100 (900+200), proving $07E1 = hundreds. Extent proof: wrote $07DD..$07E2 = 1,2,3,4,5,6 and one byte before it ($07DC=0); collecting a mushroom (+1000) changed $07E0 from 4 to 5 (RAM read 1,2,3,5,5,6) and the screenshot showed MARIO 1235560, so $07DD is the displayed leading digit and $07E0 the thousands digit; $07DC is not part of the score (the leading digit shown was 1, not 0). $07E3 read 0 throughout. Source: differential search. (A companion byte $07DB tracked the score in both coin events too; not recorded here.)",
+      "length": 6,
+      "format": "one decimal digit per byte (0-9), most significant first: 0x07DD = millions, 0x07DE = hundred-thousands, 0x07DF = ten-thousands, 0x07E0 = thousands, 0x07E1 = hundreds, 0x07E2 = tens; the HUD appends a fixed 0 tile for the ones place (scores are multiples of 10, 0x07E3 stays 0)",
+      "source": "differential search"
+    },
+    "0x074E": {
+      "address": "0x074E",
+      "mem_type": "cpu",
+      "description": "area_palette_index: Index into the area-palette selector table $85BB (=$01,$02,$03,$04), read by LoadAreaPalette at $85BF. World 1-1 holds 1 -> selector 2 -> the overworld palette block at $8CC8. Found with no reference: read 1 throughout World 1-1 play (play_input watch) and the value read from the table during the 1-1 reload was $85BC (=$85BB+1) = 2.",
+      "length": 1,
+      "format": "binary (0-based index into table $85BB)",
+      "source": "trace and disassembly"
+    },
+    "0x0773": {
+      "address": "0x0773",
+      "mem_type": "cpu",
+      "description": "vram_buffer_selector: Selects which buffer the NMI's VRAM transfer ($8EDD) copies. The NMI reads $805A,X and $806D,X with X=$0773 and drops the result into $00/$01. Entries: 0 -> $0301, 1 -> $8CA4, 2 -> $8CC8, 3 -> $8CEC, 4 -> $8D10 (four [3F 00 20 <32 palette bytes> 00] palette blocks), 5 -> $0300, 6 -> $0341 (RAM buffers). The NMI clears it to 0 every frame at $80DB, so it is a one-frame request. Found with no reference: trace_writes on $0773 for 600 frames showed 598 writes of 0 from PC $80DE (the NMI clear) plus a single nonzero write from the level-init palette step; the pointer tables were read from PRG at $805A/$806D.",
+      "length": 1,
+      "format": "binary (index into $805A/$806D pointer tables)",
+      "source": "trace and disassembly"
+    },
+    "0x0016": {
+      "address": "0x0016",
+      "mem_type": "cpu",
+      "description": "enemy_type: Enemy object TYPE/ID array, one byte per slot: $0016-$001B = enemy slots 0-5 (stride 1, count 6; slot 0 is the first enemy). The enemy spawner at CPU $C12F-$C13C does LDA $06CD / STA $16,X (type), then LDA #$01 / STA $0F,X (Enemy_Flag) and LDA #$00 / STA $1E,X (state), so the same per-slot index X addresses this array, the x low byte at $87,X, the page at $6E,X, the y at $CF,X and the active flag at $0F,X. In World 1-1 the live Goomba's slot held $06 (its $000F flag read 1). PROOF (write_memory + step_frame + list_sprites): while paused, write_memory $0016 = 11 and step_frame 3 turned the walking Goomba into a red Koopa Troopa - list_sprites returned sprite palette 5 with CHR tiles 165-169 (was palette 7, tiles 112-115) and the screenshot shows the red-shelled Koopa in the Goomba's place. (Writing 0 also left a Goomba on screen, so 0 and 6 both render a Goomba in this area.) Found with no reference: differential search plus disassembly of the spawner.",
+      "stride": 1,
+      "count": 6,
+      "format": "binary enemy ID (World 1-1 Goomba holds 6; 11 = red Koopa Troopa)",
+      "source": "differential search"
+    },
+    "0x0087": {
+      "address": "0x0087",
+      "mem_type": "cpu",
+      "description": "enemy_x_position: Enemy object HORIZONTAL POSITION (low byte of level x), one byte per slot: $0087-$008C = enemy slots 0-5 (stride 1, count 6). The same contiguous array starts one byte earlier at $0086 with the player at index 0, so enemy 1 = $0086+1 = $0087; the routine at CPU $F171 (prgRom 0x717F) does LDA $86,X / SEC / SBC $071C (scroll) / STA $03AD,Y, so the on-screen x = (low byte - scroll) mod 256 (the page at $006E carries the high byte). PROOF (write_memory + step_frame + list_sprites, no reference): in World 1-1 the first Goomba's slot read $0087 = 34 with page $006E = 1 (level x 290, screen x 174-175); while paused, write_memory $0087 = 100 and step_frame 4 moved the drawn Goomba's OAM x from 175 to 240/248 (screenshot: the Goomba jumped from mid-screen to the right edge while Mario stayed at x=112); a second test wrote 80 and it appeared at OAM x 219 = 256+79-116. The enemy spawner stores the low byte with STA $87,X at CPU $C1B4. Found with no reference by differential search (a 24-frame no-input diff left only $0087, its derived screen copy $03AE and OAM entries) plus the disassembly of $F171 and of the spawner.",
+      "stride": 1,
+      "count": 6,
+      "format": "binary, low byte of the enemy's level x (0-255); absolute level x = 0x006E*256 + 0x0087",
+      "source": "differential search"
+    },
+    "0x00CF": {
+      "address": "0x00CF",
+      "mem_type": "cpu",
+      "description": "enemy_y_position: Enemy object VERTICAL POSITION, one byte per slot: $00CF-$00D4 = enemy slots 0-5 (stride 1, count 6). The array starts one byte earlier at $00CE with the player's y at index 0 and enemy 1 = $00CE+1 = $00CF; the routine at CPU $F171 does LDA $CE,X / STA $03B8,Y, so this is the screen y of the enemy's sprite (the Goomba's OAM y entries were 185/193/201 while $00CF read 184). PROOF (write_memory + step_frame + list_sprites, no reference): in World 1-1 the first Goomba's slot read $00CF = 184; while paused, write_memory $00CF = 140 and step_frame 13 lifted the drawn Goomba to OAM y 142/150/158 (screenshot/list_sprites: it floats above the ground instead of standing), and the value then took its own gravity step 140->141. The enemy spawner stores it with STA $CF,X at CPU $C1DF. Found with no reference by differential search plus the $F171 disassembly.",
+      "stride": 1,
+      "count": 6,
+      "format": "binary screen y (0 = top, larger = lower); OAM y = value + 1",
+      "source": "differential search"
+    },
+    "0x0009": {
+      "address": "0x0009",
+      "mem_type": "cpu",
+      "description": "frame_counter: The global frame counter: it is incremented by exactly 1 every frame and wraps at 256. Writer: INC $0009 at CPU $8119 (prgRom 0x119), inside the NMI ($8082-$8181) in the per-frame timer block ($8100: DEC $077F / reload at $14, DEC $0780,X loop, then INC $0009). Proof (the game rewrites it every frame, so a write cannot stick): a play_input watch of $0009 with sample_every 1 over a 60-frame run read 151,152,153,...,210 - exactly +1 per sample; trace_writes on $0009 for 60 frames reported 120 accesses (INC is a read-modify-write counted twice) from PC $811B, the address just after the 2-byte INC $09 at $8119. Found with no reference by differential search (snapshot f0/f1 across gameplay left 53 movers; the watch isolated the only one stepping by 1/frame).",
+      "length": 1,
+      "format": "binary",
+      "source": "differential search"
+    },
+    "0x0770": {
+      "address": "0x0770",
+      "mem_type": "cpu",
+      "description": "game_mode: Game mode / which screen the game is running: 0 = title screen or attract demo, 1 = playing a level, 2 = victory (castle), 3 = game over. Proof (differential + per-frame watch + screenshots): on the title screen $0770 read 0; after pressing Start it read 1 and World 1-1 began (before/after screenshots). A sample_every-1 watch over a 60-frame run (10 frames idle, then Start held 5 frames) recorded $0770 = 0 for frames 1-10 and 1 from frame 11 onward - the flip lands exactly on the frame the Start press was applied and stays 1. A snapshot diff across the title -> World 1-1 transition showed 0x0770 0->1. Corroborated by the dispatcher: the NMI at CPU $8175 does JSR $8212, which is LDA $0770 / JSR $8E04 (jump engine) into the 4-entry target table at $8218 = $8231 (mode 0 title/attract), $AEDC (mode 1 game), $838B (mode 2 victory), $9218 (mode 3 game over). Found with no reference by differential search; writing $0770=0 while in a level moved the game onto the mode-0 (attract) handler, which auto-played the level.",
+      "length": 1,
+      "format": "binary",
+      "source": "differential search"
+    },
+    "0x0776": {
+      "address": "0x0776",
+      "mem_type": "cpu",
+      "description": "pause_flag: Pause flag: bit 0 is set (1) while the game is paused with Start and clear (0) while it runs. Proof (differential + write_memory, both directions): snapshot diff playing->paused showed 0x0776 0->1; while paused the TIME digits at $07F8-$07FA stayed frozen at 171 across a 120-frame run; pressing Start again gave 0x0776 1->0 and the timer resumed. Write proof: (a) with the game paused, write_memory $0776=0 resumed play (timer 171 -> 159 across 120 frames); (b) with the game running, write_memory $0776=1 froze the TIME display at 142 for 150 frames (screenshot showed TIME 142 static). Corroborated by the NMI at CPU $816F-$8175: LDA $0776 / LSR A / BCS skips JSR $8212, so bit 0 set halts the whole per-frame game engine. The Start handler at CPU $81A0-$81C5 (reached from the per-frame routine at $8182 when controller bit Start is pressed) sets $0777=$2B and toggles bit 0 / bit 7 of $0776. Found with no reference by differential search.",
+      "length": 1,
+      "format": "flags",
+      "source": "differential search"
+    },
+    "0x06FC": {
+      "address": "0x06FC",
+      "mem_type": "cpu",
+      "description": "player1_buttons: Controller 1's buttons for the current frame, stored by the joypad routine ReadJoypads at CPU $8E5C. Encoding (bit field): bit7=A($80), bit6=B($40), bit5=Select($20), bit4=Start($10), bit3=Up($08), bit2=Down($04), bit1=Left($02), bit0=Right($01); 0 = nothing pressed. X selects the player, so $06FC=player 1 and $06FD=player 2. ReadJoypads strobes $4016 (LDA #$01/STA $4016, then 0) and shifts 8 bits in from $4016+X, then does STA $06FC,X at CPU $8E7B. SMB edge-detects Start/Select: after storing, it ANDs #$30 with the previous-frame byte $074A,X and, on a repeat, re-stores with bits 4-5 cleared (AND #$CF at $8E87), so a held Start/Select shows for one frame only. PROOF (play_input watch, no reference): watching $06FC per frame while the script held nothing, then Right, Left, Right+A, B, Up, Down read exactly 0x00,0x01,0x02,0x81,0x40,0x08,0x04 in step with the script (one sample every 2 frames over 115 frames). A second run with per-frame samples caught Select and Start pulses: $06FC read 0x20 on frame 7 (first Select frame) and 0x10 on frame 14 (Start), with $074A reading 0x20/0x10 on those frames - i.e. the stored value tracks the actual button presses. Player 2's byte $06FD stayed 0 throughout.",
+      "format": "flags",
+      "source": "differential search"
+    },
+    "0x07A7": {
+      "address": "0x07A7",
+      "mem_type": "cpu",
+      "description": "rng_state: The game's pseudo-random number generator state: a 7-byte shift register at $07A7-$07AD (stride 1, count 7), updated exactly once every frame by the NMI, NOT gated by the pause flag $0776 (that check is later, at $8144). Encoding: at CPU $811F-$8130 (prgRom 0x11F) the feedback bit is computed as bit1($07A7) XOR bit1($07A8); then at CPU $8131-$8136 (prgRom 0x131) the loop does ROR $07A7,X for X=0..6 (BNE $8131), so the 56-bit register is rotated right by one, the feedback bit entering bit7 of $07A7 and the carry chaining byte to byte, with bit0 of $07AD discarded. PROOF (watch + trace + recurrence): (a) trace_writes write mode on $07A7-$07AD for 60 frames returned ONE writer, PC $8134 (the INX immediately after ROR $07A7,X), prgRom 0x134, 840 accesses = 7 bytes x 2 x 60 frames - i.e. the NMI updates all 7 bytes every frame. (b) A per-frame play_input watch (60 frames, sample_every 1) captured the sequence; starting from state [102,196,9,129,146,145,180] the documented recurrence reproduces it exactly: state2 [179,98,4,192,201,72,218] and state3 [89,177,2,96,100,164,109], matching the samples frame for frame (e.g. $07A7 102->179->89->44->22, $07AC 145->72->164->82). (c) trace_writes read mode over the range found the consumer at CPU $B9C9 `LDA $07A8,X` (X=2..4, so $07AA-$07AC, read every frame from prgRom 0x39CC = CPU $B9CC), which masks the random byte with the table at $B9BA and uses it to pick a branch - i.e. these bytes are consumed as the random value. Found with no reference by differential search: two idle snapshots diffed 'changed' left 14 movers; a per-frame watch showed $07A7-$07AD were the only ones running an LFSR (nonlinear, full 0-255 range) while the rest were plain counters (frame counter +1, $077F/$0787 countdowns). Hint: seeding/replacing the RNG means writing $07A7-$07AD (the state); the value the game actually consumes for random choices is read from $07AA-$07AC.",
+      "length": 7,
+      "count": 7,
+      "format": "binary (7-byte bit shift register)",
+      "source": "differential search"
+    },
+    "0x006E": {
+      "address": "0x006E",
+      "mem_type": "cpu",
+      "description": "enemy_x_page: Enemy object level-x PAGE (high byte), one byte per slot: $006E-$0073 = enemy slots 0-5 (stride 1, count 6; the player's page is the byte before it at $006D). The spawner stores it with STA $6E,X at CPU $C1AB from $073A, i.e. the same slot pairing as $0016/$0087/$00CF. PROOF (play_input watch, no reference): a 110-frame no-input run with the World 1-1 Goomba walking left, watching $0087 and $006E every 2 frames, read $0087 = 33,32,...,1,0 then 255,254,...,238 while $006E read 1 for every sample through frame 66 and flipped to 0 at the frame-68 sample - exactly the frame the low byte wrapped 0->255 - so the pair is a 16-bit level position and this is its high half. Found with no reference by differential search plus the spawner disassembly.",
+      "stride": 1,
+      "count": 6,
+      "format": "binary page / high byte of the enemy's level x; absolute level x = 0x006E*256 + 0x0087",
+      "source": "differential search"
+    },
+    "0x0057": {
+      "address": "0x0057",
+      "mem_type": "cpu",
+      "description": "player_horizontal_speed (Mario X velocity): Mario's horizontal (X) speed, one signed byte in 1/16-pixel units: 0x18 (24) = 1.5 px/frame at the full walk. Found with no reference by differential search: a Start-pause-frozen standing frame vs a frozen walking-right frame gave 0 -> 24 (0x18). Proof by play_input per-frame watch (the physics routine rewrites it every frame, so a write cannot stick): watching through a right-then-left run read 1,2,3,...,17 then, after Left was held, 254,253,252,...,235 - it goes negative (~0xEB = -21) when Mario walks left; a 70-frame Right hold plateaued at exactly 24 while the X position 0x0086 climbed 32->106. Companion: 0x0700 holds the matching magnitude (abs of this byte, also 24) and is what the walk animation/accel reads; 0x0057 is the signed velocity Mario moves by.",
+      "length": 1,
+      "format": "signed (1/16 px per frame; positive = right, negative = left)",
+      "source": "differential search"
+    },
+    "0x009F": {
+      "address": "0x009F",
+      "mem_type": "cpu",
+      "description": "player_vertical_speed (Mario Y velocity): Mario's vertical (Y) speed, one signed byte: negative while rising, 0 at the jump apex, positive while falling, and reset to 0 when he lands. Found with no reference by differential search: a Start-pause-frozen grounded frame vs a frozen mid-jump frame gave 0 -> 0xFD. Proof by play_input per-frame watch (gravity rewrites it every frame): through a full jump (A held 12 frames) it read 252,252,252 (=-4), 253,253,253 (-3), 254 (-2), 255 (-1), 0, 1, 1, 2, 3, 4, 4, 4, 4, then 0 after landing, while the Y position 0x00CE went 168 -> 127 (apex) -> 176. The sign and step track the rise/apex/fall exactly.",
+      "length": 1,
+      "format": "signed (px per frame; negative = rising, positive = falling)",
+      "source": "differential search"
+    },
+    "0x0033": {
+      "address": "0x0033",
+      "mem_type": "cpu",
+      "description": "player_facing_direction: Mario's facing direction: 1 = faces right, 2 = faces left. Set on the frame a direction is pressed and it persists while he stands. Found with no reference by differential search: two Start-pause-frozen standing states at the same position with opposite facing differed here (2 vs 1). Proof by play_input per-frame watch with a one-frame Right tap while he faced left: 0x0033 flipped 2 -> 1 on exactly the tap frame, the same frame his OAM tile changed from the left pose (55/51) to the right pose (58/50), while the companion 0x0045 (moving direction) stayed 2. Proof by write: while Mario stood facing right, write_memory 0x0033 = 2 followed by 15 no-input frames kept it at 2 and flipped his OAM to the left-facing pose (list_sprites returned flip_h true for every Mario sprite, tiles 55/58/79). 0x0045 is the matching 'moving' direction byte and is recomputed from the controller each frame (a write of 0x0045 = 2 was overwritten to 1 within one frame).",
+      "length": 1,
+      "format": "1 = right, 2 = left",
+      "source": "differential search"
+    }
+  },
+  "notes": [
+    "player_horizontal_position_pair: Mario's level x is 16-bit: page 0x006D + low 0x0086: Correction to the existing 0x0086 'player_x_position' entry, which says 'no separate player page byte was found'. There IS one: 0x006D is the page/high byte and 0x0086 is the low byte; absolute level x = 0x006D*256 + 0x0086. Evidence (differential search, no reference): 0x006D 0->1 on the exact frame 0x0086 wrapped 255->0 walking right, and 1->0 on the reverse crossing; the player update at CPU $BF40-$BF46 adds the carry into 0x006D; and writing 0x006D=1 with 0x0086=5 moved Mario to absolute x 261 (screenshot screen x~163). Also note the game clamps: if a page edit leaves Mario off the visible screen, CPU $B013-$B021 rewrites 0x0086 and 0x006D from the camera's 16-bit position ($071A high, $071C low).",
+    "level_start_palette_chain: How a level's colours reach the PPU (World 1-1 example): Chain proven with no reference. Level-init state machine $8567 (LDA $073C / JSR $8E04, table $856D) step 9 -> $85BF (LoadAreaPalette): LDY $074E / LDX $85BB,Y / STX $0773. Table $85BB = $01,$02,$03,$04; 1-1 has $074E=1 so $0773=2. Next NMI ($80B6-$80C3): LDX $0773 / LDA $805A,X / STA $00 / LDA $806D,X / STA $01 / JSR $8EDD. The pointer tables $805A/$806D map selector 1..4 to the four PRG palette records $8CA4,$8CC8,$8CEC,$8D10, each [3F 00 20 <32 palette bytes> 00]. $8EDD/$8E92 writes the record: STA $2006 (=$3F) / STA $2006 (=$00) then loops LDA ($00),Y / STA $2007 for the 32 bytes, setting all 4 BG + 4 sprite hardware palettes. Evidence: trace read on $85BB during a 1-1 reload = PC $85C5 reading $85BC value 2; trace read over $8CA0-$8D27 during a reload = PC $8E96/$8E9C/$8EBB/$8EE2 reading $8CC8-$8CEB; manual write $0773=1 then step_frame changed the whole palette to $8CA4 (screenshot), $0773=2 restored it. The live PPU palette for 1-1 equals the $8CC8 block (with $3F00 backdrop $22 written by the record's first byte being $0F and the engine's own backdrop write).",
+    "question_block_tile_table: ? block 2x2 tile-id table entry [TL,BL,TR,BR] (World 1-1 ? block source): Origin of the World 1-1 ? block's four 8x8 tile ids. A run of those nametable ids lives in a table of 4-byte metatile entries [top-left, bottom-left, top-right, bottom-right] at prgRom offset 0x8C8C (CPU $8C8C): 53 55 54 56. An identical duplicate entry sits at 0x8C90 (a second ? block type). The renderer at CPU $88E7-$8906 reads it: LDA $06A1,X (block type) / ASL A / ASL A / ADC (($071F&1)<<1) / TAY ; LDX $00 ; LDA ($06),Y / STA $0344,X ; INY / LDA ($06),Y / STA $0345,X - it copies one 2-byte column (TL,BL or TR,BR) into the VRAM buffer. Proof (search and ledgered write): search_memory prgRom '53 55 54 56' returned 0xC8C and 0xC90 (row-major '53 54 55 56' matched nothing); write_memory prgRom 0x8C8C 0x53 -> 0x24 (blank sky), reset_emulator, pressed Start twice and walked right - the ? block's top-left 8x8 vanished: nametable 1 addr 0x2640 held 0x24 while 0x2641/0x2660/0x2661 stayed 0x54/0x55/0x56, and get_pixel_color on the missing quadrant read periwinkle $22; undo_edit restored 0x53.",
+    "prgRom:0xC8C: ? block 16x16 tile-id entry (top-left/bottom-left/top-right/bottom-right = $53 $55 $54 $56): PRG ROM source of the ? block's four 8x8 quadrant tile ids. Bytes at prgRom 0xC8C..0xC8F are 53 55 54 56 (= nametable tiles $53 top-left, $55 bottom-left, $54 top-right, $56 bottom-right, i.e. column-major). A second identical 4-byte entry follows immediately at 0xC90 (a different block object reuses the same graphics). The blocks sit in the block/2x2-graphics table that runs roughly prgRom 0x6E7B-0xCA3 (4-byte 2x2 tile groups) and ends just before the area-palette block at 0xCA4. Proof (search and ledgered write): read_nametable showed the World 1-1 block quadrants as 83/85/84/86; write_memory prgRom 0xC8C = $24 (sky) with a reason (ledger seq 1), reset_emulator, pressed Start twice and walked right 150 frames; the screenshot showed the ? block(s) missing their top-left quadrant (rendered as an L/J-shaped corner) while the pixel passed through to the green hill, and one row block that uses the 0xC90 copy stayed intact; undo_edit restored 0x53.",
+    "prgRom:0xC8C: ? block 16x16 tile-id entry (top-left/bottom-left/top-right/bottom-right = $53 $55 $54 $56): PRG ROM source of the ? block's four 8x8 quadrant tile ids. Bytes at prgRom 0xC8C..0xC8F are 53 55 54 56 (= nametable tiles $53 top-left, $55 bottom-left, $54 top-right, $56 bottom-right, i.e. column-major). A second identical 4-byte entry follows immediately at 0xC90 (a different block object reuses the same graphics). These sit in the 2x2 block-graphics table at roughly prgRom 0xC78-0xCA3 (4-byte tile groups $77/$79, $53/$55/$54/$56 x2, $A5/$A7/$A6/$A8, $C2/$C4/$C3/$C5, $57/$59/$58/$5A, $7B/$7D/$7C/$7E), which ends just before the area-palette block at 0xCA4. Proof (search and ledgered write): read_nametable showed the World 1-1 block quadrants as 83/85/84/86; write_memory prgRom 0xC8C = $24 (sky) with a reason (ledger seq 1), reset_emulator, pressed Start twice and walked right 150 frames; the screenshot showed the ? block missing its top-left quadrant (rendered as an L/J-shaped corner) with the hill showing through, while a row block that uses the 0xC90 copy stayed intact; undo_edit restored 0x53.",
+    "player_horizontal_position_encoding: Mario's horizontal position: absolute level x = $006D*256 + $0086: World 1-1. The player's level x is a 16-bit-ish pair: page at 0x006D and within-page byte at 0x0086 (absolute x = 0x006D*256 + 0x0086). On-screen sprite x = absolute x - camera, where the camera left edge low byte is 0x071C (0x071A = its page) and 0x073F/0x0740 are the scroll bytes the NMI writes to PPUSCROLL. Both bytes are canonical: a write to 0x0086 persists across frames and moves the sprite, and a one-page write to 0x006D moves it by 256. Caveat: if a hand-written page puts the computed screen x outside 0-255 (more than one page ahead of the camera), the engine snaps Mario back to the camera's left edge, which is why the page proof uses a one-page step. Found with no reference via differential search (walk-right increased/wrap + writes), session 2026-10-09.",
+    "question_block_16x16_tiles: ? block 16x16 tile ids (level object-graphics block at prgRom 0x8C8C, entry 0): What the bytes are: the four BG-pattern-table tile ids that make the 16x16 ? block. In World 1-1 (camera 93) the ? block reads nametable 1 tiles $53/$54 top row and $55/$56 bottom row, palette 3. Origin found with no reference: the level-graphics parser around CPU $88AE-$8958 computes a data pointer from a table at CPU $8B08/$8B0C (block pointers $8B10,$8BAC,$8C64,$8C8C) and then does LDA ($06),Y / STA $0344,X (PC $88FD) and LDA ($06),Y / STA $0345,X (PC $8903, prgRom 0x8FD/0x903), writing two tiles per call into the $0341+ VRAM buffer; each object type has a 4-byte entry, so the ? block graphic lives in the block at $8C8C (first entry, type byte $C0). Proof: write_memory prgRom 0x8C8C $53->$24 (ledger seq 1, reason: blank the ? block top-left), reset_emulator, then Start,Start,hold Right 150 frames to the ? block; get_tile_at_pixel at its top-left returned tile_id 36 ($24, renders $22 periwinkle) while the top-right still returned 84 ($54) - i.e. the block lost its upper-left quadrant exactly as predicted. undo_edit restored $53.",
+    "1-1-area-data-tables: World/area data pointer tables (layout + enemies) and loader/spawner code: The pointer tables and code that select and walk World 1-1's data. CPU $9C22 (prgRom 0x1C22) builds both 16-bit pointers at level start: $E7/$E8 from base table $9D28 + low $9D2C + high $9D4E, and $E9/$EA from base $9CE0 + low $9CE4 + high $9D06. Both are indexed by ($base[$074E] + $074F), where $074E selects the area type/palette set and $074F is the area's index within it. Resolved entries for World 1-1: layout $A68E (header, +2 = $A690 records, 0x268E/0x2690 in prgRom) and enemy list $9F01 (prgRom 0x1F01). Confirmed in the emulator by reading the live pointers $00E7/$00E8 = $A690 and $00E9/$00EA = $9F01 while in 1-1, and by the read traces (parser PCs CPU $95xx/$96xx read $A690+; spawner PCs CPU $C14x-$C1Bx read $9F01+). Source: trace of the readers plus the ledgered one-byte writes that changed the level and the enemies.",
+    "area-layout-data-pointer-table: PRG table of each area's layout-data start address (low $9D2C / high $9D4E, base $9D28): What the bytes are: the table the game uses to find each area's layout data. Low bytes at prgRom 0x1D2C (CPU $9D2C) and high bytes at 0x1D4E (CPU $9D4E), 34 entries each; base offsets at 0x1D28 (CPU $9D28), 4 entries indexed by area type $074E. Level-init routine CPU $9C22 ($9C43-$9C56): LDY $074E / LDA $9D28,Y / CLC / ADC $074F / TAY / LDA $9D2C,Y -> $E7 / LDA $9D4E,Y -> $E8. The resolved address points at a 2-byte area header; the object records begin at +2. World 1-1: $074E=1, $074F=5 -> index 8 -> low $8E, high $A6 -> header $A68E, records $A690. PROOF (trace and ledgered write): a read trace over 0x1CE0-0x1D6F during a 1-1 reload returned PC $9C49 reading $9D29=3, PC $9C51 reading $9D34=0x8E, PC $9C56 reading $9D56=0xA6; ledgered write_memory prgRom 0x1D34 0x8E->0xF3 made 1-1 load the adjacent area at $A6F3 (live $E7/$E8=$A6F5), screenshot showed a completely different level (tall green-topped pipe platforms instead of the ? block/brick start); undo_edit restored 0x8E. Source: disassembly of $9C22 plus the read trace and the ledgered write.",
+    "JumpMForceData: JumpMForceData - jump/rise force table (prgRom 0x3424, CPU $B424): The force applied to Mario's vertical speed while rising (how hard he jumps against gravity). Found with no reference by trace_writes on the vertical-speed byte $009F: while falling the only writers were PC $C004/$C013 (prgRom 0x4004/0x4013), which led to the vertical-move/gravity routine $BFD7. Its caller's jump-init block at CPU $B4A0-$B4F9 then showed the tables: $B4E4 LDA $B424,Y / STA $0709 (rise force), $B4EA LDA $B42B,Y / STA $070A (fall force), $B4F0 LDA $B439,Y / STA $0433 (fraction), $B4F6 LDA $B432,Y / STA $9F (initial jump speed). Y is a speed class derived at $B4BB-$B4D1 from $0700 (Mario's speed magnitude) at the moment of the jump: a standing jump uses Y=0, a full run Y=4. PROOF (ledgered write, ledger seq 1): write_memory prgRom 0x3424 = $04 (was $20), reset_emulator, started 1-1, held A 14 frames while watching $00CE — the standing-jump apex moved from $00CE=124 to 103 (rise 52 -> 73 px, a higher floatier jump) and $9F stayed at -4 longer (252 for many more frames vs turning over by frame 16). undo_edit restored $20. A weaker table value = weaker rise gravity = higher jump, so this is the jump-force table.",
+    "FallMForceData: FallMForceData - fall/gravity force table (prgRom 0x342B, CPU $B42B): The gravity force applied to Mario's vertical speed while falling (how fast he falls). Same jump-init block: $B4EA LDA $B42B,Y / STA $070A; when $9F >= 0 (falling) the physics routine at $B38D-,$B390 copies $070A into $0709 so this becomes the per-frame force added to $9F by $BFD7-$C002. PROOF (ledgered write, ledger seq 1 in eval-motion): write_memory prgRom 0x342B = $10 (was $70), reset_emulator, started 1-1, held A 14 frames then watched $00CE/$009F — the fall force $9F now crawled 0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,2,3,3,0 and the descent from apex to ground took about 50 frames instead of the ~20 frames of the unedited table (baseline $9F after apex went 0,1,2,3,3,4,4,4,4,0). undo_edit restored $70.",
+    "PlayerYSpdData: PlayerYSpdData - initial jump vertical speed table (prgRom 0x3432, CPU $B432): The vertical speed loaded into $009F at the instant of a jump ($B4F6 LDA $B432,Y / STA $9F, with the fractional seed $B439,Y into $0433). Same speed-class Y as the two force tables. The rise is then clamped to -$02 = -4 px/frame by $C03D, so the initial value is what sets the starting upward velocity (-4 for Y=0-2, -5 for Y=3-4) before gravity decays it. Found with no reference by disassembling the jump-init routine reached from the trace_writes on $009F; not separately byte-proven (the jump/fall force proofs above exercise the same routine).",
+    "MaxRightXSpdData: MaxRightXSpdData - max horizontal speed table (prgRom 0x3443, CPU $B443); walking cap $18 at 0x3444: Mario's maximum walking/running speed. The horizontal acceleration routine (called at $B3B3, body at $B5CC) adds $0701/$0702 to $0057 and clamps it: $B5EF CMP $0456 / ... / $B5F4 LDA $0456 / STA $0057 (right cap) and $B60D-$B615 CMP/LDA $0450 / STA $0057 (left cap). $0456 is loaded at $B56C (LDA $B443,Y / STA $0456) and $0450 at $B55E (LDA $B440,Y / STA $0450); the friction/accel byte $B447,Y goes to $0702 at $B574. The index Y is chosen at $B51C-$B556 from the moving/running state, so a normal walk uses Y=1 -> max right speed $B443+1 = $B444 = $18. PROOF (ledgered write, eval-motion seq 1): write_memory prgRom 0x3444 = $40 (was $18), reset_emulator, started 1-1, held Right — $0057/$0700 climbed 1,2,4,5,...,63 (0x3F) and was still rising toward the new 0x40 cap, whereas the unedited game plateaus at exactly 0x18 = 24 (recorded for $0057); undo_edit restored $18. Note: the level had a leftover pause flag $0776=1 from an earlier extra Start and was cleared (write $0776=0) before the run. Found with no reference.",
+    "HUD layout: Status bar HUD layout (MARIO/score, coin, WORLD, TIME): Fixed status bar drawn on nametable 0, BACKGROUND PATTERN TABLE $1000 (so nametable tile $xx draws CHR $1xx), attribute palette 2 (white $30 text on the shared $22 sky). Proven twice with read_nametable 0 rows 0-3 plus a screenshot: (1) in World 1-1 (game_mode $0770=1 at CPU $0770, scroll_x 0, paused) and (2) on the title screen after reset_emulator ($0770=0). Screen pixel = (col*8, row*8). ROWS 0-1 (screen y 0-15): every column $24 = blank sky. ROW 2 (y 16-23) = the labels: cols 3-7 'MARIO' = tiles $16 $0A $1B $12 $18; cols 18-22 'WORLD' = $20 $18 $1B $15 $0D; cols 25-28 'TIME' = $1D $12 $16 $0E. ROW 3 (y 24-31) = the numbers: cols 3-8 = the 6-digit score (read $00 x6 = 000000, directly under MARIO); col 11 = coin icon $2E (attribute palette 3 = orange), col 12 = 'x' $29, cols 13-14 = 2-digit coin count (read $00 $00); cols 19-21 = world/level '1-1' = $01 $28 $01 ($01 = digit 1, $28 = hyphen); cols 26-28 = 3-digit TIME (in 1-1 read $03 $04 $08 = '348', matching the screenshot; on the title screen those three cells read $24 blank because the timer is not running). The same glyph tiles are also the game's font elsewhere (e.g. the title screen '1 PLAYER GAME' menu and the copyright line), so tile ids name one picture each: record keyed by chr id (table 1)."
+  ],
+  "routines": {
+    "0x91CD": {
+      "name": "LoseLife - take a life away when Mario dies",
+      "notes": "Found with no reference by trace_writes on the lives counter $075A while holding Right from the start of 1-1 into the first Goomba: the ONLY writer was PC $91DC (prgRom 0x11DC) with value going 2 -> 1 - that PC is the BPL immediately after DEC $075A at $91D9. Disassembling backwards, the previous RTS is at $91BC and $91BD-$91CC is a data/jump-table region, so the routine's first instruction is $91CD: INC $0774 ; LDA #$00 / STA $0722 ; LDA #$80 / STA $FC ; DEC $075A. The instruction that does the job is DEC $075A at $91D9. On the path where Mario still has lives the BPL at $91DC branches forward to $91E9 (the world/level setup that draws the next life); if the byte underflows (game over) $91DE-$91E8 clears $0772=0 and sets $0770=3 then RTS. No direct JSR/JMP targets $91CD (searches for '20 CD 91', '4C CD 91', 'CD 91' and '91 CD' found no call/pointer; the one 'CD 91' byte pair at CPU $B05B is inside a data table), so the caller was not pinned down - it is reached by the game's indirect dispatch. Proven: after the trace RAM $075A read 1 and the following screenshot showed Mario respawned at the start of 1-1.",
+      "length": 28,
+      "source": "trace and disassembly"
+    },
+    "0xBBFE": {
+      "name": "AddCoin - collect a coin (coin count + coin digits, +200 score, 1-UP at 100)",
+      "notes": "Entry $BBFE, RTS at $BC48 (0x4B bytes). Found with no reference: the mapping's coin digits $07ED/$07EE have NO direct PRG operand anywhere, so the increment had to be through a helper; searching PRG found the block/coin caller's JSR $BBFE at CPU $BB7D (prgRom 0x3B7D) and a free-coin JMP $BBFE at CPU $DE0B (prgRom 0x5E0B, from the coin-collect routine $DE03), and disassembling confirmed the code. What it does: $BBFE LDA #$01 / $BC00 STA $0139 sets the BCD operand's ones digit to 1; $BC03 LDX $0753 / $BC06 LDY $BBF8,X loads Y=$17 when $0753=0 (table $BBF8 = $17,$1D); $BC09 JSR $8F5F (the shared digit helper) adds 1 to the 6-digit counter $07D7+Y, target $07E9-$07EE, so it increments the coin ones digit $07EE with carry into the tens $07ED. $BC0C INC $075E is the binary coin counter; $BC0F-$BC14 LDA $075E / CMP #$64; at $BC16 STA $075E=0 and $BC1B INC $075A grants the extra life at 100 coins. $BC22 LDA #$02 / $BC24 STA $0138 and $BC2D JSR $8F5F add 200 to the score; $BC36 JSR $8F06 plays the coin sound; $BC39-$BC43 spawn the floating '200' popup at $02FB. Proven in the emulator: a jump into the first 1-1 ? block gave score 000200 (digit '2' at $07E1), coin count $075E=1 and coin digits $07ED/$07EE = [0,1] (HUD 'x01'). The write PC for the digit update is inside the helper (see $8F5F), not in this routine, because the coin digits are written by the shared helper.",
+      "length": 75,
+      "source": "trace and disassembly"
+    },
+    "0xB74F": {
+      "name": "DecrementTimer - count the level TIME down",
+      "notes": "Found with no reference from the mapping's timer digits $07F8-$07FA. trace_writes on the BCD operand byte $0139 for 300 frames returned writes of $FF from PC $B792 (plus $8F83, the helper clearing the operand) exactly 12 times in 300 frames - one tick every ~24 frames, matching the visible countdown. $B792 is the JSR that follows STA $0139 at $B78F. Disassembly gives the routine entry $B74F (the JSR at $AF35 calls it; searching PRG for JSR $B7xx found that call site - the bytes at $B74B-$B74E are data, and $B74F is LDA $0770). What it does: LDA $0770 / BEQ $B7A3 (returns unless $0770 != 0); checks game mode $0E >= 8 and != $0B and $B5 < 2; returns while the divider $0787 != 0, otherwise sets $0787 = $18 (24) - this is the 24-frame tick divider; then LDY #$23 / LDA #$FF / STA $0139 / JSR $8F5F. The instruction that does the job is STA $0139 = $FF at $B78F: it loads the shared digit helper $8F5F with operand $FF (signed -1) and Y=$23, so the helper subtracts 1 from the 6-digit counter based at $07D7+$23, i.e. the timer digits $07F8/$07F9/$07FA. The caller is the JSR $B74F at CPU $AF35 (prgRom 0x2F35). When the timer reaches zero it runs the time-up path at $B79A: STA $0756 ; JSR $D931 ; INC $0759.",
+      "length": 85,
+      "source": "trace and disassembly"
+    },
+    "0x8F5F": {
+      "name": "AddBCD - shared signed-digit adder for the HUD counters (coin/timer/score)",
+      "notes": "Entry $8F5F, main RTS at $8F86 (40 bytes; carry tail through $8F95). Found by trace_writes: watching the self-ticking timer digits $07F8-$07FA for 400 frames returned exactly one writer, PC $8F78 (prgRom 0x0F78) with 51 writes - that PC is the DEY immediately after the STA $07D7,Y at $8F75, i.e. this routine. What it does: it adds the 6-byte operand at $0134-$0139 (most-significant first, ones digit at $0139) to the 6-byte counter based at $07D7 whose ones digit is $07D7+Y (the caller passes Y, so the target range is $07D7+(Y-5)..$07D7+Y). $8F6C ADC $07D7,Y / $8F75 STA $07D7,Y do the work; digits are signed so $FF acts as -1 (borrow: $8F87 DEC $0133,X / LDA #$09) and a sum >= $0A carries (SEC / SBC #$0A / INC $0133,X / JMP $8F75 at $8F8E). $8F7C-$8F86 clears the operand $0133-$0139 (plus a guard on $0770). Callers found by searching PRG for JSR $8F5F: CPU $B792 (timer/hurry; LDY #$23 then STA $0139=$FF so it SUBTRACTS 1 from the timer, target $07D7+$1E..$23 = $07F5-$07FA, the timer digits $07F8/$07F9/$07FA at the top), CPU $BC09 and $BC2D (coin routine $BBFE - Y from table $BBF8=$17 for $0753=0 targets $07E9-$07EE, so the coin digits are updated here, and Y from $BBFA=$0B adds the 200 score), and CPU $D32E/$D33F (time-up bonus). Because the coin routine, the timer and the score all call this one routine with different Y offsets, it is the helper shared by several counters.",
+      "length": 40,
+      "source": "trace and disassembly"
+    },
+    "0x8000": {
+      "name": "Reset - power-on / RESET entry (boot, init, then idle loop)",
+      "notes": "Where the CPU starts at power-on. Found by read_memory of the 6502 RESET vector: $FFFC/$FFFD = $00 $80 -> $8000. Disassembly of $8000 shows the canonical boot sequence: $8000 SEI / $8001 CLD (mask IRQs, clear decimal); $8002 LDA #$10 / $8004 STA $2000 (PPUCTRL, NMI off while initializing); $8007 LDX #$FF / $8009 TXS (stack to $01FF); $800A-$8013 LDA $2002 / BPL twice (poll PPUSTATUS to wait two vblanks for PPU warm-up); $8014-$8029 checks the continue marker $07FF == $A5 and picks the boot state via $90CC; $802E STA $4011 (APU DMC); $8031 STA $0770; $8036 STA $07FF=$A5 and $8039 $07A7=$A5 (write the resume markers); $803E LDA #$0F / STA $4015 (APU enable); $8043 LDA #$06 / STA $2001 (PPUMASK, both layers on); $8046 JSR $8220 / $8049 JSR $8E19 (init); $804C INC $0774 (frame counter); $804F-$8054 LDA $0778 / ORA #$80 / JSR $8EED (enable NMI); $8057 JMP $8057 - the routine hands control to an infinite wait loop where the CPU idles and all per-frame work happens in the NMI (the game is NMI-driven; the main thread never leaves $8057). The instruction that ends the boot job is the transfer to the idle loop at $8057. Emulator proof: reset_emulator, then get_cpu_state returned PC $8057 (with a fresh cycle counter and the title screen restored) - i.e. the CPU had run the code at $8000 and settled exactly on the JMP $8057 target. Before the reset the emulator was also sitting at $8057/$8058 during normal play, confirming the main thread stays in this loop. No direct JSR/JMP to $8000 exists; the RESET vector is the only entry, as expected.",
+      "length": 87,
+      "source": "trace and disassembly"
+    },
+    "0x8082": {
+      "name": "NMI - per-frame interrupt handler (PPU setup, OAM DMA, game logic)",
+      "notes": "The vblank/NMI handler, i.e. the whole per-frame engine. Found by read_memory of the 6502 NMI vector: $FFFA/$FFFB = $82 $80 -> $8082. Disassembly $8082-$8181 (ends RTI at $8181, 0x100 bytes) shows what it does each frame: $8082 reads $0778, AND #$7F, stores, AND #$7E / $808C STA $2000 (PPUCTRL: nametable select + sprite size, NMI bit cleared during setup); $80A3 STA $2001 (PPUMASK from $0779); $80A6 LDA $2002 (read PPUSTATUS, reset the vblank/sprite-0 latch); $80B3 LDA #$02 / STA $4014 (OAM DMA page 2 -> hardware sprites); $80B6-$80C3 indexes tables $805A/$806D by VRAM-queue state $0773 and JSR $8EDD (the VRAM update/queue transfer); $80E4 JSR $F2D0, $80E7 JSR $8E5C, $80EA JSR $8182, $80ED JSR $8F97 (per-frame game logic: input/player/objects/sound); $80F0-$8138 the frame timers (decrements $0747, $077F, the $0780,X array) and the controller-shift logic; $815C/$8165 write the scroll to $2005 (PPUSCROLL x then y from $073F/$0740); $8168-$817E push $0778, STA $2000, and finally ORA #$80 / STA $2000 to re-enable NMI, then $8181 RTI. What does the job of a NMI: the OAM DMA write to $4014 at $80B3 plus the PPUCTRL/PPUMASK/PPUSCROLL writes, all done once per frame. Emulator proof: trace_writes on CPU $2000 for 60 frames returned 60 writes from PC $808F, 60 from $816F and 60 from $8181 - a full set of PPUCTRL writes every frame - and all three PCs lie inside $8082-$8181. Since the main thread idles at $8057, every frame's hardware/vblank work is this handler.",
+      "length": 256,
+      "source": "trace and disassembly"
+    },
+    "0x8212": {
+      "name": "GameEngine - per-frame dispatch on GameMode ($0770)",
+      "notes": "The game-mode dispatch. Runs once per frame from the NMI: at CPU $8175 the NMI does JSR $8212, guarded by LDA $0776 / LSR A / BCS (skip) at $816F-$8173, so it only runs when OperMode bit 0 is clear. Entry $8212: LDA $0770 (GameMode) ; JSR $8E04 (jump engine), and the 4-entry target table follows at $8218: $8231 (mode 0 = title screen / attract demo), $AEDC (mode 1 = game / in a level), $838B (mode 2 = victory), $9218 (mode 3 = game over). $8E04 is the jump engine: ASL A / TAY / PLA / STA $04 / PLA / STA $05 / INY / LDA ($04),Y / STA $06 / INY / LDA ($04),Y / STA $07 / JMP ($0006) - it pops the return address (the table at $8218) and uses A as a byte index to fetch the target and JMP indirectly. Both $8231 and $AEDC are themselves secondary dispatchers (each starts LDA $0772 / JSR $8E04). Found with no reference by searching PRG for LDA $0770: the only match in the per-frame path is $8212, which the NMI calls. Emulator proof: play_input/watch on $0770 read 0 on the title/attract screen and flipped to 1 exactly when the second Start began World 1-1; the mapping's LoseLife sets $0770=3 at game over, which is mode 3 -> $9218. Table bytes at $8218: $8231,$AEDC,$838B,$9218.",
+      "length": 6,
+      "source": "trace and disassembly"
+    },
+    "0x85BF": {
+      "name": "LoadAreaPalette - pick the area's background+sprite palette when a level starts",
+      "notes": "The routine that loads an area's background and sprite colours at level start. It is step 9 of the level-initialization state machine at $8567 (LDA $073C / JSR $8E04 with the address table at $856D; one of its targets is $85BF). Entry $85BF: LDY $074E (area palette index) ; LDX $85BB,Y (selector table at $85BB = $01,$02,$03,$04) ; STX $0773 (VRAM-buffer selector) ; JMP $8745. The NMI then does at $80B6-$80C3: LDX $0773 / LDA $805A,X / STA $00 / LDA $806D,X / STA $01 / JSR $8EDD, and that writes the selected PRG buffer to the PPU through $2006/$2007. The four selectable buffers are complete [3F 00 20 <32 palette bytes> 00] records in PRG: $8CA4 (selector 1, dark/underground-like), $8CC8 (selector 2, the normal overworld palette used by World 1-1), $8CEC (selector 3), $8D10 (selector 4). Found with no reference: a trace_writes read on the selector table $85BB during a forced World 1-1 reload (time-up death) returned exactly one access - PC $85C5, right after LDX $85BB,Y at $85C2, reading address $85BC (=$85BB+$074E with $074E=1), value 2 - i.e. this routine chose the overworld block for 1-1. Corroboration: a trace_writes read over $8CA0-$8D27 during another reload caught the NMI writer reading $8CC8-$8CEB (PCs $8E96/$8E9C/$8EBB/$8EE2) and copying it to $2007; writing $0773=1 by hand while paused then step_frame 1 swapped the entire level to the $8CA4 palette (pipes blue/pink, ground green - screenshot) and $0773=2 restored the normal overworld colours. $074E read 1 during World 1-1 play.",
+      "length": 12,
+      "source": "trace and disassembly"
+    },
+    "0x8EDD": {
+      "name": "WriteVRAMBuffer - NMI routine that writes palette/VRAM via $2006/$2007",
+      "notes": "The code that actually puts the area palette on the hardware, i.e. the $2006/$2007 writer the task suspected (\"possibly from a RAM buffer that the frame interrupt copies\"). The NMI calls it at $80C3 with $00/$01 already pointing at the buffer chosen from tables $805A/$806D by the selector $0773. Entry $8EDD: LDX $2002 ; LDY #$00 ; LDA ($00),Y ; BNE $8E92 - a zero first byte ends the transfer with two STA $2005 and RTS. The non-empty path at $8E92: STA $2006 (address high) ; INY ; LDA ($00),Y ; STA $2006 (address low) ; INY ; LDA ($00),Y (control/length) ; ASL A ; PHA ; (bit 7 of the control byte toggles a PPUCTRL bit via $8EA9 JSR $8EED, which stores $0778/$2000) ; ASL A / LSR A / LSR A / TAX (length) ; loop at $8EB6-$8EBF: LDA ($00),Y / STA $2007 / DEX / BNE ; then $8EC1-$8ECB advances the pointer by Y and the next record is processed. For a palette record [3F 00 20 ...] this sets PPUADDR to $3F00 and writes the following 32 bytes to $2007, loading all 8 hardware palettes (4 BG + 4 sprite) in one go. Found with no reference from the trace of the palette data (read PCs $8E96/$8E9C/$8EBB/$8EE2) and from a search for LDA #$3F / STA $2006, which occurs only at $8ECD in this routine. Proven: forcing $0773=1,2 by hand and stepping one frame changed the rendered palette accordingly.",
+      "length": 17,
+      "source": "trace and disassembly"
+    },
+    "0x9C22": {
+      "name": "LoadAreaData - build the level layout pointer $E7/$E8 and enemy pointer $E9/$EA from the area tables at level start",
+      "notes": "The routine that loads an area when a level starts: it reads the level's data pointers out of the area tables. Sequence (disassembled at $9C22): $9C22 LDA $0750 / JSR $9C09 -> area-type index into Y; $9C2C AND #$1F / STA $074F = the index of this area within its type. ENEMY DATA POINTER: $9C31 LDA $9CE0,Y (base offset table) / CLC / ADC $074F / TAY; $9C39 LDA $9CE4,Y (low byte) / STA $E9; $9C3E LDA $9D06,Y (high byte) / STA $EA. LAYOUT DATA POINTER: $9C43 LDY $074E / LDA $9D28,Y (base) / CLC / ADC $074F / TAY; $9C4E LDA $9D2C,Y (low) / STA $E7; $9C53 LDA $9D4E,Y (high) / STA $E8. It then dereferences the layout pointer: $9C5A LDA ($E7),Y reads the 2-byte area header and unpacks it into $0744/$0741 (byte 0 bits 0-2), $0710 (bits 3-5), $0715 (bits 6-7), $0727 (byte 1 bits 0-3), $0742 (bits 4-5), $0743 (bits 6-7); finally $9CA6-$9CB1 adds 2 to $E7/$E8 so they point at the first object record, then RTS at $9CB3. For World 1-1 ($074E=1 area type, $074F=5) the enemy tables resolve to $9F01 (prgRom 0x1F01) and the layout tables to $A68E header / $A690 records (prgRom 0x268E/0x2690), matching the known 1-1 level mapping. Proven by disassembly at $9C22 (no reference imported); the pointer tables it reads were independently confirmed by read traces on $9CE0-$9D6F and by ledgered one-byte writes that redirected 1-1 to another area/enemy list.",
+      "length": 146,
+      "source": "trace and ledgered write"
+    }
+  },
+  "levels": {
+    "1-1": {
+      "name": "World 1-1 layout objects and enemy placements",
+      "notes": "Where World 1-1's data lives and what it is. Layout (objects): CPU $A690 = prgRom 0x2690, 49 records x 2 bytes, terminated by $FD at 0x26F2. Enemies: CPU $9F01 = prgRom 0x1F01, 30 bytes, terminated by $FF at 0x1F1E. Both pointers are built at level init by the routine at CPU $9C22, which reads a 2-byte area header from $E7/$E8 and stores the two 16-bit pointers: $E7/$E8 (layout, from tables $9D28/$9D2C/$9D4E) and $E9/$EA (enemies, from tables $9CE0/$9CE4/$9D06). In World 1-1 the live values were $E7/$E8 = $A690 (header $A68E) and $E9/$EA = $9F01. Object records are walked by the parser at CPU $9508 using the index $072C and the base $E7; $9589 advances the index by 2 per record and $9516 compares each record byte0 with $FD. Enemy entries are walked by the spawner at CPU $C147 using the index $0739 and base $E9; $C14B compares each entry byte0 with $FF.",
+      "rom_origins": [
+        {
+          "mem": "prgRom",
+          "offset": 9872,
+          "length": 98,
+          "notes": "World 1-1 layout records (the objects that place blocks/pipes/ground features). 49 two-byte records starting at CPU $A690, read by the area parser at CPU $9508 through base pointer $E7/$E8. The 2-byte area header sits just before them at prgRom 0x268E-0x268F (bytes 50 21) and the $FD terminator is at prgRom 0x26F2; the next area's data begins at 0x26F3. PROOF (trace + ledgered write): trace_writes read on $A690 caught the parser PCs CPU $9516/$9522/$9533/$95A1/$95E9/$9600/$964B/$9BC0/$9BC7 (prgRom 0x15xx/0x16xx/0x1Bxx); write_memory prgRom 0x2696 = $FD (byte0 of record 3, the parser's special marker checked at CPU $9516), reset_emulator, re-entered World 1-1, and the floating ? block at screen ~(176,88) was absent while every other object on the screen was unchanged (baseline screenshot has it). undo_edit restored $99."
+        },
+        {
+          "mem": "prgRom",
+          "offset": 7937,
+          "length": 30,
+          "notes": "World 1-1 enemy placements, read by the enemy spawner at CPU $C147 through pointer $E9/$EA. Records are 3 bytes (byte0 = x-page:y nibbles, byte1 = flags/within-page, byte2 = enemy), with 2-byte entries when byte0's low nibble is $0F (page entries); the list begins byte0=$1E and ends with the $FF terminator at prgRom 0x1F1E (next area begins 0x1F1F). A hand-walk of the record stride (3 bytes, 2 for low-nibble-$0F entries) lands exactly on that $FF. PROOF (trace + ledgered write): trace_writes read on $9F01 caught the spawner PCs CPU $C149/$C15D/$C17B/$C18C/$C1B2 (prgRom 0x41xx); write_memory prgRom 0x1F01 = $FF (the spawner's end-of-list check at CPU $C14B), reset_emulator, re-entered 1-1 and held Right past the first Goomba's column and on to the first pipe without dying - no enemy appeared at all. undo_edit restored $1E."
+        }
+      ],
+      "source": "trace and ledgered write"
+    }
+  },
+  "scenes": {
+    "title": {
+      "name": "Title screen (SUPER MARIO BROS. logo + 1/2 PLAYER menu)",
+      "notes": "Everything on this screen is background: nametable 0, BG PATTERN TABLE $1000 (nametable tile ids $00-$FF draw CHR $100-$1FF). It shows the 'SUPER MARIO BROS.' sign, a '(c)1985 NINTENDO' line, and the '1 PLAYER GAME / 2 PLAYER GAME' menu with the mushroom cursor, over the World 1-1 backdrop (hill/bush/ground) plus the fixed top HUD. Start begins a game; Start during the attract demo only returns to the title.",
+      "reach": "Power-on or reset_emulator: game_mode $0770 = 0 runs the mode-0 handler; no controller input needed. From a level, reset_emulator returns here. Screenshot taken before any controller press."
+    },
+    "overworld": {
+      "name": "World 1-1 first screen (overworld, level start)",
+      "notes": "First playable screen of World 1-1: fixed HUD (MARIO/score, coin icon x00, WORLD 1-1, TIME 393), periwinkle sky, one small cloud, a green hill on the left (small Mario standing on it), one bush on the right, and the brick ground row filling the bottom 4 tile rows. BACKGROUND PATTERN TABLE: $1000 - every nametable tile id $00-$FF is drawn from CHR $100-$1FF (verified: nametable tile $B4 reads CHR $1B4, tile $34 reads CHR $134). WHICH BG PALETTE PAINTS WHAT (live palette RAM confirmed): palette 0 = [$22 periwinkle, $29 lime green, $1A green, $0F black] paints the HILL (slot 2 $1A green + slot 3 $0F black outline, get_region at (25,196) returned slots 2,3) and the BUSH (slot 1 $29 lime green body + slot 2 $1A shading + slot 3 $0F outline, get_region at (215,200) returned slots 1,2,3); slot 0 $22 is the shared backdrop/sky. Palette 1 = [$0F, $36 peach, $17 brown, $0F] paints the GROUND/BRICK row (get_region at (10,228) returned slots 1,2,3; rendered highlight sampled $36 peach at (10,226)). Palette 2 = [$0F, $30 white, $21 sky blue, $0F] paints the cloud. Palette 3 = [$0F, $27 orange, $17 brown, $0F] paints the ? block (none on this first screen). Scroll is 0 and the HUD occupies the top 4 tile rows (y 0-31).",
+      "reach": "From the title screen or the attract demo: press Start (6 frames), wait ~60 frames, press Start again; the WORLD 1-1 card draws and the level appears. Done here with play_input [{start,6},{none,60},{start,6},{none,60}] then step_frame 40."
+    }
+  }
+}

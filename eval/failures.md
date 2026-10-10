@@ -258,3 +258,16 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Status:** `fixed` (checked live through the bridge before sheet 1).
 - **A re-run checks:** no `invalid memory type` in any stream.
 
+## F15. A number read from a tool result in the wrong base
+
+- **Seen:** `20261009-2253-sheet1-rerun-r1`: `read_nametable` gave WORLD's W
+  as 32; the worker wrote it `$14` (20 decimal), recorded font tile `$114`
+  as W (it is K) and put `$14` in its HUD note. r2 and r3 read it right.
+- **Lines hit:** A7.font (one tile), A6.hud (that repeat).
+- **Changed:** nothing yet: one of three repeats, and the majority held.
+- **Status:** `open`, watch. If it recurs, the change is in the tool, not
+  the prompt: `read_nametable` (and the other tile tools) giving ids as hex
+  strings beside the numbers, as `get_pixel_color` already gives
+  `nes_color_hex`.
+- **A re-run checks:** each claimed tile id renders as what its name says.
+

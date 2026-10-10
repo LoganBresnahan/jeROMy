@@ -68,6 +68,19 @@ describe("eval-promote", () => {
     expect(Object.keys(mapping.tiles)).toEqual(["chr:0x130"]);
   });
 
+  it("takes a note claim only when judged right, once, from the repeat that decided its line", () => {
+    const spec = { lines: [{ id: "A6.hud" }] };
+    const n = (final) => ({ line: "A6.hud", kind: "note", id: "HUD layout", final, proof: "look" });
+    const runs = [
+      { id: "r1", rows: [n("rejected")], copy: { notes: ["HUD layout: wrong"] } },
+      { id: "r2", rows: [n("confirmed")], copy: { notes: ["HUD layout: right"] } },
+      { id: "r3", rows: [n("confirmed")], copy: { notes: ["HUD layout: right too"] } },
+    ];
+    const mapping = { notes: [] };
+    apply(mapping, spec, decide(spec.lines, runs), runs);
+    expect(mapping.notes).toEqual(["HUD layout: right"]);
+  });
+
   it("adds side discoveries only where the mapping has nothing", () => {
     const spec = { lines: [{ id: "x" }] };
     const runs = [{ id: "r1", rows: [], copy: copy({ "0x03AD": { description: "new" }, "0x075A": { description: "lives from run" } }) }];

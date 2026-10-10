@@ -37,7 +37,9 @@ export function decide(lines, runs) {
     if (nRight >= need) {
       // A real entry beats a note: look in every repeat for a right claim whose entry the run promoted.
       const entryOf = (o) => o.run.rows.filter((x) => x.line === line.id && RIGHT.has(x.final) && PROVEN.has(x.proof ?? "") && recordOf(x) !== "notes").find((x) => o.run.copy?.[recordOf(x)]?.[x.id]);
-      const o = outcomes.find((x) => x.right && entryOf(x));
+      // Of the repeats that got the line right, the one with the most right entries (a font of 23 tiles beats one of 21).
+      const rightCount = (x) => new Set(x.run.rows.filter((y) => y.line === line.id && RIGHT.has(y.final) && PROVEN.has(y.proof ?? "")).map((y) => y.id)).size;
+      const o = outcomes.filter((x) => x.right && entryOf(x)).sort((a, b) => rightCount(b) - rightCount(a))[0];
       if (o) {
         const x = entryOf(o);
         // A picture line is often several entries (a bush is five tiles): the same run's other right entries on the line go with it.
@@ -115,7 +117,17 @@ export function apply(mapping, spec, decisions, runs, skip = []) {
         }
       }
     }
-    for (const n of r.copy?.notes ?? []) if (!mapping.notes.includes(n)) { mapping.notes.push(n); changes.push(`+ note (from ${r.id})`); }
+    for (const n of r.copy?.notes ?? []) {
+      if (mapping.notes.includes(n)) continue;
+      // A note recorded as a claim ("HUD layout: ...") enters only if judged right, from the repeat that decided its line,
+      // and never for a skipped line: a rejected HUD note and three copies of the right one nearly went in (sheet1-rerun).
+      const x = r.rows.find((y) => y.kind === "note" && n.startsWith(`${y.id}:`));
+      if (x) {
+        const d = decisions.find((dd) => dd.line.id === x.line);
+        if (!RIGHT.has(x.final) || skip.includes(x.line) || (d && d.action === "note" && d.from !== r.id)) { changes.push(`  skipped note ${x.id} (from ${r.id})`); continue; }
+      }
+      mapping.notes.push(n); changes.push(`+ note (from ${r.id})`);
+    }
   }
   if (changes.length) mapping.version = (mapping.version ?? 1) + 1;
   return changes;
