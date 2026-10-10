@@ -196,7 +196,8 @@ export function claimsFromRecord(rec, where, extra = {}) {
   // A routine's rom_origins are its own code bytes, graded by its entry; as origin claims they landed on table lines.
   for (const o of kind === "routine" ? [] : rec.rom_origins ?? []) {
     // The parent entry's type is vocabulary too: an origin recorded on a palette entry is a palette table.
-    out.push({ ...common, kind: kind === "level" ? "level" : "origin", context: kind, mem: o.mem, offset: o.offset, length: o.length, name: kind === "level" ? `${rec.id} ${name}` : name });
+    // record_mapping takes "0x6792" as well as 6792 (ledger F15); the stream holds what the worker typed.
+    out.push({ ...common, kind: kind === "level" ? "level" : "origin", context: kind, mem: o.mem, offset: parseAddr(o.offset), length: typeof o.length === "string" ? parseAddr(o.length) : o.length, name: kind === "level" ? `${rec.id} ${name}` : name });
   }
   return out;
 }

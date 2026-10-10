@@ -657,8 +657,8 @@ export const agentTools: ToolSpec[] = [
             type: "object",
             properties: {
               mem: { type: "string", enum: ["prgRom", "chrRom"] },
-              offset: { type: "number", description: "ROM offset within that memory, no iNES header" },
-              length: { type: "number" },
+              offset: { type: ["number", "string"], description: "ROM offset within that memory, no iNES header: a decimal number, or a hex string such as \"0x6792\" (use the string when you have the offset in hex; never type hex digits as a decimal number)" },
+              length: { type: ["number", "string"], description: "Bytes: a decimal number or a hex string" },
               notes: { type: "string" },
             },
             required: ["mem", "offset", "length"],
@@ -1554,11 +1554,25 @@ export async function executeTool(
       // This tool returns a confirmation — the actual DB event recording
       // is handled by extractDomainEvents in index.ts.
       const confidence = (input.confidence as number) ?? 1;
-      const origins = Array.isArray(input.rom_origins) ? (input.rom_origins as Array<Record<string, unknown>>) : [];
+      // Offsets arrive as numbers or hex strings: a worker that typed hex digits as a decimal number recorded 6792 for
+      // 0x6792 (eval/runs/20261010-0309-sheet2-enemy-table-rerun-r1, ledger F15), so hex strings are accepted and the
+      // result echoes each origin in hex with the bytes there, where a slip shows.
+      const asNum = (v: unknown) => (typeof v === "number" ? v : typeof v === "string" && /^\s*(0x|\$)[0-9a-f]+\s*$/i.test(v) ? parseInt(v.trim().replace(/^(0x|\$)/i, ""), 16) : typeof v === "string" && /^\s*\d+\s*$/.test(v) ? Number(v) : NaN);
+      const origins = (Array.isArray(input.rom_origins) ? (input.rom_origins as Array<Record<string, unknown>>) : []).map((o) => ({ ...o, mem: o.mem, offset: asNum(o.offset), length: asNum(o.length) }));
       for (const o of origins) {
-        if ((o.mem !== "prgRom" && o.mem !== "chrRom") || typeof o.offset !== "number" || typeof o.length !== "number" || o.length < 1) {
+        if ((o.mem !== "prgRom" && o.mem !== "chrRom") || !Number.isFinite(o.offset) || !Number.isFinite(o.length) || o.length < 1) {
           return { type: "text", text: "Error: each rom_origins entry needs mem (prgRom|chrRom), offset and length ≥ 1" };
         }
+      }
+      const originEcho: Array<Record<string, unknown>> = [];
+      for (const o of origins) {
+        const hex = (n: number) => "0x" + n.toString(16).toUpperCase();
+        let first: string | undefined;
+        try {
+          const dump = await adapter.readMemory(o.offset, Math.min(8, o.length), o.mem as "prgRom" | "chrRom");
+          first = (dump.bytes ?? []).map((b: number) => b.toString(16).toUpperCase().padStart(2, "0")).join(" ");
+        } catch { /* the echo is a check, never a reason to refuse the record */ }
+        originEcho.push({ mem: o.mem, offset_hex: hex(o.offset), length: o.length, ...(first !== undefined ? { first_bytes: first } : {}) });
       }
       const num = (k: string) => (typeof input[k] === "number" && Number.isFinite(input[k]) ? { [k]: input[k] as number } : {});
       const table = input.table === 0 || input.table === 1 ? (input.table as number) : undefined;
@@ -1577,6 +1591,7 @@ export async function executeTool(
         notes: input.notes ?? null,
         confidence,
         ...(origins.length ? { rom_origins: origins } : {}),
+        ...(originEcho.length ? { rom_origins_check: originEcho } : {}),
         ...(typeof input.source === "string" && input.source.trim() ? { source: input.source.trim() } : {}),
         recorded: true,
         event_type: confidence >= 1 ? "mapping_discovered" : "mapping_hypothesis",

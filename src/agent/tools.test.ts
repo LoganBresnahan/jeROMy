@@ -259,6 +259,15 @@ describe("executeTool", () => {
     expect(trace.writers[0].symbol).toBe("GameRoutines+$7 (reference, unverified)");
   });
 
+  it("record_mapping accepts a hex-string origin and echoes it in hex with its first bytes (ledger F15)", async () => {
+    const adapter = mockAdapter();
+    (adapter.readMemory as ReturnType<typeof vi.fn>).mockResolvedValue({ bytes: [0xfc, 0xfc, 0x70, 0x71, 0x72, 0x73] });
+    const r = JSON.parse(((await executeTool("record_mapping", { mapping_type: "note", id: "t", name: "t", rom_origins: [{ mem: "prgRom", offset: "0x6792", length: 6 }] }, adapter)) as { text: string }).text);
+    expect(r.rom_origins[0].offset).toBe(0x6792);
+    expect(r.rom_origins_check[0]).toEqual({ mem: "prgRom", offset_hex: "0x6792", length: 6, first_bytes: "FC FC 70 71 72 73" });
+    expect(adapter.readMemory).toHaveBeenCalledWith(0x6792, 6, "prgRom");
+  });
+
   it("record_mapping passes source through for attribution (ADR-0017)", async () => {
     const adapter = mockAdapter();
     const r = JSON.parse(((await executeTool("record_mapping", { mapping_type: "address", id: "0x075A", name: "lives", source: "Data Crystal RAM map, GFDL 1.2" }, adapter)) as { text: string }).text);

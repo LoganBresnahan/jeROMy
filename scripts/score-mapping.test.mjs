@@ -85,6 +85,10 @@ describe("score-mapping lines", () => {
     expect(lineFor({ kind: "palette", id: "1", name: "World 1-1 ground bricks" }, pals)?.id).toBe("bg1");
     expect(lineFor({ kind: "palette", id: "4", name: "small Mario colours" }, pals)?.id).toBe("sp0");
   });
+  it("reads an origin offset given as a hex string (ledger F15)", () => {
+    const c = claimsFromRecord({ mapping_type: "note", id: "t", name: "t", rom_origins: [{ mem: "prgRom", offset: "0x6792", length: 6 }] }, "t").find((k) => k.kind === "origin");
+    expect(c.offset).toBe(0x6792);
+  });
   it("takes an origin's parent entry type as vocabulary", () => {
     const c = claimsFromRecord({ mapping_type: "palette", id: "0", name: "green", rom_origins: [{ mem: "prgRom", offset: 0x102, length: 1 }] }, "t").find((k) => k.kind === "origin");
     expect(lineFor(c, SPEC.lines)?.id).toBe("grass_pal");
