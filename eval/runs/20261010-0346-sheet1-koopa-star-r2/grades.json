@@ -1,0 +1,61 @@
+{
+  "run": "20261010-0346-sheet1-koopa-star-r2",
+  "spec": "Super Mario Bros. (World) v21",
+  "reference": "smbdis (doppelganger), ca65 port by threecreepio",
+  "totals": {
+    "calls": 206,
+    "steps": 72,
+    "inTok": 19771891,
+    "outTok": 84688
+  },
+  "stages": {
+    "in_scope": 2,
+    "reached_proof": 2,
+    "recorded": 2,
+    "derived": 0,
+    "promoted": 2,
+    "right": 2,
+    "wrong": 0,
+    "unproven": 0
+  },
+  "rows": [
+    {
+      "where": "task-1",
+      "name": "Starman (star power-up)",
+      "notes": "The star power-up (Starman) in World 1-1. PROOF: paused with the star emerging from the used left ? block of the brick row (level x~336; screen origin (23,138)); list_sprites decoded a 4-entry OAM group at slots 10-13, all sprite palette 6, all behind_background = true (attrs $22/$62), no vertical flips, drawn from SPRITE PATTERN TABLE $0000. Entries as (tile id, x/y offset from origin, flips):\n- $8D (141), (+0,+0), no flips - top-left (upper half of the star, mirrored left/right)\n- $8D (141), (+8,+0), flip_h (attr $62) - top-right\n- $E4 (228), (+0,+8), no flips - bottom-left (lower half; carries the eye pixel)\n- $E4 (228), (+8,+8), flip_h (attr $62) - bottom-right\nSo it is a 16x16 metasprite of only TWO distinct CHR tiles, each drawn plain and horizontally mirrored. read_tile $8D = the upper-left quarter: index-3 fill widening downward with a diagonal upper edge (the top point and left arm of the star); read_tile $E4 = the lower-left quarter: index-3 taper to the bottom point with one index-1 pixel (the eye). get_region object mode at (24,143) returned 32 connected sprite-palette-6 pixels using slot 3 across OAM #10/#11 (CHR $8D), box (24,138)-(37,143); get_pixel_color(24,143) = $27 orange = palette-6 slot 3. Sprite palette 6 live = [15,22,48,39] = [$0F,$16 red,$30 white,$27 orange]. It is drawn behind the background, so while it first emerges only its top half shows above the block.\nREACH (no reference): reset_emulator to the title, Start/wait/Start into a fresh World 1-1; write CPU $079F=200 (star invincibility) so the walk is safe; walk right to the brick row (camera ~313) and stand under the LEFT ? block of the brick row (level x~336-351, the block that normally holds a mushroom). Jump to hit it - the power-up spawn routine at CPU $BC66 sets $049F=3 and stores the item type in $0039 via the entry-point trick at CPU $BDD2/$BDD5/$BDD8 (0=mushroom/flower, 2=star, 3=1-up). While the item is still emerging, write_memory CPU $0039 = 2 - the emerging-item handler at CPU $BC85 reads $0039 every frame and switches from the mushroom branch to the star branch ($CAF9/$E163), and the sprite changes from mushroom tiles $76-$79 to the star tiles $8D/$E4. This is how to turn the mushroom block into a Starman.",
+      "confidence": 1,
+      "id": "starman",
+      "group": "powerup",
+      "kind": "sprite",
+      "proof": "look",
+      "derived": null,
+      "promoted": true,
+      "line": "A4.star",
+      "verdict": "needs-judge",
+      "grader": "claude",
+      "reference_verdict": "needs-judge",
+      "final": "confirmed",
+      "image": "task-1/abefe2bf7017.png",
+      "why": "the starman rises out of the block in this screenshot; OAM $8D and $8D(h) (the star's upper point) over $E4 and $E4(h) (its lower half), palette 6 attr $62: rendered from sprite CHR they make the five-pointed star"
+    },
+    {
+      "where": "task-1",
+      "name": "Koopa Troopa",
+      "notes": "The one Koopa Troopa in World 1-1. PROOF: played to it with the play-to-reach route (checkpoints below), paused while it was on screen (camera left edge $071C=229, Mario at level x=1625, Koopa at level x=1692 = enemy slot 1, page $006F=6, x low $0088=156), and list_sprites decoded its OAM block at slots 40-45; all six entries are SPRITE PALETTE 5 (attr $41 -> palette bits 1 = sprite palette 5, plus the $40 flip_h bit) and all are horizontally flipped, i.e. the Koopa is walking/facing LEFT. Origin (187,185) = top-left of a 16x24 metasprite (2 tiles wide x 3 tall; the top-right cell is the blank $FC filler). Entries as (tile id, x/y offset from origin (187,185), flips):\n- $A5 (165), (+0,+0), flip_h - upper-left (head/neck)\n- $FC (252), (+8,+0), flip_h - upper-right, blank filler\n- $A7 (167), (+0,+8), flip_h - middle-left (shell/back)\n- $A6 (166), (+8,+8), flip_h - middle-right (shell/belly)\n- $A9 (169), (+0,+16), flip_h - lower-left (feet)\n- $A8 (168), (+8,+16), flip_h - lower-right (feet)\nSo it is a 16x24 metasprite of five distinct CHR tiles ($A5,$A6,$A7,$A8,$A9) plus one blank filler, all drawn from SPRITE PATTERN TABLE $0000, each mirrored horizontally because the Koopa faces left. read_tile $A5 = the head: index-1 (green) eye stripe and index-2 (white) face on an index-3 (orange) neck; read_tile $A7 = the shell: index-3 orange body with index-1 green and index-2 white detail. Sprite palette 5 live = [15,26,48,39] = [$0F black, $1A green, $30 white, $27 orange]. get_region object mode at (196,196) returned 213 connected sprite-palette-5 pixels using slots 1,2,3 across OAM #40/#42/#43/#44/#45 (CHR $A5-$A9), box (187,186)-(202,208); get_pixel_color on the sprite read $30 white at (190,188)/(194,206) and $27 orange at (196,203)/(198,197). Enemy identity: the RAM enemy array slot 1 is active ($000F+1=1), its type byte $0016+1 = 0 (the Goomba's type is 6) and its state $001E+1 = 0 (normal walking). Goombas visible in the same frame are the 16x24 groups with tiles $70-$73 in palette 7. Corroboration: the enemy-sprite layout table at prgRom 0x6756 holds the entry 69 A5 6A A7 A8 A9, which contains this Koopa's tile set.\nREACH (play-to-reach, no position writes for the walking): fresh World 1-1 (reset_emulator to title, play_input [{start,6},{},60,{start,6},{},90]); write CPU $079F=200 (star invincibility, ~4000 frames, so the Goombas cannot kill Mario while he runs); then hold right+B with an A pulse every ~40 frames (script pattern [{right,b,a} 18 frames, {right,b} 22 frames] repeated). Checkpoints saved with save_state: slot 5 = level x 1015 (camera page 3, TIME 358), slot 6 = level x 1292 (past the first pit), slot 7 = level x 1535. Pit checkpoints: the first wide pit is jumped by running right+B ~30 frames from x 1017 then holding right+B+A 30 frames (cleared it, landed x 1292); the second pit near x 1400 is jumped by running right+B ~26 frames from x 1292 then right+B+A 30 frames. From x 1535 just hold right+B ~35 frames - the Koopa (page 6, x ~1690) walks left into view; a Goomba is killed by the star on the way. WARNING: with star invincibility still lit, running into the Koopa kills it, so stop as soon as it is on screen.",
+      "confidence": 1,
+      "id": "koopa",
+      "group": "koopa",
+      "kind": "sprite",
+      "proof": "look",
+      "derived": null,
+      "promoted": true,
+      "line": "A4.koopa",
+      "verdict": "needs-judge",
+      "grader": "claude",
+      "reference_verdict": "needs-judge",
+      "final": "confirmed",
+      "image": "task-1/c6484d0cdd13.png",
+      "why": "the green Koopa Troopa by the pipe in this screenshot; OAM $A5 (head) with a $FC filler over $A7/$A6 and $A9/$A8 (shell and feet), all h-flipped: rendered from sprite CHR they are the Koopa facing left, 16x24"
+    }
+  ]
+}

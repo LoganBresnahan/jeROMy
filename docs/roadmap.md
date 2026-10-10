@@ -157,10 +157,11 @@ build order. Plan: `docs/plans/dsh-migration.md`. Decisions: `docs/adr/`.
 
 - [ ] **18. Map Super Mario Bros. end to end** (release gate 1,
       `docs/DIRECTION.md`). Progress 2026-10-10: the checklist is now
-      `eval/spec/smb.json` (89 lines, ADR-0020); 72 promoted by graded eval
-      runs (sheet 1 pictures: 24/31, judged by Claude from images; sheet 2:
-      5/10; sheet 3: 30/30; sheet 4: 3/6; sheet 5: 10/12); failure modes
-      and their fixes in `eval/failures.md`. Originally: a coverage checklist in
+      `eval/spec/smb.json` (89 lines, ADR-0020, spec v21); all 89 promoted
+      by graded eval runs (sheet 1 pictures 31/31, judged by Claude from
+      images and the CHR; sheets 2-5 10/10, 30/30, 6/6, 12/12, graded by the
+      reference). Not ticked: the gate is Logan's to accept against the
+      spec. Failure modes and their fixes in `eval/failures.md` (F1-F20). Originally: a coverage checklist in
       `docs/plans/smb-map-coverage.md`, one line per thing a person would
       point at (title, HUD, each world's tile sets, player and enemies,
       items and effects; every palette slot's job; the RAM a hacker reaches
