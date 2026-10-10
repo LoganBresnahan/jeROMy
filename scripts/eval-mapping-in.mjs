@@ -21,7 +21,8 @@ export function stripLines(mapping, spec, ids) {
   for (const line of spec.lines ?? []) {
     if (!ids.includes(line.id) || !line.entry) continue;
     // A picture line may own several entries (`entries`: the rest of a bush's tiles), all of them its answer.
-    for (const entry of [line.entry, ...(line.entries ?? [])]) {
+    // `holds`: entries of other lines that give this one away (the cloud is the bush's tiles): held back, never replaced.
+    for (const entry of [line.entry, ...(line.entries ?? []), ...(line.holds ?? [])]) {
       if (entry === "notes") {
         // A line answered by a note ("HUD layout") owns the notes its vocabulary matches; they are its answer too.
         const hit = (n) => (line.match ?? []).some((g) => g.every((kw) => n.toLowerCase().includes(kw.toLowerCase())));

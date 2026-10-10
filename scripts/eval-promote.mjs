@@ -68,8 +68,9 @@ export function apply(mapping, spec, decisions, runs, skip = []) {
     const line = spec.lines.find((l) => l.id === d.line.id);
     if (d.action === "replace") {
       const now = new Set([d.key, ...(d.more ?? []).map((m) => m.key)].map((k) => `${d.record}.${k}`));
+      // Only the line's own answer is replaced; its `holds` (other lines' entries it is held back with) stay.
       for (const old of [line.entry, ...(line.entries ?? [])].filter(Boolean)) {
-        if (now.has(old)) continue;
+        if (now.has(old) || old === "notes") continue;
         const [rec, k] = [old.slice(0, old.indexOf(".")), old.slice(old.indexOf(".") + 1)];
         if (mapping[rec]?.[k]) { delete mapping[rec][k]; changes.push(`- ${old} (${line.id}, replaced)`); }
       }

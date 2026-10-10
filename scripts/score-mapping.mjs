@@ -77,7 +77,11 @@ export function lineFor(claim, lines) {
   // the level line (eval/runs/20261009-1414-sheet5b-entry-dispatch-palette). A name no line takes is graded loosely.
   // A tile's group names the object it belongs to ("ground"), where the name may also describe it ("ground brick top-left"
   // tied brick with ground: eval/runs/20261009-2240-sheet1-overworld-title), so the group decides first.
-  return (claim.group && (claim.kind === "tile" || claim.kind === "sprite") ? tryText(claim.group) : null) ?? tryText(`${head}${ctx}`) ?? tryText(`${claim.name}${ctx}`);
+  // A palette's id is its number (0-3 background, 4-7 sprite), and names rarely say it ("World 1-1 scenery green":
+  // eval/runs/20261009-2310-sheet1-objects-palettes), so the id decides first, as bgN / spN.
+  const pal = claim.kind === "palette" && /^[0-7]$/.test(String(claim.id ?? "").trim()) ? Number(claim.id) : null;
+  return (pal !== null ? tryText(pal < 4 ? `bg${pal}` : `sp${pal - 4}`) : null) ??
+    (claim.group && (claim.kind === "tile" || claim.kind === "sprite") ? tryText(claim.group) : null) ?? tryText(`${head}${ctx}`) ?? tryText(`${claim.name}${ctx}`);
 }
 
 /** A reference symbol's extent in bytes: the line's span, the symbol's size, or for a PRG label the gap to the next label (capped). */

@@ -81,6 +81,9 @@ describe("score-mapping lines", () => {
     expect(lineFor(tile, lines)?.id).toBe("ground");
     expect(lineFor({ kind: "palette", name: "small Mario sprite palette" }, lines)?.id).toBe("mario_pal");
     expect(lineFor({ kind: "address", name: "x", group: "brick" }, lines)).toBeNull();
+    const pals = [{ id: "bg1", type: "picture", kinds: ["palette"], match: [["bg1"]] }, { id: "sp0", type: "picture", kinds: ["palette"], match: [["sp0"]] }];
+    expect(lineFor({ kind: "palette", id: "1", name: "World 1-1 ground bricks" }, pals)?.id).toBe("bg1");
+    expect(lineFor({ kind: "palette", id: "4", name: "small Mario colours" }, pals)?.id).toBe("sp0");
   });
   it("takes an origin's parent entry type as vocabulary", () => {
     const c = claimsFromRecord({ mapping_type: "palette", id: "0", name: "green", rom_origins: [{ mem: "prgRom", offset: 0x102, length: 1 }] }, "t").find((k) => k.kind === "origin");

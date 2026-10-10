@@ -20,7 +20,7 @@ describe("eval-mapping-in", () => {
   it("holds back every entry of a multi-tile picture line, and the notes a note line's vocabulary matches", () => {
     const mapping = { tiles: { "chr:0x135": {}, "chr:0x125": {}, "chr:0x145": {} }, notes: ["HUD layout: MARIO at row 2", "cloud is the bush"] };
     const spec = { lines: [
-      { id: "A3.bush", entry: "tiles.chr:0x135", entries: ["tiles.chr:0x125"] },
+      { id: "A3.bush", entry: "tiles.chr:0x135", holds: ["tiles.chr:0x125"] },
       { id: "A6.hud", entry: "notes", match: [["hud"], ["status", "bar"]] },
     ] };
     const { mapping: out, removed } = stripLines(mapping, spec, ["A3.bush", "A6.hud"]);

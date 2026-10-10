@@ -59,6 +59,15 @@ describe("eval-promote", () => {
     expect(spec.lines[0]).toMatchObject({ entry: "tiles.chr:0x135", entries: ["tiles.chr:0x136", "tiles.chr:0x125"] });
   });
 
+  it("never removes a line's holds (other lines' entries it is only held back with)", () => {
+    const spec = { lines: [{ id: "A5.bg0", entry: "palettes.0", holds: ["tiles.chr:0x130", "notes"] }] };
+    const runs = [{ id: "r1", rows: [{ line: "A5.bg0", kind: "palette", id: "0", final: "confirmed", proof: "look" }], copy: { palettes: { 0: { name: "new" } }, notes: [] } }];
+    const mapping = { palettes: { 0: { name: "old" } }, tiles: { "chr:0x130": { name: "hill" } }, notes: [] };
+    apply(mapping, spec, decide(spec.lines, runs), runs);
+    expect(mapping.tiles["chr:0x130"]).toEqual({ name: "hill" });
+    expect(mapping.palettes[0]).toEqual({ name: "new" });
+  });
+
   it("keeps a skipped line's claims out of the mapping, side discoveries included", () => {
     const spec = { lines: [{ id: "A3.hill" }, { id: "A3.bush" }] };
     const t = (line, id) => ({ line, kind: "tile", id, final: "confirmed", proof: "look" });
