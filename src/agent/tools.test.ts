@@ -2,9 +2,11 @@ import { describe, it, expect, vi } from "vitest";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { inflateSync } from "node:zlib";
 import { HackStore } from "../hacks/store.js";
 import { applyBps, applyIps } from "../hacks/patch.js";
 import { agentTools, executeTool, tileKey } from "./tools.js";
+import { NES_MASTER_PALETTE_RGB } from "./nes-palette.js";
 
 describe("agentTools", () => {
   it("defines the expected set of tools", () => {
@@ -536,6 +538,30 @@ describe("executeTool", () => {
       expect(emu[16 + 0xccc]).toBe((16 + 0xccc) * 7 & 0xff);
       expect(store.readEdits()).toEqual([]);
       expect(((await executeTool("undo_edit", { seq: 1 }, adapter, null, null, null, store)) as { text: string }).text).toMatch(/no ledger entry/);
+    });
+
+    it("undo_edit refuses an entry a later edit overlaps, so out-of-order undo cannot leave unrecorded bytes (session ff5f8d4d)", async () => {
+      const { store, adapter, emu } = setup();
+      const orig = Array.from(emu.subarray(16 + 0x2ed3, 16 + 0x2ed5));
+      await executeTool("write_memory", { address: 0x2ed3, bytes: [0x50, 0x50], mem_type: "prgRom", reason: "test" }, adapter, null, null, null, store);
+      await executeTool("write_memory", { address: 0x2ed3, bytes: orig, mem_type: "prgRom", reason: "restore" }, adapter, null, null, null, store);
+      const refused = JSON.parse(((await executeTool("undo_edit", { seq: 1 }, adapter, null, null, null, store)) as { text: string }).text);
+      expect(refused).toMatchObject({ undone: false, undo_first: [2] });
+      expect(store.readEdits()).toHaveLength(2);
+      await executeTool("undo_edit", { seq: 2 }, adapter, null, null, null, store);
+      await executeTool("undo_edit", { seq: 1 }, adapter, null, null, null, store);
+      expect(Array.from(emu.subarray(16 + 0x2ed3, 16 + 0x2ed5))).toEqual(orig);
+      expect(store.readEdits()).toEqual([]);
+    });
+
+    it("export_rom adds .nes to a given name and refuses a path", async () => {
+      const { store, adapter } = setup();
+      await executeTool("write_memory", { address: 0, bytes: [9], mem_type: "prgRom" }, adapter, null, null, null, store);
+      const out = JSON.parse(((await executeTool("export_rom", { name: "logan-1-bowser" }, adapter, null, null, null, store)) as { text: string }).text);
+      expect(out.written).toBe(join(store.dir, "logan-1-bowser.nes"));
+      const kept = JSON.parse(((await executeTool("export_rom", { name: "b.NES" }, adapter, null, null, null, store)) as { text: string }).text);
+      expect(kept.written).toBe(join(store.dir, "b.NES"));
+      expect(((await executeTool("export_rom", { name: "../escape" }, adapter, null, null, null, store)) as { text: string }).text).toMatch(/not a path/);
     });
   });
 
@@ -1104,6 +1130,48 @@ describe("executeTool", () => {
       expect(result.text).toContain("image_5");
       expect(result.text).toContain("image_0");
     }
+  });
+
+  // -- view_tiles --------------------------------------------------------------
+
+  it("view_tiles reads the PPU's pattern tables in chunks and returns a labelled sheet image (session ff5f8d4d)", async () => {
+    const adapter = mockAdapter({
+      readMemory: vi.fn().mockImplementation(async (addr: number, len: number, mem: string) => ({ address: addr, mem_type: mem, bytes: new Array(len).fill(0) })),
+      getPalette: vi.fn().mockResolvedValue({ palette_id: 4, colors: [0x22, 0x16, 0x27, 0x18], background_color: 0x22 }),
+    });
+    const out = (await executeTool("view_tiles", { first: 0xbe, count: 0x10, palette: 4 }, adapter)) as { type: string; content: { type: string; text?: string }[] };
+    expect(out.type).toBe("mixed");
+    expect(out.content[0]).toMatchObject({ type: "image", media_type: "image/png" });
+    expect(out.content[1].text).toMatch(/Tiles \$BE-\$CD .*live palette 4 \(\$22 \$16 \$27 \$18\)/);
+    expect(adapter.readMemory).toHaveBeenCalledWith(0xbe * 16, 256, "ppuDebug");
+    // The image is drawn in the palette the text names: index 0 of a sprite palette is transparent (dark grey), and
+    // no other color is used by an all-zero tile. A first version named the palette and drew the fixed colors.
+    const png = Buffer.from((out.content[0] as unknown as { data: string }).data, "base64");
+    const raw = inflateSync(png.subarray(41, 41 + png.readUInt32BE(33)));
+    const w = png.readUInt32BE(16);
+    const px = (x: number, y: number) => Array.from(raw.subarray(y * (w * 3 + 1) + 1 + x * 3, y * (w * 3 + 1) + 4 + x * 3));
+    expect(px(28 + 4, 14 + 4)).toEqual([24, 24, 24]);
+    const red = mockAdapter({
+      readMemory: vi.fn().mockImplementation(async (addr: number, len: number) => ({ bytes: new Array(len).fill(0xff) })),
+      getPalette: vi.fn().mockResolvedValue({ palette_id: 4, colors: [0x22, 0x16, 0x27, 0x18], background_color: 0x22 }),
+    });
+    const all3 = (await executeTool("view_tiles", { count: 1, palette: 4 }, red)) as { content: { data: string }[] };
+    const p3 = Buffer.from(all3.content[0].data, "base64");
+    const r3 = inflateSync(p3.subarray(41, 41 + p3.readUInt32BE(33)));
+    const w3 = p3.readUInt32BE(16);
+    expect(Array.from(r3.subarray(18 * (w3 * 3 + 1) + 1 + 32 * 3, 18 * (w3 * 3 + 1) + 4 + 32 * 3))).toEqual(NES_MASTER_PALETTE_RGB[0x18]);
+    const all = mockAdapter({ readMemory: vi.fn().mockImplementation(async (addr: number, len: number) => ({ bytes: new Array(len).fill(0) })) });
+    await executeTool("view_tiles", {}, all);
+    expect(all.readMemory).toHaveBeenCalledTimes(4); // 256 tiles = 4096 bytes in 1 KiB reads
+    expect(((await executeTool("view_tiles", { first: 500, count: 32 }, all)) as { text: string }).text).toMatch(/0-511/);
+    // A table row drawn as the object it makes (Bowser's front, SMB prgRom 0x6810): one read per tile, in the given order.
+    const row = mockAdapter({ readMemory: vi.fn().mockImplementation(async (addr: number, len: number) => ({ bytes: new Array(len).fill(0) })) });
+    const front = (await executeTool("view_tiles", { tiles: [0xbf, 0xbe, 0xc1, 0xc0, 0xc2, 0xfc], columns: 2 }, row)) as { content: { type: string; text?: string; data?: string }[] };
+    expect(front.content[1].text).toMatch(/Tiles \$BF \$BE \/ \$C1 \$C0 \/ \$C2 \$FC .*one picture/);
+    expect(row.readMemory).toHaveBeenNthCalledWith(1, 0xbf * 16, 16, "ppuDebug");
+    const fp = Buffer.from(front.content[0].data!, "base64");
+    expect([fp.readUInt32BE(16), fp.readUInt32BE(20)]).toEqual([128, 192]); // 2x3 tiles at 8x, no labels or grid
+    expect(((await executeTool("view_tiles", { tiles: [] }, row)) as { text: string }).text).toMatch(/1 to 64/);
   });
 
   // -- find_unused_tiles -------------------------------------------------------

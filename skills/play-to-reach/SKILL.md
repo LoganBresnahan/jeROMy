@@ -1,7 +1,7 @@
 ---
 name: play-to-reach
 description: Get the player to a place far into a level by playing, in short checkpointed runs: save_state, a run of held direction plus timed jumps, a look, load_state on any setback. Use when a task needs something that is only on screen further into a level (an enemy past the pipes, the flagpole, a hidden block), or when writing the player's position did not bring the screen along.
-whenToUse: The thing to inspect is not on the first screens of a level; a teleport by writing position bytes left the camera behind; a run of held Right keeps ending at an obstacle or a death.
+whenToUse: The thing to inspect is not on the first screens of a level (an enemy late in the level, the flagpole, the boss at the end of a castle); a teleport by writing position bytes left the camera behind; a run of held Right keeps ending at an obstacle or a death.
 user-invocable: true
 ---
 

@@ -10,6 +10,14 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("palette");
   });
 
+  it("carries the rules from Logan's play-as-Bowser session (ff5f8d4d, 2026-10-10)", () => {
+    const prompt = buildSystemPrompt();
+    expect(prompt).toMatch(/never through the shell/);
+    expect(prompt).toMatch(/use view_tiles/);
+    expect(prompt).toMatch(/play-to-reach skill\)\. Writing the player's or the camera's position bytes/);
+    expect(prompt).toMatch(/undo_edit it, newest first; never write the old bytes as a new edit/);
+  });
+
   it("includes ROM info when provided", () => {
     const prompt = buildSystemPrompt({
       romInfo: {

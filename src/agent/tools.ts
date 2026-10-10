@@ -10,6 +10,7 @@ import { snapshotsFor, takeSnapshot, type DiffFilter } from "./snapshots.js";
 import type { Disassembler, Arch } from "./disassembler.js";
 import type { GameMapping } from "../mappings/types.js";
 import { NES_MASTER_PALETTE_RGB, nearestNesColor, nesColorName } from "./nes-palette.js";
+import { INDEX_COLORS, renderTileSheet } from "./tile-sheet.js";
 import { lookupTileAtPixel } from "./tile-lookup.js";
 import { getRegionAt } from "./region.js";
 import { blindMode, findSymbols, formatSymbol, loadReference, nearestSymbol, type ReferenceFile } from "./reference.js";
@@ -151,12 +152,12 @@ export const agentTools: ToolSpec[] = [
   {
     name: "export_rom",
     description:
-      "Apply the edit ledger to a copy of the original ROM and write <rom name>.hacked.nes in the ROM's hack directory. The original is never modified. The copy is for the user's own use; jeROMy never distributes ROMs. Load it with scripts/mesen-up.sh <path> to prove the hack from a clean start.",
+      "Apply the edit ledger to a copy of the original ROM and write <hack>.hacked.nes (or <name>.nes) in the active hack's directory. The original is never modified. The copy is for the user's own use; jeROMy never distributes ROMs. Load it with scripts/mesen-up.sh <path> to prove the hack from a clean start.",
     input_schema: {
       type: "object",
       properties: {
         rom_path: { type: "string", description: "Path to the original ROM file if the one Mesen reported is not readable from here" },
-        name: { type: "string", description: "Output file name (default: <rom name>.hacked.nes)" },
+        name: { type: "string", description: "Output file name, no path; .nes is added if missing (default: <hack>.hacked.nes)" },
       },
       required: [],
     },
@@ -176,7 +177,7 @@ export const agentTools: ToolSpec[] = [
   {
     name: "undo_edit",
     description:
-      "Undo one ledgered ROM edit by its seq (see edits.json or the ledger field of the write's result): writes the old bytes back into the emulator's ROM copy, confirms by reading them, and removes the entry. Does not reset; call reset_emulator afterwards if the game has already copied the bytes somewhere (palette RAM, for instance).",
+      "Undo one ledgered ROM edit by its seq (see edits.json or the ledger field of the write's result): writes the old bytes back into the emulator's ROM copy, confirms by reading them, and removes the entry. Refused while a later edit overlaps the same bytes: undo newest first. To put bytes back, undo the edit; never write the originals as a new edit. Does not reset; call reset_emulator afterwards if the game has already copied the bytes somewhere (palette RAM, for instance).",
     input_schema: {
       type: "object",
       properties: { seq: { type: "number", description: "Ledger entry number" } },
@@ -443,6 +444,23 @@ export const agentTools: ToolSpec[] = [
         },
       },
       required: ["tile_id"],
+    },
+  },
+  {
+    name: "view_tiles",
+    description:
+      "See a whole run of tiles at once as an image: up to 256 tiles in a labelled grid (column header = low hex digit, row label = the row's first tile id, so tile id = row label + column). Use it to find which tiles draw a character or object (look for its shape), to compare tiles, or to pick tiles to copy from, instead of read_tile one at a time. source ppu (default) is what the PPU sees now: tiles 0-255 are pattern table $0000, 256-511 are $1000 (list_sprites and get_tile_at_pixel give chr_tile in this numbering); chrRom indexes the cartridge's CHR ROM directly (every bank). palette 0-7 colors it with that live palette (4-7 are sprites); without it, indices 0-3 get fixed distinct colors. To see what a multi-tile object looks like, pass tiles (ids in drawing order, e.g. a sprite layout table's row) and columns (2 for a 16-wide metasprite): they are drawn edge to edge as one picture.",
+    input_schema: {
+      type: "object",
+      properties: {
+        first: { type: "number", description: "First tile id (default 0)" },
+        count: { type: "number", description: "Number of tiles, max 256 (default 256)" },
+        source: { type: "string", enum: ["ppu", "chrRom"], description: "ppu (default) or chrRom" },
+        palette: { type: "number", description: "Live palette 0-7 to color it with (optional)" },
+        tiles: { type: "array", items: { type: "number" }, description: "Instead of a run: these tile ids in this order (max 64), drawn as one picture" },
+        columns: { type: "number", description: "Tiles per row with tiles (default 2)" },
+      },
+      required: [],
     },
   },
   {
@@ -1128,7 +1146,9 @@ export async function executeTool(
       ledger.ensureDir();
       if (name === "export_rom") {
         // The hacked ROM is for the person's own emulator; it is gitignored by the root's .gitignore (ADR-0018).
-        const outName = (input.name as string | undefined) ?? `${ledger.hackName}.hacked.nes`;
+        const given = input.name as string | undefined;
+        if (given !== undefined && (/[\\/]/.test(given) || given.includes(".."))) return { type: "text", text: "Error: name is a file name, not a path; the ROM is written in the hack's directory" };
+        const outName = given === undefined ? `${ledger.hackName}.hacked.nes` : /\.nes$/i.test(given) ? given : `${given}.nes`;
         const outPath = join(ledger.dir, outName);
         writeFileSync(outPath, target);
         return { type: "text", text: JSON.stringify({ hack: ledger.hackName, written: outPath, bytes: target.length, edits_applied: edits.length, original_untouched: romPath, sha1: createHash("sha1").update(target).digest("hex").toUpperCase(), notes }) };
@@ -1192,8 +1212,13 @@ export async function executeTool(
     case "undo_edit": {
       if (!ledger) return { type: "text", text: "Error: no hack directory for this ROM (bridge not connected or ROM unknown)" };
       const seq = input.seq as number;
-      const entry = ledger.readEdits().find((e) => e.seq === seq);
+      const edits = ledger.readEdits();
+      const entry = edits.find((e) => e.seq === seq);
       if (!entry) return { type: "text", text: `Error: no ledger entry with seq ${seq}` };
+      // Never undo under a later overlapping entry: its old bytes are this entry's new ones, so undoing
+      // out of order leaves bytes in the emulator that no entry records (Logan's session ff5f8d4d, 2026-10-10).
+      const later = edits.filter((e) => e.seq > seq && e.mem === entry.mem && e.offset < entry.offset + entry.length && entry.offset < e.offset + e.length);
+      if (later.length) return { type: "text", text: JSON.stringify({ undone: false, seq, error: `later edits ${later.map((e) => `#${e.seq}`).join(", ")} overwrite the same bytes; undo them first, newest first`, undo_first: later.map((e) => e.seq).reverse() }) };
       // Direct adapter write on purpose: an undo must not ledger an inverse entry (ADR-0009).
       await adapter.writeMemory(entry.offset, entry.old, entry.mem);
       const back = await adapter.readMemory(entry.offset, entry.length, entry.mem);
@@ -1354,6 +1379,54 @@ export async function executeTool(
 
       const text = `${header} (source: ${source})\n${ascii}\n\nRaw pixels: ${JSON.stringify(result.pixels)}`;
       return { type: "text", text };
+    }
+
+    case "view_tiles": {
+      const list = Array.isArray(input.tiles) ? (input.tiles as number[]).map((t) => Math.floor(t)) : null;
+      const first = Math.max(0, Math.floor((input.first as number | undefined) ?? 0));
+      const count = list ? list.length : Math.min(256, Math.max(1, Math.floor((input.count as number | undefined) ?? 256)));
+      const source = input.source === "chrRom" ? "chrRom" : "ppu";
+      const mem = source === "ppu" ? "ppuDebug" : "chrRom";
+      if (list && (list.length === 0 || list.length > 64)) return { type: "text", text: "Error: tiles takes 1 to 64 tile ids" };
+      if (source === "ppu" && (list ? list.some((t) => t < 0 || t > 511) : first + count > 512)) return { type: "text", text: "Error: the PPU sees tiles 0-511; use source chrRom for other banks" };
+      const bytes = new Uint8Array(count * 16);
+      if (list) {
+        for (const [i, t] of list.entries()) bytes.set((await adapter.readMemory(t * 16, 16, mem)).bytes, i * 16);
+      } else {
+        // Chunked so no single bridge read approaches the Lua watchdog (CLAUDE.md: 1 s).
+        for (let off = 0; off < bytes.length; off += 1024) {
+          const len = Math.min(1024, bytes.length - off);
+          bytes.set((await adapter.readMemory(first * 16 + off, len, mem)).bytes, off);
+        }
+      }
+      let colors = INDEX_COLORS;
+      let colorNote = "indices 0-3 drawn dark grey, red, yellow, blue";
+      const pal = input.palette as number | undefined;
+      if (pal !== undefined) {
+        const p = await adapter.getPalette(pal);
+        colors = p.colors.map((c, i) => (i === 0 && pal >= 4 ? INDEX_COLORS[0] : NES_MASTER_PALETTE_RGB[c & 0x3f]));
+        colorNote = `colored with live palette ${pal} (${p.colors.map((c) => `$${c.toString(16).toUpperCase().padStart(2, "0")}`).join(" ")})${pal >= 4 ? "; index 0 is transparent, drawn dark grey" : ""}`;
+      }
+      const hex = (n: number) => `$${n.toString(16).toUpperCase().padStart(2, "0")}`;
+      const from = source === "ppu" ? "the PPU's pattern tables" : "CHR ROM";
+      if (list) {
+        const columns = Math.max(1, Math.floor((input.columns as number | undefined) ?? 2));
+        const sheet = renderTileSheet(bytes, null, colors, 8, columns);
+        const grid = Array.from({ length: sheet.rows }, (_, r) => list.slice(r * columns, (r + 1) * columns).map(hex).join(" ")).join(" / ");
+        return { type: "mixed", content: [
+          { type: "image", media_type: "image/png", data: sheet.png.toString("base64") },
+          { type: "text", text: `Tiles ${grid} from ${from}, ${columns} per row, drawn edge to edge as one picture; ${colorNote}. If it looks mirrored or jumbled, the game may flip these tiles when it draws them (list_sprites shows flips on screen).` },
+        ] };
+      }
+      const sheet = renderTileSheet(bytes, first, colors);
+      const last = first + count - 1;
+      return {
+        type: "mixed",
+        content: [
+          { type: "image", media_type: "image/png", data: sheet.png.toString("base64") },
+          { type: "text", text: `Tiles ${hex(first)}-${hex(last)} from ${from}, ${sheet.columns} per row; ${colorNote}. Tile id = row label + column (hex). Tiles shown in id order are not assembled: a big object's tiles appear scattered; pass tiles and columns to see it whole. read_tile one of them for its exact pixels before copying it.` },
+        ],
+      };
     }
 
     case "write_tile": {
