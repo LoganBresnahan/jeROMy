@@ -271,11 +271,12 @@ change bought; if the failure comes back, reopen it with the new run.
   as 32; the worker wrote it `$14` (20 decimal), recorded font tile `$114`
   as W (it is K) and put `$14` in its HUD note. r2 and r3 read it right.
 - **Lines hit:** A7.font (one tile), A6.hud (that repeat).
-- **Changed:** nothing yet: one of three repeats, and the majority held.
-- **Status:** `open`, watch. If it recurs, the change is in the tool, not
-  the prompt: `read_nametable` (and the other tile tools) giving ids as hex
-  strings beside the numbers, as `get_pixel_color` already gives
-  `nes_color_hex`.
+- **Changed:** after it recurred (`20261010-0309-sheet2-enemy-table-rerun-r1`
+  recorded 0x6792 as the decimal 6792), `record_mapping` takes hex-string
+  ROM offsets and echoes each origin in hex with its first bytes (commit
+  `e20f885`); the grader reads hex strings. r3 of that series used it.
+- **Status:** `changed`; watch. Not yet done: hex strings beside the
+  numbers in `read_nametable` and the other tile tools.
 - **A re-run checks:** each claimed tile id renders as what its name says.
 
 ## F16. A target far into a level is never reached
@@ -353,7 +354,8 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Lines hit:** B3.enemy_sprites (any table whose end the worker guesses).
 - **Changed:** `persist-edit` step 6: a table's length is settled by the
   code that indexes it or where the next table starts.
-- **Status:** `changed`; the B3 re-run measures it.
+- **Status:** `fixed`: `sheet2-enemy-table-rerun` r2 and r3 ended inside
+  the table and said how (r1 was lost to F15).
 - **A re-run checks:** the recorded range ends inside the reference's span,
   and the notes say how the end was found.
 

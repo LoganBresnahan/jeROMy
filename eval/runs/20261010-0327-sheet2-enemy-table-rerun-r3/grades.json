@@ -1,0 +1,63 @@
+{
+  "run": "20261010-0327-sheet2-enemy-table-rerun-r3",
+  "spec": "Super Mario Bros. (World) v21",
+  "reference": "smbdis (doppelganger), ca65 port by threecreepio",
+  "totals": {
+    "calls": 59,
+    "steps": 33,
+    "inTok": 10023368,
+    "outTok": 38231
+  },
+  "stages": {
+    "in_scope": 1,
+    "reached_proof": 1,
+    "recorded": 1,
+    "derived": 1,
+    "promoted": 1,
+    "right": 1,
+    "wrong": 0,
+    "unproven": 0
+  },
+  "rows": [
+    {
+      "where": "task-1",
+      "name": "enemy sprite layout table",
+      "notes": "WHAT THE BYTES ARE: the PRG ROM table that says which sprite (CHR) tile ids make up each enemy's metasprite, i.e. the per-enemy OAM tile list. Each record is a 6-byte run of sprite-pattern-table tile ids in the order the game draws them, row-major (top row left,right; then each lower row left,right), so a standard 16x24 enemy record reads [blank,blank, UL,UR, LL,LR] with blank = $FC. FOUND: search_memory prgRom for the Goomba's tiles in draw order — '70 71 72 73' matches uniquely at 0x6794, and 'FC FC 70 71 72 73' (the full Goomba metasprite: two $FC blank top-row cells + the 2x2 body) matches uniquely at 0x6792. The record sits on the 6-byte boundary of the tile-list block (block base 0x673E, so 0x6792 is entry 14, +0x54). GOOMBA ENTRY: prgRom 0x6792-0x6797 = FC FC 70 71 72 73 ($70/$71 = upper body, $72/$73 = feet), and the $FC/$FC pair is the blank top row of the 16x24 sprite form. This matches the live OAM exactly: a walking World 1-1 Goomba is OAM slots 52-57, all sprite palette 7; when it faces left (flipped) the game emits FC FC 71 70 73 72 and when upright FC FC 70 71 72 73. PROOF (ledgered prgRom write + reset + replay + undo): under hack eval-sheet2-d, write_memory prgRom 0x6794 (the $70 byte) 0x70 -> 0x4F (ledger seq 1, reason 'replace the Goomba metasprite tile id $70 with $4F'), then reset_emulator and replayed Start/Start to World 1-1 and held Right until the first Goomba spawned ($000F slot0 = 1). list_sprites then returned the Goomba metasprite OAM 52-57 as FC FC 71 4F 73 72 — the $70 cell was drawn with tile 79 ($4F = one of Mario's body tiles) instead of 112 ($70) — and the paused screenshot shows the enemy on the hill with that changed cell. undo_edit seq 1 restored $70. TABLE BOUNDS: the tile-list records occupy the block right after the JMP $EB64 at 0x673B and run up to 0x67CD; 0x67CE begins a different structure, so the block is 0x673E-0x67CD (0x90 bytes, the region recorded in rom_origins). Records visible in it include the Goomba (0x6792), its stomped form (0x67C8 = FC FC FC FC EF EF), Koopa-style 4-frame sets, and several other enemies. Note some early records at 0x674A-0x6761 are not clean 6-byte metasprites, so the table is uniform from 0x6762 onward; the Goomba record itself is unambiguous at 0x6792. CAUTION for a later edit: use the exact 6-byte Goomba record 0x6792-0x6797; a length that runs past 0x67CD reaches the next structure.",
+      "confidence": 1,
+      "id": "enemy sprite layout table",
+      "kind": "note",
+      "proof": "look",
+      "derived": null,
+      "promoted": true,
+      "line": null,
+      "verdict": "needs-judge",
+      "grader": "claude",
+      "reference_verdict": "needs-judge",
+      "final": "needs-judge"
+    },
+    {
+      "where": "task-1",
+      "name": "enemy sprite layout table",
+      "notes": "WHAT THE BYTES ARE: the PRG ROM table that says which sprite (CHR) tile ids make up each enemy's metasprite, i.e. the per-enemy OAM tile list. Each record is a 6-byte run of sprite-pattern-table tile ids in the order the game draws them, row-major (top row left,right; then each lower row left,right), so a standard 16x24 enemy record reads [blank,blank, UL,UR, LL,LR] with blank = $FC. FOUND: search_memory prgRom for the Goomba's tiles in draw order — '70 71 72 73' matches uniquely at 0x6794, and 'FC FC 70 71 72 73' (the full Goomba metasprite: two $FC blank top-row cells + the 2x2 body) matches uniquely at 0x6792. The record sits on the 6-byte boundary of the tile-list block (block base 0x673E, so 0x6792 is entry 14, +0x54). GOOMBA ENTRY: prgRom 0x6792-0x6797 = FC FC 70 71 72 73 ($70/$71 = upper body, $72/$73 = feet), and the $FC/$FC pair is the blank top row of the 16x24 sprite form. This matches the live OAM exactly: a walking World 1-1 Goomba is OAM slots 52-57, all sprite palette 7; when it faces left (flipped) the game emits FC FC 71 70 73 72 and when upright FC FC 70 71 72 73. PROOF (ledgered prgRom write + reset + replay + undo): under hack eval-sheet2-d, write_memory prgRom 0x6794 (the $70 byte) 0x70 -> 0x4F (ledger seq 1, reason 'replace the Goomba metasprite tile id $70 with $4F'), then reset_emulator and replayed Start/Start to World 1-1 and held Right until the first Goomba spawned ($000F slot0 = 1). list_sprites then returned the Goomba metasprite OAM 52-57 as FC FC 71 4F 73 72 — the $70 cell was drawn with tile 79 ($4F = one of Mario's body tiles) instead of 112 ($70) — and the paused screenshot shows the enemy on the hill with that changed cell. undo_edit seq 1 restored $70. TABLE BOUNDS: the tile-list records occupy the block right after the JMP $EB64 at 0x673B and run up to 0x67CD; 0x67CE begins a different structure, so the block is 0x673E-0x67CD (0x90 bytes, the region recorded in rom_origins). Records visible in it include the Goomba (0x6792), its stomped form (0x67C8 = FC FC FC FC EF EF), Koopa-style 4-frame sets, and several other enemies. Note some early records at 0x674A-0x6761 are not clean 6-byte metasprites, so the table is uniform from 0x6762 onward; the Goomba record itself is unambiguous at 0x6792. CAUTION for a later edit: use the exact 6-byte Goomba record 0x6792-0x6797; a length that runs past 0x67CD reaches the next structure.",
+      "confidence": 1,
+      "id": "enemy sprite layout table",
+      "kind": "origin",
+      "context": "note",
+      "mem": "prgRom",
+      "offset": 26430,
+      "length": 144,
+      "proof": "write+reset+look",
+      "derived": true,
+      "promoted": true,
+      "line": "B3.enemy_sprites",
+      "loc": "$E73E-$E7CD",
+      "verdict": "agrees",
+      "grader": "reference",
+      "symbol": "EnemyGraphicsTable",
+      "expected": "EnemyGraphicsTable $E73E+258",
+      "reference_at_claim": "EnemyGraphicsTable",
+      "reference_verdict": "agrees",
+      "final": "agrees"
+    }
+  ]
+}

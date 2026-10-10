@@ -1,0 +1,1001 @@
+# session-2beddde9-8094-40b6-97f7-968aa5ecd587 · Verify Goomba sprite tile table
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-10T08:19:38.200Z
+
+[   3 03:19:38] QUEUED <user> for next-turn: Mapping sheet 2 (where the pictures come from), Super Mario Bros.: find the PRG ROM table that says which sprite tiles make up each enemy's metasprite (the Goomba's entry in it). Search PRG for the Go… [+1364 chars]
+[   4 03:19:38] ━━━ turn 1 ━━━
+[   8 03:19:38] USER <user>
+    Mapping sheet 2 (where the pictures come from), Super Mario Bros.: find the PRG ROM table that says which sprite tiles make up each enemy's metasprite (the Goomba's entry in it). Search PRG for the Goomba's tile ids in the order the game draws them, check the hit, and prove it with a ledgered write_memory to prgRom of one of those bytes (with a reason), reset_emulator, starting 1-1 again, and a screenshot in which the Goomba is drawn with a different tile; then undo_edit. Before any ROM write: new_hack named eval-sheet2-d with description 'eval run', then use_hack eval-sheet2-d, so every write goes into that throwaway hack; undo_edit each write as soon as it is proven. At the very end, after promote_mappings, use_hack default. Record it with record_mapping mapping_type note, id 'enemy sprite layout table', name 'enemy sprite layout table', notes with what the bytes are, where the Goomba's entry is and the proof, and rom_origins giving mem prgRom, offset and length of the table as far as you can bound it. Use the persist-edit skill. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again. The first Goomba of 1-1 reaches Mario within a few seconds of the start; pause_emulator to inspect it. The mapping you start from names the Goomba's metasprite tiles. Each play_input call is at most 600 frames; chain calls. No reference is available. Call promote_mappings once at the end.
+[   9 03:19:38] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 03:19:38] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-routine`: Find the entry address of the code that does something (writes a counter, reads level data, copies to the PPU) with no disassembly to lean on: trace the access to get a PC inside the routine, disassemble around it, and settle the entry by who calls it (a JSR/JMP or a pointer-table target), not by where a loop starts. Use when asked which routine does X, before recording a routine, or when a persistent edit needs the code rather than the data.
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    - `play-to-reach`: Get the player to a place far into a level by playing, in short checkpointed runs: save_state, a run of held direction plus timed jumps, a look, load_state on any setback. Use when a task needs something that is only on screen further into a level (an enemy past the pipes, the flagpole, a hidden block), or when writing the player's position did not bring the screen along.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 03:19:43] ASSISTANT (turn 1 step 1) · in 156 (cache 15744) out 1018
+    ▷ Let me start by loading the persist-edit skill, and checking context.
+    
+    Let me plan:
+    1. Load skill persist-edit.
+    2. Screenshot, get_rom_info, list_hacks.
+    3. Find Goomba's metasprite tiles. The mapping sheet 2 names the Goomba's metasprite tiles. Let me check the mapping — maybe lookup_symbol? "No reference is available." Hmm, "The mapping you start from names the Goomba's metasprite tiles." So there's an existing mapping file with the Goomba's metasprite tiles. Let me check list_hacks or maybe read the mapping file... There's no tool to list mappings directly, but record_mapping saves. Perhaps the context mapping is loaded — read_nametable includes tile names if mapping loaded. Hmm.
+    
+    Actually maybe the mappings are in the game's mapping file on disk. But file policy is read-only; we can read files? We don't have a read file tool. Hmm. Maybe the tool results will show. Let me start with get_rom_info, screenshot, list_hacks.
+    
+    The Goomba in SMB is drawn as a 16x16 sprite composed of 4 tiles, typically $B0 (or similar) ... Actually SMB enemy graphics in CHR: Goomba tiles are commonly at CHR $B0-$B3? Hmm, but this is "Mapping sheet 2" — a known task. The Goomba metasprite entry in PRG: S… [+2252 chars]
+    I'll start by loading the persist-edit skill and getting my bearings in the emulator.
+    → skill {"name": "persist-edit"}
+    → get_rom_info {}
+    → screenshot {}
+    → list_hacks {}
+[  18 03:19:43] RESULT skill
+    <skill_content name="persist-edit">
+    <skill_resources>
+    Base directory for this skill: /home/oof/jeROMy/skills/persist-edit
+    Resolve relative paths mentioned by this skill against the base directory before using them. Load referenced resources only as needed.
+    </skill_resources>
+    
+    <skill_instructions>
+    
+    # Persist an edit
+    
+    A `write_palette` or RAM write is volatile: the game rewrites it on the next
+    level load, and a reset erases it. A persistent edit changes the bytes the
+    game copies *from*, in PRG ROM or CHR ROM. Every such write is ledgered in
+    `hacks/sha1-<sha1>/<hack>/edits.json` (the active hack,… [+4341 chars]
+[  20 03:19:44] RESULT get_rom_info
+    {"sha1":"33D23C2F2CFA4C9EFEC87F7BC1321CE3CE6C89BD","name":"Super Mario Bros. (World).nes","path":"C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes"}
+[  22 03:19:44] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0319-sheet2-enemy-table-rerun-r2/images/task-1/6c4891a64152.png
+[  24 03:19:44] RESULT list_hacks
+    {"game_dir":"/home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd","active":"default","hacks":[{"name":"default","description":"Migrated from the single ledger of ADR-0009","created":"2026-10-06T02:38:40.937Z","edits":0,"exports":0,"active":true},{"name":"eval-sheet2-d","description":"eval run","created":"2026-10-10T08:17:48.274Z","edits":0,"exports":0,"active":false}]}
+[  28 03:19:51] ASSISTANT (turn 1 step 2) · in 54099 (cache 16896) out 1229
+    ▷ The context includes a huge mapping. Note the Goomba sprite mapping:
+    
+    - goomba: tiles=[ ] palette=0 — entries: $FC, $FC, $70, $71, $72, $73.
+    
+    Also big_mario, mushroom tiles $76-$79, etc.
+    
+    Now the task: find the PRG ROM table that says which sprite tiles make up each enemy's metasprite (the Goomba's entry in it). Search PRG for the Goomba's tile ids in the order the game draws them.
+    
+    Goomba's tile ids in drawn order: $FC, $FC, $70, $71, $72, $73? Hmm. The "enemy sprite layout table" — in SMB, there's a known table at $8xxx? Actually there's the "enemy graphics" table where each enemy type maps to sprite tiles. Let me think about the SMB disassembly: There's `EnemyGraphics`? Hmm.
+    
+    Actually in SMB, sprites are drawn by the routine "DrawSpriteObject" / there's a table called "EnemyGraphics"? Let me recall known tables:
+    - `SprDataF` / etc.
+    - For enemies, the OAM is built from a table of tile IDs per enemy type. For example, Goomba = tiles $70,$71,$72,$73; Koopa = $B0... etc.
+    
+    The known SMB table is `EnemyGraphics`? Hmm. Actually I recall `MetatileGraphics`? Wait — for sprites, SMB uses "SprData" per object where tile data is stored. There's a table at $8xxx "EnemyGraphics".
+    
+    Rather than… [+2334 chars]
+    The mapping gives me the Goomba metasprite: OAM tiles $FC, $FC, $70, $71, $72, $73 (body = $70-$73). Let me search PRG for those tile sequences.
+    → search_memory {"mem_type": "prgRom", "hex": "70 71 72 73"}
+    → search_memory {"mem_type": "prgRom", "hex": "FC FC 70 71 72 73"}
+    → search_memory {"mem_type": "prgRom", "hex": "FC 70 71 72 73"}
+    → get_cpu_state {}
+[  30 03:19:51] RESULT search_memory
+    {"mem_type":"prgRom","searched":32768,"truncated":false,"pattern_length":4,"start":0,"offsets":[26516],"memory_size":32768,"offsets_hex":["0x6794"]}
+[  32 03:19:51] RESULT search_memory
+    {"mem_type":"prgRom","searched":32768,"truncated":false,"pattern_length":6,"start":0,"offsets":[26514],"memory_size":32768,"offsets_hex":["0x6792"]}
+[  34 03:19:51] RESULT search_memory
+    {"mem_type":"prgRom","searched":32768,"truncated":false,"pattern_length":5,"start":0,"offsets":[26515],"memory_size":32768,"offsets_hex":["0x6793"]}
+[  36 03:19:51] RESULT get_cpu_state
+    {"pc":32856,"a":144,"sp":255,"status":133,"cycle":88356259,"scanline":240,"ppu_cycle":0,"y":0,"x":5}
+[  39 03:19:53] ASSISTANT (turn 1 step 3) · in 267 (cache 72192) out 240
+    ▷ The pattern "FC FC 70 71 72 73" hits at prgRom 0x6792, unique. So the table entry starts with FC FC then 70 71 72 73. Let me read around that offset to see the table and other enemies' entries.
+    
+    Read 48 bytes at 0x6780.
+    One unique hit at prgRom 0x6792 for the full drawn sequence `FC FC 70 71 72 73`. Let me look at the surrounding table.
+    → read_memory {"address": 26496, "length": 64, "mem_type": "prgRom"}
+    → search_memory {"mem_type": "prgRom", "hex": "FC FC 70 71 72 73"}
+[  41 03:19:53] RESULT read_memory
+    {"mem_type":"prgRom","address":26496,"bytes":[220,220,221,221,222,222,252,252,178,179,180,181,252,252,182,179,183,181,252,252,112,113,114,115,252,252,110,110,111,111,252,252,109,109,111,111,252,252,111,111,110,110,252,252,111,111,109,109,252,252,244,244,245,245,252,252,244,244,245,245,252,252,245,245]}
+[  43 03:19:53] RESULT search_memory
+    {"mem_type":"prgRom","searched":32768,"truncated":false,"pattern_length":6,"start":0,"offsets":[26514],"memory_size":32768,"offsets_hex":["0x6792"]}
+[  46 03:20:08] ASSISTANT (turn 1 step 4) · in 338 (cache 72576) out 2833
+    ▷ 0x6792 = 26514. Read from 26496 = 0x6780. Bytes:
+    index 0 at 0x6780: 220,220,221,221,222,222,252,252,178,179,180,181,252,252,182,179,183,181,252,252,112,113,114,115,...
+    
+    So offsets:
+    0x6780: DC DC DD DD DE DE
+    0x6786: FC FC B2 B3 B4 B5
+    0x678C: FC FC B6 B3 B7 B5
+    0x6792: FC FC 70 71 72 73  <- Goomba
+    0x6798: FC FC 6E 6E 6F 6F
+    0x679E: FC FC 6D 6D 6F 6F
+    0x67A4: FC FC 6F 6F 6E 6E
+    0x67AA: FC FC 6F 6F 6D 6D
+    0x67B0: FC FC F4 F4 F5 F5
+    0x67B6: FC FC F4 F4 F5 F5
+    0x67BC: FC FC F5 F5 ...
+    
+    So this is a table of 6-byte entries, each a 16x24 metasprite: 2 blank fillers + 4 tiles. This looks like the SMB "enemy sprite" / object sprite layout table. This is exactly the "enemy sprite layout table" (or "Metatile sprite table"). Great.
+    
+    The task: find the table that says which sprite tiles make up each enemy's metasprite (the Goomba's entry in it). This is it: 6-byte entries at 0x6780 onward. The Goomba entry is at 0x6792 (bytes FC FC 70 71 72 73).
+    
+    Now I need to "check the hit" — confirm this table is being read by the game when drawing the Goomba. That means trace_writes read on 0x6792 during Goomba drawing, or disassemble code that reads the table. Let's find the reader. trace_writes with mode read on a… [+7702 chars]
+    Unique hit: prgRom **0x6792** = `FC FC 70 71 72 73` — a 6-byte entry (2 blank fillers + the Goomba's 4 body tiles). Let me map the whole table and confirm the tile identities.
+    → read_memory {"address": 26240, "length": 128, "mem_type": "prgRom"}
+    → read_memory {"address": 26368, "length": 128, "mem_type": "prgRom"}
+    → read_tile {"tile_id": 112}
+    → read_tile {"tile_id": 115}
+    → read_tile {"tile_id": 252}
+[  48 03:20:08] RESULT read_memory
+    {"mem_type":"prgRom","address":26240,"bytes":[189,230,96,97,98,99,188,243,6,181,42,201,2,176,198,181,219,153,0,2,24,105,8,153,4,2,173,179,3,153,3,2,153,7,2,165,9,74,41,3,170,189,130,230,200,32,193,229,136,169,2,153,2,2,169,130,153,6,2,166,8,96,118,119,120,121,214,214,217,217,141,141,228,228,118,119,120,121,2,1,2,1,172,234,6,173,185,3,24,105,8,133,2,173,174,3,133,5,166,57,189,206,230,13,202,3,133,4,138,72,10,10,170,169,1,133,7,133,3,189,190,230,133,0,189,191,230,32]}
+[  50 03:20:08] RESULT read_memory
+    {"mem_type":"prgRom","address":26368,"bytes":[178,235,198,7,16,241,172,234,6,104,240,47,201,3,240,43,133,0,165,9,74,41,3,13,202,3,153,2,2,153,6,2,166,0,202,240,6,153,10,2,153,14,2,185,6,2,9,64,153,6,2,185,14,2,9,64,153,14,2,76,100,235,252,252,170,171,172,173,252,252,174,175,176,177,252,165,166,167,168,169,252,160,161,162,163,164,105,165,106,167,168,169,107,160,108,162,163,164,252,252,150,151,152,153,252,252,154,155,156,157,252,252,143,142,142,143,252,252,149,148,148,149,252,252,220,220,223,223]}
+[  52 03:20:08] RESULT read_tile
+    $70 (source: chrRom)
+      . . . . . . 3 3
+      . . . . . 3 3 3
+      . . . . 3 3 3 3
+      . . . 3 3 3 3 3
+      . . 3 1 1 3 3 3
+      . 3 3 3 2 1 3 3
+      . 3 3 3 2 1 1 1
+      3 3 3 3 2 1 2 3
+    
+    Raw pixels: [[0,0,0,0,0,0,3,3],[0,0,0,0,0,3,3,3],[0,0,0,0,3,3,3,3],[0,0,0,3,3,3,3,3],[0,0,3,1,1,3,3,3],[0,3,3,3,2,1,3,3],[0,3,3,3,2,1,1,1],[3,3,3,3,2,1,2,3]]
+[  54 03:20:08] RESULT read_tile
+    $73 (source: chrRom)
+      3 2 2 2 3 3 3 3
+      3 3 3 3 3 3 3 3
+      2 2 2 3 3 3 3 .
+      2 2 2 2 . . . .
+      2 2 2 2 1 1 . .
+      2 2 1 1 1 1 1 .
+      2 1 1 1 1 1 1 .
+      . 1 1 1 1 1 . .
+    
+    Raw pixels: [[3,2,2,2,3,3,3,3],[3,3,3,3,3,3,3,3],[2,2,2,3,3,3,3,0],[2,2,2,2,0,0,0,0],[2,2,2,2,1,1,0,0],[2,2,1,1,1,1,1,0],[2,1,1,1,1,1,1,0],[0,1,1,1,1,1,0,0]]
+[  56 03:20:08] RESULT read_tile
+    $FC (source: chrRom)
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+      . . . . . . . .
+    
+    Raw pixels: [[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]]
+[  59 03:20:20] ASSISTANT (turn 1 step 5) · in 1414 (cache 75648) out 2834
+    ▷ The table region: I read 26368 (0x6700) 128 bytes = 0x6700-0x677F. Then 26240 (0x6680) 128 = 0x6680-0x66FF. Hmm ordering: the second read at 26368 gives 0x6700..0x677F ending with "252,252,220,220,223,223" at 0x677A-0x677F. Then 0x6780 = DC DC DD DD DE DE (from third read at 26496 earlier: 220,220,221,221,222,222,252,252,...). Wait 26496 = 0x6780; bytes 220,220,221,221,222,222 = DC DC DD DD DE DE. So 0x677A = FC FC DC DC DD DD? Let's align: read at 26368 bytes index 0 = 0x6700. Last 6 bytes (indices 122-127) = 252,252,220,220,223,223 at 0x677A..0x677F. Then 0x6780: 220,220,221,221,222,222. Hmm so 0x677A entry = FC FC DC DC DF DF. Then 0x6780 entry = DC DC DD DD DE DE. Then 0x6786 = FC FC B2 B3 B4 B5. Then 0x678C = FC FC B6 B3 B7 B5. Then 0x6792 = FC FC 70 71 72 73 (Goomba). Then 0x6798 = FC FC 6E 6E 6F 6F, etc.
+    
+    So the table clearly is 6-byte entries. It's likely "EnemyGraphics" table indexed by enemy type. The Goomba's entry at 0x6792.
+    
+    Note the earlier read starting at 0x6680 shows at 0x66C4ish: "118,119,120,121,214,214,217,217,141,141,228,228,118,119,120,121,2,1,2,1,..." — those are the fire flower ($D6/$D9 = 214/217) etc. So 0x66C6 = 76 77 78 79 (mushroom), 0x66CC = D6 D6 D9 D9… [+5952 chars]
+    The Goomba entry sits at 0x6792 inside a run of 6-byte entries. Now let me find the code that reads it — trace reads on its CPU address ($E792) while an enemy is on screen.
+    → read_memory {"address": 26448, "length": 96, "mem_type": "prgRom"}
+    → trace_writes {"address": 59282, "length": 1, "frames": 120, "mode": "read"}
+[  61 03:20:20] RESULT read_memory
+    {"mem_type":"prgRom","address":26448,"bytes":[252,160,161,162,163,164,105,165,106,167,168,169,107,160,108,162,163,164,252,252,150,151,152,153,252,252,154,155,156,157,252,252,143,142,142,143,252,252,149,148,148,149,252,252,220,220,223,223,220,220,221,221,222,222,252,252,178,179,180,181,252,252,182,179,183,181,252,252,112,113,114,115,252,252,110,110,111,111,252,252,109,109,111,111,252,252,111,111,110,110,252,252,111,111,109,109]}
+[  63 03:20:22] RESULT trace_writes
+    {"total_accesses":0,"writers":[],"mem_type":"cpu","mode":"read","truncated":false,"length":1,"address":59282,"frames":120,"recorded_accesses":0,"note":"No access in the window: the game did not touch this range; trigger the event (resume, reset_emulator, play) and trace again."}
+[  66 03:20:29] ASSISTANT (turn 1 step 6) · in 331 (cache 79872) out 1172
+    ▷ No access during 120 frames — maybe no Goomba on screen or the table isn't read at that address (maybe the reader indexes from a base elsewhere, or the table base is different). Let's find the reader differently.
+    
+    Note: read at 26448 (0x6750): bytes index 0 = 0x6750.
+    0x6750: 252,160,161,162,163,164 → FC A0 A1 A2 A3 A4
+    Hmm that's 6 bytes: FC A0 A1 A2 A3 A4. That looks like an entry too (a 2x3 sprite?). Then
+    0x6756: 105,165,106,167,168,169 → 69 A5 6A A7 A8 A9
+    0x675C: 107,160,108,162,163,164 → 6B A0 6C A2 A3 A4
+    0x6762: FC FC 96 97 98 99
+    ...
+    So entries are 6 bytes throughout, starting before 0x6750.
+    
+    So the table is a 6-byte-entry table. Good.
+    
+    Why no read at $E792? Possibly because no enemy was drawn (attract demo at that moment?), or the sprite draw routine reads a different table and this is a different thing. Or perhaps the game reads the table via a pointer, and the base is $E700 with index; still the read address would be $E792 for the Goomba... unless the table base differs in this ROM (SMB World vs the US version). Hmm.
+    
+    Actually maybe the sprite draw routine for enemies uses a per-enemy pointer and it reads the entry bytes. If the Goomba is drawn, it should read $E792-$E797. U… [+2618 chars]
+    No reads — likely no enemy drawn in that window. Let me check where the game is and get to a live Goomba.
+    → screenshot {}
+    → read_memory {"address": 1904, "length": 1, "mem_type": "cpu"}
+    → list_sprites {}
+[  68 03:20:29] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0319-sheet2-enemy-table-rerun-r2/images/task-1/0c5350de5535.png
+[  70 03:20:29] RESULT read_memory
+    {"mem_type":"cpu","address":1904,"bytes":[1]}
+[  72 03:20:29] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"tile":255,"attr":35,"flip_h":false,"index":0,"width":8,"chr_tile":255,"flip_v":false,"behind_background":true,"palette":7,"y":25,"x":88},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":1,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":40},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":2,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":48},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":3,"width":8,"chr_tile":252,"flip_v":false,"behind_backgroun… [+895 chars]
+[  75 03:20:35] ASSISTANT (turn 1 step 7) · in 1057 (cache 81280) out 863
+    ▷ Game mode $0770 = 1 → playing a level (1-1), small Mario at start, no Goomba yet (Goomba will come from right). Time 255. Interesting: this may be the attract demo (mode 0 normally). But $0770=1 means it's gameplay. Hmm, SMB's attract demo sets game_mode? Actually the attract demo runs with mode 0 but the demo uses the game engine? The mapping says mode 0 = title screen or attract demo. But here 0x0770=1. So this is a real game with Mario idle at start? Time counting down 368→255, so ~113 seconds elapsed, Mario standing. Could be an unattended game. Anyway, mode 1, we're in 1-1 with small Mario at the start and time 255.
+    
+    So hold right to reach the Goomba. The Goomba is at level x 290 and walks left; Mario at x ~40. Playing right, they meet quickly. Let's play right for ~150 frames and pause. But play_input resumes and pauses at end (it says a paused game is resumed for the run and paused again at the end; if running, does it pause after? "A paused game is resumed for the run and paused again at the end (the result says was_paused)." If not paused, probably leaves running. Let's just call play_input with right ~120 frames, then pause_emulator, then list_sprites.
+    
+    But careful: Mario… [+1727 chars]
+    Mode 1, in 1-1, small Mario at the start, no enemy yet. Let me walk right to bring the first Goomba on screen.
+    → save_state {"slot": 0}
+    → play_input {"script": [{"buttons": ["right"], "frames": 110}]}
+[  77 03:20:35] RESULT save_state
+    {"bytes":4678,"slot":0,"paused":false,"stepped_frames":0,"action":"saved"}
+[  79 03:20:37] RESULT play_input
+    {"was_paused":false,"paused":false,"polls":110,"watch":[],"sample_frames":[],"start_frame":47784,"sample_every":2,"end_frame":47894,"segments":1,"frames_run":110,"frames":110,"port":0,"note":"Ran 110 frames of input on port 0. The game is still running."}
+[  82 03:20:38] ASSISTANT (turn 1 step 8) · in 257 (cache 83072) out 99
+    ▷ Game still running. Check screenshot + list_sprites. Mario moved right; may have died? Let's see. Also the game keeps running while I think, so things change. Maybe pause now.
+    
+    Let me pause immediately then screenshot/list_sprites.
+    → pause_emulator {}
+    → screenshot {}
+    → list_sprites {}
+[  84 03:20:38] RESULT pause_emulator
+    {"paused":true}
+[  86 03:20:38] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0319-sheet2-enemy-table-rerun-r2/images/task-1/a3c15bc3c077.png
+[  88 03:20:38] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"tile":255,"attr":35,"flip_h":false,"index":0,"width":8,"chr_tile":255,"flip_v":false,"behind_background":true,"palette":7,"y":25,"x":88},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":1,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":112},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":2,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":120},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":3,"width":8,"chr_tile":252,"flip_v":false,"behind_backgro… [+1822 chars]
+[  92 03:20:44] ASSISTANT (turn 1 step 9) · in 53467 (cache 83328) out 504
+    ▷ The Goomba is on screen: OAM indices 52-57, tiles 252,252,112,113,114,115, palette 7, at x=196/204, y=185/193/201. 
+    
+    Now trace reads on the table while the Goomba is drawn. The game is paused. I need to resume then trace. trace_writes will run frames itself? Let me resume_emulator then trace_writes read on CPU $E792 (59282). During the trace the Goomba keeps walking left toward Mario at x=112; 60 frames at ~0.5px/frame = 30px → from 196 to 166, still on screen. Good.
+    
+    Actually wait — maybe the reader reads the table via indexed addressing starting at a base; the read of $E792 would happen for the Goomba entry. Let's trace address 59282 length 6 to be safe (range $E792-$E797).
+    
+    Let's also trace the whole range 0x6762-0x67A1 (address 0xE762, length 64) to see which entries get read. But if multiple enemies, ambiguous. Just do $E792 length 6.
+    
+    Do: resume_emulator, then trace_writes read 59282 length 6 frames 90.
+    
+    Hmm, resume then trace: after resume, the trace call runs 90 frames. During those frames, Goomba may collide with Mario (Mario idle at x=112, Goomba at 196 → 84px at ~0.5px/frame = 168 frames; safe for 90). Good.
+    
+    Let me also think: maybe the game does not read $E792 because … [+277 chars]
+    Goomba is on screen (OAM 52-57: tiles $FC,$FC,$70,$71,$72,$73, palette 7). Now trace reads on the table entry while it's drawn.
+    → resume_emulator {}
+[  94 03:20:44] RESULT resume_emulator
+    {"resumed":true}
+[  98 03:20:47] ASSISTANT (turn 1 step 10) · in 52147 (cache 137216) out 199
+    ▷ Now trace reads on the table entry while the Goomba is drawn. Note the game is running; the Goomba may still be on screen. Let me trace now: address 59282 (0xE792) length 1 frames 90.
+    
+    Actually, to be safe, trace the full 6-byte entry range and also broader. Let me trace 0xE792 length 6, then maybe 0xE762 length 64.
+    
+    Let's call trace_writes read address 59282 length 6 frames 90.
+    → trace_writes {"address": 59282, "frames": 90, "length": 6, "mode": "read"}
+[ 100 03:20:48] RESULT trace_writes
+    {"total_accesses":0,"writers":[],"mem_type":"cpu","mode":"read","truncated":false,"length":6,"address":59282,"frames":90,"recorded_accesses":0,"note":"No access in the window: the game did not touch this range; trigger the event (resume, reset_emulator, play) and trace again."}
+[ 103 03:20:56] ASSISTANT (turn 1 step 11) · in 214 (cache 189440) out 1178
+    ▷ No access at $E792. Hmm. Maybe the table isn't read at that CPU address — maybe the PRG is mapped differently, or maybe the sprite table is copied to RAM. Or maybe the table at 0x6792 is not what draws the Goomba... but the search hit is exact and unique.
+    
+    Wait — maybe the sprite-draw routine reads via the "sprite" table indexed through a pointer, and the table's base is stored... no, direct reads would still show.
+    
+    Perhaps the trace's "read" mode only catches CPU reads, and the game reads this table via a different addressing that Mesen reports at different address? No.
+    
+    Alternative: maybe the actual data used to draw is a copy in RAM ($0200 pages) and the ROM table is read only at certain times (e.g., when the object is first spawned or when its "graphics" is set up). But then reads would happen at spawn time.
+    
+    Let me check: is the table perhaps read only for some enemies, and the Goomba's tiles are drawn from a different table (maybe the one at 0x66xx)? Hmm.
+    
+    Actually, in SMB, sprite tiles for objects might be stored in a table indexed by object type and read every frame. The table would be at CPU $E7xx if PRG offset 0x67xx. Wait: is the PRG 32KB mapped at $8000-$FFFF? Yes for S… [+2718 chars]
+    No reads at $E792. Let me verify the PRG→CPU mapping and check the current game state.
+    → read_memory {"address": 59282, "length": 6, "mem_type": "cpuDebug"}
+    → read_memory {"address": 59282, "length": 6, "mem_type": "cpu"}
+    → screenshot {}
+    → list_sprites {}
+[ 105 03:20:56] RESULT read_memory
+    {"mem_type":"cpuDebug","address":59282,"bytes":[252,252,112,113,114,115]}
+[ 107 03:20:56] RESULT read_memory
+    {"mem_type":"cpu","address":59282,"bytes":[252,252,112,113,114,115]}
+[ 109 03:20:56] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0319-sheet2-enemy-table-rerun-r2/images/task-1/4787db9c74d1.png
+[ 111 03:20:56] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"tile":255,"attr":35,"flip_h":false,"index":0,"width":8,"chr_tile":255,"flip_v":false,"behind_background":true,"palette":7,"y":25,"x":88},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":1,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":40},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":2,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":48},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":3,"width":8,"chr_tile":252,"flip_v":false,"behind_backgroun… [+895 chars]
+[ 114 03:21:02] ASSISTANT (turn 1 step 12) · in 1121 (cache 190720) out 821
+    ▷ The game returned to the title screen (the Goomba killed Mario / demo ended and reset). So during my trace, the Goomba had already despawned (Mario died and it went to title). That explains no reads. Also confirms prgRom 0x6792 ↔ CPU $E792 maps correctly.
+    
+    So the trace was just mistimed. Let me redo: start the game (Start, wait, Start again) to get to 1-1, then play right briefly to bring the Goomba on screen, then quickly trace reads (the game continues running during trace).
+    
+    But careful: trace runs frames; during those frames the Goomba is drawn. I need to start trace while the Goomba is on screen and not yet despawned.
+    
+    Better approach: I can trace the table base over a long window (e.g., 300 frames) starting right after entering the level and holding right? But play_input doesn't run concurrently with trace.
+    
+    Alternative: Start game then immediately trace 600 frames (10s). During that window, Mario is idle; the Goomba appears ~? Actually the Goomba spawns offscreen and walks in; earlier it took ~110 frames of walking right for it to appear. If Mario is idle at x=40 and Goomba at x=290 walking left at ~0.5 px/frame, it takes ~500 frames to reach Mario, but it becomes visible wh… [+1434 chars]
+    The game had returned to the title (the Goomba despawned) — that's why the trace was empty. Mapping is confirmed (`prgRom 0x6792` = CPU $E792). Let me start 1-1 and trace with the Goomba live.
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 70}, {"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 40}]}
+[ 116 03:21:04] RESULT play_input
+    {"was_paused":false,"paused":false,"polls":122,"watch":[],"sample_frames":[],"start_frame":49405,"sample_every":3,"end_frame":49527,"segments":4,"frames_run":122,"frames":122,"port":0,"note":"Ran 122 frames of input on port 0. The game is still running."}
+[ 119 03:21:07] ASSISTANT (turn 1 step 13) · in 244 (cache 192512) out 238
+    ▷ Now trace reads on the table region while the level runs and the Goomba appears. Trace address 0xE762 = 59234 length 0x60 = 96 for 400 frames. Hmm, max frames 600. Let's do 400.
+    
+    Actually, let me be careful: trace over 96 bytes returns reads for any of those entries; the Goomba entry reads will show at $E792. Let's trace 0xE792 length 6 for 400 frames first — simpler to interpret. If the Goomba is drawn, reads should appear.
+    
+    But if the reader only reads once at spawn, 400 frames covers spawn.
+    
+    Call trace_writes read 59282 length 6 frames 400.
+    → trace_writes {"address": 59282, "frames": 400, "length": 6, "mode": "read"}
+[ 121 03:21:13] RESULT trace_writes
+    {"total_accesses":0,"writers":[],"mem_type":"cpu","mode":"read","truncated":false,"length":6,"address":59282,"frames":400,"recorded_accesses":0,"note":"No access in the window: the game did not touch this range; trigger the event (resume, reset_emulator, play) and trace again."}
+[ 124 03:21:18] ASSISTANT (turn 1 step 14) · in 190 (cache 192896) out 530
+    ▷ Still no access. Hmm. Did the game actually enter 1-1? Maybe the second Start press toggled something. Let me check screenshot and game_mode.
+    
+    Possibly the game was on the title, Start began game, then 70 frames later second Start *paused* the game (SMB Start pauses during play), not started the level! The instruction said "Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again." Hmm. In SMB, from the title screen: pressing Start shows the "1 PLAYER GAME" then the level card and 1-1 begins. Actually SMB title: press Start → the menu selection happens and game starts immediately with the WORLD 1-1 card. The "press Start twice" pattern (Start, wait, Start) is used when the game is in the attract demo: first Start brings the title back, second starts.
+    
+    If we were on the title already, pressing Start once starts the game; the second Start press pauses the game. That could result in paused gameplay. Then my trace ran while paused? But trace refuses while paused... it didn't refuse, so not paused? Hmm, actually if paused (game's internal pause $0776), the emulator is still running frames; the game ju… [+346 chars]
+    → screenshot {}
+    → read_memory {"address": 1904, "length": 1, "mem_type": "cpu"}
+    → read_memory {"address": 1910, "length": 1, "mem_type": "cpu"}
+    → list_sprites {}
+[ 126 03:21:18] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0319-sheet2-enemy-table-rerun-r2/images/task-1/065775c09d5b.png
+[ 128 03:21:18] RESULT read_memory
+    {"mem_type":"cpu","address":1904,"bytes":[1]}
+[ 130 03:21:18] RESULT read_memory
+    {"mem_type":"cpu","address":1910,"bytes":[0]}
+[ 132 03:21:18] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"tile":255,"attr":35,"flip_h":false,"index":0,"width":8,"chr_tile":255,"flip_v":false,"behind_background":true,"palette":7,"y":25,"x":88},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":1,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":40},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":2,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":48},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":3,"width":8,"chr_tile":252,"flip_v":false,"behind_backgroun… [+895 chars]
+[ 135 03:21:32] ASSISTANT (turn 1 step 15) · in 1066 (cache 193536) out 2600
+    ▷ We're in 1-1 (mode 1, pause flag $0776=0), Mario at start, level restarted (TIME 370). No Goomba yet (it's offscreen). The 400-frame trace ran while Mario idle at start; the Goomba becomes visible only when it walks into the camera view, which requires it to travel from level x 290 to <256, i.e. ~35 px at ~0.5px/frame ≈ 70 frames... but wait, earlier the Goomba appeared only after Mario walked right 110 frames (Mario moves right 180px, camera scrolls, bringing the Goomba into view). With Mario idle, camera stays at 0 and the Goomba has to walk to x<256 to be visible. It starts at x=290 (page1 low34). It walks left at ~0.4px/frame? 34 px → ~85 frames. Then it continues; collides with Mario at x~55 after another ~500 frames. So within 400 frames it should be visible for ~300 frames. Yet no reads.
+    
+    So the Goomba is drawn without reading CPU $E792. That means the sprite tiles for the Goomba are NOT taken from that table — or the table is read into RAM elsewhere.
+    
+    Hmm. Let's reconsider: maybe the sprite drawing uses a RAM copy of the "sprite form" set at spawn from a different table, and the 0x6792 table is read at a totally different occasion (maybe it's not enemy graphics at all, but … [+7330 chars]
+    The trace found nothing, meaning the Goomba's tiles likely come from this table at a different time (spawn) or via a different reference. Let me hunt for the code that references the table.
+    → search_memory {"hex": "92 E7", "mem_type": "prgRom"}
+    → search_memory {"hex": "BD 92 E7", "mem_type": "prgRom"}
+    → search_memory {"hex": "80 E7 86 E7 8C E7 92 E7", "mem_type": "prgRom"}
+    → search_memory {"hex": "62 E7", "mem_type": "prgRom"}
+[ 137 03:21:32] RESULT search_memory
+    {"mem_type":"prgRom","searched":32768,"truncated":false,"pattern_length":2,"start":0,"offsets":[],"memory_size":32768,"offsets_hex":[]}
+[ 139 03:21:32] RESULT search_memory
+    {"mem_type":"prgRom","searched":32768,"truncated":false,"pattern_length":3,"start":0,"offsets":[],"memory_size":32768,"offsets_hex":[]}
+[ 141 03:21:32] RESULT search_memory
+    {"mem_type":"prgRom","searched":32768,"truncated":false,"pattern_length":8,"start":0,"offsets":[],"memory_size":32768,"offsets_hex":[]}
+[ 143 03:21:32] RESULT search_memory
+    {"mem_type":"prgRom","searched":32768,"truncated":false,"pattern_length":2,"start":0,"offsets":[32408],"memory_size":32768,"offsets_hex":["0x7E98"]}
+[ 146 03:21:40] ASSISTANT (turn 1 step 16) · in 309 (cache 197120) out 1347
+    ▷ "62 E7" found at 0x7E98 (that's an instruction/data). Hmm. No "92 E7". So the table isn't referenced by absolute address. So it's referenced via a pointer table in RAM or via indexed base with a different approach.
+    
+    Wait — maybe the table is at a different CPU address. PRG ROM could be mapped with 0x6792 -> not $E792? For NROM-256 (32KB), CPU $8000-$FFFF maps linearly to PRG offsets 0x0000-0x7FFF, so offset 0x6792 = $E792. That's standard. read_memory cpuDebug at 59282 gave same bytes, confirming.
+    
+    So the game draws the Goomba without reading $E792, unless the read happens at spawn. Reads at spawn would be during Mario's approach. Let me reconsider whether the Goomba was on screen during my trace after resume.
+    
+    Actually, hmm: after I paused and listed sprites (Goomba present), I called resume_emulator, then trace_writes 90 frames. But between resume_emulator and trace, the trace tool call itself took some frames? No. The trace ran 90 frames. Goomba at x=196 walking left at maybe 0.5-0.75 px/frame → after 90 frames at x≈130-150; Mario at 112. Collision maybe around frame 60-100. If collision, Mario dies; during death the Goomba is still drawn. So reads should occur.
+    
+    Unless the Goom… [+2965 chars]
+    No absolute reference to $E792 — so it's indexed differently. Let me search for indexed-access opcodes into the $E7xx page.
+    → search_memory {"hex": "BD ?? E7", "mem_type": "prgRom"}
+    → search_memory {"hex": "B9 ?? E7", "mem_type": "prgRom"}
+    → search_memory {"hex": "AD ?? E7", "mem_type": "prgRom"}
+    → search_memory {"hex": "?? ?? E7", "mem_type": "prgRom"}
+[ 148 03:21:40] RESULT search_memory
+    {"mem_type":"prgRom","searched":32768,"truncated":false,"pattern_length":3,"start":0,"offsets":[27562,27567],"memory_size":32768,"offsets_hex":["0x6BAA","0x6BAF"]}
+[ 150 03:21:40] RESULT search_memory
+    {"mem_type":"prgRom","searched":32768,"truncated":false,"pattern_length":3,"start":0,"offsets":[],"memory_size":32768,"offsets_hex":[]}
+[ 152 03:21:40] RESULT search_memory
+    {"mem_type":"prgRom","searched":32768,"truncated":false,"pattern_length":3,"start":0,"offsets":[],"memory_size":32768,"offsets_hex":[]}
+[ 154 03:21:40] RESULT search_memory
+    {"mem_type":"prgRom","searched":32768,"truncated":false,"pattern_length":3,"start":0,"offsets":[160,485,3979,4367,5395,5407,5424,5433,5446,5534,5579,5585,5606,5616,5629,5645,5671,5704,5832,7101,7108,7248,7257,7295,7333,7338,7720,8513,8885,9476,9486,9500,9634,9644,9670,9722,9884,9894,9904,10211,10619,10690,10779,10795,11073,11158,11594,23098,24864,25768,26665,27562,27567,28460,32407,32408,32409],"memory_size":32768,"offsets_hex":["0xA0","0x1E5","0xF8B","0x110F","0x1513","0x151F","0x1530","0x1539","0x1546","0x159E","0x15CB","0x15D1","0x15E6","0x15F0","0x15FD","0x160D","0x1627","0x1648","0x16C8",… [+343 chars]
+[ 157 03:21:44] ASSISTANT (turn 1 step 17) · in 846 (cache 198656) out 441
+    ▷ Interesting: "BD ?? E7" at 0x6BAA and 0x6BAF. Those are `LDA $E7xx,X` in the code near 0x6BAA (CPU $EBAA). Let me read the bytes there. Also the wildcard "E7" high-byte search gives many candidate operands; but the BD forms at 0x6BAA/0x6BAF are likely the sprite routine reading tables in the $E7xx page. Let's read around 0x6B80-0x6C00 and disassemble.
+    
+    Let me read memory 0x6B80 length 128 and disassemble at CPU $EB80 (address 60288? no: CPU = 0x8000+0x6B80 = 0xEB80 = 60288).
+    
+    Wait, disassemble tool takes address in CPU space? It says "Start address to read and disassemble from". Probably CPU address. The mapping routines are given as CPU addresses. I'll disassemble at 0xEB80.
+    
+    Also read_memory at prgRom offset 0x6B80.
+    
+    Let me do both: read_memory prgRom 27520 length 128 (0x6B80) and disassemble address 60288 (0xEB80).
+    Found `LDA $E7xx,X` at prgRom 0x6BAA/0x6BAF. Let me disassemble that routine.
+    → read_memory {"address": 27520, "length": 128, "mem_type": "prgRom"}
+    → disassemble {"address": 60288, "length": 110}
+[ 159 03:21:44] RESULT read_memory
+    {"mem_type":"prgRom","address":27520,"bytes":[74,72,144,5,169,16,32,183,235,104,74,72,144,5,169,8,32,183,235,104,74,144,18,32,183,235,181,22,201,12,240,9,181,182,201,2,208,3,32,152,201,96,189,62,231,133,0,189,63,231,133,1,76,130,242,24,125,229,6,168,169,248,76,193,229,24,125,229,6,168,32,74,236,153,16,2,96,133,133,134,134,173,188,3,133,2,173,177,3,133,5,169,3,133,4,74,133,3,188,236,6,162,0,189,205,235,133,0,189,206,235,32,178,235,224,4,208,241,166,8,188,236,6,173,78,7,201,1]}
+[ 161 03:21:44] RESULT disassemble
+    $eb80: 4a          lsr a
+    $eb81: 48          pha 
+    $eb82: 90 05       bcc 0x0000
+    $eb84: a9 10       lda #0x10
+    $eb86: 20 b7 eb    jsr 0xebb7
+    $eb89: 68          pla 
+    $eb8a: 4a          lsr a
+    $eb8b: 48          pha 
+    $eb8c: 90 05       bcc 0x0000
+    $eb8e: a9 08       lda #0x08
+    $eb90: 20 b7 eb    jsr 0xebb7
+    $eb93: 68          pla 
+    $eb94: 4a          lsr a
+    $eb95: 90 12       bcc 0x0000
+    $eb97: 20 b7 eb    jsr 0xebb7
+    $eb9a: b5 16       lda 0x16, x
+    $eb9c: c9 0c       cmp #0x0c
+    $eb9e: f0 09       beq 0x0000
+    $eba0: b5 b6       lda 0xb6, x
+    $eba2: c9 02       cmp #0x02
+    $eba4: d0 03       bne 0x0000
+    $eba6: 20 9… [+907 chars]
+[ 164 03:22:06] ASSISTANT (turn 1 step 18) · in 1143 (cache 199936) out 4153
+    ▷ The "BD ?? E7" at 0x6BAA is `LDA $E73E,X` / `LDA $E73F,X` — a pointer table at $E73E (prgRom 0x673E), not our table. So that's unrelated (probably a pointer table for something else).
+    
+    Hmm, so the search for direct $E7xx indexing found only $E73E. Our table at $E762-$E79x is not directly indexed? Then how is it used?
+    
+    Wait — maybe the table isn't at $E762 but the reads use a pointer (indirect), which would not show as an operand. The routine at $EBAA loads a pointer from $E73E,X into $00/$01 and JMPs to $F282. That pointer table at $E73E could contain pointers to our table! If entries in $E73E point to $E762 etc., the code would then read via LDA ($00),Y at $F282 — which would generate read accesses at the table addresses, and trace would show them. But trace showed none at $E792.
+    
+    Hmm, unless the pointer table $E73E points to $E792? Let's check: read prgRom 0x673E length, say 32 bytes. $E73E = prgRom 0x673E. Our table is 0x6762+. Hmm, 0x673E is before 0x6762.
+    
+    Maybe the indirect pointer leads to our table. Let's read 0x6700-0x6780 to see the pointer table at 0x673E and the data structure.
+    
+    Actually earlier read at 0x6700 showed bytes: 178,235,198,7,16,241,172,234,6,104,240,47,... … [+11914 chars]
+    The `LDA $E7xx,X` hits point to a different pointer table ($E73E), so the Goomba entry is likely read at spawn. Let me put Mario forward so the spawn happens *during* the trace.
+    → pause_emulator {}
+    → write_memory {"address": 134, "bytes": [200], "mem_type": "cpu"}
+[ 166 03:22:06] RESULT pause_emulator
+    {"paused":true}
+[ 168 03:22:06] RESULT write_memory
+    {"mem_type":"cpu","address":134,"bytes_written":1,"persistent":false}
+[ 172 03:22:10] ASSISTANT (turn 1 step 19) · in 52141 (cache 205184) out 253
+    ▷ Now resume and trace $E792 (and maybe whole table) for 600 frames. Mario written to x=200; camera will scroll to follow, triggering Goomba spawn. Let's trace the whole table page region to catch reads: address 0xE762 (59234) length 96 for 600 frames. Hmm, but reads of the entry could also be to entries before/after. Let's trace 0xE762 length 96.
+    
+    Actually to maximize catching the Goomba entry reads, trace exactly $E792 length 6 for 600 frames. But if the table read is via an offset base that lands elsewhere... the Goomba entry is at $E792; if read, it's read.
+    
+    Let's resume then trace 59282 length 6 frames 600.
+    
+    Wait, but I should be careful about the Goomba spawn: it spawns at level x 290; Mario at x=200 → camera will scroll to bring Mario to ~128, so camera ~72, view 72-327, includes 290 → spawn. Good.
+    
+    Let's do resume + trace.
+    → resume_emulator {}
+[ 174 03:22:10] RESULT resume_emulator
+    {"resumed":true}
+[ 178 03:22:13] ASSISTANT (turn 1 step 20) · in 52106 (cache 257536) out 215
+    ▷ Now trace. Address 59282 ($E792) length 6, frames 600. Actually I want to catch the spawn. Let me trace a broader range to be safe: the whole 6-byte-entry table from 0x6756 to 0x67B5 → CPU $E756-$E7B5. Length 0x60 = 96 starting 59222. Let's trace address 59222 length 96 frames 600.
+    
+    Hmm but if the pointer table read is at $E73E and the entry read via indirect, trace would show it. Let's do it.
+    → trace_writes {"address": 59222, "frames": 600, "length": 96, "mode": "read"}
+[ 180 03:22:23] RESULT trace_writes
+    {"total_accesses":0,"writers":[],"mem_type":"cpu","mode":"read","truncated":false,"length":96,"address":59222,"frames":600,"recorded_accesses":0,"note":"No access in the window: the game did not touch this range; trigger the event (resume, reset_emulator, play) and trace again."}
+[ 183 03:22:28] ASSISTANT (turn 1 step 21) · in 189 (cache 309760) out 674
+    ▷ Still nothing over 600 frames with Mario at x=200 (which may have been clamped and he may have died). Let me check the screen.
+    
+    Hmm, but wait: the trace may have run while the game did not progress (maybe paused?). When I resumed, $0776 was 0 (not paused). But maybe an extra Start from earlier paused it? Earlier I read $0776 at address 1910 = 0. Good.
+    
+    Let me check current state: screenshot + list_sprites + $0086/$071C/$0770.
+    
+    Maybe the table genuinely isn't read for the Goomba. But the sequence is unique... Let me think about how SMB draws enemies.
+    
+    Actually! Important: In SMB, enemy sprites' tile IDs come from a table in RAM (the object's "sprite tiles" are set when the enemy spawns, from a table indexed by enemy type). That table might be at $E7xx. Hmm.
+    
+    Wait, maybe I have the wrong CPU mapping: The mapping notes say SMB: nametable $24 is CHR $124, and routines at CPU $F171 correspond to prgRom 0x717F — so CPU = prgRom + 0x8000. Yes.
+    
+    Alternatively, maybe the trace reads at table happen but through the PPU/ROM and Mesen's memory callback doesn't fire for reads from ROM? But the mapping strongly asserts read traces on ROM work (e.g., $A690, $9F01). Those are in a different PRG re… [+529 chars]
+    → screenshot {}
+    → read_memory {"address": 134, "length": 1, "mem_type": "cpu"}
+    → read_memory {"address": 1820, "length": 1, "mem_type": "cpu"}
+    → read_memory {"address": 1904, "length": 1, "mem_type": "cpu"}
+    → list_sprites {}
+[ 185 03:22:28] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0319-sheet2-enemy-table-rerun-r2/images/task-1/253ce4a7a876.png
+[ 187 03:22:28] RESULT read_memory
+    {"mem_type":"cpu","address":134,"bytes":[200]}
+[ 189 03:22:28] RESULT read_memory
+    {"mem_type":"cpu","address":1820,"bytes":[0]}
+[ 191 03:22:28] RESULT read_memory
+    {"mem_type":"cpu","address":1904,"bytes":[1]}
+[ 193 03:22:28] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"tile":255,"attr":35,"flip_h":false,"index":0,"width":8,"chr_tile":255,"flip_v":false,"behind_background":true,"palette":7,"y":25,"x":88},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":1,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":200},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":2,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":208},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":3,"width":8,"chr_tile":252,"flip_v":false,"behind_backgro… [+903 chars]
+[ 196 03:22:48] ASSISTANT (turn 1 step 22) · in 1103 (cache 310528) out 3430
+    ▷ Mario is at x=200 (screen x 200), camera still 0? Wait screen shows Mario at the bush at right (screen x~200), camera didn't scroll because Mario at 200 < the follow threshold? Actually the screenshot shows the same first screen with Mario standing on the bush at right — camera still 0. Mario at screen x=200. The camera follows only when Mario is past ~x=208 maybe (half screen+). So the Goomba at level x 290 spawns only when camera reaches ~x=34+? The spawner spawns enemies whose level x < camera+256+something. Since camera=0, the Goomba at 290 is out of range → never spawned. My write of 200 didn't move the camera.
+    
+    Interesting: Mario is at 200 and stuck (no input). The camera stays 0 because SMB only scrolls when Mario reaches screen x ~ 216 (block boundary) — hmm.
+    
+    The screenshot shows Mario at the bush (x~200). So we need Mario further right to scroll. Write $0086=250? Then camera might catch up. Actually earlier walking right 110 frames moved Mario to screen x=112 with camera scrolled (~?): after 110 frames of walking, Mario's x = 40+110*1.3 ≈ 183? Hmm the list showed Mario at screen x=112. So camera had scrolled by ~70. So the camera does follow.
+    
+    Let me write $0086 = 240 and… [+11610 chars]
+    The camera never advanced (Mario at screen x=200, camera 0), so the Goomba never spawned. Let me push Mario into the scroll region and trace the spawn.
+    → pause_emulator {}
+    → write_memory {"address": 134, "bytes": [248], "mem_type": "cpu"}
+[ 198 03:22:48] RESULT pause_emulator
+    {"paused":true}
+[ 200 03:22:48] RESULT write_memory
+    {"mem_type":"cpu","address":134,"bytes_written":1,"persistent":false}
+[ 204 03:22:51] ASSISTANT (turn 1 step 23) · in 52146 (cache 315008) out 83
+    ▷ Now resume and trace. Trace $E792 len 6 for 200 frames.
+    
+    Actually, let me also consider: maybe the table read happens during the *enemy spawn* and the spawner reads it to set the object's sprite. Let's see.
+    
+    resume + trace.
+    → resume_emulator {}
+[ 206 03:22:51] RESULT resume_emulator
+    {"resumed":true}
+[ 210 03:22:55] ASSISTANT (turn 1 step 24) · in 52069 (cache 367232) out 175
+    ▷ Now trace the full table page. Let's trace address 59202 (0xE742) length 128 for 600 frames? We want to catch the read. Let's do a broad trace: $E700-$E7FF (address 59136 length 256) for 600 frames. That captures any read in the page.
+    
+    Actually, the enemy spawner also reads stuff. Let's just do it.
+    → trace_writes {"address": 59136, "frames": 600, "length": 256, "mode": "read"}
+[ 212 03:23:05] RESULT trace_writes
+    {"total_accesses":0,"writers":[],"mem_type":"cpu","mode":"read","truncated":false,"length":256,"address":59136,"frames":600,"recorded_accesses":0,"note":"No access in the window: the game did not touch this range; trigger the event (resume, reset_emulator, play) and trace again."}
+[ 215 03:23:24] ASSISTANT (turn 1 step 25) · in 240 (cache 419328) out 3522
+    ▷ Zero reads of the entire $E700 page over 600 frames. That strongly implies the table is not read during normal gameplay at all — meaning it's not the enemy sprite layout used for drawing. But the tile sequence is unique...
+    
+    Wait. Could trace_writes have a bug/limitation with prgRom reads? Let me validate the trace mechanism: trace reads on a known-read PRG address. E.g., the enemy spawner reads the enemy list at CPU $9F01 during play. But maybe no enemies spawn in this state either.
+    
+    Hold on: also possible the game's NMI reads nothing from $E700 page because the table is only used by the mode-0 handler? Hmm.
+    
+    Let me validate trace with a definitely-read address: the CPU reads the NMI vector / code constantly. E.g., trace reads on the reset vector? Hmm. Better: trace reads on CPU $9F01 (enemy list) while playing — if that gives zero too, then my game state has no enemies (Goomba never spawned). Let me check the current screen: after writing Mario x=248 and 600 frames with no input, Mario likely stayed at 248 (or died). If no enemy spawned, the spawner wouldn't read $9F01.
+    
+    Hmm, but the camera didn't scroll even with x=248? Let me check.
+    
+    Actually wait — maybe the whole issue is that… [+10932 chars]
+    Let me sanity-check the trace mechanism itself with a control address that's touched every frame.
+    → trace_writes {"address": 9, "frames": 60, "length": 1, "mode": "read"}
+[ 217 03:23:25] RESULT trace_writes
+    {"total_accesses":120,"writers":[{"origin":{"mem_type":"prgRom","address":283,"mem_type_id":45},"pc":33051,"samples":[{"value":22,"address":9,"frame":0},{"value":23,"address":9,"frame":1},{"value":24,"address":9,"frame":2},{"value":25,"address":9,"frame":3},{"value":26,"address":9,"frame":4},{"value":27,"address":9,"frame":5},{"value":28,"address":9,"frame":6},{"value":29,"address":9,"frame":7}],"count":60,"last_value":81,"last_frame":59,"last_address":9,"pc_hex":"0x811B","origin_hex":"prgRom 0x11B"},{"origin":{"mem_type":"prgRom","address":2531,"mem_type_id":45},"pc":35299,"samples":[{"value"… [+611 chars]
+[ 220 03:23:33] ASSISTANT (turn 1 step 26) · in 476 (cache 423040) out 1410
+    ▷ Trace works, including reads from PRG code (pc $811B etc.). And it shows two readers of $0009: PC $811B and PC $89E3 (another routine reading the frame counter!). Interesting: PC $89E3 reads $0009 each frame.
+    
+    So trace works. The table page truly wasn't read in those windows. This means the table is not read during the frames I traced. Possibly it's read only at the enemy spawn or at level init.
+    
+    Hmm, but PC $89E3 also reads $0009 — that's the object sprite routine maybe.
+    
+    Let me now find the reader of the table by searching code for a pointer computed to it. Since no absolute operand references $E7xx except $E73E, maybe the table base is $E700 and the code does `LDA $E700,X`? That would be operand "BD 00 E7". Search "BD 00 E7" — earlier "BD ?? E7" returned only 2 hits (0x6BAA, 0x6BAF = $E73E/$E73F). So no.
+    
+    Thus the table is accessed via indirect pointer. The indirect pointer could be a 16-bit pointer table elsewhere. Search for pointer values into 0x6762-0x679x. The table's first entry is 0x6762; possible pointers: 0x6762,0x6768,...,0x6792. As little-endian: 62 E7, 68 E7, ... We searched 92 E7 (none) and 62 E7 (one hit at 0x7E98). So no pointer table either.
+    
+    Therefore the table … [+3407 chars]
+    Trace works (readers found). So the table page genuinely isn't read while the Goomba is drawn. Better route: find the routine that writes the Goomba's OAM tile bytes. Let me restore the 1-1 state and bring the Goomba on screen.
+    → load_state {"slot": 0}
+    → play_input {"script": [{"buttons": ["right"], "frames": 110}]}
+[ 222 03:23:33] RESULT load_state
+    {"bytes":4678,"slot":0,"paused":false,"stepped_frames":0,"action":"loaded"}
+[ 224 03:23:35] RESULT play_input
+    {"was_paused":false,"paused":false,"polls":110,"watch":[],"sample_frames":[],"start_frame":58524,"sample_every":2,"end_frame":58634,"segments":1,"frames_run":110,"frames":110,"port":0,"note":"Ran 110 frames of input on port 0. The game is still running."}
+[ 227 03:23:39] ASSISTANT (turn 1 step 27) · in 222 (cache 424832) out 125
+    ▷ Now pause and confirm the Goomba, then trace writes on OAM page. Actually trace needs running frames — so pause, list_sprites, then trace (running). But the game keeps running between calls; the Goomba might collide with Mario. Let's pause first, list_sprites, then resume+trace writes on $0200 for 30 frames.
+    
+    Actually the game is running now. Let me pause, list_sprites.
+    → pause_emulator {}
+    → list_sprites {}
+[ 229 03:23:39] RESULT pause_emulator
+    {"paused":true}
+[ 231 03:23:39] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"tile":255,"attr":35,"flip_h":false,"index":0,"width":8,"chr_tile":255,"flip_v":false,"behind_background":true,"palette":7,"y":25,"x":88},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":1,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":112},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":2,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":120},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":3,"width":8,"chr_tile":252,"flip_v":false,"behind_backgro… [+1822 chars]
+[ 235 03:23:43] ASSISTANT (turn 1 step 28) · in 53090 (cache 425088) out 178
+    ▷ Now the Goomba is on screen (OAM 12-17, tiles: index14=113 ($71), 15=112 ($70), 16=115, 17=114 — flipped horizontally, so order reversed). Good.
+    
+    Now trace writes on the OAM page $0200-$02FF (address 512, length 256) for 30 frames to find the writer PCs. The game is paused; trace refuses while paused → resume first.
+    
+    Let me resume and trace writes on 0x0200 length 0x100 frames 30.
+    Goomba is on screen (OAM 12-17, tiles $70-$73, palette 7). Now let me find the routine that writes those OAM tile bytes.
+    → resume_emulator {}
+[ 237 03:23:43] RESULT resume_emulator
+    {"resumed":true}
+[ 241 03:23:47] ASSISTANT (turn 1 step 29) · in 52084 (cache 478336) out 132
+    ▷ Now trace writes on the OAM page. Address 0x0200 = 512, length 0x100 (256), frames 30. But writes include Y positions too — fine. Let's do it.
+    → trace_writes {"address": 512, "frames": 30, "length": 256, "mode": "write"}
+[ 243 03:23:48] RESULT trace_writes
+    {"total_accesses":0,"writers":[],"mem_type":"cpu","mode":"write","truncated":false,"length":256,"address":512,"frames":30,"recorded_accesses":0,"note":"No access in the window: the game did not touch this range; trigger the event (resume, reset_emulator, play) and trace again."}
+[ 246 03:23:53] ASSISTANT (turn 1 step 30) · in 211 (cache 530432) out 725
+    ▷ Zero writes to $0200-$02FF in 30 frames?! But the game draws sprites every frame. So the OAM buffer isn't at $0200. SMB's sprite OAM buffer is at $0200? The mapping references OAM entries at "$0204/$0208" y entries of Mario. Hmm, that suggests OAM at $0200. But trace says no writes.
+    
+    Wait — perhaps the game writes OAM via a different page: SMB uses $0200 for OAM (page 2), DMA'd to $4014. The mapping says "Mario's OAM entries $0204/$0208 176->141". So $0200 page is OAM.
+    
+    But trace found no writes to $0200-$02FF in 30 frames. That's bizarre. Unless... the trace's write mode on CPU RAM needs mem_type, and default cpu maps to something? Let's test with a known write address: trace writes on $0009 should show the INC (write). Actually trace on $0009 read gave accesses; write mode should show the writers.
+    
+    Hmm, maybe the trace write mode only hooks "cpu" bus but the OAM page is written via the "debug" bus? The trace tool's mem_type param only allows cpu or ppu. For reads on $0009 it worked.
+    
+    Let me test: trace_writes write on $0009 for 30 frames → expect writer PC $811B.
+    
+    Also maybe the game had already finished drawing OAM before the trace window? No, it draws each frame.
+    
+    Wait — maybe … [+857 chars]
+    Odd — no OAM writes. Let me verify with a control write trace and peek at the OAM page.
+    → trace_writes {"address": 9, "frames": 30, "length": 1, "mode": "write"}
+    → read_memory {"address": 512, "length": 16, "mem_type": "cpu"}
+[ 248 03:23:54] RESULT trace_writes
+    {"total_accesses":60,"writers":[{"origin":{"mem_type":"prgRom","address":283,"mem_type_id":45},"pc":33051,"samples":[{"value":196,"address":9,"frame":0},{"value":197,"address":9,"frame":0},{"value":197,"address":9,"frame":1},{"value":198,"address":9,"frame":1},{"value":198,"address":9,"frame":2},{"value":199,"address":9,"frame":2},{"value":199,"address":9,"frame":3},{"value":200,"address":9,"frame":3}],"count":60,"last_value":226,"last_frame":29,"last_address":9,"pc_hex":"0x811B","origin_hex":"prgRom 0x11B"}],"mem_type":"cpu","mode":"write","truncated":false,"length":1,"address":9,"frames":30,… [+145 chars]
+[ 250 03:23:54] RESULT read_memory
+    {"mem_type":"cpu","address":512,"bytes":[24,255,35,88,176,252,0,40,176,252,0,48,184,252,0,40]}
+[ 253 03:24:03] ASSISTANT (turn 1 step 31) · in 347 (cache 531328) out 1200
+    ▷ Control write trace on $0009 works (60 accesses). And read_memory cpu $0200 = [24,255,35,88,176,252,0,40,176,252,0,48,184,252,0,40...] — that's OAM data (y=24? x=255? tile=35...). Hmm byte pattern: (y=24, tile=255, attr=35, x=88) = the HUD coin sprite at (88,25). So OAM page IS $0200 and it has the data.
+    
+    Yet trace writes to $0200-$02FF over 30 frames found 0. That means the game does NOT write OAM every frame! It keeps the OAM buffer persistent and only updates entries when objects move/change. SMB does update OAM each frame for moving sprites, but maybe it only writes when changed. Hmm, but Mario walking would change each frame... in this trace Mario was idle (we paused, then resumed; no input). Idle Mario's OAM doesn't change, so no writes needed. The Goomba was walking though (moving left), so its OAM x changes each frame → writes to $0214/... would occur. Unless the Goomba died/despawned before the trace.
+    
+    Wait, after resume from pause, the Goomba at x=145 walking left toward Mario at x=112 → collision in ~40 frames; during 30 frames it moves and its OAM entries get rewritten. So writes should occur.
+    
+    Unless the game uses a different mechanism... Hmm, but the read_memory shows… [+2935 chars]
+    Control write trace works, and OAM sits at $0200 — the game just doesn't rewrite static OAM every frame. The decisive proof is the ledgered ROM write anyway. Setting up the hack now.
+    → new_hack {"name": "eval-sheet2-d", "description": "eval run"}
+[ 255 03:24:03] RESULT new_hack
+    Error: hack "eval-sheet2-d" already exists
+[ 258 03:24:05] ASSISTANT (turn 1 step 32) · in 163 (cache 532736) out 46
+    ▷ Use it.
+    → use_hack {"name": "eval-sheet2-d"}
+[ 260 03:24:05] RESULT use_hack
+    {"from":"default","to":"eval-sheet2-d","reverted":[],"applied":[],"reset":false,"note":"Switched: both ledgers are empty, so the emulator's bytes are unchanged; ROM writes now ledger into this hack."}
+[ 264 03:24:12] ASSISTANT (turn 1 step 33) · in 52199 (cache 532864) out 674
+    ▷ Now do the ledgered write. First I want the level reset so that after reset we start fresh. Actually the procedure: write prgRom, then reset_emulator, then start 1-1 (Start, wait, Start), then walk right to Goomba, screenshot.
+    
+    But wait, if the table is read at spawn, the change should show. If not, no change.
+    
+    Which byte to change? 0x6794 = $70 (Goomba upper-left). Change to $61 (coin). Alternatively change to $FC (blank). Let's use $24? Hmm. Let's think what will be visually clear at 8x8: $70 is the domed upper-left of the Goomba. Replacing it with the coin tile $61 (which is a full oval coin) will show a coin shape in the Goomba's upper-left. Good and identifiable.
+    
+    Hmm, but tile $61 is the block coin's upper half: read_tile $65 showed the fireball; $61 not read. It's fine — clearly a different graphic.
+    
+    Actually a cleaner proof: change $70 to $71? That would duplicate the upper-right tile; harder to notice. Let's use $61.
+    
+    Let me write: write_memory prgRom address 26516 (0x6794) bytes [0x61] reason "change Goomba metasprite upper-left tile id 0x70 to 0x61 to prove the enemy sprite layout table entry at prgRom 0x6792".
+    
+    Wait address 0x6794 = 26516. Yes.
+    
+    Then reset_emulator, the… [+673 chars]
+    Hack active. Now the ledgered write: change the Goomba's upper-left tile byte in its table entry (prgRom 0x6794, currently $70) to the coin tile $61.
+    → write_memory {"address": 26516, "bytes": [97], "mem_type": "prgRom", "reason": "change Goomba metasprite upper-left tile id 0x70 -> 0x61 in the 6-byte enemy sprite layout table entry at prgRom 0x6792, to prove the entry drives the drawn Goomba"}
+[ 266 03:24:12] RESULT write_memory
+    {"mem_type":"prgRom","address":26516,"bytes_written":1,"persistent":true,"ledger":{"seq":1,"file":"/home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd/eval-sheet2-d/edits.json"}}
+[ 269 03:24:16] ASSISTANT (turn 1 step 34) · in 234 (cache 585600) out 71
+    ▷ Ledgered seq 1. Now reset_emulator, then start 1-1 and reach the Goomba.
+    Ledgered (seq 1). Now reset and start 1-1 fresh to see the Goomba.
+    → reset_emulator {}
+[ 271 03:24:16] RESULT reset_emulator
+    {"frames_waited":30,"reset":true,"paused":false,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[ 274 03:24:21] ASSISTANT (turn 1 step 35) · in 246 (cache 585728) out 476
+    ▷ Now start 1-1. Title screen. play_input [{start,6},{},70},{start,6},{},40}] then walk right 110 to reach Goomba. But careful: pressing Start twice might pause if the first Start already started the game. Earlier: we were on the title, and I did Start, wait, Start, wait → resulted in 1-1 gameplay (mode 1). Then later a second Start presumably paused? Actually earlier, after that sequence, screenshot showed 1-1 gameplay with Mario at start and $0776=0 (not paused). Hmm, so the second Start didn't pause? In that earlier attempt, the game may have been in the attract demo at first Start (returning to title), and the second Start began the game. 
+    
+    After reset, we're at the title (mode 0). Pressing Start once begins the game. Pressing Start again during play would pause. That's risky. The task instructions say: "Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again." This implies the state might be attract demo. To be safe, I'll press Start once, wait ~2s, then check mode; if mode 0 (still title/attract), press Start again.
+    
+    Simpler: play_input [{start,6},{},120}] then screenshot + read $0770. If mo… [+347 chars]
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 90}]}
+[ 276 03:24:23] RESULT play_input
+    {"was_paused":false,"paused":false,"polls":96,"watch":[],"sample_frames":[],"start_frame":61407,"sample_every":2,"end_frame":61503,"segments":2,"frames_run":96,"frames":96,"port":0,"note":"Ran 96 frames of input on port 0. The game is still running."}
+[ 279 03:24:27] ASSISTANT (turn 1 step 36) · in 176 (cache 586368) out 148
+    ▷ 
+    → screenshot {}
+    → read_memory {"address": 1904, "length": 1, "mem_type": "cpu"}
+    → read_memory {"address": 1910, "length": 1, "mem_type": "cpu"}
+[ 281 03:24:27] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0319-sheet2-enemy-table-rerun-r2/images/task-1/197351f446e9.png
+[ 283 03:24:27] RESULT read_memory
+    {"mem_type":"cpu","address":1904,"bytes":[1]}
+[ 285 03:24:27] RESULT read_memory
+    {"mem_type":"cpu","address":1910,"bytes":[0]}
+[ 288 03:24:31] ASSISTANT (turn 1 step 37) · in 476 (cache 586624) out 145
+    ▷ We're in 1-1 (mode 1, not paused), Mario at start, TIME 393. Now walk right ~115 frames to bring the Goomba on screen. Then pause and screenshot + list_sprites.
+    
+    Note: a single Start press was enough from the title. Good.
+    
+    play_input right 115. Then pause, screenshot, list_sprites.
+    In 1-1 (mode 1). Now walk right to bring the Goomba on screen.
+    → play_input {"script": [{"buttons": ["right"], "frames": 115}]}
+[ 290 03:24:33] RESULT play_input
+    {"was_paused":false,"paused":false,"polls":115,"watch":[],"sample_frames":[],"start_frame":61965,"sample_every":2,"end_frame":62080,"segments":1,"frames_run":115,"frames":115,"port":0,"note":"Ran 115 frames of input on port 0. The game is still running."}
+[ 293 03:24:36] ASSISTANT (turn 1 step 38) · in 203 (cache 587136) out 49
+    ▷ 
+    → pause_emulator {}
+    → screenshot {}
+    → list_sprites {}
+[ 295 03:24:36] RESULT pause_emulator
+    {"paused":true}
+[ 297 03:24:36] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0319-sheet2-enemy-table-rerun-r2/images/task-1/2dad6bba715d.png
+[ 299 03:24:36] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"tile":255,"attr":35,"flip_h":false,"index":0,"width":8,"chr_tile":255,"flip_v":false,"behind_background":true,"palette":7,"y":25,"x":88},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":1,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":112},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":2,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":120},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":3,"width":8,"chr_tile":252,"flip_v":false,"behind_backgro… [+1820 chars]
+[ 303 03:24:47] ASSISTANT (turn 1 step 39) · in 53484 (cache 587264) out 1228
+    ▷ The Goomba is on screen at OAM 12-17. Its tiles: index14 = 113 ($71), index15 = 97 ($61!), index16 = 115 ($73), index17 = 114 ($72). 
+    
+    Wait, look: with the Goomba facing left (flip_h true), the OAM order was reversed earlier: previously (before edit) index14=113, index15=112, index16=115, index17=114. Now index15 = 97 ($61) instead of 112 ($70)! That is exactly the changed tile. So the ROM edit works — the table entry drives the drawn Goomba tile.
+    
+    But the screenshot: let me look. The screenshot shows the scene near the bush/hill with a Goomba-like sprite at around x=193? I see "the bush and Mario... a small sprite". The image shows Mario and a Goomba at around (195,200) — I can see a brownish shape with something above. Let me describe: the screenshot shows Mario on the left and a small brown figure on the right; there is a green hill. I described earlier the Goomba. The vision: at around (195,205) there's a Goomba with a coin-like tile? Hard to tell at this resolution.
+    
+    The proof is strong: list_sprites shows the Goomba's OAM now carries tile $61 for the upper-left (was $70), demonstrating the table entry at prgRom 0x6792+2 controls the drawn tile. And the visible Goomba has chan… [+2578 chars]
+    The Goomba's OAM now carries **tile $61** at index 15 where it was **$70** before the edit — the table entry drives the drawn tile. Let me confirm with a hit-test on that cell.
+    → list_sprites {"x": 157, "y": 196}
+    → get_pixel_color {"x": 157, "y": 196}
+    → read_memory {"address": 26514, "length": 6, "mem_type": "prgRom"}
+[ 305 03:24:47] RESULT list_sprites
+    {"mask_source":"frame","sprites":[],"sprites_enabled":true,"sprite_pattern_addr":0,"count":0,"large_sprites":false,"background_pattern_addr":4096}
+[ 307 03:24:47] RESULT get_pixel_color
+    {"x":157,"y":196,"rgb":[146,144,255],"nes_color":34,"nes_color_hex":"0x22","name":"periwinkle"}
+[ 309 03:24:47] RESULT read_memory
+    {"mem_type":"prgRom","address":26514,"bytes":[252,252,97,113,114,115]}
+[ 312 03:25:01] ASSISTANT (turn 1 step 40) · in 189 (cache 641920) out 2196
+    ▷ Hmm, (157,196) is periwinkle — sky. And list_sprites with x/y returned none. But the OAM entries said index15 tile 97 at x=154,y=193. Wait list_sprites returned sprites at x=146 and 154 (y 185/193/201). Screen x=154..161, y=193..200. Point (157,196) should be inside index 15 (tile 97). But hit-test returned nothing → the tile 97 has no opaque pixel at that offset? Tile $61 (coin) has transparent index-0 pixels; at offset (3,3) within the tile maybe it's transparent. Also maybe the whole sprite is behind the background? attr 67 = 0x43: palette 3, and bit 6 (0x40) = flip_h; bit 5 (0x20) = behind background. So behind_background = true! Since the Goomba is partly behind the hill/bushes background, at (157,196) the background (hill/bush) covers it → rendered periwinkle? No, the sky is backdrop... Actually the Goomba is on the hill area; behind_background means background wins where opaque. So the pixel shown is the background.
+    
+    So the Goomba is drawn behind the background; the visible Goomba part appears where the background is transparent (sky/blank). Hmm, but the screenshot shows a Goomba-like blob at the bush. Let me re-look: the screenshot shows Mario (x~112) and a small creature a… [+6692 chars]
+    → read_tile {"tile_id": 97}
+    → read_tile {"tile_id": 112}
+[ 314 03:25:01] RESULT read_tile
+    $61 (source: chrRom)
+      . . . . . . . .
+      . . . 3 1 . . .
+      . . . 3 1 . . .
+      . . 3 1 1 1 . .
+      . . 3 1 1 1 . .
+      . . 3 1 1 1 . .
+      . . 3 1 1 1 . .
+      . . 2 1 1 1 . .
+    
+    Raw pixels: [[0,0,0,0,0,0,0,0],[0,0,0,3,1,0,0,0],[0,0,0,3,1,0,0,0],[0,0,3,1,1,1,0,0],[0,0,3,1,1,1,0,0],[0,0,3,1,1,1,0,0],[0,0,3,1,1,1,0,0],[0,0,2,1,1,1,0,0]]
+[ 316 03:25:01] RESULT read_tile
+    $70 (source: chrRom)
+      . . . . . . 3 3
+      . . . . . 3 3 3
+      . . . . 3 3 3 3
+      . . . 3 3 3 3 3
+      . . 3 1 1 3 3 3
+      . 3 3 3 2 1 3 3
+      . 3 3 3 2 1 1 1
+      3 3 3 3 2 1 2 3
+    
+    Raw pixels: [[0,0,0,0,0,0,3,3],[0,0,0,0,0,3,3,3],[0,0,0,0,3,3,3,3],[0,0,0,3,3,3,3,3],[0,0,3,1,1,3,3,3],[0,3,3,3,2,1,3,3],[0,3,3,3,2,1,1,1],[3,3,3,3,2,1,2,3]]
+[ 319 03:25:06] ASSISTANT (turn 1 step 41) · in 596 (cache 644224) out 546
+    ▷ Tile $61 has its opaque pixels at columns 2-5, rows 1-7 (a vertical band). So within the tile, pixel (4,4) etc. is opaque. With flip_h, the mirror maps column c -> 7-c, so opaque region moves to columns 2-5 -> mirrored to 2-5 too (symmetric-ish: cols 2,3,4,5). So a point at tile offset (4,4) is opaque. OAM index15 is at x=154,y=193. So pixel (154+4, 193+4) = (158,197) should be the opaque sprite pixel.
+    
+    Earlier I hit-tested (157,196) -> offset (3,3) which in tile $61 is index 0 (transparent) → no hit. Let's hit-test (158,197).
+    
+    Also get_pixel_color there should be the sprite palette 7 colors (e.g., $36 peach / $17 brown / black) — but palette 7 is $0F,$0F,$36,$17. Tile $61 index 3 = black ($0F), index 1 = black ($0F) too? palette 7 slot1 = $0F black, slot2 = $36 peach, slot3 = $17 brown. Tile $61 uses index 1,2,3. So rendered could be black/peach/brown.
+    
+    Let's hit-test (158,197) and get_pixel_color.
+    
+    Then compare with tile $70 baseline (not needed).
+    
+    Then undo_edit and record.
+    
+    Actually for a better screenshot, the difference: the Goomba's upper-left quadrant previously was the dome (mostly index 3 black + some peach). Now it's a narrow vertical band (index 1 black + index 3 brown)… [+256 chars]
+    → list_sprites {"x": 158, "y": 197}
+    → get_pixel_color {"x": 158, "y": 197}
+    → screenshot {}
+[ 321 03:25:06] RESULT list_sprites
+    {"mask_source":"frame","sprites":[],"sprites_enabled":true,"sprite_pattern_addr":0,"count":0,"large_sprites":false,"background_pattern_addr":4096}
+[ 323 03:25:06] RESULT get_pixel_color
+    {"x":158,"y":197,"rgb":[146,144,255],"nes_color":34,"nes_color_hex":"0x22","name":"periwinkle"}
+[ 325 03:25:06] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0319-sheet2-enemy-table-rerun-r2/images/task-1/338d924a1004.png
+[ 328 03:25:17] ASSISTANT (turn 1 step 42) · in 580 (cache 645248) out 1272
+    ▷ Wait — the screenshot changed completely! Now it shows the first screen (camera 0, Mario on the hill at left, the bush at right, TIME 342), not the earlier scrolled scene. And Mario is at the hill (x~45)? Hmm, it seems the game ran some frames between calls and Mario died or the level restarted? Actually between the pause and now, the pause... wait, I called pause_emulator earlier and it said paused. Then I called list_sprites/get_pixel_color (read-only, fine). But screenshots don't advance. Yet now the screenshot shows a different scene: Mario on the hill at left, TIME 342 (was 371), so ~29 frames passed and the scene scrolled back?? That can't be from reads.
+    
+    Hmm, actually maybe the earlier "pause" didn't persist: the pause_emulator call succeeded, but subsequent tool calls may have resumed? No.
+    
+    Wait, look at the OAM earlier: Goomba at x=146/154 and Mario at x=112. Now the screenshot shows Mario on the hill at x~45? And no Goomba. And TIME 342 vs 371 — 29 ticks passed (~700 frames? no, timer ticks ~24 frames, so 29 ticks = 700 frames!). Hmm.
+    
+    Something resumed the game. Possibly my earlier `list_sprites` calls with coordinates... no. Actually the `play_input` had left the game r… [+3393 chars]
+    The game kept running between calls (my trace windows ran frames), so Mario died and respawned — the earlier Goomba screenshot and OAM read already captured the edit. Let me get a clean, paused shot with the modified Goomba on screen.
+    → pause_emulator {}
+    → screenshot {}
+    → list_sprites {}
+[ 330 03:25:17] RESULT pause_emulator
+    {"paused":true}
+[ 332 03:25:17] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0319-sheet2-enemy-table-rerun-r2/images/task-1/ed80d8bf5c20.png
+[ 334 03:25:17] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"tile":255,"attr":35,"flip_h":false,"index":0,"width":8,"chr_tile":255,"flip_v":false,"behind_background":true,"palette":7,"y":25,"x":88},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":1,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":40},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":2,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":48},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":3,"width":8,"chr_tile":252,"flip_v":false,"behind_backgroun… [+895 chars]
+[ 337 03:25:24] ASSISTANT (turn 1 step 43) · in 1023 (cache 647040) out 171
+    ▷ Mario is at the start (OAM x=40), no Goomba. The game is paused now. Now I need to walk right to bring the Goomba; play_input on a paused game resumes and pauses at the end. So: play_input right 110 → it will run and pause at end (since was_paused true). Then screenshot + list_sprites.
+    
+    Let's do play_input right 115.
+    Mario is at the level start (no Goomba). Walk right to bring the modified Goomba on screen — play_input will pause at the end since the game is paused.
+    → play_input {"script": [{"buttons": ["right"], "frames": 115}]}
+[ 339 03:25:26] RESULT play_input
+    {"was_paused":true,"paused":true,"polls":115,"watch":[],"sample_frames":[],"start_frame":64768,"sample_every":2,"end_frame":64883,"segments":1,"frames_run":115,"frames":115,"port":0,"note":"Ran 115 frames of input on port 0. The game was paused before and is paused again now."}
+[ 342 03:25:30] ASSISTANT (turn 1 step 44) · in 141 (cache 648192) out 42
+    ▷ Now screenshot + list_sprites.
+    → screenshot {}
+    → list_sprites {}
+[ 344 03:25:30] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0319-sheet2-enemy-table-rerun-r2/images/task-1/083516a74788.png
+[ 346 03:25:30] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"tile":255,"attr":35,"flip_h":false,"index":0,"width":8,"chr_tile":255,"flip_v":false,"behind_background":true,"palette":7,"y":25,"x":88},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":1,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":112},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":2,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":120},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":3,"width":8,"chr_tile":252,"flip_v":false,"behind_backgro… [+903 chars]
+[ 349 03:25:36] ASSISTANT (turn 1 step 45) · in 997 (cache 648320) out 516
+    ▷ The Goomba hasn't spawned yet (no palette-7 enemy). Camera moved (now ? block visible, bricks). Need more right movement. The earlier successful run took 110 frames from the level start and showed the Goomba at x=175. Hmm, here after 115 frames no Goomba. Maybe because Mario walked right and the camera scrolled but the enemy spawn requires the camera to reach x; apparently at 115 frames the Goomba hasn't spawned. Earlier (first experiment) after 110 frames the Goomba was visible at OAM x=196. Difference: earlier the game was NOT paused at the start of the run (it was running), now it started paused... shouldn't matter.
+    
+    Actually maybe the Goomba did spawn but already walked off / was passed? No, Mario at x=112 screen.
+    
+    Hmm, actually the enemy spawner spawns the Goomba when the camera reaches a certain x; the Goomba then walks left toward Mario. In 115 frames it may have spawned but is still offscreen to the right (x>255). Let me walk a bit more (right 60) and re-check. But careful not to collide. Actually if the Goomba spawns at level x 290 and camera is now ~112? Then Goomba screen x = 290-112 = 178 → should be visible. But list_sprites shows no enemy.
+    
+    Maybe the Goomba in this se… [+755 chars]
+    → play_input {"script": [{"buttons": ["right"], "frames": 50}]}
+[ 351 03:25:37] RESULT play_input
+    {"was_paused":true,"paused":true,"polls":50,"watch":[],"sample_frames":[],"start_frame":64883,"sample_every":1,"end_frame":64933,"segments":1,"frames_run":50,"frames":50,"port":0,"note":"Ran 50 frames of input on port 0. The game was paused before and is paused again now."}
+[ 354 03:25:40] ASSISTANT (turn 1 step 46) · in 204 (cache 649728) out 35
+    ▷ 
+    → screenshot {}
+    → list_sprites {}
+[ 356 03:25:40] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0319-sheet2-enemy-table-rerun-r2/images/task-1/f1e544135be6.png
+[ 358 03:25:40] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"tile":255,"attr":35,"flip_h":false,"index":0,"width":8,"chr_tile":255,"flip_v":false,"behind_background":true,"palette":7,"y":25,"x":88},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":1,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":112},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":2,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":120},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":3,"width":8,"chr_tile":252,"flip_v":false,"behind_backgro… [+1820 chars]
+[ 361 03:25:46] ASSISTANT (turn 1 step 47) · in 1403 (cache 649856) out 509
+    ▷ Now the Goomba is on screen at OAM 52-57, this time NOT flipped (attr 3 = palette 7, no flip). Its tiles: index54 = 97 ($61) at (174,193), index55 = 113 ($71) at (182,193), index56 = 114 ($72), index57 = 115 ($73). So the standing Goomba's upper-left tile is now $61 instead of $70. 
+    
+    The screenshot shows the Goomba at (174,193) — I can see a sprite at the right of the hill, near x~180, that looks different (with a gap where the dome should be). The modified Goomba: its upper-left quadrant is now the coin tile (a narrow vertical band) instead of the wide dome, so the Goomba appears to have a chunk missing on the upper-left.
+    
+    Now hit-test: tile $61 opaque at (4,4) within the tile; OAM index54 at x=174,y=193 → screen (178,197). Let's hit-test there and get_pixel_color. Palette 7 slot1 = $0F black → the $61 index1 pixels render black; index3 = $17 brown.
+    
+    Let me call list_sprites x=178 y=197 and get_pixel_color.
+    
+    That gives rendered confirmation. Then I'm done proving.
+    
+    Then: undo_edit seq 1, clear palette overrides (none), record_mapping note, promote_mappings, use_hack default.
+    
+    Let's do the hit-test.
+    The modified Goomba is on screen now (OAM 52-57): its upper-left tile is **$61** at (174,193), was $70. Let me confirm the rendered pixel.
+    → list_sprites {"x": 178, "y": 197}
+    → get_pixel_color {"x": 178, "y": 197}
+    → get_pixel_color {"x": 176, "y": 196}
+[ 363 03:25:46] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"cell":{"height":8,"width":8,"y":193,"x":174},"hit_tile":97,"tile":97,"attr":3,"palette":7,"pixel_value":1,"flip_h":false,"index":54,"width":8,"chr_tile":97,"flip_v":false,"behind_background":false,"opaque":true,"y":193,"x":174}],"sprites_enabled":true,"sprite_pattern_addr":0,"count":1,"large_sprites":false,"background_pattern_addr":4096}
+[ 365 03:25:46] RESULT get_pixel_color
+    {"x":178,"y":197,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 367 03:25:46] RESULT get_pixel_color
+    {"x":176,"y":196,"rgb":[153,78,0],"nes_color":23,"nes_color_hex":"0x17","name":"brown"}
+[ 370 03:26:00] ASSISTANT (turn 1 step 48) · in 356 (cache 651648) out 2634
+    ▷ Confirmed: at (178,197), list_sprites hit OAM index 54, hit_tile 97 ($61), palette 7, opaque, pixel_value 1 → rendered black ($0F = palette 7 slot 1). At (176,196) rendered $17 brown (palette 7 slot 3, index 3 of tile $61). So the modified Goomba is drawn using tile $61 from the table entry. 
+    
+    Now undo the edit (seq 1), then record mapping, promote, use_hack default.
+    
+    undo_edit seq 1.
+    
+    Then verify the Goomba reverts? Not required, but the task says undo each write as soon as proven. Do it.
+    
+    Then record_mapping with mapping_type note, id 'enemy sprite layout table', name 'enemy sprite layout table', notes describing bytes, Goomba entry location and proof, and rom_origins: mem prgRom, offset, length.
+    
+    What length can I bound the table to? The table of 6-byte entries. I observed 6-byte entries from at least 0x6756 through 0x67C1 (from reads). Earlier reads:
+    0x6750: FC A0 A1 A2 A3 A4? Wait re-read: read at 26448 (0x6750) bytes: [252,160,161,162,163,164, 105,165,106,167,168,169, 107,160,108,162,163,164, 252,252,150,151,152,153, 252,252,154,155,156,157, 252,252,143,142,142,143, 252,252,149,148,148,149, 252,252,220,220,223,223, 220,220,221,221,222,222, ...]
+    So entries from 0x6750: 
+    0x6750… [+5235 chars]
+    Hit-test confirms: OAM index 54, hit_tile **97 ($61)**, palette 7, opaque, rendered black/brown — the Goomba is drawn from the edited table byte. Now let me bound the table before undoing.
+    → read_memory {"address": 26560, "length": 160, "mem_type": "prgRom"}
+    → read_memory {"address": 26432, "length": 48, "mem_type": "prgRom"}
+[ 372 03:26:00] RESULT read_memory
+    {"mem_type":"prgRom","address":26560,"bytes":[244,244,252,252,245,245,244,244,252,252,252,252,239,239,185,184,187,186,188,188,252,252,189,189,188,188,122,123,218,219,216,216,205,205,206,206,207,207,125,124,209,140,211,210,125,124,137,136,139,138,213,212,227,226,211,210,213,212,227,226,139,138,229,229,230,230,235,235,236,236,237,237,238,238,252,252,208,208,215,215,191,190,193,192,194,252,196,195,198,197,200,199,191,190,202,201,194,252,196,195,198,197,204,203,252,252,232,231,234,233,242,242,243,243,242,242,241,241,241,241,252,252,240,240,252,252,252,252,12,12,0,12,12,168,84,60,234,24,72,72,204,1… [+61 chars]
+[ 374 03:26:00] RESULT read_memory
+    {"mem_type":"prgRom","address":26432,"bytes":[170,171,172,173,252,252,174,175,176,177,252,165,166,167,168,169,252,160,161,162,163,164,105,165,106,167,168,169,107,160,108,162,163,164,252,252,150,151,152,153,252,252,154,155,156,157,252,252]}
+[ 377 03:26:21] ASSISTANT (turn 1 step 49) · in 512 (cache 654592) out 4991
+    ▷ Read at 0x67C0 (26560) 160 bytes: at 0x67C0:
+    244,244,252,252,245,245 → F4 F4 FC FC F5 F5
+    0x67C6: 244,244,252,252,252,252 → F4 F4 FC FC FC FC
+    0x67CC: 239,239,185,184,187,186 → EF EF B9 B8 BB BA
+    0x67D2: 188,188,252,252,189,189 → BC BC FC FC BD BD
+    0x67D8: 188,188,122,123,218,219 → BC BC 7A 7B DA DB
+    0x67DE: 216,216,205,205,206,206 → D8 D8 CD CD CE CE
+    0x67E4: 207,207,125,124,209,140 → CF CF 7D 7C D1 8C
+    0x67EA: 211,210,125,124,137,136 → D3 D2 7D 7C 89 88
+    0x67F0: 139,138,213,212,227,226 → 8B 8A D5 D4 E3 E2
+    0x67F6: 211,210,213,212,227,226 → D3 D2 D5 D4 E3 E2
+    0x67FC: 139,138,229,229,230,230 → 8B 8A E5 E5 E6 E6
+    0x6802: 235,235,236,236,237,237 → EB EB EC EC ED ED
+    0x6808: 238,238,252,252,208,208 → EE EE FC FC D0 D0
+    0x680E: 215,215,191,190,193,192 → D7 D7 BF BE C1 C0
+    0x6814: 194,252,196,195,198,197 → C2 FC C4 C3 C6 C5
+    0x681A: 200,199,191,190,202,201 → C8 C7 BF BE CA C9
+    0x6820: 194,252,196,195,198,197 → C2 FC C4 C3 C6 C5
+    0x6826: 204,203,252,252,232,231 → CC CB FC FC E8 E7
+    0x682C: 234,233,242,242,243,243 → EA E9 F2 F2 F3 F3
+    0x6832: 242,242,241,241,241,241 → F2 F2 F1 F1 F1 F1
+    0x6838: 252,252,240,240,252,252 → FC FC F0 F0 FC FC
+    0x683E: 252,252,12,12,0,12 → FC FC 0C 0C 00 0C
+    0x6844: 12,168,84,60,234… [+10419 chars]
+    Confirmed. Now undo the throwaway write.
+    → undo_edit {"seq": 1}
+[ 379 03:26:21] RESULT undo_edit
+    {"undone":true,"seq":1,"mem":"prgRom","offset":26516,"restored":[112],"remaining_edits":0,"note":"Reset the emulator if the game already copied these bytes elsewhere."}
+[ 382 03:26:29] ASSISTANT (turn 1 step 50) · in 187 (cache 659968) out 1249
+    ▷ Restored $70. Now record_mapping.
+    
+    mapping_type: note
+    id: 'enemy sprite layout table'
+    name: 'enemy sprite layout table'
+    notes: what the bytes are, where the Goomba's entry is, and the proof.
+    rom_origins: [{mem:'prgRom', offset:26514, length:6, notes:'Goomba entry'}, {mem:'prgRom', offset:26448, length:238, notes:'bounded run of 6-byte metasprites'}]
+    
+    Wait offset 0x6792 = 26514. 0x6750 = 26448. Length 238 = 0xEE.
+    
+    Let me craft notes carefully.
+    
+    Then promote_mappings, then use_hack default.
+    
+    Let me record.
+    → record_mapping {"mapping_type": "note", "id": "enemy sprite layout table", "name": "enemy sprite layout table", "confidence": 1, "notes": "Super Mario Bros. (World) PRG ROM table of 6-byte sprite/metasprite layouts: each entry lists the CHR tile ids the game draws for one sprite form, in draw order. The bytes are consecutive tile ids (e.g. $FC,$FC,$70,$71,$72,$73), $FC being the blank filler tile for the unused … [+2553 chars]
+[ 384 03:26:29] RESULT record_mapping
+    {"mapping_type":"note","id":"enemy sprite layout table","name":"enemy sprite layout table","category":null,"group":null,"notes":"Super Mario Bros. (World) PRG ROM table of 6-byte sprite/metasprite layouts: each entry lists the CHR tile ids the game draws for one sprite form, in draw order. The bytes are consecutive tile ids (e.g. $FC,$FC,$70,$71,$72,$73), $FC being the blank filler tile for the unused third row of a 16x24 form. WHERE THE GOOMBA'S ENTRY IS: prgRom 0x6792 (CPU $E792) = FC FC 70 71 72 73 - two $FC top fillers then the Goomba's four body tiles $70 (upper-left dome), $71 (upper-rig… [+2406 chars]
+[ 387 03:26:33] ASSISTANT (turn 1 step 51) · in 1037 (cache 661376) out 36
+    ▷ Now promote_mappings once, then use_hack default.
+    → promote_mappings {}
+[ 389 03:26:33] RESULT promote_mappings
+    Promoted 1 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 65 tiles, 8 palettes, 8 sprites, 35 addresses. 0 hypotheses skipped.
+[ 393 03:26:38] ASSISTANT (turn 1 step 52) · in 52984 (cache 662400) out 79
+    ▷ Now use_hack default (the task's final step). Then done. Also the ledger for eval-sheet2-d is empty (edit undone). Good.
+    
+    Let me call use_hack default.
+    → use_hack {"name": "default"}
+[ 395 03:26:38] RESULT use_hack
+    {"from":"eval-sheet2-d","to":"default","reverted":[],"applied":[],"reset":false,"note":"Switched: both ledgers are empty, so the emulator's bytes are unchanged; ROM writes now ledger into this hack."}
+[ 399 03:26:57] USER <compact-checkpoint>
+    This is an automatically generated checkpoint condensing an earlier span of the conversation to free up context. Treat the captured context as established background and build on it without restating it. Continue the task directly from the messages that follow, without acknowledging this checkpoint.
+    
+    <compacted-summary>
+    ## Primary Request and Intent
+    - Task: "Mapping sheet 2 (where the pictures come from), Super Mario Bros.: find the PRG ROM table that says which sprite tiles make up each enemy's metasprite (the Goomba's entry in it). Search PRG for the Goomba's tile ids in the order the game draws them, check the hit, and prove it with a ledgered write_memory to prgRom of one of those bytes (with a reason), reset_emulator, starting 1-1 again, and a screenshot in which the Goomba is drawn with a different tile; then undo_edit."
+    - Before any ROM write: `new_hack` named `eval-sheet2-d` description `eval run`, then `use_hack eval-sheet2-d`, so every write goes into that throwaway hack; `undo_edit` each write as soon as it is proven.
+    - At the very end, after `promote_mappings`, `use_hack default`.
+    - Record with `record_mapping` mapping_type `note`, id `enemy sprite layout table`, name `enemy sprite layout table`, notes describing the bytes, where the Goomba's entry is and the proof, and `rom_origins` giving mem prgRom, offset and length of the table as far as it can be bounded.
+    - Use the `persist-edit` skill (loaded).
+    - Facts allowed: game on title screen or attract demo; Start on title begins a game, Start during attract demo only returns to title, so press Start, wait a second, press Start again. First Goomba of 1-1 reaches Mario within a few seconds; pause_emulator to inspect it. The starting mapping names the Goomba's metasprite tiles. Each play_input call ≤600 frames; chain calls. No reference available. Call `promote_mappings` once at the end.
+    
+    ## Key Technical Concepts
+    - NES / Mesen2 bridge; PRG ROM offsets map to CPU addresses as CPU = prgRom offset + 0x8000 (32 KiB PRG).
+    - `write_memory` with `mem_type: prgRom` = iNES-header-less ROM offset; ledgered, `persistent: true`, returns `ledger.seq`.
+    - OAM buffer at CPU $0200-$02FF (page 2), DMA'd at NMI; `list_sprites` decodes it.
+    - trace_writes: read/write modes; refused while paused; reads from PRG ROM are traced (verified).
+    - Palette edits freezing is irrelevant here; this is a ROM data edit.
+    
+    ## Files and Code
+    - ROM: `Super Mario Bros. (World).nes`, SHA1 33D23C2F2CFA4C9EFEC87F7BC1321CE3CE6C89BD, path `C:\Users\tarsier\Documents\.Super Mario Bros. (World)\Super Mario Bros. (World).nes`.
+    - Hack dir: `/home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd`.
+    - Target table: starting at prgRom 0x6762, 6-byte entries `FC FC t0 t1 t2 t3` (16x24 metasprites). Goomba entry at **prgRom 0x6792** = `FC FC 70 71 72 73` (0x6793=0xFC, 0x6794=0x70, 0x6795=0x71, 0x6796=0x72, 0x6797=0x73). Unique hit for `FC FC 70 71 72 73`; `70 71 72 73` unique at 0x6794.
+    - Nearby entries observed (all 6-byte, FC FC prefix): 0x6756=FC A0 A1 A2 A3 A4; 0x675C=FC A0 A2 A3 A4? ; 0x6762=FC FC 96 97 98 99; 0x6768=FC FC 9A 9B 9C 9D; 0x676E=FC FC 8F 8E 8E 8F; 0x6774=FC FC 95 94 94 95; 0x677A=FC FC DC DC DF DF; 0x6780=DC DC DD DD DE DE; 0x6786=FC FC B2 B3 B4 B5; 0x678C=FC FC B6 B3 B7 B5; 0x6798=FC FC 6E 6E 6F 6F; 0x679E=FC FC 6D 6D 6F 6F; 0x67A4=FC FC 6F 6F 6E 6E; 0x67AA=FC FC 6F 6F 6D 6D; 0x67B0=FC FC F4 F4 F5 F5. A preceding 4-byte-per-entry table around 0x66C0s holds 16x16 forms: 0x66C6=76 77 78 79 (mushroom), 0x66CC=D6 D6 D9 D9 (fire flower).
+    - Confirmed tile ids: CHR $70/$73 read as Goomba dome/foot art; $FC is blank.
+    
+    ## Errors and Fixes
+    - `new_hack eval-sheet2-d` → `Error: hack "eval-sheet2-d" already exists` (created 2026-10-10T08:17). Fix: call `use_hack eval-sheet2-d` (done; ledger empty, emulator bytes unchanged, ROM writes now ledger there).
+    - Repeated trace_writes reads on CPU $E792 (59282) and the whole $E700 page (59136, length 256) over windows with the Goomba on screen returned 0 accesse… [+3314 chars]
+[ 406 03:26:57] USER <skill-catalog>
+    <system-reminder>
+    The available skill catalog changed. This complete catalog replaces every earlier available-skills list in this session:
+    
+    <available_skills>
+    - `find-routine`: Find the entry address of the code that does something (writes a counter, reads level data, copies to the PPU) with no disassembly to lean on: trace the access to get a PC inside the routine, disassemble around it, and settle the entry by who calls it (a JSR/JMP or a pointer-table target), not by where a loop starts. Use when asked which routine does X, before recording a routine, or when a persistent edit needs the code rather than the data.
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    - `play-to-reach`: Get the player to a place far into a level by playing, in short checkpointed runs: save_state, a run of held direction plus timed jumps, a look, load_state on any setback. Use when a task needs something that is only on screen further into a level (an enemy past the pipes, the flagpole, a hidden block), or when writing the player's position did not bring the screen along.
+    </available_skills>
+    
+    Use only names in this replacement catalog. If the user names a listed skill, or the task clearly matches its description, call the `skill` tool with the exact name before acting.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[ 408 03:27:03] ASSISTANT (turn 1 step 53) · in 89392 (cache 3200) out 854
+    ▷ The task is complete. Let me verify the final state and report.
+    
+    Actually, I already loaded the persist-edit skill earlier per the summary. The task is done. Let me give the final answer.
+    
+    Wait — should I double-check the emulator is fine? The hack switch reported both ledgers empty and no reset. Fine.
+    
+    Let me summarize the result.
+    Done. Here's the outcome of mapping sheet 2.
+    
+    ## Found: the enemy sprite layout table
+    
+    **PRG ROM table of 6-byte metasprites** — each entry lists the CHR tile ids drawn for one sprite form, in draw order (`$FC` = blank filler for the unused third row of a 16×24).
+    
+    **The Goomba's entry — prgRom 0x6792 (CPU $E792):**
+    
+    ```
+    FC FC 70 71 72 73
+           ^^ upper-left dome
+              ^^ upper-right
+                 ^^ lower-left feet
+                    ^^ lower-right
+    ```
+    
+    `search_memory prgRom "FC FC 70 71 72 73"` is a **unique hit at 0x6792** (`70 71 72 73` alone is unique there too). Neighbouring forms are other enemies/sprites on the same 6-byte grid (e.g. 0x678C `FC FC B6 B3 B7 B5`, 0x6798 `FC FC 6E 6E 6F 6F`).
+    
+    ## Proof (hack `eval-sheet2-d`, ledger seq 1)
+    
+    1. `write_memory prgRom 0x6794` **$70 → $61** (coin tile), with reason.
+    2. `reset_emulator`, pressed Start, walked right to the first Goomba.
+    3. `list_sprites` on the standing Goomba (OAM 52-57): tiles read **`FC FC 61 71 72 73`** instead of the baseline `FC FC 70 71 72 73`.
+    4. Hit-test on OAM index 54 at cell (174,193): **hit_tile 97 ($61)**, opaque, palette 7; `get_pixel_color(178,197)` = $0F black, `(176,196)` = $17 brown — i.e. the coin shape's pixels rendered in the Goomba's sprite palette. The screenshot showed the Goomba with its upper-left quadrant replaced.
+    5. `undo_edit seq 1` restored 0x6794 = $70 (`remaining_edits: 0`).
+    
+    This proves the bytes at 0x6792+ **are** the Goomba's metasprite tile list, not coincidental data.
+    
+    Noted caveat: no direct reader of the $E7xx pointer table turned up (`trace_writes` read on the whole $E700 page over 600 frames caught nothing; the only $E7xx readers are `LDA $E73E,X`/`$E73F,X` at prgRom 0x6BAA/0x6BAF, a different table). The entry is consumed when the sprite form is set up (spawn/graphics init), not per frame — the ledgered write + reset + screenshot is the authoritative check.
+    
+    ## Recorded and cleaned up
+    
+    - `record_mapping` (note, `enemy sprite layout table`, confidence 1) with two `rom_origins`: the Goomba entry at prgRom 0x6792 (6 bytes), and the bounded 6-byte-entry run 0x6750–0x683D (238 bytes; it extends at least to 0x6744, and 0x683E begins signed data, not sprite forms).
+    - `promote_mappings` — promoted 1 discovery (file now 65 tiles / 8 palettes / 8 sprites / 35 addresses).
+    - `use_hack default` — back on the default hack; both ledgers empty, emulator bytes unchanged.
+[ 410 03:27:03] ─── turn 1 end: {"kind":"completed"}
+
