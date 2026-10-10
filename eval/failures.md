@@ -38,6 +38,10 @@ change bought; if the failure comes back, reopen it with the new run.
   rule into JSON. Changed: a prompt line, "tool arguments are JSON with
   decimal numbers" (checked live). Fixed: no `MALFORMED_RESPONSE` in the
   fourteen tasks since (sheet2-text-tiles through sheet2-tiles-rerun2).
+  Seen once more in `20261009-2322-sheet1-scenes` task 2 (after 5 calls, the
+  first in about thirty tasks); the runner's resume finished the task, so
+  nothing was lost. The cause was not captured (the debug line is out of the
+  dsh checkout); if it recurs twice more, put the capture back.
 - **A re-run checks:** no `MALFORMED_RESPONSE` across the next runs' tasks;
   if one appears, the debug capture says whether it is still hex.
 

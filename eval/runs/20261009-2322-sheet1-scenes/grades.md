@@ -1,0 +1,11 @@
+# Grades: 20261009-2322-sheet1-scenes
+
+Reference: smbdis (doppelganger), ca65 port by threecreepio. Spec: Super Mario Bros. (World) v13. One row per claim (eval/README.md); `final` is the reference verdict held to the proof step.
+
+| line | claim | at | evidence (proof) | reference | final | grader | image |
+|---|---|---|---|---|---|---|---|
+| A1.card | WORLD x-y death card (the black card shown between lives) — Black death/respawn card. Top status bar (nametable 0 rows 2-3) stays unchanged: MARIO 000200, coin x01, WORLD 1-1, and  | card | look, promoted | needs-judge | confirmed | claude | task-1/5b900b4b1518.png: the black card 'WORLD 1-1' with Mario x 5 over the fixed HUD, taken paused right after a lost life, as the reach says |
+| A1.underground | World 1-2 (underground, opening screen) — World 1-2, the underground level, first screen (camera x=0, Mario at the bottom-left). Everything visible is BACKGROUND: | underground | look, promoted | needs-judge | confirmed | claude | task-1/c3f9cd2ef0f1.png: HUD reads WORLD 1-2; black backdrop, blue-green brick ceiling, wall and floor, the row of ? blocks and two Goombas in the underground palette: World 1-2's opening, reached by writing the area index before Start |
+| C1.area | level/area index that selects which area the game loads — This is how the game picks the area it loads, proven in the emulator. The level-init area selector at CPU $9C00-$9C12 (p | $0760 | write+look, not in any diff, promoted | agrees (expected AreaNumber $0760 \| AreaType $074E \| AreaPointer $0750; here: AreaNumber) | agrees | reference |  |
+| A1.water | World 2-2 (under water, opening screen) — World 2-2, the under-water level, first screen. Mario stands at the bottom-left in water; everything else visible is BAC | water | look, promoted | needs-judge | confirmed | claude | task-2/8d26304dc825.png: HUD reads WORLD 2-2; blue water backdrop with the wave line at the top, green coral floor, pink coral and bubbles: World 2-2's opening |
+| A1.castle | World 1-4 (castle, opening screen) — World 1-4, the castle level, first screen (camera x=0, small Mario on the left ledge). Everything visible except Mario i | castle | look, promoted | needs-judge | confirmed | claude | task-2/3b7ec9d6986d.png: HUD reads WORLD 1-4; gray castle brick ceiling, steps and floor on black, a lava pit at the right: World 1-4's opening |
