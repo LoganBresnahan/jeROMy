@@ -36,7 +36,8 @@ declare -A MIN_CALLS=([look]=1 [read]=2 [edit]=5 [click]=3 [region]=2 [hacks]=6 
 # --blind: the calibration switch (ADR-0019). JEROMY_BLIND=1 goes to the
 # headless dsh only, never to the web dsh restarted afterwards, and the
 # summary fails if lookup_symbol was called before the first write_memory.
-BLIND=0; if [ "${1:-}" = "--blind" ]; then BLIND=1; shift; fi
+# It also adds scripts/blind.patch.yml, which disables dsh's web tools (ledger F17).
+BLIND=0; BLIND_PATCH=""; if [ "${1:-}" = "--blind" ]; then BLIND=1; BLIND_PATCH="$REPO/scripts/blind.patch.yml"; shift; fi
 if [ "${1:-}" = "--task" ]; then TASK[custom]="$2"; MIN_CALLS[custom]="${3:-1}"; set -- custom; fi
 TIMEOUT="${TRIO_TIMEOUT:-420}"
 CHECKS=("$@"); [ ${#CHECKS[@]} -eq 0 ] && CHECKS=(look read edit click region hacks persist play)
@@ -212,6 +213,13 @@ if os.environ.get("BLIND") == "1":
         e = json.loads(line)
         if e.get("type") == "tool_call" and any(k in json.dumps(e.get("input") or e.get("args") or {}) for k in ("reference.json", "eval/spec", "eval/runs", "mappings/sha1-", "discoveries.json")):
             ok = False; final = f"BLIND CHECK: {e.get('tool')} touched the answer key · " + final; break
+    # Ledger F17: a web search is an outside reference; blind.patch.yml disables the tools, this catches a leak past it.
+    for line in open(sys.argv[1]):
+        line = line.strip()
+        if not line.startswith("{"): continue
+        e = json.loads(line)
+        if e.get("type") == "tool_call" and str(e.get("tool", "")).startswith("web_"):
+            ok = False; final = f"BLIND CHECK: {e.get('tool')} reached the web · " + final; break
 if sys.argv[3:] == ["persist"]:
     names = {}; res = []
     for line in open(sys.argv[1]):
@@ -254,7 +262,7 @@ run_check() { # $1 = name; sets code/sok/sid; writes $OUT/$1.jsonl
   # (ADR-0011, found 2026-10-05).
   # TSX_TSCONFIG_PATH: outside the checkout tsx would not see its tsconfig `paths`
   # and would load stale built packages instead of workspace sources.
-  ( cd "$WORK" && JEROMY_BLIND="$BLIND" TSX_TSCONFIG_PATH="$DSH_SRC/tsconfig.json" timeout "$TIMEOUT" node --import "$TSX_ESM" "$DSH_SRC/apps/cli/src/bin.ts" --profile headless --patch "$PATCH" ${TRIO_SESSION_ID:+--session-id "$TRIO_SESSION_ID"} --json "$task" ) > "$OUT/$name.jsonl" 2> "$OUT/$name.err"
+  ( cd "$WORK" && JEROMY_BLIND="$BLIND" TSX_TSCONFIG_PATH="$DSH_SRC/tsconfig.json" timeout "$TIMEOUT" node --import "$TSX_ESM" "$DSH_SRC/apps/cli/src/bin.ts" --profile headless --patch "$PATCH" ${BLIND_PATCH:+--patch "$BLIND_PATCH"} ${TRIO_SESSION_ID:+--session-id "$TRIO_SESSION_ID"} --json "$task" ) > "$OUT/$name.jsonl" 2> "$OUT/$name.err"
   code=$?
   sid="$(grep -o '"sessionId":"session-[0-9a-f-]*"' "$OUT/$name.jsonl" | head -1 | cut -d'"' -f4)"
   summary="$(BLIND="$BLIND" summarize "$OUT/$name.jsonl" "${MIN_CALLS[$name]:-1}" "$name")"; sok=$?

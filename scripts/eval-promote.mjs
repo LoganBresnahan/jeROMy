@@ -43,8 +43,9 @@ export function decide(lines, runs) {
       if (o) {
         const x = entryOf(o);
         // A picture line is often several entries (a bush is five tiles): the same run's other right entries on the line go with it.
-        const more = o.run.rows.filter((y) => y !== x && y.line === line.id && recordOf(y) === recordOf(x) && y.id !== x.id && RIGHT.has(y.final) && PROVEN.has(y.proof ?? "") && o.run.copy?.[recordOf(y)]?.[y.id])
-          .filter((y, i, a) => a.findIndex((z) => z.id === y.id) === i).map((y) => ({ key: y.id, entry: o.run.copy[recordOf(y)][y.id] }));
+        // Any record but notes: the flagpole is tiles plus the flag's sprite.
+        const more = o.run.rows.filter((y) => y !== x && y.line === line.id && recordOf(y) && recordOf(y) !== "notes" && !(recordOf(y) === recordOf(x) && y.id === x.id) && RIGHT.has(y.final) && PROVEN.has(y.proof ?? "") && o.run.copy?.[recordOf(y)]?.[y.id])
+          .filter((y, i, a) => a.findIndex((z) => z.id === y.id && recordOf(z) === recordOf(y)) === i).map((y) => ({ record: recordOf(y), key: y.id, entry: o.run.copy[recordOf(y)][y.id] }));
         return { line, action: "replace", record: recordOf(x), key: x.id, entry: o.run.copy[recordOf(x)][x.id], more, from: o.run.id, votes: `${nRight}/${runs.length} right` };
       }
       const noted = outcomes.find((x) => x.right && recordOf(x.right) === "notes");
@@ -67,7 +68,7 @@ export function apply(mapping, spec, decisions, runs, skip = []) {
   for (const d of decisions) {
     const line = spec.lines.find((l) => l.id === d.line.id);
     if (d.action === "replace") {
-      const now = new Set([d.key, ...(d.more ?? []).map((m) => m.key)].map((k) => `${d.record}.${k}`));
+      const now = new Set([`${d.record}.${d.key}`, ...(d.more ?? []).map((m) => `${m.record}.${m.key}`)]);
       // Only the line's own answer is replaced; its `holds` (other lines' entries it is held back with) stay.
       for (const old of [line.entry, ...(line.entries ?? [])].filter(Boolean)) {
         if (now.has(old) || old === "notes") continue;
@@ -77,9 +78,9 @@ export function apply(mapping, spec, decisions, runs, skip = []) {
       mapping[d.record] ??= {};
       mapping[d.record][d.key] = d.entry;
       changes.push(`+ ${d.record}.${d.key} (${line.id}, ${d.votes}, from ${d.from})`);
-      for (const m of d.more ?? []) { mapping[d.record][m.key] = m.entry; changes.push(`+ ${d.record}.${m.key} (${line.id}, with ${d.key})`); }
+      for (const m of d.more ?? []) { mapping[m.record] ??= {}; mapping[m.record][m.key] = m.entry; changes.push(`+ ${m.record}.${m.key} (${line.id}, with ${d.key})`); }
       Object.assign(line, { status: "promoted", run: d.from, verdict: "agrees", entry: `${d.record}.${d.key}` });
-      if (d.more?.length) line.entries = d.more.map((m) => `${d.record}.${m.key}`); else delete line.entries;
+      if (d.more?.length) line.entries = d.more.map((m) => `${m.record}.${m.key}`); else delete line.entries;
     } else if (d.action === "note") {
       // The note itself arrives with the run's notes below; the line points at the notes.
       Object.assign(line, { status: "promoted", run: d.from, verdict: "agrees", entry: "notes" });
@@ -100,14 +101,15 @@ export function apply(mapping, spec, decisions, runs, skip = []) {
     for (const rec of ["addresses", "routines", "levels", "scenes", "tiles", "sprites", "palettes"]) {
       for (const [k, v] of Object.entries(r.copy?.[rec] ?? {})) {
         const key = `${rec}.${k}`;
-        if (owned.has(key) || decisions.some((d) => d.action === "replace" && [d.key, ...(d.more ?? []).map((m) => m.key)].some((k) => `${d.record}.${k}` === key))) continue;
+        if (owned.has(key) || decisions.some((d) => d.action === "replace" && [`${d.record}.${d.key}`, ...(d.more ?? []).map((m) => `${m.record}.${m.key}`)].includes(key))) continue;
         if (spec.lines.some((l) => inScope.has(l.id) && l.entry === key)) continue;
         if (wrongKeys.has(key)) { changes.push(`  skipped ${key} (graded wrong in ${r.id})`); continue; }
         // A skipped line's claims stay out entirely, or its own leaked answer would be in the mapping its re-run starts from.
         if (r.rows.some((x) => skip.includes(x.line) && `${recordOf(x)}.${x.id}` === key)) { changes.push(`  skipped ${key} (line skipped)`); continue; }
         // A claim on a line that got a decision is that line's candidate; only the decision's entry goes in, never a twin.
-        const decided = new Set(decisions.filter((d) => d.action === "replace" || d.action === "note").map((d) => d.line.id));
-        if (r.rows.some((x) => x.line && decided.has(x.line) && `${recordOf(x)}.${x.id}` === key)) continue;
+        // So is a claim on an in-scope line with no majority: the side door must not undo the vote (a 1-of-3 Koopa nearly
+        // went in through it, sheet1-koopa-flag-rerun).
+        if (r.rows.some((x) => x.line && inScope.has(x.line) && `${recordOf(x)}.${x.id}` === key)) continue;
         mapping[rec] ??= {};
         if (!mapping[rec][k]) {
           mapping[rec][k] = v; changes.push(`+ ${key} (side discovery, from ${r.id})`);

@@ -50,3 +50,7 @@ A skill for reaching a far point by playing, in checkpointed stretches:
 plus timed jump pulses, a look, load_state on any setback; never write
 position to teleport). The re-run of the Koopa and the flagpole, three
 repeats, measures it.
+
+## Note added 2026-10-10 (ledger F17)
+
+Task 3 also called the web tools (nothing recorded). Blind runs no longer have them.

@@ -65,3 +65,7 @@ power-up pictures (C2.power is now mapped, so a task can make Mario big or
 fire by writing it); sheet 2's other palette tables, the enemy sprite table
 and the CHR origin; sheet 4's area format, 1-2 and the timer header; sheet
 5's VRAM writer and scroll split.
+
+## Note added 2026-10-10 (ledger F17)
+
+Task 2 searched the web for 1-1's star block and fetched Mario Wiki's 1-1 page (the RAM map fetch was blocked, HTTP 403) before recording the power state and star timer; no result contained an address. The claims stand on their own proofs and recall (F4); the run was not blind in ADR-0019's sense. Blind runs no longer have web tools.

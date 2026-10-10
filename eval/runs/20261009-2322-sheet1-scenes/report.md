@@ -49,3 +49,7 @@ None. Sheet 1 is at 24 of 31; what remains is the flagpole and the Koopa
 (further into 1-1) and the power-up pictures (big Mario, mushroom, fire
 flower, star, fireball), which need the power state (C2.power, sheet 3,
 still open) or the play to earn them.
+
+## Note added 2026-10-10 (ledger F17)
+
+Task 1 called `web_search` twice and `web_fetch` once (the RAM map, HTTP 403) before recording the underground scene and `$0760`; no result contained an address or label. The claims stand on their own proofs; the run was not blind in ADR-0019's sense. Blind runs no longer have web tools.

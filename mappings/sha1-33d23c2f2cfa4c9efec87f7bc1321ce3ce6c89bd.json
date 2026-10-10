@@ -1,7 +1,7 @@
 {
   "rom_sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
   "rom_name": "Super Mario Bros. (World).nes",
-  "version": 21,
+  "version": 22,
   "schema": 3,
   "contributors": [],
   "description": "Auto-discovered mappings for Super Mario Bros. (World).nes",
@@ -431,6 +431,34 @@
       "category": "background",
       "group": "cloud",
       "notes": "Cloud tile at nametable (20,8). read_tile: index-1 white in the upper-left, index-3 outline stepping down to the right. Same object region proof (palette 2, box 136,48-167,71)."
+    },
+    "chr:0x1A2": {
+      "name": "flagpole shaft (left column)",
+      "table": 1,
+      "category": "background",
+      "group": "flagpole",
+      "notes": "Left of the two 8px background columns that make the World 1-1 flagpole's shaft. read_tile CHR $1A2: a single index-1 pixel column at the tile's RIGHT edge (col 7) and nothing else. Placed in the live nametable as tile id $A2 in the column immediately left of the pole line, running from under the ball down to the ground block. Together with CHR $1A3 (the same 1px line at ITS left edge, col 0) the pair $A2|$A3 side by side puts both 1px lines on the shared boundary, i.e. one 2px vertical green line - which is how SMB draws a thin pole with 8px tiles. BACKGROUND pattern table $1000 (background_pattern_addr 4096), BG palette 0, slot 1 = $29 lime green. PROOF: get_region color mode at (109,100) returned 128 pixels of background-palette-0 slot 1 across background CHR 0x1A2 and 0x1A3, box (108,68)-(109,131) - a 2px-wide vertical run - and reported NO other pixel in view uses that slot, so on this screen palette-0 slot 1 is the pole alone. get_tile_at_pixel (104,50) and (104,150) both returned tile_id $A2 / chr_tile $1A2 / palette 0 / screen_box (101,48) and (101,144); (112,100) returned $A3 / chr_tile $1A3 / screen_box (109,96). The pole's base block is nametable tile $AC (CHR $1AC) under it at (101,200), palette 1."
+    },
+    "chr:0x1A3": {
+      "name": "flagpole shaft (right column)",
+      "table": 1,
+      "category": "background",
+      "group": "flagpole",
+      "notes": "Right of the two 8px background columns that make the World 1-1 flagpole's shaft, i.e. the mirror of CHR $1A2. read_tile CHR $1A3: a single index-1 pixel column at the tile's LEFT edge (col 0) and nothing else. Placed in the live nametable as tile id $A3 in the column immediately right of the pole line, from under the ball down to the ground; the shared boundary between the $A2 and $A3 cells is where the 2px green line appears ($A2's line is at its right edge, $A3's at its left edge). BACKGROUND pattern table $1000, BG palette 0, slot 1 = $29 lime green. PROOF: the same get_region color mode at (109,100) that returned the 128-pixel, 2px-wide run (box (108,68)-(109,131)) lists background CHR 0x1A2 AND 0x1A3; get_tile_at_pixel (112,100) returned tile_id $A3 / chr_tile $1A3 / palette 0 / screen_box (109,96), and (112,150)-region cells carry the same tile down the shaft."
+    },
+    "chr:0x12F": {
+      "name": "flagpole ball (left half)",
+      "table": 1,
+      "category": "background",
+      "group": "flagpole",
+      "notes": "Left tile of the ball that caps the World 1-1 flagpole. read_tile CHR $12F: a rounded blob whose content sits in the tile's RIGHT columns (cols 5-7) - index-2 body, index-3 outline, one index-1 highlight column - i.e. the right side of a circle, so placing it one tile left of the pole centre completes the ball's left half. Placed as nametable tile id $2F at the very top of the pole, directly above the shaft columns; BACKGROUND pattern table $1000, BG palette 0 (slot 1 $29 lime green highlight, slot 2 $1A green body, slot 3 $0F black outline). PROOF: get_tile_at_pixel (107,40) returned tile_id $2F / chr_tile $12F / palette 0 / screen_box (101,40), with the shaft tile $A2 directly below it; (104,34) above it is the blank tile $24, so $2F is the topmost pole graphic. Paired with CHR $13D at screen (109,40)."
+    },
+    "chr:0x13D": {
+      "name": "flagpole ball (right half)",
+      "table": 1,
+      "category": "background",
+      "group": "flagpole",
+      "notes": "Right tile of the ball that caps the World 1-1 flagpole, the partner of CHR $12F. read_tile CHR $13D: a rounded blob whose content sits in the tile's LEFT columns (cols 0-3), index-2 body with an index-3 outline, flat edge at col 0 - the left side of a circle. Placed as nametable tile id $3D immediately right of $2F, so the pair $2F+$3D forms one green ball centred on the pole's 2px line; BACKGROUND pattern table $1000, BG palette 0. PROOF: get_tile_at_pixel (110,42) returned tile_id $3D / chr_tile $13D / palette 0 / screen_box (109,40) while (107,40) returned $2F - the two cells are adjacent at the same tile row, and $A3 (right shaft column) sits directly beneath $3D. Together $2F (content cols 5-7) + $3D (content cols 0-3) span screen x 106-112, centred on the pole line at 108-109."
     }
   },
   "palettes": {
@@ -491,6 +519,11 @@
       "tiles": [],
       "palette_id": 0,
       "notes": "World 1-1 fireball thrown by Fire Mario. REACH: after collecting the fire flower (player state $0756 went 1 -> 2 = Fire), press B on the ground; the ball is spawned at Mario's hand and travels right. PROOF (paused while one was in flight, game_mode $0770=1): list_sprites decodes a SINGLE 8x8 OAM entry (not a multi-tile metasprite) for the ball:\n- sample A (paused right after the throw): OAM index 50, CHR tile $65 (101), screen x=226, y=200, attr $02 -> sprite palette 6, behind_background=false, flip_v=false, flip_h=false; hit-test returns an opaque pixel (pixel_value 2).\n- sample B (5 frames later, same object): OAM index 32, tile $64 (100), x=246, y=191, attr $C2 -> sprite palette 6, flip_v=true, flip_h=true. So it moves ~+4 px/frame to the right, bounces in y, and its CHR tile cycles through the rotation set $64-$67 while OAM flips give the intermediate orientations.\nThe fireball is one tile drawn from SPRITE PATTERN TABLE $0000 in SPRITE PALETTE 6, live = [15,22,48,39] = [$0F,$16 red,$30 white,$27 orange]. read_tile $65 shows a round ball: index-1 red outline, index-3 orange body, index-2 white highlight. Confirmed by pixel: get_pixel_color on the ball (229,203) = rgb(181,49,32) = $16 red = palette-6 slot 1. Other OAM entries in the same frame: slot 0 tile $FF (invisible HUD coin, palette 7), slots 1-8 Mario in palette 4 (Fire Mario pose: tiles $00/$01/$4C/$4D/$4A/$4B), and a Goomba (tiles $70-$73) in palette 7. Found with no reference."
+    },
+    "flag": {
+      "tiles": [],
+      "palette_id": 0,
+      "notes": "The flag on the World 1-1 flagpole at the end of the level - it is a SPRITE, not background: it rides the pole down when Mario grabs it, and in the frame inspected (Mario had already slid) it sat at the bottom of the pole just above the ground. PROOF: get_region object mode at (105,175) returned 136 connected sprite-palette-5 pixels using slots 1 and 2 across OAM #10, #11, #12 (CHR $7E and $7F), box (93,172)-(108,187) = 16x16. list_sprites decodes those three entries - all sprite palette 5 (attr $01 -> palette bits 1, no behind-background bit), no flips, drawn from the SPRITE pattern table $0000. Origin (93,172) = top-left of the 16x16 box; entries as (tile id, x/y offset from origin):\n- $7E (126), (+0,+0) - upper-left: read_tile $7E is a solid index-2 right triangle (row 0 full width, each row losing one pixel from the left), the flag's $30 white field\n- $7F (127), (+8,+0) - upper-right: read_tile $7F is an index-1 ($1A green) square carrying an index-2 ($30 white) ring/circle emblem\n- $7E (126), (+8,+8) - lower-right: the same white triangle, giving the pennant its lower edge\n(the lower-left cell is empty - that is what makes the flag a pennant rather than a rectangle)\nSprite palette 5 live = [15,26,48,39] = [$0F black, $1A green, $30 white, $27 orange]; the flag uses only slots 1 and 2. Its y is not fixed: it is set by the flagpole slide, so use the OAM offsets above (they are relative) rather than absolute screen coordinates. Reached with no reference by playing to the end of World 1-1."
     }
   },
   "addresses": {
@@ -908,6 +941,11 @@
       "name": "WORLD x-y death card (the black card shown between lives)",
       "notes": "Black death/respawn card. Top status bar (nametable 0 rows 2-3) stays unchanged: MARIO 000200, coin x01, WORLD 1-1, and the TIME label with its three digit cells blank ($24). Card content: the words 'WORLD 1-1' on nametable row 10 (pixels y 80-87) at cols 11-19 = $20 W, $18 O, $1B R, $15 L, $0D D, blank $24, $01 digit 1, $28 dash, $01 digit 1; a small Mario sprite; and a lives line on row 14 (y 112-119): tile $29 'x' at col 15 and a digit at col 18. Everything is drawn from BACKGROUND PATTERN TABLE $1000 - nametable tile ids $00-$FF map to CHR $100-$1FF (verified: card 'O' tile_id 24 = CHR $118, card '1' tile_id 1 = CHR $101, lives '5' tile_id 5 = CHR $105). PALETTES (live PPU palette RAM read while paused): the black field is NOT a tile - the blank tile $24 is CHR $124, an all-index-0 (transparent) tile, so the whole screen is the shared backdrop PPU $3F00 = $0F black (live palette RAM byte 0 = $0F; note get_all_palettes reported palette 0 slot 0 as $22 periwinkle here, which did not match live palette RAM). BG palette 2 [$0F,$30 white,$21 sky blue,$1C teal] paints ALL the card text and the lives digit through slot 1 = $30 white ('WORLD 1-1' sampled white at (104,85); the 'x' at (122,117) white; tile attribute blocks for the text are palette 2). The two blank tiles at row 14 cols 16-17 sit in a palette-3 attribute block but are transparent. Small Mario is a SPRITE, not background: list_sprites decodes the standard 8-entry small-Mario metasprite (4 blank $FC filler + tiles $3A,$37 at y105 and $4F,$4F-hflip at y113) at origin (96,89), visible box (96,105)-(111,120), sprite palette 4 = [$0F,$16 red,$27 orange,$18 olive]. The lives digit shows the lives counter $075A plus one: while the card was up, RAM $075A read 4 and the card showed '5' (an earlier identical card showed '3' when $075A read 2).",
       "reach": "From the World 1-1 opening (save_state at the 1-1 start; or title -> Start, wait ~1 s, Start again): pause_emulator, then write_memory CPU $075A (address 1882) = 5 so there are spare lives and a death draws the card instead of GAME OVER. Then play_input [{buttons:['right'],frames:300}] to walk into the first Goomba, followed by play_input [{buttons:[],frames:60}] so the Goomba walks into Mario; $075A went 5->4 on frame 8 of that run. Because the run was started while paused, play_input pauses again at the end, and the black card is on screen: screenshot taken there (paused). Repeating: from 1-1 just hold Right until Mario dies; the card draws within about a second of the death and stays a couple of seconds before the level reloads. To hold it, pause (or start the play_input run from a paused game)."
+    },
+    "flagpole": {
+      "name": "World 1-1 end: flagpole + flag + castle",
+      "notes": "The last screen of World 1-1. Contents: the eight-step staircase of brick blocks rising to the right, a short green pipe at its foot, the flagpole standing on a single base block (nametable tile $AC, CHR $1AC, palette 1) on the ground, with the castle to the right. THE FLAGPOLE IS BACKGROUND: the shaft is background CHR $1A2 + $1A3 (nametable tiles $A2|$A3 side by side, one 2px green index-1 line on their shared boundary), capped by background CHR $12F + $13D (nametable tiles $2F|$3D) forming one green ball on the pole, all BACKGROUND pattern table $1000 in BG palette 0 with slot 1 = $29 lime green. THE FLAG IS A SPRITE: sprite CHR $7E and $7F (OAM #10 tile $7E (+0,+0), #11 tile $7F (+8,+0), #12 tile $7E (+8,+8), origin (93,172), 16x16 box, sprite palette 5, no flips) - it slides down the pole when Mario grabs it, so its y is not fixed. Proof frame: paused just after the slide, camera scroll_x low byte 251 in nametable 0, the pole line at screen x 108-109, the ball at screen y 40, Mario at screen x ~154 walking toward the castle. Background palette 0 here = [$22 periwinkle sky, $29 lime green (pole + hills), $1A green, $0F black].",
+      "reach": "Play right through World 1-1 (see the 'overworld' scene). Session checkpoints: save slot 3 (level x ~1021, before the last pipe/pit stretch), slot 4 (level x ~1758, just past the Koopa Troopa), slot 5 (the Koopa on screen). The Goombas killed Mario repeatedly with a naive hop cycle, so the reliable route is to write CPU $079F = 200 first (the star invincibility timer; nonzero = invincible, it counts down ~1 unit per 20 frames, so 200 covers ~4000 frames), then play_input holding right+B with jump taps: 28 x [{right,b,a} 1 frame, {right,b} 20 frames] carries him from x 1758 to the short pipe at x ~2850, and a full-height cycle [{right,b,a} 20, {right,b} 25] clears that pipe and climbs the 8-step staircase to the pole. Touching the pole starts the slide, the flag rides down, '2000' pops, and Mario walks right into the castle."
     }
   }
 }

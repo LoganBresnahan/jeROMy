@@ -59,6 +59,18 @@ describe("eval-promote", () => {
     expect(spec.lines[0]).toMatchObject({ entry: "tiles.chr:0x135", entries: ["tiles.chr:0x136", "tiles.chr:0x125"] });
   });
 
+  it("takes a line's right entries of every record (the flagpole's tiles and the flag's sprite)", () => {
+    const spec = { lines: [{ id: "A3.flagpole" }] };
+    const runs = [{ id: "r1", rows: [
+      { line: "A3.flagpole", kind: "tile", id: "chr:0x1A2", final: "confirmed", proof: "look" },
+      { line: "A3.flagpole", kind: "sprite", id: "flag", final: "confirmed", proof: "look" },
+    ], copy: { tiles: { "chr:0x1A2": { name: "shaft" } }, sprites: { flag: { name: "flag" } }, notes: [] } }];
+    const mapping = { tiles: {}, sprites: {}, notes: [] };
+    apply(mapping, spec, decide(spec.lines, runs), runs);
+    expect(mapping.sprites.flag).toEqual({ name: "flag" });
+    expect(spec.lines[0]).toMatchObject({ entry: "tiles.chr:0x1A2", entries: ["sprites.flag"] });
+  });
+
   it("never removes a line's holds (other lines' entries it is only held back with)", () => {
     const spec = { lines: [{ id: "A5.bg0", entry: "palettes.0", holds: ["tiles.chr:0x130", "notes"] }] };
     const runs = [{ id: "r1", rows: [{ line: "A5.bg0", kind: "palette", id: "0", final: "confirmed", proof: "look" }], copy: { palettes: { 0: { name: "new" } }, notes: [] } }];
@@ -66,6 +78,19 @@ describe("eval-promote", () => {
     apply(mapping, spec, decide(spec.lines, runs), runs);
     expect(mapping.tiles["chr:0x130"]).toEqual({ name: "hill" });
     expect(mapping.palettes[0]).toEqual({ name: "new" });
+  });
+
+  it("keeps an in-scope line's minority claim out, side discoveries included", () => {
+    const spec = { lines: [{ id: "A4.koopa" }] };
+    const k = (final) => ({ line: "A4.koopa", kind: "sprite", id: "koopa", final, proof: "look" });
+    const runs = [
+      { id: "r1", rows: [k("confirmed")], copy: { sprites: { koopa: {} }, notes: [] } },
+      { id: "r2", rows: [], copy: { sprites: {}, notes: [] } },
+      { id: "r3", rows: [], copy: { sprites: {}, notes: [] } },
+    ];
+    const mapping = { sprites: {}, notes: [] };
+    apply(mapping, spec, decide(spec.lines, runs), runs);
+    expect(mapping.sprites).toEqual({});
   });
 
   it("keeps a skipped line's claims out of the mapping, side discoveries included", () => {
@@ -99,11 +124,11 @@ describe("eval-promote", () => {
     expect(mapping.addresses["0x075A"].description).toBe("lives");
   });
 
-  it("names a side entry on the spec line it answers, so a later run holds it back", () => {
-    const spec = { lines: [{ id: "metatiles" }] };
+  it("names a side entry on the out-of-scope spec line it answers, so a later run holds it back", () => {
+    const spec = { lines: [{ id: "metatiles" }, { id: "in_scope" }] };
     const runs = [{ id: "r1", rows: [{ line: "metatiles", kind: "origin", context: "tile", id: "chr:0x153", final: "unproven", proof: null }],
       copy: { tiles: { "chr:0x153": { name: "? block" } }, notes: [] } }];
-    apply({ tiles: {}, notes: [] }, spec, decide(spec.lines, runs), runs);
+    apply({ tiles: {}, notes: [] }, spec, decide([spec.lines[1]], runs), runs);
     expect(spec.lines[0].entry).toBe("tiles.chr:0x153");
   });
 

@@ -292,3 +292,28 @@ change bought; if the failure comes back, reopen it with the new run.
 - **A re-run checks:** the target is on screen in a screenshot, reached by
   play with save states, before half the cap.
 
+## F17. A blind run reached the web
+
+- **Seen:** from `20261009-2322-sheet1-scenes` on, five tasks called dsh's
+  `web_search`/`web_fetch` (the headless profile carries dsh-base's
+  `tool-web`; the web app's jeromy preset leaves it out, so it was never
+  seen in a click session). Queries named SMB RAM labels and 1-1's enemies.
+  Every fetch of the Data Crystal RAM map was blocked (HTTP 403); the
+  results that came back were walkthroughs, Mario Wiki's 1-1 page and a
+  1-1 enemy-data text. No result contained a claimed address or label.
+  Timing: in the Koopa re-run r2 and r3 every record came before the first
+  web call; in the scenes run (underground scene, `$0760`) and the
+  player-state task 2 (power, star) records came after searches whose
+  results held no address. Those claims stand (each is proven by a write
+  and a look, and the reference agrees), but the runs were not blind in
+  the sense ADR-0019 means.
+- **Lines hit:** none graded on web content; A1.underground, C1.area,
+  C2.power, C2.star are marked in their reports.
+- **Changed:** `scripts/blind.patch.yml` disables `tool-web`, and
+  `trio.sh --blind` adds it after the dev patch; the blind check fails a
+  stream with any `web_*` call. Checked live: a blind session reports no
+  web tools; the same question without `--blind` lists `web_search`,
+  `web_fetch`.
+- **Status:** `fixed`.
+- **A re-run checks:** no `web_` tool call in any blind stream.
+
