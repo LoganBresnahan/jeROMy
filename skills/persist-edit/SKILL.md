@@ -46,6 +46,14 @@ exported. Procedure from the 2026-10-05 run on Super Mario Bros. (World)
    address) with `rom_origins: [{mem: "prgRom", offset, length, notes}]` and
    `confidence: 1` only after the reset proved it. Next time the recolor is
    a direct write.
+   **A table's length is a claim too.** Before recording a table's
+   `length`, find where the next thing starts: disassemble the code that
+   indexes it (its largest index, or the loop bound), or look for the next
+   table's own pointer or the bytes that stop making sense as entries. Claim
+   only up to there. A length that runs into the next table sends a later
+   edit into the wrong data (eval/runs/20261010-0303-sheet2-enemy-table-chr
+   recorded SMB's enemy sprite table two bytes into the offsets table after
+   it).
 7. **Export.** `export_patch` (`ips` by default; `bps` refuses the wrong
    ROM) writes `<hack>-v<N>.ips` in the active hack's directory, never
    overwriting an earlier version (ADR-0018), and self-checks it with an

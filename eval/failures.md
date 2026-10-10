@@ -344,3 +344,16 @@ change bought; if the failure comes back, reopen it with the new run.
 - **A re-run checks:** `config.md` has no "left hack" line, or the run's
   report explains it.
 
+## F20. A table's length runs into the next table
+
+- **Seen:** `20261010-0303-sheet2-enemy-table-chr`: SMB's enemy sprite
+  table recorded as 260 bytes; it is 258, and the last two are the start of
+  EnemyGfxTableOffsets. The start, the Goomba's entry and the proof were
+  right.
+- **Lines hit:** B3.enemy_sprites (any table whose end the worker guesses).
+- **Changed:** `persist-edit` step 6: a table's length is settled by the
+  code that indexes it or where the next table starts.
+- **Status:** `changed`; the B3 re-run measures it.
+- **A re-run checks:** the recorded range ends inside the reference's span,
+  and the notes say how the end was found.
+

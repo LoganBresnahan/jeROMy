@@ -1,0 +1,460 @@
+# session-3842eff2-8bd7-4a1a-b180-60d5bddf56dd · Locate Goomba tile in CHR ROM
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-10T08:08:47.941Z
+
+[   3 03:08:47] QUEUED <user> for next-turn: Mapping sheet 2 (where the pictures come from), Super Mario Bros. (a CHR-ROM game): find where in CHR ROM the pixels of the Goomba's top-left tile live. Prove it with a ledgered write_tile to chrRom o… [+1160 chars]
+[   4 03:08:47] ━━━ turn 1 ━━━
+[   8 03:08:48] USER <user>
+    Mapping sheet 2 (where the pictures come from), Super Mario Bros. (a CHR-ROM game): find where in CHR ROM the pixels of the Goomba's top-left tile live. Prove it with a ledgered write_tile to chrRom of that tile (a visibly different pattern, with a reason), reset_emulator, starting 1-1 again, and a screenshot in which the Goomba's top-left looks changed; then undo_edit. Before any ROM write: new_hack named eval-sheet2-c with description 'eval run', then use_hack eval-sheet2-c, so every write goes into that throwaway hack; undo_edit each write as soon as it is proven. At the very end, after promote_mappings, use_hack default. Record it with record_mapping mapping_type tile, the tile id, table, name 'CHR origin of the Goomba top-left tile', group 'goomba', notes with the proof, and rom_origins giving mem chrRom, offset and length 16. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again. The first Goomba of 1-1 reaches Mario within a few seconds of the start; pause_emulator to inspect it. The mapping you start from names the Goomba's metasprite tiles. Each play_input call is at most 600 frames; chain calls. No reference is available. Call promote_mappings once at the end.
+[   9 03:08:48] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 03:08:48] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-routine`: Find the entry address of the code that does something (writes a counter, reads level data, copies to the PPU) with no disassembly to lean on: trace the access to get a PC inside the routine, disassemble around it, and settle the entry by who calls it (a JSR/JMP or a pointer-table target), not by where a loop starts. Use when asked which routine does X, before recording a routine, or when a persistent edit needs the code rather than the data.
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    - `play-to-reach`: Get the player to a place far into a level by playing, in short checkpointed runs: save_state, a run of held direction plus timed jumps, a look, load_state on any setback. Use when a task needs something that is only on screen further into a level (an enemy past the pipes, the flagpole, a hidden block), or when writing the player's position did not bring the screen along.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 03:08:49] ASSISTANT (turn 1 step 1) · in 1263 (cache 14592) out 249
+    ▷ Let me start by understanding the task. We need to find where in CHR ROM the Goomba's top-left tile pixels live, prove with a ledgered write_tile to chrRom, reset, get to 1-1, screenshot, then undo.
+    
+    This matches skill find-routine? No, it's more about CHR ROM origin. Maybe persist-edit skill is relevant. Let me load relevant skills: persist-edit (finding where bytes live in ROM), play-to-reach (getting to 1-1), identify-click maybe. Let me load persist-edit and play-to-reach.
+    
+    Let me start by taking a screenshot and getting ROM info.
+    
+    Let me load skills first.
+    I'll start by loading the relevant skills and getting oriented.
+    → skill {"name": "persist-edit"}
+    → skill {"name": "play-to-reach"}
+    → screenshot {}
+    → get_rom_info {}
+[  18 03:08:50] RESULT skill
+    <skill_content name="persist-edit">
+    <skill_resources>
+    Base directory for this skill: /home/oof/jeROMy/skills/persist-edit
+    Resolve relative paths mentioned by this skill against the base directory before using them. Load referenced resources only as needed.
+    </skill_resources>
+    
+    <skill_instructions>
+    
+    # Persist an edit
+    
+    A `write_palette` or RAM write is volatile: the game rewrites it on the next
+    level load, and a reset erases it. A persistent edit changes the bytes the
+    game copies *from*, in PRG ROM or CHR ROM. Every such write is ledgered in
+    `hacks/sha1-<sha1>/<hack>/edits.json` (the active hack,… [+3815 chars]
+[  20 03:08:50] RESULT skill
+    <skill_content name="play-to-reach">
+    <skill_resources>
+    Base directory for this skill: /home/oof/jeROMy/skills/play-to-reach
+    Resolve relative paths mentioned by this skill against the base directory before using them. Load referenced resources only as needed.
+    </skill_resources>
+    
+    <skill_instructions>
+    
+    # Play to a place in a level
+    
+    Writing the player's position bytes moves the player but not the camera or
+    the level loader: the screen stays where it was, the player snaps back, or
+    the level breaks (eval/runs/20261010-0016-sheet1-powerups-koopa-flag, task
+    3, spent its whole cap on camera writes). Pl… [+2329 chars]
+[  22 03:08:50] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0303-sheet2-enemy-table-chr/images/task-2/42f2c4f05b18.png
+[  24 03:08:50] RESULT get_rom_info
+    {"sha1":"33D23C2F2CFA4C9EFEC87F7BC1321CE3CE6C89BD","name":"Super Mario Bros. (World).nes","path":"C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes"}
+[  28 03:09:00] ASSISTANT (turn 1 step 2) · in 55501 (cache 16000) out 1885
+    ▷ Let me analyze the task. We need to find where in CHR ROM the pixels of the Goomba's top-left tile live. The Goomba's top-left tile is CHR tile $70 (from the mapping: tiles $FC/$FC/$70-$73, with $70 = upper-left). Wait, "top-left tile" — the Goomba metasprite has 2x2 body tiles $70 (upper-left), $71 (upper-right), $72 (lower-left), $73 (lower-right), plus two $FC blank fillers. The top-left tile is $70.
+    
+    CHR ROM: tile $70 is 16 bytes at CHR ROM offset $70 * 16 = 0x700 = 1792. Wait, but which pattern table? Goomba sprites are sprite pattern table $0000, so tile $70 lives at CHR ROM offset 0x700. But actually there may be two pattern tables (BG at $1000, sprite at $0000). CHR ROM is 8KB (or the ROM may have 8KB CHR). The sprite tiles $0000-$0FFF and BG tiles $1000-$1FFF. So Goomba tile $70 at CHR offset 0x700, length 16.
+    
+    The task: prove it with a ledgered write_tile to chrRom of that tile (a visibly different pattern, with a reason), reset_emulator, starting 1-1 again, screenshot showing Goomba's top-left looks changed; then undo_edit.
+    
+    Also before any ROM write: new_hack named eval-sheet2-c with description 'eval run', then use_hack eval-sheet2-c. Then `undo_edit` each write as soo… [+5098 chars]
+    I'll set up the goal and take stock of the current state.
+    → create_goal {"objective": "Find the CHR ROM origin of the Goomba's top-left tile in Super Mario Bros., prove it with a ledgered write_tile to chrRom, reset, restart 1-1, and a screenshot showing the changed Goomba; then undo the edit, record the mapping, promote, and return to the default hack."}
+    → read_tile {"tile_id": 112, "source": "chrRom"}
+    → read_memory {"address": 1904, "length": 1}
+[  31 03:09:01] RESULT create_goal
+    {"goal":{"id":"goal-e4a5a4b3-74e2-4339-99ae-f1af35e92e85","revision":1,"objective":"Find the CHR ROM origin of the Goomba's top-left tile in Super Mario Bros., prove it with a ledgered write_tile to chrRom, reset, restart 1-1, and a screenshot showing the changed Goomba; then undo the edit, record the mapping, promote, and return to the default hack.","phase":"active","roundsStarted":0,"maxGoalRounds":256},"activation":"armed"}
+[  33 03:09:01] RESULT read_tile
+    $70 (source: chrRom)
+      . . . . . . 3 3
+      . . . . . 3 3 3
+      . . . . 3 3 3 3
+      . . . 3 3 3 3 3
+      . . 3 1 1 3 3 3
+      . 3 3 3 2 1 3 3
+      . 3 3 3 2 1 1 1
+      3 3 3 3 2 1 2 3
+    
+    Raw pixels: [[0,0,0,0,0,0,3,3],[0,0,0,0,0,3,3,3],[0,0,0,0,3,3,3,3],[0,0,0,3,3,3,3,3],[0,0,3,1,1,3,3,3],[0,3,3,3,2,1,3,3],[0,3,3,3,2,1,1,1],[3,3,3,3,2,1,2,3]]
+[  35 03:09:01] RESULT read_memory
+    {"mem_type":"cpuDebug","address":1904,"bytes":[1]}
+[  38 03:09:03] ASSISTANT (turn 1 step 3) · in 476 (cache 73344) out 226
+    ▷ Let me continue. I need to get oriented. The tile $70 is the Goomba's upper-left. Confirmed read_tile shows a diagonal-ish pattern.
+    
+    Now I need to find where in CHR ROM the pixels live. CHR tile $70 = offset 0x700. But I should prove it by write_tile to chrRom.
+    
+    First, let me create the hack and switch.
+    
+    Then verify with the running game. Let me check game_mode and get to 1-1.
+    
+    Let me create hack now.
+    → new_hack {"name": "eval-sheet2-c", "description": "eval run"}
+    → read_memory {"address": 1894, "length": 1}
+    → screenshot {}
+[  40 03:09:03] RESULT new_hack
+    Error: hack "eval-sheet2-c" already exists
+[  42 03:09:03] RESULT read_memory
+    {"mem_type":"cpuDebug","address":1894,"bytes":[0]}
+[  44 03:09:03] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0303-sheet2-enemy-table-chr/images/task-2/c691420f7987.png
+[  47 03:09:07] ASSISTANT (turn 1 step 4) · in 470 (cache 73984) out 541
+    ▷ The hack already exists (from a prior run perhaps). Let me check list_hacks. Also game_mode at $0770 = 1894? Wait $0770 = 1904 decimal, and I read 1904 = 1, so game_mode=1 (playing a level). Actually address 1904 = 0x770. It returned [1], so game_mode = 1: we're playing a level. And address 1894 = 0x766... irrelevant. Actually I mistakenly read 1894. Let me ignore.
+    
+    The screenshot shows the level start (attract demo? no, game_mode=1 so it's actual gameplay OR attract demo uses mode? Attract demo likely runs in mode 0? Hmm. The mapping says game_mode 0 = title or attract demo, 1 = playing. We're at 1, so a game is running; but the screen at level start with no Goomba visible. Hmm the time 242 decreasing means a game is being played by the demo? Actually attract demo is the game playing itself. But mode would be 1 during attract? Not sure.
+    
+    Regardless, this looks like 1-1 start. There's Mario on the hill. The Goomba will come from the right. The task note: "The first Goomba of 1-1 reaches Mario within a few seconds of the start; pause_emulator to inspect it."
+    
+    Let me check list_hacks and then use_hack eval-sheet2-c. The hack already exists, so just use_hack.
+    
+    Wait, the existing hack … [+554 chars]
+    → list_hacks {}
+    → read_memory {"address": 1904, "length": 1}
+[  49 03:09:07] RESULT list_hacks
+    {"game_dir":"/home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd","active":"default","hacks":[{"name":"default","description":"Migrated from the single ledger of ADR-0009","created":"2026-10-06T02:38:40.937Z","edits":0,"exports":0,"active":true},{"name":"eval-sheet2-c","description":"eval run","created":"2026-10-10T08:04:55.093Z","edits":0,"exports":0,"active":false}]}
+[  51 03:09:07] RESULT read_memory
+    {"mem_type":"cpuDebug","address":1904,"bytes":[1]}
+[  54 03:09:09] ASSISTANT (turn 1 step 5) · in 299 (cache 74880) out 150
+    ▷ eval-sheet2-c exists with 0 edits. Good, so no leftover ledger. But it exists already (probably the eval environment created it or a previous run's ledger was cleared). The task says new_hack — I'll just use_hack it since it exists.
+    
+    Now use_hack eval-sheet2-c. This resets the emulator. Then we're at title.
+    
+    Let me use_hack.
+    The hack already exists (0 edits), so I'll just switch to it. That resets the emulator.
+    → use_hack {"name": "eval-sheet2-c"}
+[  56 03:09:09] RESULT use_hack
+    {"from":"default","to":"eval-sheet2-c","reverted":[],"applied":[],"reset":false,"note":"Switched: both ledgers are empty, so the emulator's bytes are unchanged; ROM writes now ledger into this hack."}
+[  60 03:09:13] ASSISTANT (turn 1 step 6) · in 53014 (cache 75264) out 485
+    ▷ Now I'm in eval-sheet2-c. The ROM currently at... use_hack didn't reset. We were in World 1-1 gameplay (game_mode 1). Let me get to the first Goomba and pause to inspect its top-left tile. Then write_tile to chrRom tile $70.
+    
+    Approach:
+    1. pause_emulator? Actually the game is running. The task: write_tile to chrRom (ROM edit persists), then reset_emulator, then start 1-1 again, screenshot.
+    
+    But before writing I should verify the Goomba's top-left tile is $70 in this run. Let me pause and get to the Goomba. Actually we need to first demonstrate baseline. Let me play right to reach the Goomba, then list_sprites and get_tile_at_pixel.
+    
+    Current state: World 1-1 start (screenshot shows level start). Actually it's the attract demo or a live game? game_mode=1. Let's just pause and inspect OAM for a Goomba — there may be one approaching. Actually the first Goomba spawns when the screen scrolls. At level start no Goomba on screen. Need to hold right for a few seconds.
+    
+    Let me pause first to stop things, then play_input to move right ~200 frames, then pause and inspect.
+    
+    Actually play_input resumes and pauses at end. Let me do play_input [{right,180}] then screenshot and list_sprites.
+    
+    Wait, … [+379 chars]
+    Now in the `eval-sheet2-c` hack. I'm in World 1-1 gameplay. Let me walk toward the first Goomba and inspect it before writing.
+    → play_input {"script": [{"buttons": ["right"], "frames": 200}]}
+[  62 03:09:17] RESULT play_input
+    {"was_paused":false,"paused":false,"polls":200,"watch":[],"sample_frames":[],"start_frame":18295,"sample_every":4,"end_frame":18495,"segments":1,"frames_run":200,"frames":200,"port":0,"note":"Ran 200 frames of input on port 0. The game is still running."}
+[  65 03:09:19] ASSISTANT (turn 1 step 7) · in 217 (cache 128640) out 55
+    ▷ Let me pause and inspect.
+    → pause_emulator {}
+    → screenshot {}
+    → list_sprites {}
+[  67 03:09:19] RESULT pause_emulator
+    {"paused":true}
+[  69 03:09:19] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0303-sheet2-enemy-table-chr/images/task-2/a98df230ed07.png
+[  71 03:09:19] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"tile":255,"attr":35,"flip_h":false,"index":0,"width":8,"chr_tile":255,"flip_v":false,"behind_background":true,"palette":7,"y":25,"x":88},{"height":8,"tile":252,"attr":67,"flip_h":true,"index":34,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":7,"y":185,"x":120},{"height":8,"tile":252,"attr":67,"flip_h":true,"index":35,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":7,"y":185,"x":128},{"height":8,"tile":113,"attr":67,"flip_h":true,"index":36,"width":8,"chr_tile":113,"flip_v":false,"behind_back… [+613 chars]
+[  75 03:09:51] ASSISTANT (turn 1 step 8) · in 53734 (cache 128896) out 6374
+    ▷ The Goomba is on screen: OAM entries with chr_tile 112, 113, 114, 115 (flip_h). Since the Goomba faces left (walking left toward Mario), the tiles are flipped horizontally. The "top-left" tile of the Goomba's metasprite: the body top row is tiles $70 and $71. With flip_h, the leftmost cell on screen is tile $71? Let's see OAM: index 36 tile 113 at x=120 y=193 (chr_tile 113 = $71) and index 37 tile 112 at x=128 y=193 (chr_tile 112 = $70). So on screen, at x=120 is $71 (drawn flipped), x=128 is $70 (flipped). The "top-left tile" of the Goomba as defined by the mapping/task: the mapping says Goomba entry = tiles $70 (upper-left), $71 (upper-right). So the top-left tile is $70 (CHR 112). Even though the flipped sprite draws $71 on the left, the tile identity is $70 = upper-left per the mapping. The task says "the Goomba's top-left tile" and the mapping names it. So tile $70.
+    
+    Now I should verify with get_tile_at_pixel maybe. But let's proceed: the mapping already establishes. Let me confirm by get_tile_at_pixel at the Goomba. Let me pick a pixel in the Goomba's top-left cell. Screen: Goomba occupies x 120-143, y 193-208. Top-left cell = x 120-127, y 193-200. Let me get_pixel_color and … [+20610 chars]
+    The Goomba is on screen with its body tiles $70–$73 (OAM indices 34–39, sprite palette 7). Per the mapping, the Goomba metasprite's upper-left body tile is CHR `$70` (tile 112), drawn from the sprite pattern table `$0000`. Let me confirm the pixel under the Goomba's head, then do the ledgered CHR-ROM write.
+    → get_tile_at_pixel {"x": 124, "y": 196}
+    → get_pixel_color {"x": 124, "y": 196}
+[  77 03:09:52] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":0,"tile_x":15,"tile_y":24,"scroll_x":185,"scroll_y":0,"nametable":1,"nametable_addr":9990,"attribute_addr":10225,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":119,"y":192,"width":8,"height":8},"sprites":[{"height":8,"cell":{"height":8,"width":8,"y":193,"x":120},"hit_tile":113,"tile":113,"attr":67,"palette":7,"pixel_value":3,"flip_h":true,"index":36,"width":8,"chr_tile":113,"flip_v":false,"behind_background":false,"opaque":true,"y":193,"x":120}],"sprite_hit":{"height":8,"cell":{"height":8,"width":8,"y":19… [+243 chars]
+[  79 03:09:52] RESULT get_pixel_color
+    {"x":124,"y":196,"rgb":[153,78,0],"nes_color":23,"nes_color_hex":"0x17","name":"brown"}
+[  82 03:10:07] ASSISTANT (turn 1 step 9) · in 444 (cache 188928) out 2938
+    ▷ The pixel at (124,196) is covered by sprite OAM 36, chr_tile 113 ($71), palette 7, flip_h true. So the on-screen left cell of the top row is tile $71 flipped. The Goomba is left-facing.
+    
+    The tile I want is the metasprite's top-left = $70. It's drawn at x=128 (the right cell) flipped. So the visual change will appear at the top-right on screen.
+    
+    Hmm. Let me reconsider whether "top-left tile" could actually be $71. The mapping says:
+    - $70 (+0,+8) none - upper-left (dome/head)
+    - $71 (+8,+8) none - upper-right
+    
+    But OAM places $71 at +0 and $70 at +8 when flipped. So $70 is upper-left in the metasprite definition. Task says "The mapping you start from names the Goomba's metasprite tiles." So top-left = $70.
+    
+    I'll write $70. The screenshot will show the change in the top row of the Goomba (on the right cell due to flip). Hmm, "top-left looks changed".
+    
+    Is there any way to make the Goomba unflipped? The Goomba faces the direction it walks. Goombas walk left, so flipped. Unless... Let me check: maybe the Goomba's flip is based on a direction byte $001E? No.
+    
+    Alternatively, I could write $70 such that it's also visible... no.
+    
+    Hmm, wait. Actually maybe I have the flip mapping backwards. Let… [+8337 chars]
+    The pixel is covered by sprite OAM 36 (chr tile `$71`, palette 7) — the Goomba's metasprite is drawn horizontally mirrored because it faces left. The metasprite's own **top-left** body tile per the mapping is CHR `$70` (tile 112), sprite pattern table `$0000`. Now the ledgered CHR-ROM write.
+    → write_tile {"target": "chrRom", "tile_id": 112, "reason": "Prove the Goomba metasprite's top-left body tile (CHR $70) lives at this CHR ROM offset: replace its diagonal dome edges with a bold peach/black concentric-square pattern so the change is unmistakable on the Goomba.", "pixels": [[2, 2, 2, 2, 2, 2, 2, 2], [2, 1, 1, 1, 1, 1, 1, 2], [2, 1, 2, 2, 2, 2, 1, 2], [2, 1, 2, 1, 1, 2, 1, 2], [2, 1, 2, 1, 1, 2, … [+85 chars]
+[  84 03:10:07] RESULT write_tile
+    Wrote tile $70 to chrRom (8 rows). Persistent: this patches CHR ROM in the emulator's copy. Ledgered as edit #1 in /home/oof/jeROMy/hacks/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd/eval-sheet2-c/edits.json.
+    
+    Preview:
+      2 2 2 2 2 2 2 2
+      2 1 1 1 1 1 1 2
+      2 1 2 2 2 2 1 2
+      2 1 2 1 1 2 1 2
+      2 1 2 1 1 2 1 2
+      2 1 2 2 2 2 1 2
+      2 1 1 1 1 1 1 2
+      2 2 2 2 2 2 2 2
+[  87 03:10:10] ASSISTANT (turn 1 step 10) · in 289 (cache 192256) out 290
+    ▷ The write is ledgered as edit #1. Now I need the CHR ROM offset. The tool didn't give offset. Let me read the edits.json? I can't read files directly (no file read tool). But I can compute: tile $70 = 0x70 * 16 = 0x700 = 1792. Let me verify by reading chrRom at 0x700 to confirm the new bytes.
+    
+    Let me read_memory mem_type chrRom address 1792 length 16.
+    
+    Expected new bytes for tile pattern:
+    pixel rows -> bitplanes. Let me just read.
+    
+    Also verify the register read after reset.
+    
+    Let me read chrRom 1792, length 16. And also maybe the ledger via a tool? No file read. But write result says ledger file. The offset can be inferred. Let me confirm by reading memory.
+    
+    Then reset and play.
+    The write is ledgered as edit #1. Let me confirm the CHR ROM offset by reading it back, then reset and replay to 1-1.
+    → read_memory {"address": 1792, "length": 16, "mem_type": "chrRom"}
+[  89 03:10:10] RESULT read_memory
+    {"mem_type":"chrRom","address":1792,"bytes":[0,126,66,90,90,66,126,0,255,129,189,165,165,189,129,255]}
+[  92 03:10:13] ASSISTANT (turn 1 step 11) · in 253 (cache 192640) out 471
+    ▷ We see the new bytes at 0x700: 00 7E 42 5A 5A 42 7E 00 FF 81 BD A5 A5 BD 81 FF. Let's verify: plane0 bytes for rows: row0 [2,2,2,2,2,2,2,2] -> bit1 set all => plane0 = 0x00? Wait: each pixel 2 bits: bit0 (plane0) and bit1 (plane1). Value 2 = binary 10, so bit0=0, bit1=1. plane0 = LSB bit of each pixel. Row0 all 2 -> plane0 = 0x00, plane1 = 0xFF. So bytes are interleaved: plane0 row0 = 00, plane1 row0 = FF. But the read shows 00 7E 42 5A ... FF 81 BD... Hmm the order appears to be plane0 for all 8 rows then plane1 for all 8 rows? Actually NES tile format is 8 bytes plane0 then 8 bytes plane1 (not interleaved). The tool description said "two 8-byte bitplanes interleaved" but actually it's sequential. The read shows first 8 bytes = 00 7E 42 5A 5A 42 7E 00, second 8 = FF 81 BD A5 A5 BD 81 FF. That matches plane0 then plane1. Good.
+    
+    So the tile lives at CHR ROM offset 0x700 (1792), length 16. 
+    
+    Now reset_emulator then start 1-1 and screenshot.
+    
+    Let me reset.
+    Confirmed: CHR ROM bytes at offset **0x700 (1792)** now hold the new pattern (`00 7E 42 5A 5A 42 7E 00 FF 81 BD A5 A5 BD 81 FF`) — tile `$70` = 0x70 × 16 = 0x700. Now reset and replay into 1-1.
+    → reset_emulator {}
+[  94 03:10:20] RESULT reset_emulator
+    {"frames_waited":30,"reset":true,"paused":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[  97 03:10:23] ASSISTANT (turn 1 step 12) · in 153 (cache 193280) out 139
+    ▷ Now the emulator is reset and paused. Let me screenshot to see title, then press Start/Start and reach 1-1.
+    
+    Actually reset says paused:true. Let me step frames to draw title. Then play_input.
+    
+    Let me step_frame 60, screenshot. Then play.
+    
+    Actually play_input from paused will resume and pause at end. Let me first step to see title.
+    
+    Let me do step_frame 60 then screenshot.
+    → step_frame {"count": 60}
+    → screenshot {}
+[  99 03:10:23] RESULT step_frame
+    {"stepped":60,"paused":true}
+[ 101 03:10:23] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0303-sheet2-enemy-table-chr/images/task-2/1b44479edcde.png
+[ 104 03:10:25] ASSISTANT (turn 1 step 13) · in 423 (cache 193536) out 73
+    ▷ Blank periwinkle, the console mid-init. Step more frames. Let me step 60 more and screenshot.
+    → step_frame {"count": 80}
+    → screenshot {}
+[ 106 03:10:25] RESULT step_frame
+    {"stepped":80,"paused":true}
+[ 108 03:10:25] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0303-sheet2-enemy-table-chr/images/task-2/c8647fc80fb9.png
+[ 111 03:10:29] ASSISTANT (turn 1 step 14) · in 486 (cache 193920) out 203
+    ▷ Title screen. Now press Start, wait ~60, press Start again, wait, then hold right to reach Goomba. Then screenshot.
+    
+    play_input from paused resumes and pauses at end.
+    
+    Script: [{start,6},{none,60},{start,6},{none,120},{right,180}]
+    
+    Total 372 frames. Let me run it.
+    
+    Then pause (already paused at end), screenshot and list_sprites.
+    
+    Let me run.
+    Title screen confirmed. Now Start → wait → Start → hold Right to reach the first Goomba.
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 60}, {"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 120}, {"buttons": ["right"], "frames": 190}]}
+[ 113 03:10:35] RESULT play_input
+    {"was_paused":true,"paused":true,"polls":381,"watch":[],"sample_frames":[],"start_frame":18701,"sample_every":7,"end_frame":19083,"segments":5,"frames_run":382,"frames":382,"port":0,"note":"Ran 382 frames of input on port 0. The game was paused before and is paused again now."}
+[ 116 03:10:37] ASSISTANT (turn 1 step 15) · in 148 (cache 194560) out 35
+    ▷ 
+    → screenshot {}
+    → list_sprites {}
+[ 118 03:10:37] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0303-sheet2-enemy-table-chr/images/task-2/30ac7435bc3d.png
+[ 120 03:10:37] RESULT list_sprites
+    {"mask_source":"frame","sprites":[{"height":8,"tile":255,"attr":35,"flip_h":false,"index":0,"width":8,"chr_tile":255,"flip_v":false,"behind_background":true,"palette":7,"y":25,"x":88},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":1,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":112},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":2,"width":8,"chr_tile":252,"flip_v":false,"behind_background":false,"palette":4,"y":177,"x":120},{"height":8,"tile":252,"attr":0,"flip_h":false,"index":3,"width":8,"chr_tile":252,"flip_v":false,"behind_backgro… [+1822 chars]
+[ 123 03:10:48] ASSISTANT (turn 1 step 16) · in 1353 (cache 194688) out 1785
+    ▷ The Goomba is on screen at x=124-139, y=193-208. list_sprites: index 15 tile 112 ($70) at x=132, y=193, flip_h. That's the CHR ROM tile $70, now drawn with our new pattern. On screen the top row: x=124 tile $71, x=132 tile $70.
+    
+    Looking at the screenshot: The Goomba is next to Mario. Hmm, the screenshot shows a small figure. Let me zoom in mentally. The Goomba is at (124,193)-(139,208). In the screenshot, that's just right of Mario. I see the Goomba — it looks like a small blocky figure. Our new pattern should be a peach square with black rings, drawn flipped.
+    
+    I need a clearer verification. Let me use get_region or get_pixel_color at the tile $70 cell (x=132,y=193..200) to confirm the rendered pixels match the new pattern. But the rendering depends on palette 7 index mapping. Let me sample pixels.
+    
+    Our tile pattern rows:
+    row0: all 2 -> peach
+    row1: 2,1,1,1,1,1,1,2 -> peach, black x6, peach
+    row2: 2,1,2,2,2,2,1,2
+    row3: 2,1,2,1,1,2,1,2
+    row4: same as row3
+    row5: 2,1,2,2,2,2,1,2
+    row6: 2,1,1,1,1,1,1,2
+    row7: all 2
+    
+    Palette 7 = [$0F, $0F, $36, $17] = index1 black, index2 peach, index3 brown.
+    
+    The tile is drawn flipped horizontally at (132,193). So screen pixel (132,193) = tile row0 col7 = 2… [+3707 chars]
+    The Goomba is on screen next to Mario, with OAM entries at x=124/132. Let me inspect the tile art to be sure which body tile is the true upper-left, and sample the rendered pixels of the changed tile.
+    → read_tile {"source": "chrRom", "tile_id": 113}
+    → read_tile {"source": "chrRom", "tile_id": 114}
+    → read_tile {"source": "chrRom", "tile_id": 115}
+    → get_pixel_color {"x": 132, "y": 193}
+    → get_pixel_color {"x": 134, "y": 196}
+    → get_pixel_color {"x": 133, "y": 194}
+    → get_pixel_color {"x": 138, "y": 198}
+[ 125 03:10:48] RESULT read_tile
+    $71 (source: chrRom)
+      3 3 . . . . . .
+      3 3 3 . . . . .
+      3 3 3 3 . . . .
+      3 3 3 3 3 . . .
+      3 3 3 1 1 3 . .
+      3 3 1 2 3 3 3 .
+      1 1 1 2 3 3 3 .
+      3 2 1 2 3 3 3 3
+    
+    Raw pixels: [[3,3,0,0,0,0,0,0],[3,3,3,0,0,0,0,0],[3,3,3,3,0,0,0,0],[3,3,3,3,3,0,0,0],[3,3,3,1,1,3,0,0],[3,3,1,2,3,3,3,0],[1,1,1,2,3,3,3,0],[3,2,1,2,3,3,3,3]]
+[ 127 03:10:48] RESULT read_tile
+    $72 (source: chrRom)
+      3 3 3 3 2 2 2 3
+      3 3 3 3 3 3 3 3
+      . 3 3 3 3 2 2 2
+      . . . . 2 2 2 2
+      . . . . 2 2 2 2
+      . . . 1 1 2 2 2
+      . . . 1 1 1 2 2
+      . . . . 1 1 1 .
+    
+    Raw pixels: [[3,3,3,3,2,2,2,3],[3,3,3,3,3,3,3,3],[0,3,3,3,3,2,2,2],[0,0,0,0,2,2,2,2],[0,0,0,0,2,2,2,2],[0,0,0,1,1,2,2,2],[0,0,0,1,1,1,2,2],[0,0,0,0,1,1,1,0]]
+[ 129 03:10:48] RESULT read_tile
+    $73 (source: chrRom)
+      3 2 2 2 3 3 3 3
+      3 3 3 3 3 3 3 3
+      2 2 2 3 3 3 3 .
+      2 2 2 2 . . . .
+      2 2 2 2 1 1 . .
+      2 2 1 1 1 1 1 .
+      2 1 1 1 1 1 1 .
+      . 1 1 1 1 1 . .
+    
+    Raw pixels: [[3,2,2,2,3,3,3,3],[3,3,3,3,3,3,3,3],[2,2,2,3,3,3,3,0],[2,2,2,2,0,0,0,0],[2,2,2,2,1,1,0,0],[2,2,1,1,1,1,1,0],[2,1,1,1,1,1,1,0],[0,1,1,1,1,1,0,0]]
+[ 131 03:10:48] RESULT get_pixel_color
+    {"x":132,"y":193,"rgb":[254,204,197],"nes_color":54,"nes_color_hex":"0x36","name":"peach"}
+[ 133 03:10:48] RESULT get_pixel_color
+    {"x":134,"y":196,"rgb":[254,204,197],"nes_color":54,"nes_color_hex":"0x36","name":"peach"}
+[ 135 03:10:48] RESULT get_pixel_color
+    {"x":133,"y":194,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 137 03:10:48] RESULT get_pixel_color
+    {"x":138,"y":198,"rgb":[0,0,0],"nes_color":15,"nes_color_hex":"0x0F","name":"black"}
+[ 140 03:11:07] ASSISTANT (turn 1 step 17) · in 1034 (cache 197760) out 3641
+    ▷ The rendered pixels at the $70 cell (x=132-139, y=193-200) match the new pattern: peach at row0, black at (133,194) etc. 
+    
+    Now about which is "top-left". Read $71: its content is on the LEFT (dark 3s at left, index 1/2 toward the right). read $70 content on the right. So $70 and $71 are mirror images. $71 has outline/content on the left → that's the left half of the head. $70 has content on the right → right half.
+    
+    So actually CHR $71 is the upper-LEFT and $70 is the upper-RIGHT! The mapping has them swapped? Wait the mapping says $70 upper-left, $71 upper-right. But art suggests $71 left, $70 right.
+    
+    Hmm, but look at OAM: index 14 tile 113 ($71) at x=124 (left), index 15 tile 112 ($70) at x=132 (right), both flip_h. The engine's placement is consistent: $71 on left, $70 on right. And the engine applies flip_h, which mirrors each tile.
+    
+    Hold on: if the sprite is flipped, the tile that is normally placed at offset +0 gets mirrored. In the unflipped metasprite, the table order is FC FC 70 71 72 73, with 70 at +0 (left) and 71 at +8 (right). With flip, the engine swaps to 71 at +0? But OAM showed 113 at x=124 and 112 at x=132. Since x=124 corresponds to the base +0 (origin 124?), yes … [+11831 chars]
+    The rendered pixels confirm the new pattern is live at the Goomba's `$70` cell (peach at (132,193) and (134,196), black at (133,194) and (138,198)) — the write survived the reset and the game redrew the Goomba from CHR ROM. Proof done; now undo the edit.
+    → undo_edit {"seq": 1}
+[ 142 03:11:07] RESULT undo_edit
+    {"undone":true,"seq":1,"mem":"chrRom","offset":1792,"restored":[3,7,15,31,63,119,119,245,3,7,15,31,39,123,120,251],"remaining_edits":0,"note":"Reset the emulator if the game already copied these bytes elsewhere."}
+[ 145 03:11:14] ASSISTANT (turn 1 step 18) · in 156 (cache 202368) out 1147
+    ▷ Undo restored the original bytes at chrRom 1792. remaining_edits 0. Confirmed offset 1792 = 0x700. 
+    
+    Now record_mapping.
+    
+    Let me craft the notes carefully with the proof:
+    - Goomba metasprite tiles: FC FC 70 71 72 73 (mapping), sprite pattern table $0000.
+    - The top-left body tile is CHR $70 = tile 112, 16 bytes at chrRom 0x700 (1792).
+    - Left-facing Goomba draws the table reversed with OAM flip_h: screen-left = $71, screen-right = $70 (list_sprites OAM indices 14/15 at x=124/132).
+    - Proof: wrote a bold concentric-square pattern (palette indices 2/1) to chrRom tile $70 via write_tile (ledger #1), reset_emulator, re-entered 1-1 (Start/60/Start/120/Right 190), list_sprites showed the same Goomba group with chr_tile 112 still present, and get_pixel_color at the $70 cell rendered peach $36 / black $0F matching the new pattern; screenshot shows the Goomba's head cell changed. undo_edit restored the original 16 bytes.
+    
+    rom_origins: [{mem: "chrRom", offset: 1792, length: 16, notes: "CHR $70, sprite pattern table $0000, 16-byte tile"}]
+    
+    Let me record.
+    Undo restored the original 16 bytes (`remaining_edits: 0`), confirming the offset **0x700 (1792)**. Now record the discovery.
+    → record_mapping {"mapping_type": "tile", "id": "0x70", "name": "CHR origin of the Goomba top-left tile", "table": 0, "group": "goomba", "category": "enemy", "confidence": 1, "notes": "The Goomba metasprite's top-left body tile is CHR $70 (tile 112) in the SPRITE pattern table $0000, so its 16 pixel-bytes live at CHR ROM offset 0x700 (1792). Metasprite table entry (prgRom 0x6794): FC FC 70 71 72 73, i.e. top row $… [+1601 chars]
+[ 147 03:11:14] RESULT record_mapping
+    {"mapping_type":"tile","id":"chr:0x070","name":"CHR origin of the Goomba top-left tile","table":0,"category":"enemy","group":"goomba","notes":"The Goomba metasprite's top-left body tile is CHR $70 (tile 112) in the SPRITE pattern table $0000, so its 16 pixel-bytes live at CHR ROM offset 0x700 (1792). Metasprite table entry (prgRom 0x6794): FC FC 70 71 72 73, i.e. top row $70|$71 and bottom row $72|$73 bracketed by two blank $FC fillers. Because the 1-1 Goomba walks left, the engine emits the group reversed with OAM flip_h: list_sprites showed OAM indices 14/15 = tiles $71/$70 at screen x=124/1… [+1432 chars]
+[ 150 03:11:17] ASSISTANT (turn 1 step 19) · in 705 (cache 203648) out 50
+    ▷ Now promote_mappings, then use_hack default.
+    
+    promote_mappings saves confidence-1 mappings. Let me call it.
+    → promote_mappings {}
+[ 152 03:11:17] RESULT promote_mappings
+    Promoted 1 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 66 tiles, 8 palettes, 8 sprites, 35 addresses. 0 hypotheses skipped.
+[ 156 03:11:20] ASSISTANT (turn 1 step 20) · in 53708 (cache 204288) out 70
+    ▷ Done with promote. Now use_hack default as final step.
+    The mapping is promoted. Now the final step: switch back to the `default` hack.
+    → use_hack {"name": "default"}
+[ 158 03:11:20] RESULT use_hack
+    {"from":"eval-sheet2-c","to":"default","reverted":[],"applied":[],"reset":false,"note":"Switched: both ledgers are empty, so the emulator's bytes are unchanged; ROM writes now ledger into this hack."}
+[ 162 03:11:24] ASSISTANT (turn 1 step 21) · in 53588 (cache 258048) out 222
+    ▷ All steps are complete. Let me mark the goal complete.
+    
+    Steps check:
+    1. ✅ new_hack eval-sheet2-c (already existed, 0 edits) + use_hack eval-sheet2-c
+    2. ✅ Found CHR ROM origin: tile $70 at chrRom 0x700 (1792), 16 bytes.
+    3. ✅ Ledgered write_tile to chrRom with a reason (edit #1).
+    4. ✅ reset_emulator, started 1-1 again, screenshot showing the Goomba changed.
+    5. ✅ undo_edit seq 1.
+    6. ✅ record_mapping tile, id 0x70 / table 0, name, group, notes, rom_origins.
+    7. ✅ promote_mappings.
+    8. ✅ use_hack default.
+    
+    Let me mark goal complete.
+    
+    I should get_goal to get revision. Then update_goal complete.
+    All steps are done. Let me close out the goal.
+    → get_goal {}
+[ 164 03:11:24] RESULT get_goal
+    {"goal":{"id":"goal-e4a5a4b3-74e2-4339-99ae-f1af35e92e85","revision":1,"objective":"Find the CHR ROM origin of the Goomba's top-left tile in Super Mario Bros., prove it with a ledgered write_tile to chrRom, reset, restart 1-1, and a screenshot showing the changed Goomba; then undo the edit, record the mapping, promote, and return to the default hack.","phase":"active","roundsStarted":0,"maxGoalRounds":256},"activation":"armed"}
+[ 167 03:11:27] ASSISTANT (turn 1 step 22) · in 192 (cache 311808) out 99
+    ▷ 
+    → update_goal {"action": "complete", "goal_id": "goal-e4a5a4b3-74e2-4339-99ae-f1af35e92e85", "revision": 1}
+[ 170 03:11:27] RESULT update_goal
+    {"goal":{"id":"goal-e4a5a4b3-74e2-4339-99ae-f1af35e92e85","revision":2,"objective":"Find the CHR ROM origin of the Goomba's top-left tile in Super Mario Bros., prove it with a ledgered write_tile to chrRom, reset, restart 1-1, and a screenshot showing the changed Goomba; then undo the edit, record the mapping, promote, and return to the default hack.","phase":"complete","roundsStarted":0,"maxGoalRounds":256},"activation":"disarmed"}
+[ 173 03:11:32] ASSISTANT (turn 1 step 23) · in 178 (cache 312064) out 634
+    ▷ 
+    ## Result
+    
+    **Origin: `chrRom` offset `0x700` (1792), 16 bytes.**
+    
+    The Goomba metasprite's upper-left body tile is CHR `$70` (tile 112), drawn from the **sprite** pattern table `$0000`, so the tile bitmap lives at `0x70 × 16 = 0x700` in CHR ROM. Its original 16 bytes are `03 07 0F 1F 3F 77 77 F5 03 07 0F 1F 27 7B 78 FB` (the diagonal dome/head edge).
+    
+    **Proof (all ledgered in hack `eval-sheet2-c`):**
+    - Walked to 1-1's first Goomba and paused; `list_sprites` decoded the 6-tile group (palette 7), and `get_tile_at_pixel`/`get_pixel_color` confirmed the head cell.
+    - `write_tile` target `chrRom`, tile_id 112, with a bold peach/black concentric-square pattern and the reason *"prove the Goomba top-left tile lives at this CHR ROM offset"* → **edit #1 at chrRom offset 1792**; `read_memory chrRom 1792 len 16` read back `00 7E 42 5A 5A 42 7E 00 FF 81 BD A5 A5 BD 81 FF`.
+    - `reset_emulator`, then Start → wait → Start → hold Right to 1-1 again: `list_sprites` showed the Goomba still built from chr_tile `$70`, and the changed cell rendered **`$36` peach** at (132,193)/(134,196) and **`$0F` black** at (133,194)/(138,198) — exactly the new pattern under palette 7 (`$0F/$0F/$36/$17`). Screenshot captured.
+    - `undo_edit` seq 1 restored the original 16 bytes (`remaining_edits: 0`).
+    
+    **Recorded + promoted:** `mapping_type: tile`, id `chr:0x070`, table 0, name *"CHR origin of the Goomba top-left tile"*, group `goomba`, with `rom_origins: [{mem: chrRom, offset: 1792, length: 16}]`; `promote_mappings` added it to the ROM's mapping file. Active hack switched back to **`default`**.
+    
+    One honest note on the drawing: the 1-1 Goomba walks left, so the engine emits the group reversed with OAM `flip_h` — the table's upper-left tile `$70` is physically drawn in the Goomba's screen **right** head cell (OAM #15 at x=132); `$71` sits at screen left. The mapping entry now records that caveat.
+[ 175 03:11:32] ─── turn 1 end: {"kind":"completed"}
+
