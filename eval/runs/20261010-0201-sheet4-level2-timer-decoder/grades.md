@@ -1,0 +1,11 @@
+# Grades: 20261010-0201-sheet4-level2-timer-decoder
+
+Reference: smbdis (doppelganger), ca65 port by threecreepio. Spec: Super Mario Bros. (World) v19. One row per claim (eval/README.md); `final` is the reference verdict held to the proof step.
+
+| line | claim | at | evidence (proof) | reference | final | grader | image |
+|---|---|---|---|---|---|---|---|
+| D3.1-2 | 1-2 World 1-2 underground area (layout data and enemy data) — World 1-2 (underground). Reach deterministically: reset_emulator, pause immediately, step_frame 60 (title), then write C | $AC35-$ACD7 | write+reset+look, not in any diff, promoted | agrees (expected L_UndergroundArea1 $AC35+163 \| E_UndergroundArea1 $A0D8+45; here: L_UndergroundArea1) | agrees | reference |  |
+| D3.1-2 | 1-2 World 1-2 underground area (layout data and enemy data) — World 1-2 (underground). Reach deterministically: reset_emulator, pause immediately, step_frame 60 (title), then write C | $A0D8-$A104 | write+reset+look, not in any diff, promoted | agrees (expected L_UndergroundArea1 $AC35+163 \| E_UndergroundArea1 $A0D8+45; here: E_UndergroundArea1) | agrees | reference |  |
+| (none) | per-level timer setting table — The table that sets the TIME each level starts with. It lives at CPU $912D = prgRom 0x112D and is 4 bytes: 20 04 03 02.  | level timer table | look, promoted | needs-judge | confirmed | claude | task-1/dd07319a7f1d.png: after the ledgered write of 3 at the table's second byte, 1-2 starts at TIME 300 in this screenshot (400 in f79993057c5b.png); the note's bytes 20 04 03 02 at $912D give the hundreds digit per level type |
+| D4.timer_header | per-level timer setting table — The table that sets the TIME each level starts with. It lives at CPU $912D = prgRom 0x112D and is 4 bytes: 20 04 03 02.  | $912D-$9130 | write+reset+look, not in any diff, promoted | agrees (expected GameTimerData $912D+4; here: GameTimerData) | agrees | reference |  |
+| D1.area_format | area object decoder — Area object decoder: reads a level's layout record stream through the pointer $E7/$E8 (set at level start by LoadAreaDat | $950A-$9588 | disassemble, derived by diff, promoted | disagrees (expected ProcessAreaData $9508+2 \| AreaParserTaskControl $86E6+3; here: ProcADLoop) | disagrees | reference |  |

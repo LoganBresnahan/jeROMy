@@ -317,3 +317,15 @@ change bought; if the failure comes back, reopen it with the new run.
 - **Status:** `fixed`.
 - **A re-run checks:** no `web_` tool call in any blind stream.
 
+## F18. A routine recorded at a loop head, not its entry
+
+- **Seen:** `20261010-0201-sheet4-level2-timer-decoder` task 2: the area
+  decoder recorded at `$950A`; the entry is `$9508` (`LDX #$02`), which a
+  disassembly started mid-instruction showed as data.
+- **Lines hit:** D1.area_format (and any routine found by walking back).
+- **Changed:** a new skill, `find-routine` (the entry is settled by a caller:
+  a JSR/JMP or a table word).
+- **Status:** `changed`; the D1 re-run measures it.
+- **A re-run checks:** the recorded entry is a caller's target, quoted in
+  the notes.
+

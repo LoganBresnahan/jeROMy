@@ -30,7 +30,7 @@ describe("shipped skills directory", () => {
   const skills = loadSkillFiles(SKILLS_DIR);
 
   it("contains the skills drafted from the 2026-10-05 sessions and the eval runs, each matching its directory name", () => {
-    expect(skills.map((s) => s.name)).toEqual(["find-variable", "identify-click", "palette-swap", "persist-edit", "play-to-reach"]);
+    expect(skills.map((s) => s.name)).toEqual(["find-routine", "find-variable", "identify-click", "palette-swap", "persist-edit", "play-to-reach"]);
     for (const s of skills) {
       expect(s.description.length).toBeGreaterThan(20);
       expect(s.content).toContain("## Steps");
@@ -49,6 +49,8 @@ describe("shipped skills directory", () => {
       "s_start", "s_after1", "s_after2", "d1", "d2", "decreased", "increased", "equals", "value", "changed", "from", "name", "watch", "source", "mapping_type", "id", "category",
       // play-to-reach (eval/runs/20261010-0016): record fields it names.
       "reach", "note",
+      // find-routine (eval/runs/20261010-0201): record fields and the mode value it names.
+      "mode", "routine",
       // Example mapping names the skills suggest for record_mapping.
       "pipe_bush_hill_green", "title_logo_box",
     ]);
