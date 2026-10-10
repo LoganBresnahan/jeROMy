@@ -2,7 +2,7 @@
 
 Sheet 4's last three lines on SMB, in two blind tasks: World 1-2's layout
 and enemy data and the per-level timer table; the area object decoder.
-deepseek-flash, $0.26, 263 tool calls, about 25 minutes; web tools off (no
+deepseek-flash, $0.33, 263 tool calls, about 25 minutes; web tools off (no
 `web_` call). Held back as holds: the 1-1 level entry and two notes (they
 name the parser at `$9508`) and the underground scene (it names 1-2's
 layout pointer).
@@ -15,7 +15,7 @@ layout pointer).
 | D4.timer_header | `$912D-$9130` (`20 04 03 02`) | GameTimerData | write+reset+look (1-2 started at TIME 300) | right |
 | D1.area_format | routine `$950A` | ProcessAreaData `$9508` | disassemble | **wrong** |
 
-Cost $0.26, 263 tool calls. Spec v19: the timer table first landed on the
+Spec v19: the timer table first landed on the
 pointer-table line ("level ... table"); the pointer line excludes timer.
 Hack hygiene: every write in `eval-sheet4-b`, undone (removed after the
 run); the `default` ledger's checksum unchanged.
