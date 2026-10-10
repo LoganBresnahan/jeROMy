@@ -1,0 +1,64 @@
+{
+  "run": "20261010-0153-sheet5-vram-split",
+  "spec": "Super Mario Bros. (World) v18",
+  "reference": "smbdis (doppelganger), ca65 port by threecreepio",
+  "totals": {
+    "calls": 73,
+    "steps": 34,
+    "inTok": 2830892,
+    "outTok": 61039
+  },
+  "stages": {
+    "in_scope": 2,
+    "reached_proof": 2,
+    "recorded": 2,
+    "derived": 1,
+    "promoted": 2,
+    "right": 2,
+    "wrong": 0,
+    "unproven": 0
+  },
+  "rows": [
+    {
+      "where": "task-1",
+      "name": "WriteVRAMBuffer - NMI routine that copies the queued VRAM buffer to the PPU",
+      "notes": "The per-frame routine that drains the game's queued PPU writes (nametable/attribute/palette) during NMI. Code span $8E92-$8EEC. BODY at $8E92 (first instruction, preceded by the RTS at $8E91 that ends ReadJoypads): STA $2006 (record's PPU address high byte, in A); INY; LDA ($00),Y; STA $2006 (address low); INY; LDA ($00),Y = control byte: bit7 selects PPU increment direction (OR/AND bit2 of PPUCTRL via $8EED EnableNMI), bit6 = repeat (sets bit1), low 6 bits = byte count -> TAX; then the copy loop $B8: INY / LDA ($00),Y / STA $2007 at $8EBB / DEX at $8EBE / BNE $8EB8, one data byte per iteration. After the record it advances $00/$01 by Y ($8EC1-$8ECB), sets PPU address $3F00 then $0000 to reset the address latch ($8ECD-$8EDA), and falls into the loop head at $8EDD: LDX $2002 (reset the PPU latch) / LDY #$00 / LDA ($00),Y / BNE $8E92 (next record) — a 0 first byte ends the list and writes $2005 twice (reset scroll) then RTS $8EEC. $8EDD is also the address the NMI actually calls. CALLER: NMI at $80C3 does JSR $8EDD after loading the record pointer $00/$01 from tables $805A,X (low) and $806D,X (high), X = $0773. Table entry 0 -> $0301 (the dynamic RAM VRAM buffer based at $0300), entries 1-4 -> $8CA4/$8CC8/$8CEC/$8D10, i.e. the ROM area-palette records whose first bytes are the [3F 00 20] header, so the same routine also pushes the area palettes from ROM. The $8EE6 entry (STA $2005 / STA $2005 / RTS) is the reset-scroll helper the NMI calls with A=0 at $80AB. FOUND BY trace and disassembly (no reference): trace_writes write on CPU $2007 for 30 frames returned a single writer, PC $8EBE (prgRom 0xEBE) with 19 accesses — the DEX after the STA $2007 at $8EBB; a parallel trace on $2006 returned PCs $8E95/$8E9B/$8ED2/$8EDA/$8EDD, all in this block. Disassembling backwards from $8EBB reaches the first instruction $8E92 (STA $2006); the NMI's JSR $8EDD at $80C3 confirms the loop head that branches into $8E92 at $8EE4.",
+      "source": "trace and disassembly",
+      "confidence": 1,
+      "id": "0x8E92",
+      "kind": "routine",
+      "address": 36498,
+      "length": 91,
+      "proof": "disassemble",
+      "derived": true,
+      "promoted": true,
+      "line": "E3.vram_writer",
+      "loc": "$8E92-$8EEC",
+      "verdict": "agrees",
+      "grader": "reference",
+      "symbol": "UpdateScreen",
+      "expected": "UpdateScreen $8EDD+3 | WriteBufferToScreen $8E92+23",
+      "reference_at_claim": "WriteBufferToScreen",
+      "reference_verdict": "agrees",
+      "final": "agrees"
+    },
+    {
+      "where": "task-2",
+      "name": "Status-bar scroll split (sprite-0 timed, scanline 31)",
+      "notes": "How SMB keeps the top status bar still while World 1-1 scrolls.\n\nSCANLINE: the split is at scanline 31. Screen scanlines 0-31 (the top 4 tile rows, y 0-31) show the fixed HUD at scroll 0,0 in nametable 0; scanlines 32-239 show the level at scroll_x = the camera, nametable 1. get_tile_at_pixel reports scroll_source \"vblank\"/scroll_x 0 at y=8..31 and scroll_source \"scanline\", scroll_scanline 31, scroll_x 1 at y=32..200.\n\nWHAT IT WAITS FOR: the sprite-0 hit. Gated on $0722 ($0722=1 in 1-1), the NMI polls PPUSTATUS $2002 bit 6 in the loop at $8150: $8150 LDA $2002 / $8153 AND #$40 / $8155 BEQ $8150, exiting when the read has $40 set. Sprite 0 is OAM #0: tile $FF at (88,25), sprite palette 7 - the invisible HUD coin sprite whose only opaque pixels are its rows 5-6 = scanlines 30-31, drawn over the HUD coin background tile $2E at nametable (11,3). (list_sprites confirms OAM index 0 = tile $FF, x 88, y 25, behind_background.)\n\nWHICH CODE WRITES THE NEW SCROLL: the NMI at $8150-$816C. At the hit ($8150-$8156), it runs a 20-iteration delay ($8157 LDY #$14 / $8159 DEY / $815A BNE $8159), then:\n  $815C AD 3F 07  LDA $073F\n  $815F 8D 05 20  STA $2005   <- horizontal scroll (camera X low byte)\n  $8162 AD 40 07  LDA $0740\n  $8165 8D 05 20  STA $2005   <- vertical scroll (0)\n  $8168 AD 78 07  LDA $0778\n  $816B 48        PHA\n  $816C 8D 00 20  STA $2000   <- PPUCTRL: nametable select -> 1\n$073F is the camera X low byte ($071A = camera page, $071C = camera low; measured camera 257 -> $073F=1) and $0740 = vertical scroll.\n\nTHE FIXED TOP is set earlier in the same NMI: $8082-$808C takes $0778 & $7E into $2000 (nametable 0), and $80A6-$80AD does LDX $2002 then LDA #$00 / JSR $8EE6, where the helper at $8EE6 is STA $2005 / STA $2005 / RTS - writing the fixed 0,0 scroll for the status bar. Then the NMI blocks in the $8150 sprite-0 wait through the status-bar scanlines and switches the scroll at scanline 31.\n\nPROOF: trace_writes write on $2005 (60 frames at camera 0: only 4 writer PCs, every value 0; re-run at camera 257: pc $8162 last_value 1 and pc $8168 last_value 0, once each per frame, plus the helper's pc $8EE9/$8EEC writing 0,0 twice per frame). trace_writes read on $2002 (3 frames, 585 accesses: pc $8153 - the AND after LDA $2002 at $8150 - ~190 reads per frame with value $1E, last read $5E = $40 bit set; other readers pc $8EE0, $80A9, $8140, $817B). Disassembly of the NMI above. Screenshots before (camera 0, HUD MARIO 000000 / WORLD 1-1 / TIME 394) and after (camera 257, HUD MARIO 000100 / WORLD 1-1 / TIME 235) both show the status bar unmoved while the level scrolled.",
+      "confidence": 1,
+      "id": "scroll split",
+      "kind": "note",
+      "proof": "look",
+      "derived": null,
+      "promoted": true,
+      "line": "E3.scroll_split",
+      "verdict": "needs-judge",
+      "grader": "claude",
+      "reference_verdict": "needs-judge",
+      "final": "confirmed",
+      "image": "task-2/f034309d5e2c.png",
+      "why": "before (9d2d3ee7792a.png) and after (this one) scrolling, the HUD rows are identical while the level below moved; the note's mechanism matches the code: the wait loop at $8150 (the reference's Sprite0Hit) polls $2002 bit 6, sprite 0 is the hidden HUD coin sprite $FF at (88,25) whose pixels sit on scanlines 30-31, then $2005 gets $073F/$0740 and $2000 switches nametable: the split at scanline 31"
+    }
+  ]
+}

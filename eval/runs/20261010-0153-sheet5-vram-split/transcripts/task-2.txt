@@ -1,0 +1,519 @@
+# session-8b1a2584-df47-4785-9285-deb95ba049c9 · Super Mario Bros. status bar scroll split
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-10T06:56:06.382Z
+
+[   3 01:56:06] QUEUED <user> for next-turn: Mapping sheet 5 (the routines), Super Mario Bros., World 1-1: the status bar at the top stays still while the level below it scrolls. Find how the game does that: at which scanline the scroll changes,… [+766 chars]
+[   4 01:56:06] ━━━ turn 1 ━━━
+[   8 01:56:06] USER <user>
+    Mapping sheet 5 (the routines), Super Mario Bros., World 1-1: the status bar at the top stays still while the level below it scrolls. Find how the game does that: at which scanline the scroll changes, what the game waits for before changing it, and which code writes the new scroll. Prove it with trace_writes on $2005 (and on whatever the waiting code reads), disassemble of the code that waits and writes, and screenshots before and after scrolling. Record it with record_mapping mapping_type note, id 'scroll split', a plain name, notes giving the scanline, the method and the code addresses. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again. trace_writes runs frames, so resume_emulator before it if the game is paused. No reference is available. Call promote_mappings once at the end.
+[   9 01:56:06] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 01:56:06] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    - `play-to-reach`: Get the player to a place far into a level by playing, in short checkpointed runs: save_state, a run of held direction plus timed jumps, a look, load_state on any setback. Use when a task needs something that is only on screen further into a level (an enemy past the pipes, the flagpole, a hidden block), or when writing the player's position did not bring the screen along.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 01:56:10] ASSISTANT (turn 1 step 1) · in 1035 (cache 14592) out 553
+    ▷ Let me start by getting oriented: screenshot, ROM info. The game is on title screen or attract demo. I need to start a game, wait, then look at the scroll split.
+    
+    Let me plan:
+    1. Screenshot, ROM info, CPU state.
+    2. Press Start, wait, press Start again to begin game.
+    3. Take screenshot before scrolling (status bar still).
+    4. trace_writes on $2005 (PPU register, mem_type ppu? Actually $2005 is a PPU register; CPU writes to $2005 address in CPU space 0x2005). trace_writes with cpu address 0x2005 — that catches writes to PPU register. Let me think: trace_writes address 0x2005, mem_type cpu. That should catch LDA/STA $2005. Actually the NES writes to $2005 via STA $2005. The callback should work on CPU write.
+    5. Also trace on whatever the waiting code reads — this is the classic SMB routine: it waits for sprite 0 hit (bit 6 of $2002 PPUSTATUS), then writes scroll. So trace reads on $2002. Find the code address that reads $2002 and then writes $2005.
+    
+    Actually the SMB status bar scroll split is done via the "sprite 0 hit" and a scanline counter. In SMB, the status bar is drawn and a sprite 0 is placed; the game polls $2002 sprite 0 flag, and when hit, sets PPUCTRL/PPUSCROLL to 0 for the … [+636 chars]
+    I'll start by orienting myself: see what's on screen and confirm the ROM.
+    → screenshot {}
+    → get_rom_info {}
+    → get_cpu_state {}
+[  18 01:56:10] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0153-sheet5-vram-split/images/task-2/2724fc2e54b7.png
+[  20 01:56:10] RESULT get_rom_info
+    {"sha1":"33D23C2F2CFA4C9EFEC87F7BC1321CE3CE6C89BD","name":"Super Mario Bros. (World).nes","path":"C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes"}
+[  22 01:56:10] RESULT get_cpu_state
+    {"a":144,"cycle":467938509,"pc":32855,"y":16,"ppu_cycle":0,"scanline":240,"x":7,"status":133,"sp":255}
+[  26 01:56:22] ASSISTANT (turn 1 step 2) · in 47583 (cache 16128) out 2052
+    ▷ The current screen shows "WORLD 1-4" card? Actually the screenshot shows a card "WORLD 1-4" with Mario x1. Hmm, that's odd — the map mentions we may be in 1-4 due to prior session. Actually the screenshot shows the WORLD 1-4 card, meaning the game is in a state showing the level card, game_mode likely transitioning. The user says the game is on title screen or attract demo, but we see a card. Let's proceed: need to get into World 1-1. The instruction says: press Start, wait a second, press Start again.
+    
+    Actually the screenshot card shows "WORLD 1-4" - that's the level intro card from prior area-swap experiments. Let me reset the emulator to get the title screen, then press Start twice.
+    
+    Let me create a goal? The task is long-running multi-step. Let me create a goal.
+    
+    Actually, let's set up todos and a goal.
+    
+    Plan:
+    1. reset_emulator → title screen.
+    2. press Start, wait, Start again → World 1-1 (but world/level bytes may be set to 1-4 from prior session? Reset should reset RAM, so back to title with world 1-1 default). Reset clears RAM? reset_emulator soft-resets; $075F etc reset to 0. Good.
+    3. Verify in 1-1, screenshot.
+    4. trace_writes on $2005 for ~60 frames while holding right to … [+5051 chars]
+    This is a substantial multi-step investigation. Let me set up a goal and task list, then get the game into World 1-1.
+    → create_goal {"objective": "Determine and prove how Super Mario Bros. (World) freezes the status bar while the level below it scrolls: find the scanline where the scroll changes, what the game waits for before changing it, and which code writes the new scroll — using trace_writes on $2005 and on the wait condition, disassembly, and before/after screenshots. Then record it as a record_mapping note id 'scroll sp… [+49 chars]
+    → todo_write {"todos": [{"content": "Reset to title and get into World 1-1 (Start, wait, Start)", "status": "in_progress"}, {"content": "Screenshot before scrolling (HUD fixed, playfield) and confirm game_mode", "status": "pending"}, {"content": "trace_writes on $2005 to find the writer PC(s)", "status": "pending"}, {"content": "trace_writes read on $2002 (and find the wait loop) ", "status": "pending"}, {"con… [+399 chars]
+[  29 01:56:22] RESULT create_goal
+    {"goal":{"id":"goal-729e8cbb-365a-4827-9c7e-86b6ffd8c413","revision":1,"objective":"Determine and prove how Super Mario Bros. (World) freezes the status bar while the level below it scrolls: find the scanline where the scroll changes, what the game waits for before changing it, and which code writes the new scroll — using trace_writes on $2005 and on the wait condition, disassembly, and before/after screenshots. Then record it as a record_mapping note id 'scroll split' and call promote_mappings once at the end.","phase":"active","roundsStarted":0,"maxGoalRounds":256},"activation":"armed"}
+[  32 01:56:22] RESULT todo_write
+    Updated todo list: 7 pending, 1 in progress, 0 completed.
+[  35 01:56:24] ASSISTANT (turn 1 step 3) · in 296 (cache 65664) out 43
+    ▷ Reset and get into 1-1. Reset then Start. Let me reset and screenshot.
+    → reset_emulator {}
+[  37 01:56:24] RESULT reset_emulator
+    {"frames_waited":30,"paused":false,"reset":true,"cleared_palette_overrides":0,"note":"Reset done. Take a screenshot to confirm what survived; RAM and palette edits are gone, ROM edits in the emulator's copy remain."}
+[  40 01:56:27] ASSISTANT (turn 1 step 4) · in 152 (cache 65920) out 160
+    ▷ Now screenshot and play Start twice. Per mapping, from the title: play_input [{start,6},{none,60},{start,6},{none,60}] then step. Let's do that. Also confirm via get_rom_info/game_mode read. Let me play and screenshot.
+    → play_input {"script": [{"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 60}, {"buttons": ["start"], "frames": 6}, {"buttons": [], "frames": 90}], "watch": [1904]}
+[  42 01:56:29] RESULT play_input
+    {"frames":162,"segments":4,"frames_run":162,"was_paused":false,"polls":162,"port":0,"watch":[{"values":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"first":1,"last":1,"address":1904,"address_hex":"0x0770"}],"sample_frames":[3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93,96,99,102,105,108,111,114,117,120,123,126,129,132,135,138,141,144,147,150,153,156,159,162],"end_frame":256695,"paused":false,"sample_every":3,"start_frame":256533,"note":"Ran 162 frames of input on port 0. The game is sti… [+100 chars]
+[  45 01:56:32] ASSISTANT (turn 1 step 5) · in 407 (cache 66176) out 334
+    ▷ game_mode $0770 = 1 the whole time, so the first Start already began a game (we were maybe coming from the card state where Start starts? Actually reset went to title, first Start began the game — but then the second Start pressed pause). Hmm. Actually the game_mode was 1 at frame 3 already, meaning by then it was already in game. Wait, reset happened, then play_input; the first sample frame 3 read 1. But the title screen mode is 0. Perhaps after reset, the game was in attract? No—reset to title, mode 0. First Start (frames 1-6) begins game; by frame 3 mode already 1. Then second Start while in game toggles pause $0776. So now the game may be PAUSED.
+    
+    Actually per the task's given facts: "it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again." That was written for the prior state. Now after reset, we're on title. First Start begins the game. The second Start paused it.
+    
+    So now paused. Let me check $0776 and take a screenshot.
+    → read_memory {"address": 1910, "length": 1}
+    → screenshot {}
+[  47 01:56:32] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0],"address":1910}
+[  49 01:56:32] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0153-sheet5-vram-split/images/task-2/86ded7847852.png
+[  52 01:56:37] ASSISTANT (turn 1 step 6) · in 488 (cache 66816) out 670
+    ▷ We're in World 1-1, running (not paused, $0776=0). Good. Screenshot before scrolling: HUD MARIO 000000, WORLD 1-1, TIME 394. Mario on hill. Camera x=0.
+    
+    Now, trace_writes on $2005 while the game scrolls. First I want a "before scrolling" screenshot — done. Let me save state.
+    
+    Now resume isn't needed (game running). Let's do trace_writes write on $2005 for ~60 frames while holding right. Actually trace_writes runs frames by itself for N frames; but if we want the game to scroll, Mario must move right. trace_writes waits frames while the game runs with no input, so the camera won't scroll (Mario stationary). Hmm — but the scroll split code still writes $2005 every frame (writing scroll 0 for the top and the playfield scroll for the bottom). Actually does it write every frame? In SMB, the scroll is written each frame in the NMI plus the split write. So trace without input should still catch the writers. But to be safe and to demonstrate scrolling, use play_input to walk right while... trace_writes doesn't combine with play_input.
+    
+    Approach: use trace_writes on $2005 with 60 frames. If no input, the camera stays at 0 but the routine likely still writes $2005 with the horizontal scroll … [+964 chars]
+    We're in World 1-1 (HUD fixed: MARIO 000000, WORLD 1-1, TIME 394). That's my "before" frame. Now let me trace writes to the scroll register `$2005`.
+    → trace_writes {"address": 8197, "length": 1, "frames": 60, "mode": "write"}
+[  54 01:56:38] RESULT trace_writes
+    {"frames":60,"truncated":false,"recorded_accesses":360,"length":1,"mem_type":"cpu","writers":[{"last_address":8197,"last_value":0,"samples":[{"frame":0,"value":0,"address":8197},{"frame":0,"value":0,"address":8197},{"frame":1,"value":0,"address":8197},{"frame":1,"value":0,"address":8197},{"frame":2,"value":0,"address":8197},{"frame":2,"value":0,"address":8197},{"frame":3,"value":0,"address":8197},{"frame":3,"value":0,"address":8197}],"count":120,"origin":{"mem_type":"prgRom","mem_type_id":45,"address":3817},"last_frame":59,"pc":36585,"pc_hex":"0x8EE9","origin_hex":"prgRom 0xEE9"},{"last_addres… [+1636 chars]
+[  57 01:56:46] ASSISTANT (turn 1 step 7) · in 804 (cache 67968) out 1339
+    ▷ Interesting. Four writer PCs:
+    - $8EE9 and $8EEC with 120 each (2 per frame) — inside WriteVRAMBuffer ($8E92-$8EEC), the reset-scroll helper at $8EE6: STA $2005 / STA $2005 / RTS. Wait, mapping says $8EE6 entry does STA $2005 twice then RTS, and RTS at $8EEC. The PCs reported are $8EE9 and $8EEC which... hmm, $8EE6 STA $2005, $8EE8? Let me disassemble.
+    
+    Actually the trace's pc is the address after the store? Typically trace reports the PC where the write instruction is, or after. The mapping note said trace_writes write on $2007 returned writer PC $8EBE which "the DEX after the STA $2007 at $8EBB". So PC reported is instruction after the store (i.e., the next instruction). So $8EE9 corresponds to STA $2005 at $8EE7? Let's disassemble $8EE0-$8EF0.
+    
+    - $8162 and $8168, 1 per frame — in the NMI around $8160. These write $2005 with value 0, once per frame. That's likely the NMI scroll reset.
+    
+    But no split write with a nonzero horizontal scroll, and no write using the playfield scroll. Hmm! All values are 0. That's suspicious. Maybe the split write happens with the horizontal scroll value from $073F/$0740, and since camera x=0 it's 0 too. But there are only 4 writer sites, all value 0. Wh… [+2805 chars]
+    Four writer sites, all with value 0 — because the camera is still at x=0. Let me scroll the level right first, and meanwhile disassemble the NMI's `$2005` writes.
+    → play_input {"script": [{"buttons": ["right"], "frames": 200}, {"buttons": [], "frames": 20}], "watch": [1820]}
+    → disassemble {"address": 33100, "length": 32}
+    → disassemble {"address": 36560, "length": 32}
+[  59 01:56:49] RESULT play_input
+    {"frames":220,"segments":2,"frames_run":220,"was_paused":false,"polls":220,"port":0,"watch":[{"values":[0,0,0,0,0,0,0,0,0,0,0,1,5,9,13,17,21,25,29,33,37,41,45,49,53,57,61,66,72,78,84,90,96,102,108,114,120,126,132,138,144,150,156,162,168,174,180,185,185,185,185,185,185,185,185],"first":0,"last":185,"address":1820,"address_hex":"0x071C"}],"sample_frames":[4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,84,88,92,96,100,104,108,112,116,120,124,128,132,136,140,144,148,152,156,160,164,168,172,176,180,184,188,192,196,200,204,208,212,216,220],"end_frame":257881,"paused":false,"sample_every":… [+181 chars]
+[  61 01:56:49] RESULT disassemble
+    (no instructions decoded)
+[  63 01:56:49] RESULT disassemble
+    $8ed0: 06 20       asl 0x20
+    $8ed2: a9 00       lda #0x00
+    $8ed4: 8d 06 20    sta 0x2006
+    $8ed7: 8d 06 20    sta 0x2006
+    $8eda: 8d 06 20    sta 0x2006
+    $8edd: ae 02 20    ldx 0x2002
+    $8ee0: a0 00       ldy #0x00
+    $8ee2: b1 00       lda (0x00), y
+    $8ee4: d0 ac       bne 0x0000
+    $8ee6: 8d 05 20    sta 0x2005
+    $8ee9: 8d 05 20    sta 0x2005
+    $8eec: 60          rts 
+    $8eed: 8d 00 20    sta 0x2000
+[  66 01:56:53] ASSISTANT (turn 1 step 8) · in 701 (cache 70016) out 583
+    ▷ The disassemble at 33100 (0x814C) returned nothing — maybe because the tool needs a valid address; 33100 decimal = 0x814C. Hmm, "no instructions decoded" odd. Let me try 33090 or use hex? The tool takes numbers. 33100 = 0x814C. Should be valid. Maybe it failed transiently. Let me retry with 33056 (0x8120).
+    
+    Camera $071C went 0 → 185 and plateaued. Good, now camera = 185.
+    
+    The $8EE6 helper: STA $2005 ; STA $2005 ; RTS. So the reset helper. And WriteVRAMBuffer's end branches to $8EE4 with A=0? Actually $8EE4 bne 0x0000 is weird — it's `BNE $8E92`? The bytes: d0 ac = BNE with signed -0x54 → 0x8EE6 - 0x54 = 0x8E92. The disassembler mis-rendered target. So $8EE2 LDA ($00),Y / BNE $8E92 (next record). If A=0, fall through to $8EE6 STA $2005 / $8EE9 STA $2005 / RTS. So those two writes happen once per frame when the VRAM buffer terminates with 0, at end of NMI. That's the "reset scroll" at end of frame (scroll 0,0? A=0 here because A was the 0 terminator byte). Hmm, so it writes 0,0.
+    
+    Now $8162/$8168 writes — need disassembly. Let me retry at 0x8120 (33056).
+    
+    Also now with camera=185, re-run trace_writes on $2005 to see nonzero values and possibly a 5th writer site (the split).
+    
+    Let me do… [+6 chars]
+    Camera is now at `$071C` = 185. Let me retry the NMI disassembly and re-trace `$2005` with a nonzero scroll.
+    → disassemble {"address": 33056, "length": 48}
+    → trace_writes {"address": 8197, "frames": 30, "length": 1, "mode": "write"}
+[  68 01:56:53] RESULT disassemble
+    (no instructions decoded)
+[  70 01:56:54] RESULT trace_writes
+    {"frames":30,"truncated":false,"recorded_accesses":180,"length":1,"mem_type":"cpu","writers":[{"last_address":8197,"last_value":0,"samples":[{"frame":0,"value":0,"address":8197},{"frame":0,"value":0,"address":8197},{"frame":1,"value":0,"address":8197},{"frame":1,"value":0,"address":8197},{"frame":2,"value":0,"address":8197},{"frame":2,"value":0,"address":8197},{"frame":3,"value":0,"address":8197},{"frame":3,"value":0,"address":8197}],"count":60,"origin":{"mem_type":"prgRom","mem_type_id":45,"address":3817},"last_frame":29,"pc":36585,"pc_hex":"0x8EE9","origin_hex":"prgRom 0xEE9"},{"last_address… [+1634 chars]
+[  73 01:57:00] ASSISTANT (turn 1 step 9) · in 813 (cache 71296) out 1086
+    ▷ Still only 4 writers, all value 0! Even though camera $071C=185. That's surprising. So the PPU scroll write for the playfield with horizontal scroll isn't to $2005? Hmm.
+    
+    Wait. Maybe I misidentified: perhaps the value written to $2005 isn't the camera. Maybe SMB's scroll is written via PPUADDR? No, scroll must use $2005.
+    
+    Hold on — maybe the game I think of uses $2005 for the top (with vertical scroll) and $2005 for horizontal, but the trace shows value 0. Maybe the writes happen but the trace's `value` is the accumulator at time of the instruction? The value recorded is the data byte written. All zero.
+    
+    Hmm, but the screen IS scrolled (camera 185). Let me check the screenshot and get_tile_at_pixel scroll values.
+    
+    Possibility: The game runs at 60 fps and my trace window of 30 frames is fine. But maybe the split write is done with a different memory-mapped address due to mirroring? No, $2005 is unique.
+    
+    Alternative: Maybe SMB's status-bar split uses $2006 (PPUADDR) to set the scroll? Actually you can set scroll via $2006 writes as well: writing $2006 twice sets the VRAM address which also serves as scroll. Hmm, but the standard is $2005.
+    
+    Wait, actually the more likely explanation: … [+1874 chars]
+    → screenshot {}
+    → read_memory {"address": 1855, "length": 4}
+    → read_memory {"address": 33120, "length": 32, "mem_type": "cpu"}
+    → get_tile_at_pixel {"x": 30, "y": 20}
+    → get_tile_at_pixel {"x": 30, "y": 120}
+[  75 01:57:00] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0153-sheet5-vram-split/images/task-2/9d2d3ee7792a.png
+[  77 01:57:00] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0,0,0,2],"address":1855}
+[  79 01:57:00] RESULT read_memory
+    {"mem_type":"cpu","bytes":[5,32,173,64,7,141,5,32,173,120,7,72,141,0,32,173,118,7,74,176,3,32,18,130,173,2,32,104,9,128,141,0],"address":33120}
+[  81 01:57:00] RESULT get_tile_at_pixel
+    {"tile_id":22,"palette_id":2,"tile_x":3,"tile_y":2,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8259,"attribute_addr":9152,"scroll_source":"vblank","scroll_scanline":-1,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":24,"y":16,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":278}
+[  83 01:57:00] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":0,"tile_x":3,"tile_y":15,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8675,"attribute_addr":9176,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":24,"y":120,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":292}
+[  86 01:57:26] ASSISTANT (turn 1 step 10) · in 840 (cache 73088) out 5515
+    ▷ Interesting! The screenshot appears unchanged from before (Mario still on hill?) but TIME went 394 → 389. Hmm, the screenshot looks identical to before. The camera watch said 185 but the screen looks the same. Wait — the screenshot shows Mario on the hill at the same position, same view. That's weird.
+    
+    Oh! Maybe the play_input ran while the game was PAUSED? No, $0776=0 confirmed. But media... Actually wait, maybe the level restarted (Mario died?) No, TIME 389 decreasing.
+    
+    Hmm, actually the screenshot after walking right 200 frames should show a different view. Unless Mario ran right but the camera didn't actually move on screen because the trace/screenshot happens at a frame where... no.
+    
+    Wait, but get_tile_at_pixel at (30,120) gives scroll_scanline 31, scroll_x 0. And at (30,20) scroll_source vblank scroll_x 0. Hmm.
+    
+    Wait, the $2005 writes all value 0 — and the scroll is 0? But camera $071C=185. This is contradictory. Unless... the camera watch $071C is not the actual camera, or the game scrolled and then the screenshot shows a scrolled position that happens to look similar? No, at scroll 185 the hill (at start x~0-80) would be off-screen.
+    
+    Hold on. Maybe the game is in the ATTRAC… [+16496 chars]
+    The screen looks like the level start again — I need to check whether Mario died and the camera reset. Let me read the key state bytes.
+    → read_memory {"address": 1820, "length": 1}
+    → read_memory {"address": 134, "length": 1}
+    → read_memory {"address": 1855, "length": 4}
+    → read_memory {"address": 1904, "length": 1}
+    → read_memory {"address": 1951, "length": 1}
+    → read_memory {"address": 1882, "length": 1}
+[  88 01:57:27] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0],"address":1820}
+[  90 01:57:27] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[40],"address":134}
+[  92 01:57:27] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0,0,0,2],"address":1855}
+[  94 01:57:27] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1],"address":1904}
+[  96 01:57:27] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[0],"address":1951}
+[  98 01:57:27] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1],"address":1882}
+[ 101 01:57:43] ASSISTANT (turn 1 step 11) · in 230 (cache 79360) out 3040
+    ▷ $071C=0, $0086=40 (Mario at start x=40), $073F=0, $0740=0, $0770=1, $075A (lives)=1. So Mario died and respawned (lives counter dropped to 1: started with 2). Yes! Mario died during the right-walk, camera reset to 0.
+    
+    So I need to avoid dying. Let me set star invincibility ($079F) high and walk right, then stop, then trace.
+    
+    But note: Mario is at start again with camera 0. Let me write $079F = 200 (or $C8). The mapping says the star timer is at $079F (1951 decimal). Write 200.
+    
+    Actually wait — will the game honor a high value? It just counts down. Fine.
+    
+    Also, to be safe from pits, I'll walk in chunks and check.
+    
+    Also even simpler: I don't necessarily need to walk far. The scroll split code runs every frame and writes the horizontal scroll = $073F (whatever the camera is), as long as the camera > 0. Even camera=8 would give nonzero. So walk right ~120 frames with star, stop, then trace.
+    
+    But hmm: earlier at camera=185 during play_input, the playfield was scrolling. Yet all $2005 writes in the subsequent trace were 0 because camera had reset. Right.
+    
+    But there's still a puzzle: if the NMI writes $073F (=camera) to $2005 every frame, then where's the SPLIT? The NMI writes $2005 with … [+9669 chars]
+    Mario died during the walk (lives counter `$075A` went 2→1, camera back to 0). Let me give him Star invincibility (`$079F`) and walk right safely so the camera stays nonzero during the trace.
+    → write_memory {"address": 1951, "bytes": [200]}
+[ 103 01:57:43] RESULT write_memory
+    {"mem_type":"cpu","bytes_written":1,"address":1951,"persistent":false}
+[ 106 01:57:45] ASSISTANT (turn 1 step 12) · in 231 (cache 82432) out 267
+    ▷ Now play_input right for 300 frames, watch $071C (1820), $0086 (134), $075A (1882). Max 16 addresses. Then check.
+    
+    Actually with star active, touching Goomba kills it. But Mario could still fall into a pit. 300 frames at 1.5px/frame ≈ 450 px. From x=40 → ~490. Is there a pit before x=490 in 1-1? The first pit is around x=1500? Actually after the first pipe and some blocks, there's a gap at x~1000. 490 is safe. Also there's the pipe at x~400 that Mario will be blocked by (has to jump). So he'll stop at the pipe. Fine, camera ~185 again.
+    
+    Let's do 220 frames. Watch camera and lives.
+    → play_input {"script": [{"buttons": ["right"], "frames": 220}, {"buttons": [], "frames": 30}], "watch": [1820, 134, 1882, 1951]}
+[ 108 01:57:50] RESULT play_input
+    {"frames":250,"segments":2,"frames_run":250,"was_paused":false,"polls":250,"port":0,"watch":[{"values":[0,0,0,0,0,0,0,0,0,3,8,13,18,23,28,33,38,43,48,53,58,63,71,78,86,93,101,108,116,123,131,138,146,153,161,168,176,183,191,198,206,213,221,228,235,241,246,250,253,255],"first":0,"last":255,"address":1820,"address_hex":"0x071C"},{"values":[40,42,44,47,52,57,63,70,78,85,93,100,108,115,123,130,138,145,153,160,168,175,183,190,198,205,213,220,228,235,243,250,2,9,17,24,32,39,47,54,62,69,77,84,91,97,102,106,109,111],"first":40,"last":111,"address":134,"address_hex":"0x0086"},{"values":[1,1,1,1,1,1,1,1,… [+846 chars]
+[ 111 01:57:53] ASSISTANT (turn 1 step 13) · in 823 (cache 82816) out 415
+    ▷ Camera $071C climbed 0→255 (wrapped, so camera page also). Player x $0086 wrapped 250→2. Lives stayed 1 (star protected). Star timer counts down. Good, Mario is alive and the camera is far.
+    
+    The last camera sample 255 (camera page likely 1 now). So camera is nonzero.
+    
+    Now trace $2005 while camera nonzero. The camera may still be moving? No, no input, Mario stands; camera static. Let's trace.
+    
+    Also trace $2006 writes, and trace reads on $2002.
+    
+    Let me batch: trace $2005 write 20 frames, trace $2006 write 20 frames? Can I run two traces at once? They run frames; probably okay but they'd overlap in time. Better sequential. Let me do $2005 first (20 frames), then $2006.
+    
+    Actually the trace tool runs frames itself; two calls in one message might conflict. Let me do one at a time.
+    
+    Also read $073F/$0740 now, and get_tile_at_pixel at y=20 and y=120, plus screenshot.
+    
+    Let me do: trace $2005 (20 frames) alone first. Then next batch reads.
+    
+    Hmm, but note camera 255 means scroll $FF; fine.
+    
+    Actually wait: with camera low byte 255 and page 1, the playfield scroll_x should be 255. Let me trace.
+    Camera is now nonzero (wrapped past 255) and Mario is alive. Now trace `$2005` writes with the level actually scrolled.
+    → trace_writes {"address": 8197, "frames": 20, "length": 1, "mode": "write"}
+[ 113 01:57:54] RESULT trace_writes
+    {"frames":20,"truncated":false,"recorded_accesses":120,"length":1,"mem_type":"cpu","writers":[{"last_address":8197,"last_value":0,"samples":[{"frame":0,"value":0,"address":8197},{"frame":0,"value":0,"address":8197},{"frame":1,"value":0,"address":8197},{"frame":1,"value":0,"address":8197},{"frame":2,"value":0,"address":8197},{"frame":2,"value":0,"address":8197},{"frame":3,"value":0,"address":8197},{"frame":3,"value":0,"address":8197}],"count":40,"origin":{"mem_type":"prgRom","mem_type_id":45,"address":3817},"last_frame":19,"pc":36585,"pc_hex":"0x8EE9","origin_hex":"prgRom 0xEE9"},{"last_address… [+1634 chars]
+[ 116 01:58:01] ASSISTANT (turn 1 step 14) · in 884 (cache 83968) out 1548
+    ▷ Now we see:
+    - pc $8162 (store at $815F) writes value 1 (per frame)
+    - pc $8168 (store at $8165) writes value 0 (per frame)
+    So the NMI writes $2005 = 1 then 0. Hmm, $073F = 1, $0740 = 0? Earlier read $073F=0,$0740=0 while camera 0. Now $073F=1? That would be... hmm, camera page? Let me read $073F/$0740 now.
+    
+    Wait, value 1: maybe $073F holds something else. Actually the two writes: first = value 1, second = 0. If the first is the vertical scroll and second horizontal... 
+    
+    Hmm, actually in SMB, $0740 is the horizontal scroll and $073F is the vertical? Let me reconsider. The NMI code: LDA $073F / STA $2005 ; LDA $0740 / STA $2005. First write = X scroll, second = Y scroll (PPUSCROLL: first write sets X, second sets Y). So $073F = X scroll (horizontal), $0740 = Y scroll (vertical). Value $073F=1, $0740=0. But camera low byte is 255-ish. So $073F isn't the camera... 
+    
+    Hmm, value 1: maybe the camera page is 1 and $073F is a page? No.
+    
+    Wait, maybe the write values are not from $073F/$0740. Let me actually disassemble $8150-$8170 to be sure. And read $073F/$0740 now.
+    
+    Also there's still NO mid-frame write. And the two VRAM-buffer-end writes are value 0,0.
+    
+    Hmm, wait. So per frame: NMI writes… [+2432 chars]
+    Now I see nonzero values (1 and 0) from the NMI pair. Let me disassemble the NMI scroll section properly and check the scroll bytes and per-scanline scroll.
+    → read_memory {"address": 33104, "length": 24, "mem_type": "cpu"}
+    → read_memory {"address": 1855, "length": 8}
+    → get_tile_at_pixel {"x": 30, "y": 10}
+    → get_tile_at_pixel {"x": 30, "y": 100}
+    → get_tile_at_pixel {"x": 30, "y": 200}
+    → screenshot {}
+[ 118 01:58:01] RESULT read_memory
+    {"mem_type":"cpu","bytes":[173,2,32,41,64,240,249,160,20,136,208,253,173,63,7,141,5,32,173,64,7,141,5,32],"address":33104}
+[ 120 01:58:01] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1,0,0,2,0,0,0,0],"address":1855}
+[ 122 01:58:01] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":2,"tile_x":3,"tile_y":1,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8227,"attribute_addr":9152,"scroll_source":"vblank","scroll_scanline":-1,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":24,"y":8,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":292}
+[ 124 01:58:01] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":0,"tile_x":3,"tile_y":12,"scroll_x":1,"scroll_y":0,"nametable":1,"nametable_addr":9603,"attribute_addr":10200,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":23,"y":96,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":292}
+[ 126 01:58:01] RESULT get_tile_at_pixel
+    {"tile_id":38,"palette_id":0,"tile_x":3,"tile_y":25,"scroll_x":1,"scroll_y":0,"nametable":1,"nametable_addr":10019,"attribute_addr":10224,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":23,"y":200,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":294}
+[ 128 01:58:01] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0153-sheet5-vram-split/images/task-2/f034309d5e2c.png
+[ 131 01:58:21] ASSISTANT (turn 1 step 15) · in 846 (cache 86400) out 4051
+    ▷ Now the level has scrolled: the screenshot shows a different part of World 1-1 (a ? block, brick row, pipe). The HUD stays fixed: MARIO 000100, WORLD 1-1, TIME 235. 
+    
+    Now the disassembly bytes at 33104 = 0x8150:
+    173 2 32      LDA $2002
+    41 64         AND #$40
+    240 249       BEQ -7 (i.e., to 0x8150)
+    160 20         LDY #$14
+    136           DEY
+    208 253        BNE -3 (loop DEY until 0)  ← 20-iteration delay
+    173 63 7       LDA $073F
+    141 5 32       STA $2005
+    173 64 7       LDA $0740
+    141 5 32       STA $2005
+    
+    So the NMI beginning: $8150: LDA $2002 / AND #$40 / BEQ $8150 — this waits for sprite 0 hit (bit 6 of PPUSTATUS)! Then a delay loop LDY #$14 / DEY / BNE (20 iterations). Then writes $2005 = $073F, then $2005 = $0740.
+    
+    Wait — this is at $8150, inside the NMI. So the NMI waits for sprite 0 hit! But the NMI runs during vblank (scanline 241+). Sprite 0 hit occurs during rendering (scanline ~31). Would the flag still be set when NMI starts? The sprite 0 hit flag is cleared by reading $2002 (at pre-render, or reading $2002 clears it). Hmm.
+    
+    Hold on. This is the classic SMB technique but the other way: The NMI fires at the start of vblank. It first does stuff, then at $8150 it waits for the spr… [+11206 chars]
+    The split is now visible in the code: at `$8150` the NMI does `LDA $2002 / AND #$40 / BEQ $8150` — waiting for the sprite-0 hit — then a short delay, then writes `$2005` from `$073F`/`$0740`. Let me trace reads of `$2002` to confirm that wait.
+    → trace_writes {"address": 8194, "frames": 3, "length": 1, "mode": "read"}
+[ 133 01:58:21] RESULT trace_writes
+    {"frames":3,"truncated":false,"recorded_accesses":585,"length":1,"mem_type":"cpu","writers":[{"last_address":8194,"last_value":94,"samples":[{"frame":0,"value":30,"address":8194},{"frame":0,"value":30,"address":8194},{"frame":0,"value":30,"address":8194},{"frame":0,"value":30,"address":8194},{"frame":0,"value":30,"address":8194},{"frame":0,"value":30,"address":8194},{"frame":0,"value":30,"address":8194},{"frame":0,"value":30,"address":8194}],"count":572,"origin":{"mem_type":"prgRom","mem_type_id":45,"address":339},"last_frame":2,"pc":33107,"pc_hex":"0x8153","origin_hex":"prgRom 0x153"},{"last_… [+1440 chars]
+[ 136 01:58:47] ASSISTANT (turn 1 step 16) · in 759 (cache 91264) out 5879
+    ▷ Excellent! Reads of $2002:
+    - PC $8153 (the AND after LDA $2002 at $8150) — 572 reads in 3 frames (~190/frame). This is the busy-wait loop at $8150. Value samples: 30 (0x1E) during the wait, then eventually... last_value 94 (0x5E = 0x40 | 0x1E) meaning sprite 0 hit bit set.
+    - PC $8EE0 (WriteVRAMBuffer: LDX $2002 at $8EDD) — 4 reads, value 64 (0x40)?? Wait value 64 = 0x40 — sprite 0 hit set. Hmm, interesting.
+    - PC $80A9 (NMI early): value 198 = 0xC6.
+    - PC $8140 (NMI): value 30.
+    - PC $817B (NMI after GameEngine): value 81.
+    
+    So the wait loop at $8150-0x8155 reads $2002 repeatedly (~190 reads/frame) until bit 6 ($40) is set, i.e., sprite 0 hit. On the last read (which exits) the value is 94 = 0x5E, which has bit6 set. 
+    
+    Wait, the "last_value" for PC $8153 is 94 = 0x5E. And during most reads value 30 = 0x1E. So the loop waits for bit 6. Confirmed!
+    
+    Note: $8153 is the AND #$40 instruction address (PC reported for a read is the address after the LDA, e.g., LDA at $8150, PC after = $8153). Wait, LDA $2002 is at $8150 (3 bytes), so next instruction at $8153 = AND #$40. Yes, the trace reports PC = address of next instruction after the read. Good.
+    
+    So the game waits for sprite 0 hit (PPUSTATUS… [+16228 chars]
+    The wait is confirmed: `$8150 LDA $2002 / AND #$40 / BEQ $8150` polls PPUSTATUS bit 6 (sprite‑0 hit) ~190 times per frame, exiting when the value has `$40` set. Now let me pin the exact split scanline and the scroll bytes.
+    → read_memory {"address": 1818, "length": 6}
+    → read_memory {"address": 1855, "length": 4}
+    → get_tile_at_pixel {"x": 30, "y": 8}
+    → get_tile_at_pixel {"x": 30, "y": 24}
+    → get_tile_at_pixel {"x": 30, "y": 30}
+    → get_tile_at_pixel {"x": 30, "y": 31}
+    → get_tile_at_pixel {"x": 30, "y": 32}
+    → get_tile_at_pixel {"x": 30, "y": 40}
+[ 138 01:58:47] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1,2,1,0,255,0],"address":1818}
+[ 140 01:58:47] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1,0,0,2],"address":1855}
+[ 142 01:58:48] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":2,"tile_x":3,"tile_y":1,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8227,"attribute_addr":9152,"scroll_source":"vblank","scroll_scanline":-1,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":24,"y":8,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":292}
+[ 144 01:58:48] RESULT get_tile_at_pixel
+    {"tile_id":0,"palette_id":2,"tile_x":3,"tile_y":3,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8291,"attribute_addr":9152,"scroll_source":"vblank","scroll_scanline":-1,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":24,"y":24,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":256}
+[ 146 01:58:48] RESULT get_tile_at_pixel
+    {"tile_id":0,"palette_id":2,"tile_x":3,"tile_y":3,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8291,"attribute_addr":9152,"scroll_source":"vblank","scroll_scanline":-1,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":24,"y":24,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":256}
+[ 148 01:58:48] RESULT get_tile_at_pixel
+    {"tile_id":0,"palette_id":2,"tile_x":3,"tile_y":3,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8291,"attribute_addr":9152,"scroll_source":"vblank","scroll_scanline":-1,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":24,"y":24,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":256}
+[ 150 01:58:48] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":0,"tile_x":3,"tile_y":4,"scroll_x":1,"scroll_y":0,"nametable":1,"nametable_addr":9347,"attribute_addr":10184,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":23,"y":32,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":292}
+[ 152 01:58:48] RESULT get_tile_at_pixel
+    {"tile_id":36,"palette_id":0,"tile_x":3,"tile_y":5,"scroll_x":1,"scroll_y":0,"nametable":1,"nametable_addr":9379,"attribute_addr":10184,"scroll_source":"scanline","scroll_scanline":31,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":23,"y":40,"width":8,"height":8},"sprites":[],"background_pattern_addr":4096,"chr_tile":292}
+[ 155 01:58:57] ASSISTANT (turn 1 step 17) · in 924 (cache 97792) out 1766
+    ▷ At y=30 and y=31 the tile is (3,3) which is the HUD row (palette 2, tile 0 = '0' digit? tile_id 0 = font digit 0). Wait screen_box y=24 for that tile — because tile_y=3 corresponds to y 24-31. So at y=30 and 31 we're still in the HUD row (row 3 = value row). Correct: HUD rows 2-3 = y 16-31. So the status bar occupies y 0-31 (4 rows: rows 0,1 blank; rows 2,3 text). 
+    
+    At y=32: scroll_x=1, scroll_source "scanline", scroll_scanline 31. So the scroll changes at scanline 31 (write) taking effect at scanline 32. The split scanline is 31 → the playfield starts at scanline 32. Actually the "scroll_scanline: 31" means the scroll write was detected as happening on scanline 31. So the split is at scanline 31/32 boundary: status bar = scanlines 0-31, playfield = 32-239.
+    
+    Camera: read at 0x071A: bytes [1,2,1,0,255,0] for 0x071A..0x071F:
+    0x071A = 1 (camera page)
+    0x071B = 2
+    0x071C = 1 (camera low byte)
+    0x071D = 0
+    0x071E = 255
+    0x071F = 0
+    So camera = 0x01*256 + 0x01 = 257. And $073F = 1, $0740 = 0. So $073F = camera low byte, $0740 = vertical scroll (0). 
+    
+    So the split: NMI writes $2005 = $073F (=camera X low byte) then $2005 = $0740 (=vertical scroll 0). And before that, the reset helper writes 0,0… [+3624 chars]
+    Split pinned: scanlines 0–31 (status bar) read scroll_x=0 with `scroll_source: vblank`; scanline 32 onward reads scroll_x=1 with `scroll_scanline: 31`. Camera is `$071A/$071C` = 257, matching `$073F` = 1. Let me disassemble the whole NMI to confirm the order (fixed 0,0 first, then the split write) and read `$0778`.
+    → disassemble {"address": 32898, "length": 207}
+    → read_memory {"address": 1912, "length": 1}
+    → list_sprites {}
+[ 157 01:58:57] RESULT disassemble
+    $8082: ad 78 07    lda 0x0778
+    $8085: 29 7f       and #0x7f
+    $8087: 8d 78 07    sta 0x0778
+    $808a: 29 7e       and #0x7e
+    $808c: 8d 00 20    sta 0x2000
+    $808f: ad 79 07    lda 0x0779
+    $8092: 29 e6       and #0xe6
+    $8094: ac 74 07    ldy 0x0774
+    $8097: d0 05       bne 0x0000
+    $8099: ad 79 07    lda 0x0779
+    $809c: 09 1e       ora #0x1e
+    $809e: 8d 79 07    sta 0x0779
+    $80a1: 29 e7       and #0xe7
+    $80a3: 8d 01 20    sta 0x2001
+    $80a6: ae 02 20    ldx 0x2002
+    $80a9: a9 00       lda #0x00
+    $80ab: 20 e6 8e    jsr 0x8ee6
+    $80ae: 8d 03 20    sta 0x2003
+    $80b1: a9 02       lda #0x02
+    $80b3: 8d 14 40    sta 0x4014
+    $80b6: … [+1929 chars]
+[ 159 01:58:57] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[17],"address":1912}
+[ 161 01:58:57] RESULT list_sprites
+    {"background_pattern_addr":4096,"sprites":[{"width":8,"height":8,"behind_background":true,"tile":255,"index":0,"chr_tile":255,"y":25,"attr":35,"palette":7,"x":88,"flip_v":false,"flip_h":false},{"width":8,"height":8,"behind_background":false,"tile":252,"index":1,"chr_tile":252,"y":177,"attr":0,"palette":4,"x":112,"flip_v":false,"flip_h":false},{"width":8,"height":8,"behind_background":false,"tile":252,"index":2,"chr_tile":252,"y":177,"attr":0,"palette":4,"x":120,"flip_v":false,"flip_h":false},{"width":8,"height":8,"behind_background":false,"tile":252,"index":3,"chr_tile":252,"y":185,"attr":0,"p… [+903 chars]
+[ 164 01:59:13] ASSISTANT (turn 1 step 18) · in 2115 (cache 100480) out 3272
+    ▷ Now I have the full NMI. Key parts:
+    
+    $8082: LDA $0778 / AND #$7F / STA $0778 / AND #$7E / STA $2000 — sets PPUCTRL with NMI disabled (bit7 cleared) and nametable/sprite bits from $0778 (bit0 masked off? AND #$7E clears bits 0 and 7; so $2000 bit0 = 0 → nametable 0). So at the start of the NMI, $2000 bit0 = 0, nametable 0. Good — status bar nametable 0.
+    
+    $80A6: LDX $2002 (reads/clears the sprite0 flag from the previous frame)
+    $80A9: LDA #$00
+    $80AB: JSR $8EE6 → STA $2005, STA $2005 with A=0 → scroll 0,0 (status bar scroll fixed to 0,0)
+    $80AE: STA $2003 (OAM addr 0)
+    $80B1: LDA #$02 / STA $4014 → OAM DMA
+    $80C3: JSR $8EDD (WriteVRAMBuffer)
+    ...
+    
+    $8138: LDA $0722 / BEQ $815C (if $0722==0 skip)
+    $813D: LDA $2002 / AND #$40 / BNE $813D — wait here until bit6 CLEAR (a second wait!). Hmm: $813D LDA $2002 / $8140 AND #$40 / $8142 BNE $813D. So this loop waits while bit6 is SET. This runs only if $0722 != 0. Then:
+    $8144: LDA $0776 / LSR A / BCS $814D
+    $814A: JSR $8223
+    $814D: JSR $81C6
+    
+    Then continues to $8150 (the block we saw).
+    
+    Wait, the disassembly only went to $814F. Let me get $8150-0x8181 too. We already saw it from the byte read:
+    $8150: AD 02 20 LDA $2002
+    $8153: 29 40 AND #$40
+    $8155: F0 F9… [+8021 chars]
+    I now have the full mechanism. Let me check the `$0722` gate on the extra `$2002` wait and see the NMI tail.
+    → read_memory {"address": 1826, "length": 1}
+    → disassemble {"address": 33121, "length": 4}
+    → get_tile_at_pixel {"x": 88, "y": 28}
+[ 166 01:59:13] RESULT read_memory
+    {"mem_type":"cpuDebug","bytes":[1],"address":1826}
+[ 168 01:59:13] RESULT disassemble
+    $8161: 20 ad 40    jsr 0x40ad
+[ 170 01:59:13] RESULT get_tile_at_pixel
+    {"tile_id":46,"palette_id":3,"tile_x":11,"tile_y":3,"scroll_x":0,"scroll_y":0,"nametable":0,"nametable_addr":8299,"attribute_addr":9154,"scroll_source":"vblank","scroll_scanline":-1,"stepped_frames":0,"scroll_ambiguous":false,"screen_box":{"x":88,"y":24,"width":8,"height":8},"sprites":[{"width":8,"hit_tile":255,"height":8,"behind_background":true,"cell":{"width":8,"x":88,"y":25,"height":8},"tile":255,"index":0,"opaque":false,"pixel_value":0,"chr_tile":255,"y":25,"attr":35,"palette":7,"x":88,"flip_v":false,"flip_h":false}],"background_pattern_addr":4096,"chr_tile":302}
+[ 173 01:59:27] ASSISTANT (turn 1 step 19) · in 282 (cache 105856) out 3008
+    ▷ $0722 = 1, so the clear-wait at $813D runs too (waits for bit6 to be clear before waiting for it to be set). Good — that's the "wait for start of the sprite-0 hit" edge detection.
+    
+    The disassemble at 33121 gave garbage (off by one) — not needed.
+    
+    get_tile_at_pixel at (88,28): background tile $2E (the HUD coin icon) palette 3, and sprite OAM #0 tile $FF, behind_background true, opaque=false at that pixel (pixel_value 0). The opaque pixels are lower (rows 5-6, y30-31). Fine.
+    
+    Now I have everything. Let me record the mapping note and promote.
+    
+    Before that, let me double-check my reading of $0722's role: at $8138 LDA $0722 / BEQ $815C. If $0722 != 0, it does the $2002 wait-for-clear at $813D-$8143, then $8144 checks pause. If $0722==0 it jumps to $815C (skipping the clear wait). Actually $813B BEQ $815C? bytes at $813B: F0 1F = BEQ +0x1F → next 0x813D + 0x1F = 0x815C. Yes.
+    
+    So with $0722=1, the NMI: waits until sprite0 flag is clear ($813D), then pause check + two JSRs ($814A $8223, $814D $81C6), then $8150 waits until sprite0 flag set, delay, writes scroll.
+    
+    Hmm, but $8144-$814F: LDA $0776 / LSR / BCS $814D (skip $8223 if paused); JSR $8223; $814D JSR $81C6. These run between the clea… [+5199 chars]
+    Everything is confirmed. Recording the finding, then promoting it.
+    → record_mapping {"mapping_type": "note", "id": "scroll split", "name": "Status-bar scroll split (sprite-0 timed, scanline 31)", "confidence": 1, "notes": "How SMB keeps the top status bar still while World 1-1 scrolls.\n\nSCANLINE: the split is at scanline 31. Screen scanlines 0-31 (the top 4 tile rows, y 0-31) show the fixed HUD at scroll 0,0 in nametable 0; scanlines 32-239 show the level at scroll_x = the came… [+2363 chars]
+[ 175 01:59:27] RESULT record_mapping
+    {"mapping_type":"note","id":"scroll split","name":"Status-bar scroll split (sprite-0 timed, scanline 31)","category":null,"group":null,"notes":"How SMB keeps the top status bar still while World 1-1 scrolls.\n\nSCANLINE: the split is at scanline 31. Screen scanlines 0-31 (the top 4 tile rows, y 0-31) show the fixed HUD at scroll 0,0 in nametable 0; scanlines 32-239 show the level at scroll_x = the camera, nametable 1. get_tile_at_pixel reports scroll_source \"vblank\"/scroll_x 0 at y=8..31 and scroll_source \"scanline\", scroll_scanline 31, scroll_x 1 at y=32..200.\n\nWHAT IT WAITS FOR: the sp… [+2233 chars]
+[ 178 01:59:30] ASSISTANT (turn 1 step 20) · in 1104 (cache 109056) out 273
+    ▷ Now promote_mappings once.
+    
+    Also update todos and goal.
+    
+    Let me promote.
+    → promote_mappings {}
+    → todo_write {"todos": [{"content": "Reset to title and get into World 1-1 (Start, wait, Start)", "status": "completed"}, {"content": "Screenshot before scrolling (HUD fixed, playfield) and confirm game_mode", "status": "completed"}, {"content": "trace_writes on $2005 to find the writer PC(s)", "status": "completed"}, {"content": "trace_writes read on $2002 (and find the wait loop) ", "status": "completed"}, {… [+411 chars]
+[ 180 01:59:30] RESULT promote_mappings
+    Promoted 1 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 65 tiles, 8 palettes, 8 sprites, 34 addresses. 0 hypotheses skipped.
+[ 183 01:59:30] RESULT todo_write
+    Updated todo list: 0 pending, 0 in progress, 8 completed.
+[ 187 01:59:33] ASSISTANT (turn 1 step 21) · in 48201 (cache 110336) out 138
+    ▷ The mapping is recorded and promoted. Let me mark the goal complete and give a final answer.
+    
+    Let me update goal. get_goal to get revision? I have goal id and revision 1. Actually update_goal requires revision. create_goal returned revision 1. Let me call update_goal with action complete, revision 1.
+    
+    Actually the goal may have advanced rounds. Let me call get_goal to be safe. But I can just try with revision 1. Let me get_goal first to be safe.
+    Goal achieved. Let me close it out.
+    → get_goal {}
+[ 189 01:59:33] RESULT get_goal
+    {"goal":{"id":"goal-729e8cbb-365a-4827-9c7e-86b6ffd8c413","revision":1,"objective":"Determine and prove how Super Mario Bros. (World) freezes the status bar while the level below it scrolls: find the scanline where the scroll changes, what the game waits for before changing it, and which code writes the new scroll — using trace_writes on $2005 and on the wait condition, disassembly, and before/after screenshots. Then record it as a record_mapping note id 'scroll split' and call promote_mappings once at the end.","phase":"active","roundsStarted":0,"maxGoalRounds":256},"activation":"armed"}
+[ 192 01:59:35] ASSISTANT (turn 1 step 22) · in 256 (cache 158592) out 99
+    ▷ 
+    → update_goal {"goal_id": "goal-729e8cbb-365a-4827-9c7e-86b6ffd8c413", "revision": 1, "action": "complete"}
+[ 195 01:59:35] RESULT update_goal
+    {"goal":{"id":"goal-729e8cbb-365a-4827-9c7e-86b6ffd8c413","revision":2,"objective":"Determine and prove how Super Mario Bros. (World) freezes the status bar while the level below it scrolls: find the scanline where the scroll changes, what the game waits for before changing it, and which code writes the new scroll — using trace_writes on $2005 and on the wait condition, disassembly, and before/after screenshots. Then record it as a record_mapping note id 'scroll split' and call promote_mappings once at the end.","phase":"complete","roundsStarted":0,"maxGoalRounds":256},"activation":"disarmed"}
+[ 198 01:59:39] ASSISTANT (turn 1 step 23) · in 401 (cache 158720) out 807
+    ▷ Done. Provide final answer.
+    ## The status-bar scroll split, proven
+    
+    **Scanline:** the split is at **scanline 31**. Screen scanlines 0–31 (top 4 tile rows, y 0–31) are the fixed HUD at scroll 0,0 in nametable 0; scanline 32 down is the level at scroll_x = the camera, nametable 1. `get_tile_at_pixel` at y=8/24/30/31 reports `scroll_source:"vblank"`, scroll_x 0; at y=32/40/100/200 it reports `scroll_source:"scanline"`, `scroll_scanline:31`, scroll_x 1 (camera was `$071A/$071C` = 257).
+    
+    **What it waits for:** the **sprite‑0 hit** — PPUSTATUS `$2002` bit 6. Gated by `$0722` (=1 in 1‑1), the NMI runs this loop at `$8150`:
+    ```
+    $8150  LDA $2002
+    $8153  AND #$40
+    $8155  BEQ $8150     ; loop ~190×/frame until the hit
+    ```
+    Sprite 0 is OAM #0: tile `$FF` at (88,25), palette 7 — the invisible HUD‑coin sprite, whose only opaque pixels are rows 5–6 = scanlines 30–31 over the HUD coin tile `$2E`. `trace_writes read` on `$2002` (3 frames, 585 reads) shows the reader at `$8153` with value `$1E` until it exits on `$5E` (bit `$40` set).
+    
+    **Which code writes the new scroll** — the NMI at `$815C`–`$816C`, after a 20‑iteration delay (`$8157 LDY #$14 / DEY / BNE`):
+    ```
+    $815C  LDA $073F ; $815F STA $2005   <- horizontal scroll = camera low byte
+    $8162  LDA $0740 ; $8165 STA $2005   <- vertical scroll = 0
+    $8168  LDA $0778 ; $816C STA $2000   <- PPUCTRL: nametable select -> 1
+    ```
+    The **fixed top** is written earlier in the same NMI: `$808C` sets `$2000` with nametable 0, and `$80A9–$80AD` does `LDA #$00 / JSR $8EE6` — the helper at `$8EE6` is `STA $2005 / STA $2005 / RTS`, i.e. the status bar's 0,0 scroll. So the NMI sets scroll 0,0 for the HUD, blocks in the sprite‑0 wait through scanlines 0–31, then switches scroll (and nametable) at scanline 31.
+    
+    **Evidence:** `trace_writes` on `$2005` at camera 0 gave 4 writers, all value 0; re-run at camera 257 gave pc `$8162` value 1 and pc `$8168` value 0 (once per frame) plus the helper's `$8EE9`/`$8EEC` writing 0,0. Before/after screenshots: HUD `MARIO 000000 / WORLD 1-1 / TIME 394` at camera 0, then `MARIO 000100 / WORLD 1-1 / TIME 235` at camera 257 — bar unmoved, level scrolled.
+    
+    Recorded as note `scroll split` and promoted to the ROM mapping file.
+[ 200 01:59:39] ─── turn 1 end: {"kind":"completed"}
+

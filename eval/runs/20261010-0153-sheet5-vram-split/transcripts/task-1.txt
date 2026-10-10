@@ -1,0 +1,290 @@
+# session-5919e366-7da3-4c9f-9419-21e8a1d7df3c · Map NMI PPU write routine in SMB
+# cwd /home/oof/.cache/jeromy/headless-cwd · preset ? · model deepseek-flash · created 2026-10-10T06:53:59.326Z
+
+[   3 01:53:59] QUEUED <user> for next-turn: Mapping sheet 5 (the routines), Super Mario Bros., World 1-1: find the routine that copies queued writes into the PPU during the NMI (the code that writes $2006 and $2007 from a buffer). Prove it with… [+641 chars]
+[   4 01:53:59] ━━━ turn 1 ━━━
+[   8 01:53:59] USER <user>
+    Mapping sheet 5 (the routines), Super Mario Bros., World 1-1: find the routine that copies queued writes into the PPU during the NMI (the code that writes $2006 and $2007 from a buffer). Prove it with trace_writes on $2007 (or $2006) to get the writing PC, then disassemble back to the routine's entry. Record it with record_mapping mapping_type routine, id the entry address, a plain name, notes saying what it does and how you found it, source 'trace and disassembly'. Facts about this game you may rely on: it is on its title screen or attract demo; Start on the title begins a game, but Start during the attract demo only returns to the title, so press Start, wait a second, press Start again. trace_writes runs frames, so resume_emulator before it if the game is paused. No reference is available. Call promote_mappings once at the end.
+[   9 01:53:59] USER <runtime-context>
+    Current runtime context. This snapshot supersedes earlier runtime-context snapshots.
+    
+    Current DSH file policy: read-only. Any available operation enforced by the DSH file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.
+    
+    Approval policy: ask. Operations that require approval may ask through the configured answerers; without an available answerer, the request fails closed.
+[  10 01:53:59] USER <skill-catalog>
+    <system-reminder>
+    A skill is a reusable set of task-specific instructions. The following skills are available in this session:
+    
+    <available_skills>
+    - `find-variable`: Find the RAM address of a game variable (lives, coins, timer, score, position, power state) with no disassembly or RAM map, by differential search: snapshot RAM, make the value change by playing, snapshot again, keep the addresses that moved the way the action predicts, repeat, then prove the survivor by writing it and looking. Use when the user asks where a value lives, wants infinite lives or a changed counter, or asks you to map a game nobody has documented.
+    - `identify-click`: Tell the user what they clicked in the emulator view (which object, which tile, which palette and color) and verify the tool readout against the rendered pixels before trusting it. Use whenever a context line beginning "[emulator view] The user clicked pixel" arrives, or the user says "what is this" about something on screen.
+    - `palette-swap`: Recolor one on-screen object (ground, logo, pipe, an enemy) by changing one entry of one NES palette, without recoloring everything else that shares it. Use when the user asks to change the color of something they can see, or asks which palette something uses.
+    - `persist-edit`: Make a change permanent in the ROM, not just in the running game. Find where the bytes the game copies into RAM or palette RAM live in PRG/CHR ROM, write them there (ledgered), prove it with a reset, record the origin, and export a patch. Use when the user says "permanently", "save this to the ROM", "make a patch", or asks whether a change will survive a restart.
+    - `play-to-reach`: Get the player to a place far into a level by playing, in short checkpointed runs: save_state, a run of held direction plus timed jumps, a look, load_state on any setback. Use when a task needs something that is only on screen further into a level (an enemy past the pipes, the flagpole, a hidden block), or when writing the player's position did not bring the screen along.
+    </available_skills>
+    
+    If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
+    A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
+    </system-reminder>
+[  16 01:54:01] ASSISTANT (turn 1 step 1) · in 1019 (cache 14592) out 230
+    ▷ The task: find the NMI routine that copies queued writes to PPU ($2006/$2007), prove with trace_writes on $2007, disassemble back to routine entry, record mapping.
+    
+    Let me start. First check state, resume if paused. Let me get ROM info and take a screenshot.
+    
+    Let me first pause? No, trace needs frames running. Let's resume and trace.
+    
+    Plan:
+    1. screenshot to see state
+    2. get_cpu_state to see if paused
+    3. resume_emulator
+    4. trace_writes on 0x2007 (PPU register) — but trace_writes on CPU address 0x2007? Memory-mapped register. Use mem_type cpu, address 0x2007. Should catch writes.
+    
+    Let me do it.
+    I'll start by checking the emulator state and taking a screenshot.
+    → screenshot {}
+    → get_cpu_state {}
+    → get_rom_info {}
+[  18 01:54:01] RESULT screenshot
+    🖼 256x240 image/png eval/runs/20261010-0153-sheet5-vram-split/images/task-1/06f28c21a3d7.png
+[  20 01:54:01] RESULT get_cpu_state
+    {"a":144,"cycle":240862195,"pc":32857,"y":0,"ppu_cycle":0,"scanline":240,"x":5,"status":133,"sp":255}
+[  22 01:54:01] RESULT get_rom_info
+    {"sha1":"33D23C2F2CFA4C9EFEC87F7BC1321CE3CE6C89BD","name":"Super Mario Bros. (World).nes","path":"C:\\Users\\tarsier\\Documents\\.Super Mario Bros. (World)\\Super Mario Bros. (World).nes"}
+[  26 01:54:04] ASSISTANT (turn 1 step 2) · in 46944 (cache 15744) out 277
+    ▷ The task: find the NMI routine that copies queued writes into PPU ($2006/$2007 from buffer). We have mapping notes referring to "WriteVRAMBuffer" at $8EBB mentioned in the underground palette proof: "the copy loop at PC $8EBB (inside WriteVRAMBuffer...)". So likely entry around $8EBB-ish. Actually let's do it properly: trace_writes on $2007 to get writing PC.
+    
+    The game is running (attract demo likely). Let's trace $2007. But trace_writes refused while paused; currently RUNNING. Good.
+    
+    Let me trace on CPU address 0x2007.
+    Game is running. Let me trace writes to the PPU data register `$2007` to find the code that pushes the queued buffer to the PPU.
+    → trace_writes {"address": 8199, "length": 1, "frames": 30, "mem_type": "cpu", "mode": "write"}
+[  28 01:54:05] RESULT trace_writes
+    {"frames":30,"truncated":false,"recorded_accesses":19,"length":1,"mem_type":"cpu","writers":[{"last_address":8199,"last_value":0,"samples":[{"frame":2,"value":15,"address":8199},{"frame":2,"value":39,"address":8199},{"frame":2,"value":23,"address":8199},{"frame":2,"value":0,"address":8199},{"frame":10,"value":15,"address":8199},{"frame":10,"value":39,"address":8199},{"frame":10,"value":23,"address":8199},{"frame":10,"value":0,"address":8199}],"count":19,"origin":{"mem_type":"prgRom","mem_type_id":45,"address":3774},"last_frame":26,"pc":36542,"pc_hex":"0x8EBE","origin_hex":"prgRom 0xEBE"}],"mod… [+168 chars]
+[  31 01:54:06] ASSISTANT (turn 1 step 3) · in 384 (cache 62848) out 196
+    ▷ Only one writer: PC $8EBE, prgRom 0xEBE. That's the STA $2007 inside the copy loop. This matches the mapping note about "WriteVRAMBuffer ... copy loop at PC $8EBB". Now disassemble backwards to the routine entry.
+    
+    Let me disassemble around $8E90-$8EE0.
+    One writer: PC `$8EBE` (prgRom `0xEBE`) — the `STA $2007` inside the copy loop. Let me disassemble around it to find the routine's entry.
+    → disassemble {"address": 36480, "length": 96, "arch": "6502"}
+[  33 01:54:06] RESULT disassemble
+    $8e80: 30 3d       bmi 0x0000
+    $8e82: 4a          lsr a
+[  36 01:54:08] ASSISTANT (turn 1 step 4) · in 238 (cache 63232) out 184
+    ▷ Hmm, disassembly at 36480 = 0x8E80 gave weird output because it's not aligned. 36480 decimal = 0x8E80. It printed bmi 0x0000 — some disassembler quirk. Let me disassemble from an earlier aligned point. Actually let's disassemble from $8E60.
+    
+    Wait, the output seems truncated oddly. Let me try address 36448 (0x8E60).
+    Let me disassemble from a bit earlier to align properly.
+    → disassemble {"address": 36448, "length": 128, "arch": "6502"}
+[  38 01:54:08] RESULT disassemble
+    $8e60: 40          rti 
+    $8e61: 4a          lsr a
+    $8e62: aa          tax 
+    $8e63: 8d 16 40    sta 0x4016
+    $8e66: 20 6a 8e    jsr 0x8e6a
+    $8e69: e8          inx 
+    $8e6a: a0 08       ldy #0x08
+    $8e6c: 48          pha 
+    $8e6d: bd 16 40    lda 0x4016, x
+    $8e70: 85 00       sta 0x00
+    $8e72: 4a          lsr a
+    $8e73: 05 00       ora 0x00
+    $8e75: 4a          lsr a
+    $8e76: 68          pla 
+    $8e77: 2a          rol a
+    $8e78: 88          dey 
+    $8e79: d0 f1       bne 0x0000
+    $8e7b: 9d fc 06    sta 0x06fc, x
+    $8e7e: 48          pha 
+    $8e7f: 29 30       and #0x30
+    $8e81: 3d 4a 07    and 0x074a, x
+    $8e84: f0 07       beq 0x0000… [+1336 chars]
+[  41 01:54:13] ASSISTANT (turn 1 step 5) · in 1141 (cache 63616) out 963
+    ▷ Interesting. The disassembly seems misaligned because the actual instruction at $8EBB is `8D 07 20` (STA $2007) — that matches the trace PC $8EBE (after the 3-byte instruction, the PC reported is the next instruction? Actually trace reports the PC at time of write; for a 3-byte STA abs, the PC during execution is the address of the next instruction typically in Mesen? The trace gave PC $8EBE which is `ca dex` — that's the instruction after the STA). So the STA $2007 is at $8EBB. Good. The trace PC convention reports post-instruction PC.
+    
+    Now the routine: it starts earlier. Let's find the entry. At $8E92 there's `sta $2006` — that's part of this routine. Before that, $8E8D-$8E91 is the tail of ReadJoypads (rts at $8E91). So the VRAM buffer routine likely starts at $8E92? But that would mean entry falls in the middle of code without a label. Actually $8E8D pla / sta $074a,x / rts is end of ReadJoypads. Then $8E92 begins the next routine: STA $2006 ... so entry = $8E92.
+    
+    Wait, but the routine is called with A = high byte of PPU address, and $00/$01 = pointer to buffer. Let me confirm: it writes A to $2006 (high), then INY, LDA ($00),Y, STA $2006 (low), INY, LDA ($00),Y (length/control… [+1233 chars]
+    The `STA $2007` loop is at `$8EBB`. The routine clearly starts right after ReadJoypads' RTS at `$8E91` — entry `$8E92` (`STA $2006`). Let me confirm by finding its callers and by tracing `$2006`.
+    → search_memory {"hex": "20 92 8E", "mem_type": "prgRom", "max_results": 16}
+    → trace_writes {"address": 8198, "frames": 30, "length": 1, "mem_type": "cpu", "mode": "write"}
+[  43 01:54:13] RESULT search_memory
+    {"start":0,"mem_type":"prgRom","truncated":false,"memory_size":32768,"offsets":[],"searched":32768,"pattern_length":3,"offsets_hex":[]}
+[  45 01:54:14] RESULT trace_writes
+    {"frames":30,"truncated":false,"recorded_accesses":30,"length":1,"mem_type":"cpu","writers":[{"last_address":8198,"last_value":63,"samples":[{"frame":1,"value":63,"address":8198},{"frame":9,"value":63,"address":8198},{"frame":17,"value":63,"address":8198},{"frame":19,"value":32,"address":8198},{"frame":25,"value":63,"address":8198}],"count":5,"origin":{"mem_type":"prgRom","mem_type_id":45,"address":3733},"last_frame":25,"pc":36501,"pc_hex":"0x8E95","origin_hex":"prgRom 0xE95"},{"last_address":8198,"last_value":0,"samples":[{"frame":1,"value":0,"address":8198},{"frame":9,"value":0,"address":819… [+1983 chars]
+[  48 01:54:22] ASSISTANT (turn 1 step 6) · in 1038 (cache 65664) out 1596
+    ▷ The $2006 writes are all within the $8E92-$8EDD region, confirming the same routine. PCs reported are post-instruction addresses: $8E95 (after STA $2006 at $8E92), $8E9B (after STA $2006 at $8E98), $8ED2 (after STA $2006 at $8ECF), $8EDA (after $8ED7), $8EDD (after $8EDA).
+    
+    So the routine spans $8E92 to ~$8EEC (before $8EED which is another routine — EnableNMI, referenced as JSR $8EED). Let's disassemble $8EDD onward to find the RTS.
+    
+    The search for "20 92 8E" (JSR $8E92) found nothing, meaning callers don't use absolute JSR to $8E92? Hmm. Maybe the routine entry is not $8E92, or callers use JMP, or it's called via a different mechanism. Let me search for JMP $8E92 (4C 92 8E) too, and also check the note that $8EED is EnableNMI. Let me disassemble $8EDD-$8F06.
+    
+    Actually wait — the routine entry might be earlier and the code at $8E92 reached by falling through from ReadJoypads? No, ReadJoypads ends RTS at $8E91.
+    
+    Hmm, but no JSR $8E92. Maybe there's a JSR to a slightly different entry like $8E8D? Let me reconsider the disassembly alignment. It's possible the disassembler started mid-instruction. Let me verify by disassembling from a known offset e.g. $8E20 or check bytes. Actually t… [+3002 chars]
+    `$2006` writes come from the same `$8E92`–`$8EDD` block, so that whole region is the buffer-to-PPU copier. Curiously, no `JSR $8E92` exists — let me find how it's entered (the NMI tail) and see the routine's end.
+    → disassemble {"address": 33122, "length": 48, "arch": "6502"}
+    → disassemble {"address": 36573, "length": 32, "arch": "6502"}
+    → search_memory {"hex": "92 8E", "mem_type": "prgRom", "max_results": 16}
+[  50 01:54:22] RESULT disassemble
+    $8162: ad 40 07    lda 0x0740
+    $8165: 8d 05 20    sta 0x2005
+    $8168: ad 78 07    lda 0x0778
+    $816b: 48          pha 
+    $816c: 8d 00 20    sta 0x2000
+    $816f: ad 76 07    lda 0x0776
+    $8172: 4a          lsr a
+    $8173: b0 03       bcs 0x0000
+    $8175: 20 12 82    jsr 0x8212
+    $8178: ad 02 20    lda 0x2002
+    $817b: 68          pla 
+    $817c: 09 80       ora #0x80
+    $817e: 8d 00 20    sta 0x2000
+    $8181: 40          rti 
+    $8182: ad 70 07    lda 0x0770
+    $8185: c9 02       cmp #0x02
+    $8187: f0 0b       beq 0x0000
+    $8189: c9 01       cmp #0x01
+    $818b: d0 38       bne 0x0000
+    $818d: ad 72 07    lda 0x0772
+    $8190: c9 03       cmp #0x… [+2 chars]
+[  52 01:54:22] RESULT disassemble
+    $8edd: ae 02 20    ldx 0x2002
+    $8ee0: a0 00       ldy #0x00
+    $8ee2: b1 00       lda (0x00), y
+    $8ee4: d0 ac       bne 0x0000
+    $8ee6: 8d 05 20    sta 0x2005
+    $8ee9: 8d 05 20    sta 0x2005
+    $8eec: 60          rts 
+    $8eed: 8d 00 20    sta 0x2000
+    $8ef0: 8d 78 07    sta 0x0778
+    $8ef3: 60          rts 
+    $8ef4: f0 06       beq 0x0000
+[  54 01:54:22] RESULT search_memory
+    {"start":0,"mem_type":"prgRom","truncated":false,"memory_size":32768,"offsets":[],"searched":32768,"pattern_length":2,"offsets_hex":[]}
+[  57 01:54:34] ASSISTANT (turn 1 step 7) · in 671 (cache 68224) out 2612
+    ▷ The routine ends with RTS at $8EEC. So it spans $8E92-$8EEC (91 bytes). Entry $8E92.
+    
+    No reference to "92 8E" anywhere in PRG, so it must be called via a pointer table using indirect jump, or the disassembly is off by a bit and the true entry is something else. Hmm. Let me reconsider: maybe the routine is reached by a `JMP ($0000)` style dispatch where a pointer is stored in RAM, or the NMI might not call it — indeed the NMI tail at $8175 JSR $8212 (GameEngine). The GameEngine and mode handlers probably call the VRAM buffer writer.
+    
+    But no "92 8E" bytes at all in PRG?! That's suspicious — a routine that is called must have its address somewhere. Unless it's called via a computed address: e.g., the routine is at $8E92 and callers do `JSR $8E92` — that would create bytes 20 92 8E. Search found nothing. And searching "92 8E" found nothing. So no code references $8E92.
+    
+    That means $8E92 is likely NOT the entry. Instead, the entry might be somewhere earlier and $8E92 is reached by fall-through from earlier code in the same routine! Let's look: before $8E92, at $8E8D we have `pla / sta $074A,x / rts` — that's the end of ReadJoypads. So $8E92 can't be reached by fall-through (rts at $8E91… [+6802 chars]
+    Routine ends at `RTS $8EEC` — an 91-byte span `$8E92`–`$8EEC`. No absolute reference to `$8E92` exists in PRG though, so let me disassemble the full NMI to find how it's called.
+    → disassemble {"address": 32898, "length": 240, "arch": "6502"}
+    → read_memory {"address": 3700, "length": 28, "mem_type": "prgRom"}
+[  59 01:54:35] RESULT disassemble
+    $8082: ad 78 07    lda 0x0778
+    $8085: 29 7f       and #0x7f
+    $8087: 8d 78 07    sta 0x0778
+    $808a: 29 7e       and #0x7e
+    $808c: 8d 00 20    sta 0x2000
+    $808f: ad 79 07    lda 0x0779
+    $8092: 29 e6       and #0xe6
+    $8094: ac 74 07    ldy 0x0774
+    $8097: d0 05       bne 0x0000
+    $8099: ad 79 07    lda 0x0779
+    $809c: 09 1e       ora #0x1e
+    $809e: 8d 79 07    sta 0x0779
+    $80a1: 29 e7       and #0xe7
+    $80a3: 8d 01 20    sta 0x2001
+    $80a6: ae 02 20    ldx 0x2002
+    $80a9: a9 00       lda #0x00
+    $80ab: 20 e6 8e    jsr 0x8ee6
+    $80ae: 8d 03 20    sta 0x2003
+    $80b1: a9 02       lda #0x02
+    $80b3: 8d 14 40    sta 0x4014
+    $80b6: … [+2335 chars]
+[  61 01:54:35] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[0,74,104,42,136,208,241,157,252,6,72,41,48,61,74,7,240,7,104,41,207,157,252,6,96,104,157,74],"address":3700}
+[  64 01:55:33] ASSISTANT (turn 1 step 8) · in 1902 (cache 71424) out 13442
+    ▷ Now I see. The NMI at $80B6:
+    ```
+    LDX $0773
+    LDA $805A,X   ; low byte of buffer pointer
+    STA $00
+    LDA $806D,X   ; high byte
+    STA $01
+    JSR $8EDD     ; <-- not $8E92!
+    ```
+    
+    Wait, it does `JSR $8EDD`. And $8EDD is:
+    ```
+    $8EDD: ae 02 20  ldx $2002
+    $8EE0: a0 00     ldy #$00
+    $8EE2: b1 00     lda ($00),y
+    $8EE4: d0 ac     bne $8E92   ; if nonzero, branch to $8E92!
+    $8EE6: 8d 05 20  sta $2005  (wait, sta $2005 twice?)
+    $8EE9: 8d 05 20  sta $2005
+    $8EEC: 60        rts
+    ```
+    
+    Hmm, `d0 ac` at $8EE4: branch if not zero to $8EE4+2+(-0x54) = $8EE6-0x54 = $8E92. Yes! BNE $8E92. So the entry point for the actual work is $8E92, and it's reached via a branch from the entry at $8EDD. So the routine's canonical entry (as the game calls it) is $8EDD, which reads the buffer pointer and then branches into $8E92.
+    
+    Interesting. So there are two "entry" candidates:
+    - $8EDD: the called entry (JSR $8EDD from NMI at $80C3).
+    - $8E92: the loop body entry that does $2006/$2007 writes.
+    
+    In the canonical SMB disassembly, which is labeled "WriteVRAMBuffer"? I believe the label WriteVRAMBuffer is at $8E92... Hmm, but actually I now recall: In doppelganger SMB disassembly:
+    
+    ```
+    WriteVRAMBuffer:
+          LDA $2002             ; reset P… [+41091 chars]
+    Now I have the full picture. The NMI at `$80C3` does `JSR $8EDD` (loop head that resets the PPU latch and reads the first buffer byte), which branches into the transfer body at `$8E92`. Let me confirm the routine's opening bytes and the buffer-pointer tables the NMI feeds it.
+    → read_memory {"address": 3730, "length": 8, "mem_type": "prgRom"}
+    → read_memory {"address": 90, "length": 19, "mem_type": "prgRom"}
+    → read_memory {"address": 109, "length": 19, "mem_type": "prgRom"}
+[  66 01:55:33] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[141,6,32,200,177,0,141,6],"address":3730}
+[  68 01:55:33] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[1,164,200,236,16,0,65,65,76,52,60,68,84,104,124,168,191,222,239],"address":90}
+[  70 01:55:33] RESULT read_memory
+    {"mem_type":"prgRom","bytes":[3,140,140,140,141,3,3,3,141,141,141,141,141,141,141,141,141,141,141],"address":109}
+[  73 01:55:51] ASSISTANT (turn 1 step 9) · in 272 (cache 86656) out 3914
+    ▷ Bytes at prgRom 0xE92 = 8D 06 20 8D... wait it read address 3730 = 0xE92: bytes [141, 6, 32, 200, 177, 0, 141, 6] = 8D 06 20 C8 B1 00 8D 06. Yes! STA $2006 / INY / LDA ($00),Y / STA $2006. Confirms entry $8E92.
+    
+    Buffer pointer low table at CPU $805A (prgRom 0x5A): bytes [1, 164, 200, 236, 16, 0, 65, 65, 76, 52, 60, 68, 84, 104, 124, 168, 191, 222, 239] — hmm that's odd. High table at $806D (0x6D): [3, 140, 140, 140, 141, 3, 3, 3, 141, 141, ...].
+    
+    Hmm, these look like they might be misaligned or the tables are at slightly different addresses. The NMI code: LDX $0773; LDA $805A,X; STA $00; LDA $806D,X; STA $01. So low table at $805A, high at $806D, 19 entries apart. Reading $805A gave [1,164,200,236,...]. First entry 1, high first entry 3 → pointer $0301. Second: low 164 ($A4), high 140 ($8C) → $8CA4?? That doesn't look like RAM buffer. Hmm. Wait, high byte $8C → that's ROM, not RAM. Hmm.
+    
+    Hmm, maybe the table addresses are different. Wait, maybe I misread the NMI. Let me re-check: `$80b9: bd 5a 80 lda 0x805a, x`. Yes $805A,X. And `$80be: bd 6d 80 lda 0x806d, x`. Yes $806D,X.
+    
+    Low table bytes at 0x5A: [1, 164, 200, 236, 16, 0, 65, 65, 76, 52, 60, 68, 84, 104, 124, 168, 191, 222, 239]… [+6822 chars]
+    I have everything I need. Summary of the evidence chain:
+    
+    - **`trace_writes` on `$2007`** (30 frames, running): exactly one writer, PC `$8EBE` (prgRom `0xEBE`) — the `DEX` immediately after the 3-byte `STA $2007` at `$8EBB`, 19 accesses.
+    - **`trace_writes` on `$2006`**: writers at PCs `$8E95`, `$8E9B`, `$8ED2`, `$8EDA`, `$8EDD` — all inside the same routine.
+    - **Disassembling back** from `$8EBB` hits the routine's first instruction `$8E92` (`STA $2006`); the byte before it (`$8E91`) is the `RTS` ending ReadJoypads.
+    - The NMI at `$80C3` does `JSR $8EDD` — the loop head that resets the PPU latch (`LDX $2002`), reads the first buffer byte and branches into `$8E92`. The pointer `$00/$01` comes from the NMI's tables `$805A,X`/`$806D,X` indexed by `$0773`; entry 0 = `$0301` (RAM buffer at `$0300`), entries 1-4 = `$8CA4/$8CC8/$8CEC/$8D10` (the ROM area-palette records).
+    
+    Recording it now.
+    → record_mapping {"mapping_type": "routine", "id": "0x8E92", "name": "WriteVRAMBuffer - NMI routine that copies the queued VRAM buffer to the PPU", "length": 91, "notes": "The per-frame routine that drains the game's queued PPU writes (nametable/attribute/palette) during NMI. Code span $8E92-$8EEC. BODY at $8E92 (first instruction, preceded by the RTS at $8E91 that ends ReadJoypads): STA $2006 (record's PPU addres… [+1770 chars]
+[  75 01:55:51] RESULT record_mapping
+    {"mapping_type":"routine","id":"0x8E92","name":"WriteVRAMBuffer - NMI routine that copies the queued VRAM buffer to the PPU","length":91,"category":"other","group":null,"notes":"The per-frame routine that drains the game's queued PPU writes (nametable/attribute/palette) during NMI. Code span $8E92-$8EEC. BODY at $8E92 (first instruction, preceded by the RTS at $8E91 that ends ReadJoypads): STA $2006 (record's PPU address high byte, in A); INY; LDA ($00),Y; STA $2006 (address low); INY; LDA ($00),Y = control byte: bit7 selects PPU increment direction (OR/AND bit2 of PPUCTRL via $8EED EnableNMI)… [+1618 chars]
+[  78 01:55:53] ASSISTANT (turn 1 step 10) · in 844 (cache 90752) out 48
+    ▷ Now promote_mappings as instructed at the end.
+    Now promoting the confirmed discovery into the ROM's mapping file, as requested.
+    → promote_mappings {}
+[  80 01:55:53] RESULT promote_mappings
+    Promoted 1 discoveries to mappings/sha1-33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd.json for Super Mario Bros. (World).nes. File now has 65 tiles, 8 palettes, 8 sprites, 34 addresses. 0 hypotheses skipped.
+[  84 01:55:57] ASSISTANT (turn 1 step 11) · in 47256 (cache 91520) out 679
+    ▷ The mapping is recorded and promoted. Task complete. No goal was created. Provide a concise final answer.
+    Done. Here's the routine I found and recorded:
+    
+    ## WriteVRAMBuffer — entry `$8E92` (prgRom `0xE92`)
+    
+    **Evidence chain (trace → disassembly):**
+    - `trace_writes` on `$2007` (30 frames) returned exactly **one** writer: PC `$8EBE`, prgRom `0xEBE`, 19 accesses. That PC is the `DEX` right after the 3-byte `STA $2007` at **`$8EBB`**.
+    - A parallel trace on `$2006` returned PCs `$8E95`, `$8E9B`, `$8ED2`, `$8EDA`, `$8EDD` — all in this same block.
+    - Disassembling back from `$8EBB` reaches the routine's first instruction **`$8E92` (`STA $2006`)**; the byte before it (`$8E91`) is the `RTS` that ends ReadJoypads.
+    
+    **What it does:** runs every NMI and drains the queued PPU records. Each record is `[addr hi][addr lo][control][data...]`:
+    - `$8E92` `STA $2006` (addr hi), `$8E98` `STA $2006` (addr lo)
+    - control byte: bit 7 selects PPU increment direction (via `EnableNMI $8EED`), bit 6 sets repeat, low 6 bits = byte count → `TAX`
+    - copy loop `$8EB8`: `INY / LDA ($00),Y / STA $2007` (`$8EBB`) `DEX / BNE`
+    - advances the pointer `$00/$01` by Y, resets the PPU address latch (`$3F00` then `$0000`), then loops at `$8EDD` (`LDX $2002 / LDY #$00 / LDA ($00),Y / BNE $8E92`) until a 0 first byte ends the list.
+    
+    **Caller:** the NMI at `$80C3` does `JSR $8EDD` after loading the record pointer from `$805A,X` / `$806D,X` (X = `$0773`). Table entry 0 → `$0301` (the dynamic RAM buffer at `$0300`), entries 1-4 → `$8CA4/$8CC8/$8CEC/$8D10`, i.e. the ROM area-palette records — which is why the same routine also pushes area palettes from ROM (matching the earlier palette discovery that traced the `$8CEF` read at `$8EBB`).
+    
+    Recorded with `record_mapping` (routine, id `0x8E92`, source "trace and disassembly") and `promote_mappings` promoted it — the mapping file now has 65 tiles, 8 palettes, 8 sprites, 34 addresses.
+[  86 01:55:57] ─── turn 1 end: {"kind":"completed"}
+
